@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { UserError, guarded } from "@/lib/actionResult";
 import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
@@ -112,11 +113,18 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
     });
 
     // A granted or revoked tag may change narrowcast access (#watch,
-    // #intercom). Sequential and after the writes, per ARCHITECTURE.md §5 —
-    // never a fan-out of REST calls at Discord's rate limiter.
+    // #intercom) and private-room membership — a key tag gained opens a door,
+    // a key tag lost shuts it. Sequential and after the writes, per
+    // ARCHITECTURE.md §5 — never a fan-out of REST calls at Discord's rate
+    // limiter.
     after(async () => {
-      for (const characterId of ids) {
-        await syncCharacterNarrowcastAccess(characterId).catch(() => {});
+      const rows = await prisma.character.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, discordUserId: true, locationId: true, status: true },
+      });
+      for (const row of rows) {
+        await syncCharacterNarrowcastAccess(row.id).catch(() => {});
+        await syncCharacterRoomAccess(prisma, row).catch(() => {});
       }
     });
 

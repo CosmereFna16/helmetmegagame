@@ -76,7 +76,11 @@ const R = {
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),
   ],
   request_heal_character: (d) => [actor(), t("healed"), target(), ...effectTail(d)],
-  request_move_character: (d, e) => [actor(), t("moved to"), zone(name(e, d.toZoneId))],
+  request_move_character: (d, e) => [
+    actor(),
+    t("moved to"),
+    zone(d.toLocationName) ?? zone(name(e, d.toZoneId)),
+  ],
   request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
   request_loot_character: (d) => [actor(), t("looted"), target(), ...effectTail(d)],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
@@ -140,7 +144,7 @@ const R = {
   gm_message_delivery_failed: () => [actor(), t("could NOT deliver a message to"), target()],
   gm_bulk_tag_grant: (d) => [actor(), t("granted"), chip(d.tagName), t("to"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
   gm_bulk_tag_revoke: (d) => [actor(), t("revoked"), chip(d.tagName), t("from"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
-  gm_bulk_move: (d) => [actor(), t("moved"), recipients(d.characterIds?.length), t("to"), zone(d.zoneName)],
+  gm_bulk_move: (d) => [actor(), t("moved"), recipients(d.characterIds?.length), t("to"), zone(d.locationName ?? d.zoneName)],
   gm_heal: (d) => [actor(), t("healed"), target(), ...(d.tagNames?.length ? [t("of"), ...joinChips(d.tagNames)] : [])],
   gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name)],
   gm_custom_tag_updated: (d) => [actor(), t("edited the custom tag"), chip(d.name)],
@@ -180,13 +184,19 @@ const R = {
     actor(), t("created"), target(),
     ...(d.role ? [t("—"), chip(d.role)] : []),
     ...(d.faction ? [t("of"), chip(d.faction)] : []),
-    ...(d.zone ? [t("in"), zone(d.zone)] : []),
+    ...(d.location || d.zone ? [t("in"), zone(d.location ?? d.zone)] : []),
   ],
   member_joined: (d) => [em(d.username ?? "Someone"), t("joined the guild")],
   member_left: (d) => [em(d.username ?? "Someone"), t("left the guild"), ...(d.characterName ? [t("—"), em(d.characterName)] : [])],
+  // Kept so old rows still render: players opened forum topics and private
+  // threads before Bascinet 2 replaced both with Conversations.
   player_topic_created: () => [actor(), t("opened a public topic")],
-  player_thread_created: () => [actor(), t("opened a private thread")],
+  player_thread_created: () => [actor(), t("opened a conversation")],
   thread_persistence_changed: () => [actor(), t("changed a thread's persistence")],
+  character_conceal_toggled: (d) => [
+    actor(),
+    t(d.concealed ? "put their hood up" : "put their hood down"),
+  ],
 
   // ---- OOC reports (bot/src/lib/reportChannel.js) ----
   ooc_report_opened: () => [actor(), t("opened an OOC report ticket")],
@@ -273,6 +283,7 @@ const FAMILY_OVERRIDES = {
   gm_donated_lifeweb_blood: "lifeweb",
   gm_fed_lifeweb_person: "lifeweb",
   character_created: "membership",
+  character_conceal_toggled: "membership",
   thread_persistence_changed: "membership",
   hunger_resolved: "system",
   default_moves_resolved: "system",

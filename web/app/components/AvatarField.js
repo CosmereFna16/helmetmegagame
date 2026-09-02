@@ -9,6 +9,7 @@ import { resetAvatarToDefault } from "../(app)/character/actions";
 
 export default function AvatarField({
   defaultTurnPingOptIn,
+  defaultConcealed,
   uploadsEnabled = false,
   portraitMakerEnabled = false,
   portraitFantasyPartsEnabled = false,
@@ -79,6 +80,11 @@ export default function AvatarField({
         )}
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
+        </Switch>
+        {/* While this is on every message you send posts under your alias with
+            the unknown avatar, and Who's here? lists the alias too. */}
+        <Switch name="concealed" defaultChecked={defaultConcealed}>
+          Speak under an anonymous alias ‡
         </Switch>
         {fileName ? (
           <span className="text-sm text-muted">

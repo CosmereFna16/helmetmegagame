@@ -574,7 +574,11 @@ export default function CreateCharacterWizard({
             </div>
             <div>
               <dt className="text-muted">Starts in</dt>
-              <dd>{role.startingZoneName ?? "Nowhere yet"}</dd>
+              <dd>
+                {role.startingLocationName
+                  ? `${role.startingLocationName}${role.startingZoneName ? `, ${role.startingZoneName}` : ""} ‡`
+                  : "Nowhere yet ‡"}
+              </dd>
             </div>
             <div>
               <dt className="text-muted">Resources</dt>

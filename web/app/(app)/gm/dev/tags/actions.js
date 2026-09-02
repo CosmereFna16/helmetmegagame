@@ -6,6 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyTagOpsInTx } from "@/lib/characterWrite";
 import {
   normalizeExpiresInto,
@@ -326,14 +327,20 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/players", "layout");
 
-  // A live grant may change narrowcast access (#watch, #intercom), same as
-  // bulkTagCharacters. Sequential and after the writes, per ARCHITECTURE.md
-  // §5 — never a fan-out of REST calls at Discord's rate limiter. A staged
-  // grant hasn't touched anyone's holdings yet, so it's skipped here.
+  // A live grant may change narrowcast access (#watch, #intercom) and
+  // private-room membership, same as bulkTagCharacters. Sequential and after
+  // the writes, per ARCHITECTURE.md §5 — never a fan-out of REST calls at
+  // Discord's rate limiter. A staged grant hasn't touched anyone's holdings
+  // yet, so it's skipped here.
   if (applied.length && !result.staged) {
     after(async () => {
-      for (const characterId of applied) {
-        await syncCharacterNarrowcastAccess(characterId).catch(() => {});
+      const rows = await prisma.character.findMany({
+        where: { id: { in: applied } },
+        select: { id: true, discordUserId: true, locationId: true, status: true },
+      });
+      for (const row of rows) {
+        await syncCharacterNarrowcastAccess(row.id).catch(() => {});
+        await syncCharacterRoomAccess(prisma, row).catch(() => {});
       }
     });
   }

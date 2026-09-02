@@ -12,16 +12,16 @@ running the sync is the only way these rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `LocationTopic` | `slug` | **Destructive** — a dropped Zone loses its DB row, its Discord category/channels *and* its `Zone: {Name}` role; a dropped topic loses its forum post |
+| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b) |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members, roles, or a non-zero silo is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 
 **Run order matters:** zones → tags → roles → desires → documents. Roles
-resolve a `starting_zone` by slug and a Faction's zone — plus its optional
-`silo_zone:` override, which must name a **seat** zone (`FACTIONS.md` §3b) —
-by name, and validate
+resolve a `starting_zone` and an optional `starting_location` by slug, and a
+Faction's zone — plus its optional `silo_zone:` override, which must name a
+**seat** zone (`FACTIONS.md` §3b) — by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags,
@@ -49,11 +49,11 @@ is unchanged.
 
 ### Match keys
 
-`slug` everywhere except `Document`, which uses `key`. **Zone and
-`LocationTopic` share one slug namespace** — a topic named like a zone would
+`slug` everywhere except `Document`, which uses `key`. **Zones, Locations and
+Rooms share one slug namespace** — a Location named like its own zone would
 make "which thing is `town`?" ambiguous everywhere slugs are read, so the sync
-rejects a duplicate across both lists. (This is why the old `town` Location is
-the `town-square` topic.)
+rejects a duplicate across all three lists. (This is why Town's own Square is
+`town-square`, not `town`.)
 
 A changed `id` is not a rename: the old entry is pruned and a new one
 provisioned from scratch, losing its Discord objects. Rename by editing `name`.
@@ -90,21 +90,21 @@ just doesn't reach a game already in progress.
 `syncZones` is the one with a split personality:
 
 - **One-time:** Discord category, channel and role *creation*, and their
-  *names*. Keyed on the id columns being null. Renaming a zone in the YAML
-  never renames a live channel. (One exception: a zone role recorded in the DB
-  but **missing from the guild** is recreated — someone deleted it by hand, the
-  doctor reports it, this repairs it.)
-- **Every run:** channel topics and slowmode, permission overwrites, forum
-  tags, category and channel ordering, the Create-a-Topic anchors, the
-  `#private` anchor messages, the generated Location topic posts, the travel
-  graph, `seatZoneId`, the map polygons, and the cursed role's colour.
+  *names*. Keyed on the id columns being null. Renaming a zone or Location in
+  the YAML never renames a live channel. (One exception: a zone or Location
+  role recorded in the DB but **missing from the guild** is recreated —
+  someone deleted it by hand, the doctor reports it, this repairs it.)
+- **Every run:** channel topics, permission overwrites, category and channel
+  ordering, each Location's Room threads, its pinned anchor message, the
+  travel graph, `seatZoneId`, the map polygons (dormant), and the cursed
+  role's colour.
 
-The anchors and the topic posts are the every-run items that also cover
-*freshly* provisioned zones — provisioning creates channels, never posts. All
-three are gated on a content hash (`Zone.createTopicHash`,
-`Zone.privateAnchorHash`, `LocationTopic.postHash`), so a re-sync with no YAML
-edits makes no Discord writes for them at all, and a changed body is rewritten
-in place rather than recreated. See `CHANNELS.md` §4.
+The Room threads and the anchors are the every-run items that also cover
+*freshly* provisioned Locations — provisioning creates channels, never
+threads or messages. Both are gated on a content hash (`Room.postHash`,
+`Location.anchorHash`), so a re-sync with no YAML edits makes no Discord
+writes for them at all, and a changed body is rewritten in place rather than
+recreated. See `CHANNELS.md` §4.
 
 ### The zones.yaml format
 
@@ -114,29 +114,40 @@ zones:
     name: Town            # display name, used only at first provisioning
     kind: surface         # surface | group  (a group's levels become CAVE_LEVELs)
     sort: 1
-    description: >-       # the blurb on the Create-a-Topic anchor
+    description: >-       # zone-level blurb; prose only, not shown on any anchor
     map:
-      polygon: [[50, 30], [95, 30], ...]   # % of the 4:3 plate, or [] for a group
+      polygon: [[50, 30], [95, 30], ...]   # dormant — see MAP.md
       label: { x: 74, y: 50 }
-    topics:               # → LocationTopic rows → generated forum posts
-      church:
-        name: Cathedral
-        description: >-
-        subLocations:     # keyless, so it stays a sequence
-          - name: Crypt
-            description: ""
+    locations:             # → Location rows → one text channel + role each
+      town-square:          # zones/locations/rooms share ONE slug namespace
+        name: Square
+        description: >-     # the anchor's -# subtext and the channel topic
+        rooms:               # → Room rows → threads under the Location channel
+          the-charon:
+            name: The Charon
+            description: >-
+            access: [the-barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
     levels:               # groups only; each becomes a standable CAVE_LEVEL zone
       caverns:
-        ...
+        locations:
+          ...
 
-zoneConnections:          # the whole travel graph; every hop costs the Move
-  - [town, fortress]
+connections:              # the whole travel graph, as zone/location pairs
+  - [town/town-square, fortress/gatehouse]   # crosses zones: costs the Move
+  - [town/town-square, town/cathedral]       # same zone: free, on the cooldown
 ```
 
-A `kind: group` zone may carry `levels:` but **not** `topics:` (topics belong
-on its levels), and may never appear in `zoneConnections` — it isn't a place
-you can stand. A non-group zone may not carry `levels:`. All of that is checked
-in pass 0.
+A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
+belong on its levels), and its own id may never appear in `connections` — it
+isn't a place you can stand, only its levels' locations are. A non-group zone
+may not carry `levels:`. Every presence zone needs **at least one** Location —
+the parser throws otherwise. All of that is checked in pass 0.
+
+`access:` slugs are **not** validated against the tag catalog — zones sync
+before tags, so `docs/tags.yaml` doesn't exist to check against yet. A typo
+there doesn't fail the sync; it just makes a room nobody can ever hold a key
+to, and the channel doctor's `room-membership` check (`CHANNELS.md` §6) is
+where that shows up, not this one.
 
 ### Strict vs soft validation
 
@@ -145,9 +156,9 @@ Most references throw rather than half-apply — an unknown `parentTag`,
 `starting_zone` must additionally be a **presence** zone: the Caves group is a
 container, and a character can't start inside a container.
 
-The one soft case is `zoneConnections` coverage: a presence zone in no pair at
-all is **warned** about, not thrown on. It's legal in principle (a one-way
-starting zone) and almost always a typo.
+The one soft case is `connections` coverage: a Location in no pair at all is
+**warned** about, not thrown on. It's legal in principle (a dead end nobody
+walks to) and almost always a typo.
 
 `documents.yaml`'s `tags:` list is the other deliberate exception. It conflates
 real Tag names, the Leader/Treasurer booleans, and free-text authoring notes
@@ -168,23 +179,37 @@ by slug before every row necessarily exists: TagGroup scalars → Tag scalars +
 `groupId` → `parentTag`/`requiredTag` links → `TagGroup.requiredTag` links →
 `requirement.skills`. Each pass writes only when something actually changed.
 
-`syncZones` runs **five**:
+`syncZones` runs more passes now that a zone, a Location and a Room are three
+separate tables:
 
 0. **Parse + validate.** No writes at all. A malformed master fails the whole
    run before anything is touched.
-1. **DB upsert.** Zones by slug (cave levels flattened out of their group's
-   `levels:` list, parents before children so `parentZoneId` resolves in one
-   sweep) → a second sweep stamping `seatZoneId` (`parentZoneId ?? id`) once
-   every id exists → `LocationTopic` rows by slug → the connection graph,
-   written both directions.
-2. **Discord provisioning**, create-only: each presence zone's `Zone: {Name}`
-   role, then categories and channels per `zoneChannelSpec`. Groups before
-   levels, so a level can parent onto its group's category.
-3. **Reconcile**, every run, for everything already provisioned — the list
-   above. Freshly provisioned zones skip the overwrite reconcile (creation just
-   applied the spec) but still get their anchors and posts.
-4. **Prune.** Topics first (their posts live in zone forums), then zones —
-   Discord objects and the role, then the row.
+1. **DB upsert**, in sub-passes: **1a** zones by slug (cave levels flattened
+   out of their group's `levels:` list, parents before children so
+   `parentZoneId` resolves in one sweep); **1b** a second sweep stamping
+   `seatZoneId` (`parentZoneId ?? id`) once every zone id exists; **1c**
+   Locations by slug (a Location whose zone changed keeps its channel and
+   role — a text channel *can* reparent, done later by the ordering pass);
+   **1c-bis** Rooms by slug (a Room whose location or `kind` changed can't
+   just move — a thread can't reparent and can't change type — so its old
+   thread is deleted and it's recreated fresh by the room-thread pass); **1d**
+   the travel graph, both directions explicit.
+2. **Discord provisioning**, create-only, in two sub-passes: **2a** one role
+   per presence zone and one per Location; **2b** categories, `#summary`
+   channels and Location channels per `zoneChannelSpec`/`locationChannelSpec`.
+   Groups before levels, so a level's Locations can parent onto its group's
+   category.
+3. **Reconcile**, every run, for everything already provisioned — channel
+   topics and overwrites. Freshly provisioned zones/Locations skip the
+   overwrite reconcile (creation just applied the spec) but still get
+   ordered, threaded and anchored below. Category and channel ordering run
+   next, then **Room threads, then anchors** — in that order, because an
+   anchor's body embeds its Rooms' thread mentions.
+4. **Prune.** Rooms first (their threads live under Location channels), then
+   Locations (channel, role, row — characters standing there are set null and
+   the doctor reports them), then zones.
+5. **`#turns` access**, last — its view grants are keyed on zone roles, and
+   pass 2a can recreate a role with a new id partway through the run.
 
 Two implementation details in pass 3 are load-bearing:
 
@@ -193,12 +218,12 @@ Two implementation details in pass 3 are load-bearing:
   — the special channels' member grants, on the channels this same function is
   reused for.
 - The delete half only touches a **managed set**: the GM role, the spectator
-  role, the cursed role and the zone roles. `@everyone` is deliberately *not*
-  in it — its `ViewChannel` deny is the single overwrite the entire privacy
-  model rests on, and excluding it structurally means no future edit to the
-  spec can turn this pass into the thing that strips a zone's privacy. Having
-  the zone roles in the set is what makes a stray `Zone: Fortress` overwrite on
-  a Town channel self-heal.
+  role, the cursed role and every zone/Location role. `@everyone` is
+  deliberately *not* in it — its `ViewChannel` deny is the single overwrite
+  the entire privacy model rests on, and excluding it structurally means no
+  future edit to the spec can turn this pass into the thing that strips a
+  zone or Location's privacy. Having the zone/Location roles in the set is
+  what makes a stray `Zone: Fortress` overwrite on a Town channel self-heal.
 
 ## 3. Restart Game
 

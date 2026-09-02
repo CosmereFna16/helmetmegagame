@@ -60,7 +60,7 @@ export default function ActionBar({
   canDelete,
   hasActed,
   openTurn,
-  zones,
+  locations,
   factions,
   transferRoster,
   tags,
@@ -444,16 +444,19 @@ export default function ActionBar({
               Moves them there instantly. They&apos;ll be DM&apos;d that they were moved.
             </p>
             <ul className="flex flex-col gap-2">
-              {(zones ?? []).map((z) => (
-                <li key={z.id}>
+              {(locations ?? []).map((l) => (
+                <li key={l.id}>
                   <button
                     type="button"
                     className="btn-quiet w-full text-left"
-                    disabled={character.zoneId === z.id}
-                    onClick={() => run(() => teleportCharacter({ characterId: character.id, zoneId: z.id }))}
+                    disabled={character.locationId === l.id}
+                    onClick={() =>
+                      run(() => teleportCharacter({ characterId: character.id, locationId: l.id }))
+                    }
                   >
-                    {z.name}
-                    {character.zoneId === z.id ? " — already there" : ""}
+                    {l.name}
+                    <span className="text-muted"> — {l.zoneName ?? "unzoned ‡"}</span>
+                    {character.locationId === l.id ? " — already there ‡" : ""}
                   </button>
                 </li>
               ))}

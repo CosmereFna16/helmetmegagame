@@ -296,7 +296,8 @@ npm run db:sync                      # zones, narrowcast channels, tags,
                                      #   roles, desires, documents.
                                      #   `-- --seed-silos` re-seeds every Silo.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
-                                     #   their channels + roles, Location topics)
+                                     #   Locations, Rooms, their channels/
+                                     #   threads + roles)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced;
                                      #   `-- --seed-silos` re-seeds every Silo)
@@ -439,8 +440,9 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 
 | Role | Source | What it gates |
 |---|---|---|
-| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Channel access: holding it is what shows you the zone's category. Swapped by travel; reconciled by the channel doctor. |
-| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role** instead (`CHANNELS.md` §3). |
+| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`/`#intercom`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
+| **Location role** | `Location.discordRoleId`, one per Location ("Location: Square"), created by `db:sync-zones` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change (`db/lib/locationMove.js`); reconciled by the channel doctor. |
+| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone and Location roles** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
@@ -481,13 +483,13 @@ before adding or changing a command. Three things cause real problems:
 - **Registration is global**, not per-guild
   (`client.application.commands.set` in `bot/src/events/ready.js`). A guild
   command can never appear in the bot's DMs, no matter what contexts it
-  declares — and `/move` `/location` `/message` need to work there.
+  declares — and `/move` `/location` `/message` `/conceal` need to work there.
   The cost of global registration is real: a new or renamed command takes
   **up to an hour** to show up. `set` fully replaces the list, so removing a
   command needs no separate deregistration step.
 - **Use contexts, not `setDMPermission`.** Any command that needs a channel
-  or thread to act on (`/gm`, `/dm`, `/add`, `/remove`, `/persistent`,
-  `/heal`) declares `Guild` only. That way it never shows up in a DM picker
+  or thread to act on (`/gm`, `/dm`, `/add`, `/remove`, `/heal`) declares
+  `Guild` only. That way it never shows up in a DM picker
   where it could only refuse to run.
 - **`interaction.guild` and `interaction.member` are null in a DM.** No
   player handler may use them directly. Go through

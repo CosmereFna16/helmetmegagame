@@ -10,7 +10,6 @@ import {
   getGmSession,
   ensureCharacterRole,
   syncCharacterNickname,
-  syncCharacterZoneRole,
   syncCharacterNarrowcastAccess,
   revokeAllCharacterAccess,
   deleteCharacterRole,
@@ -30,7 +29,8 @@ import {
   applyTagOpsInTx,
   planDiscordEffects,
 } from "@/lib/characterWrite";
-import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
@@ -197,14 +197,15 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
           if (step === "dynasty" && isDynastyHead((role ?? existing.role)?.slug)) {
             await propagateDynastyLastName(updated.lastName);
           }
-          if (step === "zone") {
-            await syncCharacterZoneRole(
-              updated.discordUserId,
-              diff.zoneId?.from ?? null,
-              updated.zoneId,
-            );
+          if (step === "location") {
+            await applyLocationMoveSideEffects(prisma, {
+              characterId,
+              fromLocationId: diff.locationId?.from ?? null,
+              toLocationId: updated.locationId,
+            });
           }
           if (step === "narrowcast") await syncCharacterNarrowcastAccess(characterId);
+          if (step === "rooms") await syncCharacterRoomAccess(prisma, updated);
         } catch (err) {
           console.error(`Dev Panel Discord step "${step}" failed for ${characterId}:`, err);
         }
@@ -218,7 +219,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   if (tagGains.length) changeLines.push(`+ ${tagGains.join(", ")}`);
   if (tagLosses.length) changeLines.push(`- ${tagLosses.join(", ")}`);
   if (diff.resources) changeLines.push(`Resources: ${diff.resources.from} → ${diff.resources.to} ⬢`);
-  if (diff.zoneId) changeLines.push(`Moved.`);
+  if (diff.locationId) changeLines.push(`Moved.`);
   if (diff.name || diff.lastName) changeLines.push(`Name updated.`);
   if (changeLines.length) {
     notifyCharacter(session, existing, `Your sheet was edited:\n${changeLines.join("\n")}`);
@@ -280,7 +281,13 @@ async function reviveCharacterImpl({ characterId }) {
       await removeCursedRole(updated.discordUserId);
       await ensureCharacterRole(updated);
       await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
-      await syncCharacterZoneRole(updated.discordUserId, null, updated.zoneId);
+      // fromLocationId null: kill already stripped every grant, so this is a
+      // restore, and the shared fan-out re-grants both roles plus rooms.
+      await applyLocationMoveSideEffects(prisma, {
+        characterId,
+        fromLocationId: null,
+        toLocationId: updated.locationId,
+      });
       await syncCharacterNarrowcastAccess(characterId);
     } catch (err) {
       console.error("Revive Discord restore failed:", err);
@@ -430,8 +437,13 @@ async function resyncDiscordImpl({ characterId }) {
     try {
       await ensureCharacterRole(character);
       await syncCharacterNickname(character.discordUserId, formatBareName(character));
-      await syncCharacterZoneRole(character.discordUserId, null, character.zoneId);
+      await applyLocationMoveSideEffects(prisma, {
+        characterId,
+        fromLocationId: null,
+        toLocationId: character.locationId,
+      });
       await syncCharacterNarrowcastAccess(characterId);
+      await syncCharacterRoomAccess(prisma, character);
     } catch (err) {
       console.error("Dev Panel resync failed:", err);
     }
@@ -442,47 +454,62 @@ async function resyncDiscordImpl({ characterId }) {
 }
 
 // A raw relocation like Bulk Move's: no Move cost, no Action, no adjacency
-// check. Immediate, not staged, since it only touches zoneId.
-async function teleportCharacterImpl({ characterId, zoneId }) {
+// check, and no cooldown stamp. Immediate, not staged, since it only touches
+// where the character stands.
+async function teleportCharacterImpl({ characterId, locationId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
   if (character.status !== "ALIVE") throw new UserError("A corpse can't be moved.");
 
-  const zone = zoneId ? await prisma.zone.findUnique({ where: { id: zoneId } }) : null;
-  if (zoneId && !zone) throw new UserError("That zone no longer exists.");
-  if (zone?.kind === "CAVE_GROUP") throw new UserError("That isn't a place a character can stand.");
-  if (character.zoneId === (zoneId || null)) {
+  const location = locationId
+    ? await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } })
+    : null;
+  if (locationId && !location) throw new UserError("That location no longer exists. ‡");
+  if (character.locationId === (locationId || null)) {
     throw new UserError(`${character.name} is already there.`);
   }
 
-  const fromZoneId = character.zoneId;
+  const fromLocationId = character.locationId;
+  // The denormalization contract: locationId and zoneId are written together.
   const updated = await prisma.character.update({
     where: { id: characterId },
-    data: { zoneId: zoneId || null },
+    data: { locationId: locationId || null, zoneId: location?.zoneId ?? null },
   });
 
   await audit(session, "gm_character_teleported", characterId, {
-    fromZoneId,
+    fromLocationId,
+    toLocationId: updated.locationId,
+    toLocationName: location?.name ?? null,
     toZoneId: updated.zoneId,
-    toZoneName: zone?.name ?? null,
+    toZoneName: location?.zone?.name ?? null,
   });
   notifyCharacter(
     session,
     character,
-    zone ? `You were moved to ${zone.name}.` : "You were moved somewhere with no zone access.",
+    location
+      ? `You were moved to ${location.name}.`
+      : "You were moved somewhere with no channel access. ‡",
   );
 
   after(async () => {
     try {
-      await syncCharacterZoneRole(updated.discordUserId, fromZoneId, updated.zoneId);
-      await syncCharacterNarrowcastAccess(characterId);
-      await applyPendingInvites(prisma, updated);
+      if (updated.locationId) {
+        await applyLocationMoveSideEffects(prisma, {
+          characterId,
+          fromLocationId,
+          toLocationId: updated.locationId,
+        });
+      } else {
+        await syncCharacterNarrowcastAccess(characterId);
+        await syncCharacterRoomAccess(prisma, updated);
+      }
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);
     }
-    // Rolls the Caving Die on arrival like walking in does (CAVING.md). Sent
-    // plainly, not via notifyCharacter — the die speaks, not the GM.
-    const cavingDm = await rollCavingOnArrival(prisma, updated, zone);
+    // Rolls the Caving Die on arrival like walking in does (CAVING.md). Keyed
+    // on the ZONE, not the location. Sent plainly, not via notifyCharacter —
+    // the die speaks, not the GM.
+    const cavingDm = await rollCavingOnArrival(prisma, updated, location?.zone ?? null);
     if (cavingDm) {
       await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
         console.error("Dev Panel teleport: caving arrival DM failed:", err),
@@ -491,7 +518,7 @@ async function teleportCharacterImpl({ characterId, zoneId }) {
   });
 
   repaint(characterId);
-  return { zoneName: zone?.name ?? null };
+  return { locationName: location?.name ?? null, zoneName: location?.zone?.name ?? null };
 }
 
 // Irreversible. Discord cleanup runs first while the row still has the

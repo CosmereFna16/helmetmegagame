@@ -520,16 +520,20 @@ export const REQUEST_EFFECTS = {
     },
   },
 
-  // Undo puts Character.zoneId back — DB only, no Discord zone-role swap
-  // (ARCHITECTURE.md §5); it catches up on the player's next Move.
+  // Undo puts Character.locationId (and the zoneId denormalized off it)
+  // back — DB only, no Discord role swap (ARCHITECTURE.md §5); it catches up
+  // on the player's next Move.
   MOVE_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {
-      const { targetCharacterId, targetName, fromZoneId } = request.effect;
+      const { targetCharacterId, targetName, fromLocationId, fromZoneId } = request.effect;
       if (targetCharacterId) {
-        await tx.character.update({ where: { id: targetCharacterId }, data: { zoneId: fromZoneId ?? null } });
+        await tx.character.update({
+          where: { id: targetCharacterId },
+          data: { locationId: fromLocationId ?? null, zoneId: fromZoneId ?? null },
+        });
       }
-      return `Moved ${targetName ?? "them"} back to their previous zone. Discord access is not re-synced by Undo — it catches up on their next Move.`;
+      return `Moved ${targetName ?? "them"} back to where they were. Discord access is not re-synced by Undo — it catches up on their next Move. ‡`;
     },
   },
 
@@ -544,29 +548,6 @@ export const REQUEST_EFFECTS = {
         await tx.character.update({ where: { id: targetCharacterId }, data: { buriedAt: null } });
       }
       return `${targetName ?? "The body"} is out of the ground and lootable again. The Cursed role is NOT restored — re-add it in Discord if you want the curse back.`;
-    },
-  },
-
-  // Undo restores fastTravelTurnId to what it was, not to null, so it
-  // doesn't hand a free second ride to someone who already used one that day.
-  FAST_TRAVEL: {
-    editableFields: [],
-    async undo(tx, request) {
-      const { fromZoneId, fromZoneName, previousFastTravelTurnId, passengers } = request.effect;
-      await tx.character.update({
-        where: { id: request.characterId },
-        data: { zoneId: fromZoneId ?? null, fastTravelTurnId: previousFastTravelTurnId ?? null },
-      });
-      if (passengers?.length) {
-        await tx.character.updateMany({
-          where: { id: { in: passengers.map((p) => p.id) } },
-          data: { zoneId: fromZoneId ?? null },
-        });
-      }
-      const passengerNote = passengers?.length
-        ? ` ${passengers.map((p) => p.name).join(" and ")} went back too.`
-        : "";
-      return `Sent back to ${fromZoneName ?? "where they started"}, and the ride is theirs again.${passengerNote} Discord access is not re-synced by Undo — it catches up on their next Move.`;
     },
   },
 

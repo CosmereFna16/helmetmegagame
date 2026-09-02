@@ -2,7 +2,9 @@ const { prisma } = require("@lifeweb/db");
 const { PLAYER_ROLE_ID } = require("@lifeweb/db/lib/roleIds");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
 const { syncMemberNickname } = require("../lib/nickname");
-const { swapZoneRole, syncCharacterNarrowcastAccess } = require("../lib/zoneTravel");
+const { restoreStandingRoles } = require("../lib/locationTravel");
+const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
+const { syncCharacterRoomAccess } = require("@lifeweb/db/lib/roomAccess");
 
 module.exports = {
   name: "guildMemberAdd",
@@ -32,7 +34,7 @@ module.exports = {
     const character = await prisma.character
       .findFirst({
         where: { discordUserId: member.id, status: "ALIVE" },
-        include: { zone: true },
+        include: { zone: true, location: true },
       })
       .catch((err) => {
         console.error(`Rejoin lookup failed for ${member.id}:`, err);
@@ -53,15 +55,19 @@ module.exports = {
     await member.roles
       .add(PLAYER_ROLE_ID)
       .catch((err) => console.error(`Failed to re-grant Player to ${member.id}:`, err.message));
-    // Old zone null — the leave stripped everything, so this is a pure
-    // re-grant with nothing to move away from, the same shape Revive uses
-    // (CHARACTERS.md §5b). Turn-ping and the like are left to the channel
-    // doctor's next cheap pass.
-    await swapZoneRole(member.guild, member.id, null, character.zone).catch((err) =>
-      console.error(`Failed to restore ${character.name}'s zone role on rejoin:`, err.message),
+    // The leave stripped everything, so this is a pure re-grant with nothing
+    // to move away from, the same shape Revive uses (CHARACTERS.md §5b): the
+    // Location role that opens their one channel, the Zone role that opens
+    // #summary, then narrowcast overwrites and private-room membership.
+    // Turn-ping and the like are left to the channel doctor's next cheap pass.
+    await restoreStandingRoles(member, character).catch((err) =>
+      console.error(`Failed to restore ${character.name}'s standing roles on rejoin:`, err.message),
     );
-    await syncCharacterNarrowcastAccess(member.guild, character).catch((err) =>
+    await reconcileNarrowcastAccess(prisma, character.id, member.id).catch((err) =>
       console.error(`Failed to restore ${character.name}'s narrowcast access on rejoin:`, err.message),
+    );
+    await syncCharacterRoomAccess(prisma, character).catch((err) =>
+      console.error(`Failed to restore ${character.name}'s room access on rejoin:`, err.message),
     );
 
     if (wasTrackedDeparted) {

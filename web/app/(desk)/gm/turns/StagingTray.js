@@ -53,6 +53,7 @@ export default function StagingTray({
   moves,
   roster,
   presenceZones,
+  stagingLocations,
   factions,
   tagCatalog,
   onInspect,
@@ -274,6 +275,7 @@ export default function StagingTray({
                 tagCatalog={tagCatalog}
                 roster={roster}
                 presenceZones={presenceZones}
+                stagingLocations={stagingLocations}
                 onInspect={onInspect}
                 gmProfiles={gmProfiles}
                 showBatch
@@ -289,6 +291,7 @@ export default function StagingTray({
               tagCatalog={tagCatalog}
               roster={roster}
               presenceZones={presenceZones}
+              stagingLocations={stagingLocations}
               onInspect={onInspect}
               gmProfiles={gmProfiles}
             />
@@ -317,6 +320,7 @@ export default function StagingTray({
           roster={roster}
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onDone={() => {
             setComposer(null);
             refresh();

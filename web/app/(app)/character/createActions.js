@@ -14,10 +14,10 @@ import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
-  syncCharacterZoneRole,
   syncCharacterNarrowcastAccess,
   getGuildMember,
   isCursed,
@@ -98,7 +98,11 @@ export async function createCharacter(formData) {
     // Zone comes along for the playtest lock below (no Windlander column).
     prisma.role.findUnique({
       where: { id: roleId },
-      include: { faction: { include: { zone: true } }, startingZone: true },
+      include: {
+        faction: { include: { zone: true } },
+        startingZone: true,
+        startingLocation: { include: { zone: true } },
+      },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
@@ -298,7 +302,11 @@ export async function createCharacter(formData) {
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
-          zoneId: role.startingZoneId,
+          // The denormalization contract: every writer of locationId writes
+          // location.zoneId in the same statement. A role with no starting
+          // location leaves the character unplaced, and both stay null.
+          locationId: role.startingLocationId ?? null,
+          zoneId: role.startingLocation?.zoneId ?? null,
           resources: role.startingResources,
           tagPoints: budget - spent,
           isLeader: role.grantsLeader,
@@ -325,15 +333,21 @@ export async function createCharacter(formData) {
     throw err;
   }
 
-  // Discord side effects, best-effort: narrowcast reads the zone/tags just
-  // written. Channel access is the zone's own "Zone: {Name}" role, distinct
-  // from the character's personal (mentionable name-only) role.
+  // Discord side effects, best-effort. Placement is one call — the shared
+  // location fan-out swaps the "Location: {Name}" and "Zone: {Name}" roles,
+  // reconciles narrowcast access and private-room membership, and replays any
+  // standing conversation invite. The character's personal role is separate:
+  // it is a mentionable name token and grants nothing.
   await ensureCharacterRole(created).catch(() => {});
-  if (created.zoneId) {
-    await syncCharacterZoneRole(discordUserId, null, created.zoneId).catch(() => {});
+  if (created.locationId) {
+    await applyLocationMoveSideEffects(prisma, {
+      characterId: created.id,
+      fromLocationId: null,
+      toLocationId: created.locationId,
+    }).catch(() => {});
   }
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
-  await syncCharacterNarrowcastAccess(created.id).catch(() => {});
+  if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
 
   // A new Baron renames every living family member, including one created
@@ -352,7 +366,8 @@ export async function createCharacter(formData) {
       details: {
         role: role.name,
         faction: role.faction?.name ?? null,
-        zone: role.startingZone?.name ?? null,
+        zone: role.startingLocation?.zone?.name ?? null,
+        location: role.startingLocation?.name ?? null,
         budget,
         spent,
         purchased: selected.map((t) => t.name),
@@ -365,7 +380,7 @@ export async function createCharacter(formData) {
     kind: "CHARACTER_CREATED",
     character: created,
     zoneId: created.zoneId ?? null,
-    zoneName: role.startingZone?.name ?? null,
+    zoneName: role.startingLocation?.zone?.name ?? null,
     turn: openTurn,
     content: `${created.name} arrived in Ravenheart as ${role.name}.`,
   });

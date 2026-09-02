@@ -77,9 +77,9 @@ The order, and why:
 | 1 | **Access sweep** (`revokeAccessForCharacters`) | First, while nothing has re-provisioned: strips every character's zone role and every stray member overwrite, channel-major |
 | 2 | **Per character**: delete the personal role, clear the nickname, drop turn-ping | Discord role state the DB transaction never touched. Sequential — 240+ simultaneous requests against two per-guild buckets is its own incident. Each character is its own step, so a failure names them |
 | 3 | **Cursed roles** removed from everyone who held one | A restart should not leave anyone cursed from the last game |
-| 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, and every forum post and private thread, Location topics and anchors included. It then **nulls the generated-post ids and hashes** so the re-sync rebuilds them instead of hash-matching a post that no longer exists |
+| 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, every Location channel and every thread under it, Rooms and anchors included. It then **nulls the recorded thread/anchor ids and hashes** so the re-sync rebuilds them instead of hash-matching something that no longer exists |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
-| 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, channel, zone role, anchor and Location topic from `docs/zones.yaml` |
+| 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, `#summary`, Location channel, zone and location role, Room thread and anchor from `docs/zones.yaml` |
 | 7 | **Special channels sync** | Right after zones, because `#intercom`'s view grants name the zone roles step 6 may have just recreated |
 | 8 | **Tag sync** → 9. **Role sync** → 10. **Desire sync** → 11. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions |
 | 12 | **Channel doctor** (cheap, apply) | The structural backstop: whatever a retry above still missed, the doctor finds by diffing Discord against the now-empty roster and repairs. Not a bigger retry count — a different mechanism |
@@ -145,11 +145,11 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
 | `GhostWhisper` rows | A returning player can carry a 12-hour whisper cooldown into the new game. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `LocationTopic`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. Faction `silo` is zeroed, then re-seeded at its computed opening balance (`db/lib/factionSilo.js`). |
+| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. Faction `silo` is zeroed, then re-seeded at its computed opening balance (`db/lib/factionSilo.js`). |
 
-Everything zone-side in Discord — categories, channels, zone roles, anchors,
-Location topic posts — is **destroyed and regenerated**. Zone rows keep their
-ids; their Discord objects do not.
+Everything zone-side in Discord — categories, channels, zone and location
+roles, anchors, Room threads — is **destroyed and regenerated**. Zone,
+Location and Room rows keep their ids; their Discord objects do not.
 
 ## 5. If you are not wiping
 
@@ -192,11 +192,11 @@ around that or add a second superadmin before the game opens.
 - [ ] `#turns` exists, is named exactly `turns`, and shows the console message
       with its button row. Both the announcement and the console find it by
       exact name; a rename loses all three player entry points.
-- [ ] Every zone has its category and channels, and each public forum shows a
-      pinned **Create a Topic** post with a working button
-- [ ] Each `#private` shows its permanent **Create** message
-- [ ] The Location topics are posted, tagged `Location`, and readable
-- [ ] `/map` draws every zone polygon and the destination list matches
+- [ ] Every zone has its category and `#summary`, every Location has its own
+      channel, and each Location channel shows its pinned anchor with a
+      working **Who's here? / Secret rooms? / Converse** button row
+- [ ] Every Location's Rooms exist as threads, public ones visible and
+      private ones invisible to a keyless test account
 - [ ] `/character` renders the creation wizard, not `CreationClosed`, for a
       test account holding the player role
 - [ ] The role tree on step 2 is populated — empty means the role sync failed
@@ -207,5 +207,5 @@ around that or add a second superadmin before the game opens.
 - [ ] `npm run db:doctor -- --full` comes back with nothing (or nothing you
       didn't expect)
 - [ ] Make one throwaway character end to end, then check it can see exactly
-      one zone, travel once, and open a topic
+      one Location, travel once, and open a Conversation
 - [ ] End one turn and confirm the announcement posts

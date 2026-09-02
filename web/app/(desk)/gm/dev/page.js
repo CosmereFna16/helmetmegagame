@@ -84,7 +84,7 @@ export default async function DevPanelPage({ searchParams }) {
   const lastForPhase = openTurnRecord ?? lastTurn;
   const nextPhase = !lastForPhase || lastForPhase.phase === "DUSK" ? "DAWN" : "DUSK";
 
-  let zones = [];
+  let locations = [];
   let livingCharacters = [];
   let latestByKind = new Map();
   let antagonistRoster = [];
@@ -92,16 +92,15 @@ export default async function DevPanelPage({ searchParams }) {
 
   switch (section) {
     case "move":
-      [zones, livingCharacters] = await Promise.all([
-        prisma.zone.findMany({
-          where: { kind: { not: "CAVE_GROUP" } },
-          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-          select: { id: true, name: true },
+      [locations, livingCharacters] = await Promise.all([
+        prisma.location.findMany({
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
         }),
         prisma.character.findMany({
           where: { status: "ALIVE" },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, zone: { select: { name: true } } },
+          select: { id: true, name: true, location: { select: { name: true } } },
         }),
       ]);
       break;
@@ -320,6 +319,19 @@ export default async function DevPanelPage({ searchParams }) {
                     <span className="field-label">Death after N Catatonic turns (0 = off)</span>
                     <input type="number" name="catatonicDeathTurns" min="0" max="60" defaultValue={config.catatonicDeathTurns} />
                   </label>
+                  <label className="field">
+                    <span className="field-label">
+                      Walk cooldown (seconds) ‡
+                      <InfoIcon text={CONFIG_HELP.locationMoveCooldownSeconds} />
+                    </span>
+                    <input
+                      type="number"
+                      name="locationMoveCooldownSeconds"
+                      min="0"
+                      max="3600"
+                      defaultValue={config.locationMoveCooldownSeconds}
+                    />
+                  </label>
                 </div>
 
                 <div className="ops-toggles">
@@ -434,8 +446,8 @@ export default async function DevPanelPage({ searchParams }) {
               <div className="ops-section-head">
                 <h2 className="section-title">Bulk Move</h2>
                 <p className="ops-lede">
-                  Relocate several characters to one zone at once. A raw move — no Move cost, no
-                  adjacency check.
+                  Relocate several characters to one location at once. A raw move — no Move
+                  cost, no adjacency check, no walk cooldown. ‡
                 </p>
               </div>
               <form action={bulkMoveCharacters} className="flex flex-wrap items-end gap-3">
@@ -445,23 +457,28 @@ export default async function DevPanelPage({ searchParams }) {
                     {livingCharacters.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
-                        {c.zone ? ` — ${c.zone.name}` : ""}
+                        {c.location ? ` — ${c.location.name}` : ""}
                       </option>
                     ))}
                   </select>
                 </label>
                 <label className="field">
-                  <span className="field-label">Zone</span>
-                  <Select name="zoneId">
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.id}>{z.name}</option>
+                  <span className="field-label">Location</span>
+                  <Select name="locationId">
+                    {groupLocationsByZone(locations).map((group) => (
+                      <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned ‡"}>
+                        {group.locations.map((l) => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </Select>
                 </label>
                 <SubmitButton pendingLabel="Moving…">Move them</SubmitButton>
               </form>
               <p className="ops-lede">
-                Their zone roles resync in the background; the report lands under System Reports.
+                Their location and zone roles resync in the background; the report lands under
+                System Reports. ‡
               </p>
             </section>
           ) : null}
@@ -554,4 +571,17 @@ export default async function DevPanelPage({ searchParams }) {
       </div>
     </div>
   );
+}
+
+
+// Locations arrive ordered by zone then sortOrder, so one pass builds the
+// <optgroup> list in docs/zones.yaml order.
+function groupLocationsByZone(locations) {
+  const groups = [];
+  for (const l of locations ?? []) {
+    const last = groups[groups.length - 1];
+    if (last && last.zoneId === l.zoneId) last.locations.push(l);
+    else groups.push({ zoneId: l.zoneId, zoneName: l.zone?.name ?? null, locations: [l] });
+  }
+  return groups;
 }

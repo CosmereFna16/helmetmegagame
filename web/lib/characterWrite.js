@@ -42,7 +42,7 @@ export const EDITABLE_FIELDS = [
   "roleId",
   "roleTitle",
   "factionId",
-  "zoneId",
+  "locationId",
   "isLeader",
   "isTreasurer",
   "resources",
@@ -159,19 +159,22 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     data.factionId = factionId;
   }
 
-  // Character.zoneId is the authoritative "where is this character" since the
-  // zone rework, and it must be a PRESENCE zone — the Caves group row owns a
-  // category and a GM seat, but nobody stands in it. A GM picker only offers
-  // presence zones, but this action is a public endpoint, so the kind check
-  // is the lock.
-  if ("zoneId" in picked) {
-    const zoneId = trimmedOrNull(picked.zoneId);
-    if (zoneId) {
-      const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
-      if (!zone) throw new UserError("That zone no longer exists.");
-      if (zone.kind === "CAVE_GROUP") throw new UserError("That isn't a place a character can stand.");
+  // Character.locationId is the authoritative "where is this character" since
+  // Bascinet 2, and zoneId is denormalized from it — every writer of one
+  // writes both, so the two are written together here. A GM picker only offers
+  // real locations, but this action is a public endpoint, so the lookup is the
+  // lock. Clearing the location clears the zone with it.
+  if ("locationId" in picked) {
+    const locationId = trimmedOrNull(picked.locationId);
+    if (locationId) {
+      const location = await prisma.location.findUnique({ where: { id: locationId } });
+      if (!location) throw new UserError("That location no longer exists. ‡");
+      data.locationId = locationId;
+      data.zoneId = location.zoneId;
+    } else {
+      data.locationId = null;
+      data.zoneId = null;
     }
-    data.zoneId = zoneId;
   }
 
   if ("resources" in picked) data.resources = intOrNull(picked.resources) ?? 0;
@@ -263,8 +266,11 @@ export function planDiscordEffects({ existing, diff, finalStatus, role, tagsTouc
   if (nameChanged || bareChanged || !existing.discordRoleId) steps.push("role");
   if (nameChanged) steps.push("nickname");
   if (diff.lastName && role) steps.push("dynasty");
-  if (diff.zoneId) steps.push("zone");
-  if (diff.zoneId || tagsTouched) steps.push("narrowcast");
+  if (diff.locationId) steps.push("location");
+  // A location change already reconciles narrowcast access inside the shared
+  // fan-out, so only a bare tag change needs this step of its own.
+  if (!diff.locationId && tagsTouched) steps.push("narrowcast");
+  if (tagsTouched) steps.push("rooms");
 
   return steps;
 }

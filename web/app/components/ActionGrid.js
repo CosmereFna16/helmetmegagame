@@ -15,7 +15,6 @@ import {
   KeyIcon,
   WoundIcon,
   GraveIcon,
-  HorseIcon,
   BirdIcon,
   EyeIcon,
 } from "./icons";
@@ -100,15 +99,6 @@ const ACTIONS = [
     icon: GraveIcon,
     label: "Bury Person",
     help: ACTION_HELP.bury,
-  },
-  // This one DOES take a gate, and legitimately: owning a horse is a fact
-  // about your own sheet, which is exactly what the rule allows.
-  {
-    mode: "fasttravel",
-    icon: HorseIcon,
-    label: "Fast Travel",
-    help: ACTION_HELP.fasttravel,
-    gate: "canFastTravel",
   },
   // The Bird's two, and the only entries here that HIDE rather than grey.
   //

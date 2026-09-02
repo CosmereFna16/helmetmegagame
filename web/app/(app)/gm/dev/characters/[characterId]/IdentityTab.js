@@ -14,7 +14,7 @@ import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } fr
 //
 // A touched field is outlined so the GM can see at a glance what Apply is
 // about to write; `edits` is the staged diff from DevPanel.
-export default function IdentityTab({ staged, lastNameLocked, factions, zones, roles, edits, onField }) {
+export default function IdentityTab({ staged, lastNameLocked, factions, locations, roles, edits, onField }) {
   const touched = (key) => (Object.hasOwn(edits, key) ? "field-dirty" : "");
 
   return (
@@ -180,18 +180,23 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
         </div>
 
         {/* Where they physically stand, and the whole of what they can see:
-            Apply swaps the zone's Discord role. The list is presence zones
-            only — the Caves group is a seat, not a place anyone stands. */}
+            Apply swaps the Location's Discord role, and the zone role with it
+            when the two locations sit in different zones. Grouped by zone so
+            the list reads like the map. */}
         <label className="field">
-          <span className="field-label">Zone</span>
+          <span className="field-label">Location</span>
           <Select
-            value={staged.zoneId ?? ""}
-            onChange={(e) => onField("zoneId", e.target.value || null)}
-            className={touched("zoneId")}
+            value={staged.locationId ?? ""}
+            onChange={(e) => onField("locationId", e.target.value || null)}
+            className={touched("locationId")}
           >
-            <option value="">(nowhere — grants no zone channel access)</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>{z.name}</option>
+            <option value="">(nowhere — grants no channel access) ‡</option>
+            {locationsByZone(locations).map((group) => (
+              <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned ‡"}>
+                {group.locations.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </optgroup>
             ))}
           </Select>
         </label>
@@ -244,4 +249,16 @@ export default function IdentityTab({ staged, lastNameLocked, factions, zones, r
       </section>
     </>
   );
+}
+
+// Locations arrive already ordered by zone then sortOrder, so grouping is one
+// pass and the <optgroup> order follows docs/zones.yaml.
+function locationsByZone(locations) {
+  const groups = [];
+  for (const l of locations ?? []) {
+    const last = groups[groups.length - 1];
+    if (last && last.zoneId === l.zoneId) last.locations.push(l);
+    else groups.push({ zoneId: l.zoneId, zoneName: l.zoneName, locations: [l] });
+  }
+  return groups;
 }

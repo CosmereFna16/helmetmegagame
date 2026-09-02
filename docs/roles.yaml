@@ -64,6 +64,12 @@
 # Caves group itself is not standable, but its levels (caverns, railroad,
 # aberrant-pits) are.
 #
+# `starting_location` (role-level, optional) is a Location **slug** from
+# docs/zones.yaml — it decides which Location channel (and "Location: {Name}"
+# role) the character lands in. If a role gives none, it defaults to the
+# first Location (by `sort`) of its `starting_zone`. If both are given, the
+# location must actually belong to that zone — the sync throws otherwise.
+#
 # `starting_tags` are Tag names from docs/tags.yaml, granted free at
 # creation on top of whatever the player buys with points. The sync throws on
 # any name not in the catalog, so a typo can't silently ship a character

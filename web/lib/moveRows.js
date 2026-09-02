@@ -156,8 +156,8 @@ export function moveRow(a, { usernameById, now }) {
   };
 }
 
-// ctx: { usernameById, presenceZoneNameById, openTurn }
-export function stagedEffectRow(e, { usernameById, presenceZoneNameById, openTurn }) {
+// ctx: { usernameById, locationNameById, openTurn }
+export function stagedEffectRow(e, { usernameById, locationNameById, openTurn }) {
   return {
     id: e.id,
     moveId: e.moveId,
@@ -173,8 +173,10 @@ export function stagedEffectRow(e, { usernameById, presenceZoneNameById, openTur
     // { from: {kind,id,name}, to: {kind,id,name}, amount } — mutually
     // exclusive with `resources`, see StagedEffect.payload in schema.prisma.
     transfer: e.payload?.transfer ?? null,
-    zoneId: e.payload?.zoneId ?? null,
-    zoneName: e.payload?.zoneId ? (presenceZoneNameById.get(e.payload.zoneId) ?? "(deleted zone)") : null,
+    locationId: e.payload?.locationId ?? null,
+    locationName: e.payload?.locationId
+      ? (locationNameById.get(e.payload.locationId) ?? "(deleted location)")
+      : null,
     applied: Boolean(e.appliedAt),
     appliedError: e.appliedEffect?.error ?? null,
     createdByUsername: usernameById.get(e.createdByDiscordUserId) ?? e.createdByDiscordUserId,

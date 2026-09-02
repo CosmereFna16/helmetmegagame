@@ -16,7 +16,6 @@ import { moveKindLabel } from "@/lib/moves";
 
 const GENERIC_PAGES = [
   { label: "Character", href: "/character" },
-  { label: "Map", href: "/map" },
   { label: "Notes", href: "/notes" },
   { label: "Documents", href: "/documents" },
   { label: "Archive", href: "/archive" },
@@ -157,10 +156,6 @@ async function getPaletteIndexImpl() {
       hint: r.type,
       href: `/gm/turns/request/${r.id}`,
     });
-  }
-
-  for (const z of zones) {
-    entries.push({ kind: "zone", id: z.id, label: z.name, hint: "zone", href: "/map" });
   }
 
   for (const f of factions) {

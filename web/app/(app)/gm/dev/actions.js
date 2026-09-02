@@ -24,11 +24,9 @@ import {
   listGuildMembers,
   removeCursedRole,
   setTurnPingRole,
-  syncCharacterZoneRole,
-  syncCharacterNarrowcastAccess,
   sendDm,
 } from "@/lib/discordGuild";
-import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { writeSiloRows } from "@lifeweb/db/lib/resourceTransfer";
@@ -90,6 +88,8 @@ export async function updateGameConfig(formData) {
       catatonicTurns: Math.max(1, intOrNull(formData, "catatonicTurns") ?? 4),
       // Floored at 0: 0 is the off switch for the death pass (catatonicDeathPass.js).
       catatonicDeathTurns: Math.max(0, intOrNull(formData, "catatonicDeathTurns") ?? 4),
+      // Floored at 0: 0 means a walk between locations has no cooldown at all.
+      locationMoveCooldownSeconds: Math.max(0, intOrNull(formData, "locationMoveCooldownSeconds") ?? 60),
       autoReconcileEnabled: formData.get("autoReconcileEnabled") === "on",
       desiresEnabled: formData.get("desiresEnabled") === "on",
       productionCoefficient: floatOrDefault(formData, "productionCoefficient", 1),
@@ -217,6 +217,7 @@ const DEFAULT_GAME_CONFIG = {
   catatonicEnabled: true,
   catatonicTurns: 4,
   catatonicDeathTurns: 4,
+  locationMoveCooldownSeconds: 60,
   autoReconcileEnabled: false,
   desiresEnabled: true,
 };
@@ -515,38 +516,43 @@ export async function runDoctorAction(formData) {
   return { ok: true };
 }
 
-// GM bulk move: relocate many characters to one zone at once. A raw
-// relocation, not a travel — no Move cost, no Action, no adjacency check.
+// GM bulk move: relocate many characters to one Location at once. A raw
+// relocation, not a travel — no Move cost, no Action, no adjacency check, and
+// no cooldown stamp.
 export async function bulkMoveCharacters(formData) {
   const session = await requireSuperadmin();
 
-  const zoneId = str(formData, "zoneId");
+  const locationId = str(formData, "locationId");
   const characterIds = formData.getAll("characterIds").map(String).filter(Boolean);
-  if (!zoneId || characterIds.length === 0) {
-    return { ok: false, error: "Pick a zone and at least one character." };
+  if (!locationId || characterIds.length === 0) {
+    return { ok: false, error: "Pick a location and at least one character. ‡" };
   }
 
-  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
-  if (!zone || zone.kind === "CAVE_GROUP") {
-    return { ok: false, error: "That isn't a zone a character can stand in." };
+  const location = await prisma.location.findUnique({
+    where: { id: locationId },
+    include: { zone: true },
+  });
+  if (!location) {
+    return { ok: false, error: "That isn't a place a character can stand. ‡" };
   }
 
   const characters = await prisma.character.findMany({
     where: { id: { in: characterIds }, status: "ALIVE" },
-    select: { id: true, name: true, discordUserId: true, zoneId: true },
+    select: { id: true, name: true, discordUserId: true, locationId: true, zoneId: true },
   });
-  if (characters.length === 0) return { ok: false, error: "No living characters matched." };
+  if (characters.length === 0) return { ok: false, error: "No living characters matched. ‡" };
 
+  // The denormalization contract: locationId and zoneId are written together.
   await prisma.character.updateMany({
     where: { id: { in: characters.map((c) => c.id) } },
-    data: { zoneId: zone.id },
+    data: { locationId: location.id, zoneId: location.zoneId },
   });
 
   const report = await prisma.systemReport.create({
     data: {
       kind: "BULK_MOVE",
       actorDiscordUserId: session.discordUserId,
-      summary: { zone: zone.name, characters: characters.length },
+      summary: { location: location.name, zone: location.zone?.name ?? null, characters: characters.length },
     },
   });
 
@@ -554,7 +560,13 @@ export async function bulkMoveCharacters(formData) {
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "gm_bulk_move",
-      details: { zoneId: zone.id, zoneName: zone.name, characterIds: characters.map((c) => c.id) },
+      details: {
+        locationId: location.id,
+        locationName: location.name,
+        zoneId: location.zoneId,
+        zoneName: location.zone?.name ?? null,
+        characterIds: characters.map((c) => c.id),
+      },
     },
   });
 
@@ -562,17 +574,23 @@ export async function bulkMoveCharacters(formData) {
     const failures = [];
     for (const c of characters) {
       try {
-        await syncCharacterZoneRole(c.discordUserId, c.zoneId, zone.id);
-        await syncCharacterNarrowcastAccess(c.id);
-        await applyPendingInvites(prisma, { ...c, zoneId: zone.id });
+        await applyLocationMoveSideEffects(prisma, {
+          characterId: c.id,
+          fromLocationId: c.locationId,
+          toLocationId: location.id,
+        });
       } catch (err) {
         failures.push({ step: "move", target: c.name, message: err.message });
         console.error(`Bulk move: Discord sync failed for ${c.name}:`, err);
       }
-      // One Caving Die per arrival, same as walking in. Outside the try
-      // above: a failed Discord sync still moved the character.
+      // One Caving Die per arrival, same as walking in — keyed on the ZONE.
+      // Outside the try above: a failed Discord sync still moved the character.
       try {
-        const cavingDm = await rollCavingOnArrival(prisma, { ...c, zoneId: zone.id }, zone);
+        const cavingDm = await rollCavingOnArrival(
+          prisma,
+          { ...c, locationId: location.id, zoneId: location.zoneId },
+          location.zone,
+        );
         if (cavingDm) await sendDm(cavingDm.discordUserId, cavingDm.content);
       } catch (err) {
         failures.push({ step: "caving", target: c.name, message: err.message });

@@ -50,7 +50,7 @@ const commandDefinitions = [
     .setDescription("Clear afflictions off a character (GM only).")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to heal").setRequired(true))
     .setContexts(GUILD_ONLY),
-  // Private-thread guest list. A ROLE option rather than a user option on
+  // The Conversation guest list. A ROLE option rather than a user option on
   // purpose: the picker then names characters, never Discord accounts, so
   // inviting someone can't reveal who plays them — the same reason the
   // personal role is the mentionable name token in the first place. The
@@ -58,21 +58,13 @@ const commandDefinitions = [
   // isn't one (GM, spectator, player roles).
   new SlashCommandBuilder()
     .setName("add")
-    .setDescription("Bring a character into this private thread.")
+    .setDescription("Bring a character into this conversation. ‡")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to add").setRequired(true))
     .setContexts(GUILD_ONLY),
   new SlashCommandBuilder()
     .setName("remove")
-    .setDescription("Remove a character from this private thread.")
+    .setDescription("Remove a character from this conversation. ‡")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
-    .setContexts(GUILD_ONLY),
-  // Marks the current thread to survive the Dawn wipe — tracked on its
-  // PlayerThread row, mirrored as the Persistent forum tag on a forum post.
-  // Toggles, so the same command unmarks. No options: it always acts on the
-  // thread it was run in.
-  new SlashCommandBuilder()
-    .setName("persistent")
-    .setDescription("Toggle whether this thread survives the Dawn wipe.")
     .setContexts(GUILD_ONLY),
 
   // --- player commands, usable in a DM ---------------------------------
@@ -85,7 +77,13 @@ const commandDefinitions = [
     .setContexts(ANYWHERE),
   new SlashCommandBuilder()
     .setName("location")
-    .setDescription("Travel to a connected zone.")
+    .setDescription("Travel to a connected location. ‡")
+    .setContexts(ANYWHERE),
+  // A standing state, not a per-message one: it stays on until it is turned
+  // off, so it needs to be reachable from a DM the same way /location is.
+  new SlashCommandBuilder()
+    .setName("conceal")
+    .setDescription("Hide your name behind an anonymous alias, until you turn it off. ‡")
     .setContexts(ANYWHERE),
   // Run inside a channel you can speak in, this skips the destination picker
   // and posts there. Run anywhere else — including a DM — it asks where first.
@@ -112,8 +110,8 @@ async function registerCommands(client) {
   // own list. So when registration moved from per-guild to global, everything
   // the old code had written into the guild was orphaned there, and Discord
   // showed both copies in the picker — including a command already retired
-  // with no handler left to answer it (see /labor's one-deploy stub in
-  // interactionCreate.js for the same problem in miniature). Registration is
+  // with no handler left to answer it, which is exactly what a removed
+  // command looks like for the hour global propagation takes. Registration is
   // global, so the correct guild-scoped list is empty — sweep it every boot,
   // at one REST call per guild, and it cannot come back.
   for (const guild of client.guilds.cache.values()) {

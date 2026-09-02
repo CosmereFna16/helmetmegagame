@@ -140,22 +140,28 @@ async function listSpeakTargets(guild, member) {
     if (!isDesignatedTupperChannel(channel)) continue;
 
     const context = resolveChannelContext(channel);
-    const where = context.zoneName ?? null;
+    const where = context.locationName ?? context.zoneName ?? null;
     const kind = context.channelKind;
 
-    if (kind === "public" || kind === "private") {
-      // A thread container, never a destination itself.
-      if (!canView(channel, member)) continue;
-      for (const thread of await threadTargets(threadsByParent.get(channel.id) ?? [], member)) {
-        buckets.threads.push({
-          value: thread.id,
-          label: thread.name.slice(0, 100),
-          description: [where, kind === "private" ? "private" : "public"]
-            .filter(Boolean)
-            .join(" — ")
-            .slice(0, 100),
-        });
+    // A Location channel is both a destination (its top level is the open
+    // street) and a thread container (its Rooms and Conversations), so it
+    // contributes to two buckets rather than being one or the other.
+    if (kind === "location") {
+      if (canView(channel, member)) {
+        for (const thread of await threadTargets(threadsByParent.get(channel.id) ?? [], member)) {
+          buckets.threads.push({
+            value: thread.id,
+            label: thread.name.slice(0, 100),
+            description: (where ?? "").slice(0, 100),
+          });
+        }
       }
+      if (!canSpeakInChannel(channel, member)) continue;
+      buckets.room.push({
+        value: channel.id,
+        label: `#${channel.name}`.slice(0, 100),
+        description: (where ? `${where} — the open street ‡` : "The open street ‡").slice(0, 100),
+      });
       continue;
     }
 

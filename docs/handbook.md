@@ -48,13 +48,13 @@ Each part of the game is explained in detail later in this Handbook. At a high l
 Each turn you will receive the results of your Move and other Moves that affected you. Some Moves may also have results posted publicly. Read these to find out what events your character is involved in or witnesses.
 
 **Read What People Are Doing Around You**  
-Each Zone has a Summary channel, where players can post descriptions of what their character can be seen doing, and a Public channel, where players interact at the various locations within the Zone. See what's happening around you and consider how your character might respond.
+Each Zone has a Summary channel, where players can post descriptions of what their character can be seen doing, and each Location in the Zone has its own channel, where the people standing there interact. See what's happening around you and consider how your character might respond. ‡
 
 **Talk To People**  
-Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in Public or Private threads. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play.
+Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play. ‡
 
 **Decide What You're Doing**  
-Travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and allow your Default Move to occur.  
+Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and allow your Default Move to occur. ‡  
 
 ### Help & GMs
 
@@ -73,26 +73,23 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Command | Effect |
 |---|---|
 | `/move` | Open the Move submission form. |
-| `/location` | Open the Travel picker. |
+| `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. ‡ |
 | `/message` | Speak as your character directly into a channel. |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
-| `/add` | Invite a character to the thread. |
-| `/remove` | Remove a character from the thread. |
-| `/persistent` | Toggle whether a thread survives the Dawn wipe. |
-| `/conceal` | (Message prefix, not a command) Conceal your identity when messaging. |
+| `/add` | Invite a character into your Conversation. ‡ |
+| `/remove` | Remove a character from your Conversation. ‡ |
+| `/conceal` | Toggle concealment. While it's on, everything you say posts under a vague alias. ‡ |
 
 #### **Channels**  
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode, not meant for conversations.|
-| **Public** (forum channel) | Public interactions. Create a topic by clicking the button on the pinned post, or check who's around. |
-| **Private** (forum channel) | Starting private conversation threads with specific people. |
+| **A Location** (text channel) | The one place you're standing in. Talk in the channel itself, step into one of its public Rooms (threads), or use the pinned message's buttons: **Who's here?**, **Secret rooms?**, **Converse**. ‡ |
 
 #### **Website**
 | Page | Content |
 |---|---|
-| **Character** | Your character sheet. Current Zone, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, Default Move, your bio and portrait, all requests functions. |
-| **Map** | A map of Ravenheart. Click a Zone to travel to it. |
+| **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, Default Move, your bio and portrait, all requests functions. ‡ |
 | **Faction** | Faction roster, Silo balance, ledger, and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
@@ -107,7 +104,7 @@ Bascinet takes place over 30 days, with time passing in-game at the same rate. E
 At the end of each turn the game resolves what happened during those 12 hours. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
-- **Travel** uses your Move to travel to a different Zone. You will arrive immediately, and can begin speaking in the Zone's channels.  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. Crossing into another Zone uses your Move — once a turn, twice if you have a mount. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it. ‡  
 - **Move** is used to submit your character's Move for the turn.  
 - **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
@@ -116,8 +113,8 @@ You can find information on the current turn in the `#turns` channel, in additio
 At Dawn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This helps to keep scenes and threads focused on the current day, rather than long-running conversations.
 
 What survives:
-- A forum post tagged **Persistent** keeps its post, but the messages are archived.
-- A private thread survives if you use `/persistent` in it. It keeps everyone you've added, but its messages still clear.
+- Every Room keeps its thread and its description; the messages in it are archived. ‡
+- Conversations do not survive. Open a new one in the morning. ‡
 
 If you want to remember something, use the ⭐ reaction on the message before Dawn to save it to your [Notes](https://ravenheart.quest/notes) page.
 
@@ -179,14 +176,19 @@ There are six Zones in Bascinet:
 - The Windlands  
 - The Caves (3 separate Zones)
 
-Every Zone contains specific locations, such as the Gatehouse in the Fortress, which are all covered under the Zone's channel group. You can roleplay freely across all of a Zone's locations within the same turn, as locations are nearby enough that your character could walk between them in only a short time.
+Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move. ‡
 
-Each Zone's channel group has three roleplay channels which you can use to interact with other players in the area.
+Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons. ‡
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode, not meant for conversations.|
-| **Public** (forum channel) | Public interactions. Create a topic by clicking the button on the pinned post, or check who's around. |
-| **Private** (forum channel) | Starting private conversation threads with specific people. |
+| **A Location** (text channel) | The open street. Anyone standing here can talk in the channel itself. ‡ |
+| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. ‡ |
+
+The three buttons on the pinned message: ‡
+- **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like. ‡
+- **Secret rooms?** — the private Rooms you can enter here, and the Conversations you're part of. ‡
+- **Converse** — open a private Conversation, linked to one of the Rooms. ‡
 
 You may also gain access to unique roleplay channels by other means, such as acquiring a specific tag.
 
@@ -194,30 +196,31 @@ You may also gain access to unique roleplay channels by other means, such as acq
 
 ### Public Scenes
 
-Use the Public channel when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others.
+Use the Location's channel or one of its public Rooms when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others. ‡
 
-If you see someone post a description of their Character in the Summary channel and want to interact with them, do so in a Public or Private thread.
+If you see someone post a description of their Character in the Summary channel and want to interact with them, walk to where they are and do so there. ‡
 
 ### Private Conversations
 
-To hold a private conversation with one or more other characters at your location:
-1. Open the Zone's private forum channel.
-2. Create a private thread using Discord's thread button.
-3. Use `/add` in the thread and choose who you want to invite.
-4. Use `/remove` if someone should leave the conversation.
-5. Use `/persistent` if the thread should survive the next Dawn wipe.
+To hold a private conversation with one or more other characters at your Location: ‡
+1. Press **Converse** on the Location's pinned message and pick which Room it's linked to. ‡
+2. Give it a name. The bot opens a private thread with you in it. ‡
+3. Use `/add` in the thread and choose who you want to invite. ‡
+4. Use `/remove` if someone should leave the conversation. ‡
+
+A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *A young man and an old woman are whispering…* Conversations are cleared every Dawn. ‡
 
 ### Character Mentions
 
 Every character has a unique Discord role that you can mention by typing `@` followed by their character name. The bot will then DM the player telling them where they were mentioned.
 
-Mentions only work within the same Zone — you can't mention characters located elsewhere in the game world to bring them into a conversation.
+Mentions only work within the same Location — you can't mention characters standing elsewhere in the game world to bring them into a conversation. ‡
 
 ### Concealing Your Identity
 
-To hide your identity while interacting, start your message with `/conceal`. This isn't a slash command — it will be part of your actual message, and the bot detects it.
+To hide your identity, run `/conceal` (anywhere, the bot's DMs included) or flip the switch on your [Character](https://ravenheart.quest/character) page. It stays on until you turn it off. ‡
 
-Concealing yourself results in your message posting with a vague descriptor such as "Old Man" or "Young Woman", as well as a blank portrait. If you're using the **Speak** button rather than typing directly, you will see a checkbox to conceal your message.
+While you're concealed, everything you say posts under a vague descriptor such as "Old Man" or "Young Woman" with a blank portrait, and **Who's here?** lists you the same way. ‡
 
 Other players can still 🔎 you and see any visible wounds or gear, but your name, face, and faction remain hidden.
 
@@ -395,7 +398,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 
 | Row | Meaning |
 |---|---|
-| **Zone** | The Zone you're standing in. |
+| **Location** | The Location you're standing in, and its Zone. ‡ |
 | **Resources** | Your personally held ⬢. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
@@ -412,12 +415,11 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
 | **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
 | **Loot** | Search a dead or incapacitated person in your Zone and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always, the game will reject invalid targets. |
-| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to an adjacent Zone. This doesn't spend their Move or yours. | Always. |
+| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. ‡ | Always. |
 | **Bind** | Tie up someone within reach. | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
 | **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This will never instantly kill, a GM will verify first. | Always. |
 | **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
-| **Fast Travel** | Ride your horse to an adjacent Zone. Everyone in the current Zone sees you leave. | Once per day, if you own a horse. |
 
 The menus will always list all characters, to avoid making it obvious when someone is dead, tied up, or otherwise nearby. Act on information your character actually has, don't guess.
 
@@ -449,6 +451,6 @@ When your character dies:
 
 - Their body stays where it fell. Their ⬢ and anything portable they carried can be **looted**, and the body can be moved elsewhere or buried. What can't be carried off a corpse — a house, a workshop, something grafted into them — stays with them.
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
-- As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary` or public topic and the bot will post a haunting line there. That's your only voice, and it's a reminder to others that your body remains unburied.
+- As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary`, a Location channel or a public Room and the bot will post a haunting line there. ‡ That's your only voice, and it's a reminder to others that your body remains unburied.
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
 - The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone standing over the body can do so). A buried body can no longer be looted or moved.

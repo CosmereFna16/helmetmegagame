@@ -26,7 +26,7 @@ const { ack, respond } = require("./respond");
 
 // A modal must be shown within three seconds and CANNOT be deferred first, so
 // the button handler stays to a small, fixed number of reads. Same constraint
-// topicModal.js documents.
+// converseModal.js documents.
 function buildReplyModal(birdMessageId, recipientName) {
   return new ModalBuilder()
     .setCustomId(`${BIRD_REPLY_MODAL_PREFIX}${birdMessageId}`)

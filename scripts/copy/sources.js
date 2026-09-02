@@ -243,7 +243,7 @@ const GROUP_TITLES = {
   "content-taggroups": "Tag group names.",
   "web-character": "Web: the character sheet and its panels.",
   "web-creation": "Web: character creation and the gate screens.",
-  "web-map-faction": "Web: /map, /faction, /documents, /notes, /archive chrome.",
+  "web-map-faction": "Web: /faction, /documents, /notes, /archive chrome.",
   "web-errors": "Web: refusal messages a player sees when an action is blocked.",
   "web-gm": "Web: GM-only pages under /gm.",
   "bot-commands": "Bot: slash command and option descriptions.",

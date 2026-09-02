@@ -5,24 +5,23 @@ controlled. Two independent mechanisms are involved — channel *type/name*
 (what the channel is for) and *role* membership (who can see it) — and they're
 easy to conflate, so this doc keeps them separate.
 
-Since the zone rework there are **six standable zones** and no Location
-channels at all. A Location is prose now: a generated forum post inside a
-zone's public forum (§4). `MAP.md` is the game side of the same change.
+Since Bascinet 2 a zone is a category plus a `#summary` channel, and a
+character actually **stands** in a Location — one text channel per Location,
+with Rooms as threads under it. `MAP.md` is the game side of the same change.
 
 ## 1. Tupper / summary opt-in
 
-A channel opts into tupper/summary behavior by being one of a zone's
-provisioned channels (§2), or a special channel whose registry entry says
-`tupper: true` (§7), matched by Discord channel **ID** — there is no name-based
-marker, and channel names are otherwise meaningless to this system.
+A channel opts into tupper/summary behavior by being one of a zone's or a
+Location's provisioned channels (§2), or a special channel whose registry
+entry says `tupper: true` (§7), matched by Discord channel **ID** — there is
+no name-based marker, and channel names are otherwise meaningless to this
+system.
 
 | Channel | Tupper | Summary |
 |---|---|---|
-| A surface zone's `#summary` | yes | yes — adjudication results and Default Move summaries post here |
-| A surface zone's `#public` (forum) | yes | no |
-| A cave level's forum | yes | no |
-| A `#private` (surface zone or cave level) | yes | no |
-| `#watch`, `#intercom` | yes | no — neither is tied to a place, so there is no adjudication result to post there |
+| A zone's `#summary` | yes | yes — adjudication results and Default Move summaries post here |
+| A Location channel (surface or cave level) | yes | no |
+| `#watch`, `#intercom`, `#mindlink` | yes | no — none is tied to a place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -30,45 +29,51 @@ Two independent implementations check this: `bot/src/lib/channels.js`
 Keep them in sync if the rule changes.
 
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
-channelKind }`, so the proxy can stamp an archive row with where a message was
-said without a DB round trip per message. `channelKind` is one of
-`summary | public | private | watch | intercom` (`ARCHIVE.md`). A thread
-reports its parent's context and keeps its own name as the scene.
+locationId, locationName, channelKind }`, so the proxy can stamp an archive
+row with where a message was said without a DB round trip per message.
+`channelKind` is one of `summary | location | watch | intercom | mindlink`
+(`ARCHIVE.md`). A Room thread or a Conversation reports its parent Location
+channel's context and keeps its own name as the scene.
 
-## 2. Zone channel layout
+## 2. Zone and Location channel layout
 
 Everything is provisioned by `db/lib/syncZones.js` from `docs/zones.yaml`
 (`npm run db:sync-zones`, `SYNC.md`). The layout itself is described **once**,
-by `db/lib/zoneChannelSpec.js#zoneChannelSpec` — the category and channels as
+by `db/lib/zoneChannelSpec.js#zoneChannelSpec` (the zone's category and
+`#summary`) and `#locationChannelSpec` (one Location's text channel) — both as
 create payloads — and both first-time provisioning and the every-run reconcile
-build from it, so the two can never disagree.
+build from them, so the two can never disagree.
 
-**Surface zone** (Town, Fortress, Windlands) — a category named after the zone:
+**A zone** (Town, Fortress, Windlands, Caves) is a category and, for a
+`SURFACE` zone only, a `#summary` channel:
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
 | `#summary` | text | Abstracted, big-picture play. Adjudication results and Default Move summaries land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
-| `#public` | forum | Moment-to-moment roleplay, in topics. | **Players cannot create posts.** The bot does, from the Create-a-Topic button (§4). Posts auto-archive after 24h idle (`default_auto_archive_duration: 1440`). |
-| `#private` | text | Private scenes, as threads. | No top-level messages and **no player-created threads of either kind**. One permanent anchor message carries a Create button (§4). |
 
-**Caves** — the `CAVE_GROUP` row owns the shared category and nothing else.
-Each `CAVE_LEVEL` (Caverns, Railroad, Aberrant Pits) gets **two channels**,
-both parented to that category: a forum named after the level, with exactly
-the same forum rules as a surface `#public` — including its own Create-a-Topic
-anchor — and a `#{level}-private` text channel with the same rules and Create
-anchor as a surface `#private`. The private channel carries the level's slug
-in its name because all three levels share one category; the pairs are
-interleaved in level order (caverns, caverns-private, railroad, …). Cave
-levels have no `#summary`.
+The `CAVE_GROUP` row (Caves) owns the shared category and nothing else — no
+`#summary`, no role. Each `CAVE_LEVEL` (Caverns, Railroad, Aberrant Pits) has
+no channels of its own either; its Locations' channels parent straight onto
+the Caves category, interleaved across levels in
+`level.sortOrder * 10 + location.sortOrder` order, so the three levels' rooms
+sit together the way `docs/zones.yaml` lists them rather than clumped by
+level.
+
+**A Location** — where a character actually stands — is one text channel,
+named after its slug, parented to its zone's category (or the Caves category
+for a cave-level Location). Its topic is the Location's `description`
+(truncated to Discord's 1024-character cap). Top-level messages in it are the
+Location's open street; its Rooms (§4) are threads under it that only the bot
+may create. It carries its own access role, `Location: {Name}` (§3).
 
 **Creation is one-time; a lot is reconciled every run.** The sync only creates
-channels whose id column is null, and channel *names* are never touched again —
-renaming a zone in the YAML does not rename a live channel. But for everything
-already provisioned it re-applies channel **topics** and slowmode, the full set
-of **permission overwrites**, the **forum tags**, category and channel
-**ordering**, the **anchor posts**, the **generated Location topics**, and the
-cursed role's colour. So `npm run db:sync-zones` is the repair path for a zone
-whose channels drifted.
+a channel/category/role whose id column is null, and channel *names* are
+never touched again — renaming a zone or Location in the YAML does not rename
+a live channel. But for everything already provisioned it re-applies channel
+**topics** and slowmode, the full set of **permission overwrites**, category
+and channel **ordering**, each Location's **Room threads** and **pinned
+anchor** (§4), and the cursed role's colour. So `npm run db:sync-zones` is the
+repair path for a zone or Location whose channels drifted.
 
 > **Ordering: `parent_id` must not ride along in a bulk position call.**
 > Positions are bulk; reparenting is not — Discord rejects the whole request
@@ -78,12 +83,18 @@ whose channels drifted.
 > Categories are sorted by zipping YAML order onto the position slots those
 > categories already hold, so non-zone categories keep their places.
 
-## 3. Visibility: the zone role is the access model
+## 3. Visibility: two access roles, zone and Location
 
-Every channel is hidden from `@everyone` and opened by **one role per presence
-zone**, named `Zone: {Name}` (e.g. `Zone: Town`), created by the sync and held
-by exactly the living characters standing there. Travel swaps the role; nothing
-else grants zone access.
+Every channel is hidden from `@everyone` and opened by one of **two** roles
+the sync creates: a **zone role**, `Zone: {Name}` (e.g. `Zone: Town`), held by
+every living character standing anywhere in that zone, and a **Location
+role**, `Location: {Name}` (e.g. `Location: Square`), held by exactly the
+living characters standing in that one Location. The zone role opens
+`#summary`, `#turns` (§3a) and the narrowcast channels (§7); the Location role
+opens that Location's own channel — and therefore its Rooms, which inherit
+channel visibility the way any thread does. A character always holds exactly
+one of each while alive. Travel swaps both roles as needed (§ below); nothing
+else grants access to either.
 
 > **A channel does not reliably inherit its category.** Discord "syncs" a
 > channel to its category by *copying* the overwrites at creation; the two
@@ -104,25 +115,27 @@ The overwrites every target carries (`baseOverwrites`):
 - **The spectator seat** (`db/lib/spectatorAccess.js`) — standing read-only.
 - **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
 
-On top of that, the zone's own role gets: `ViewChannel` + `SendMessages` +
-`AddReactions` on `#summary`; `ViewChannel` + `SendMessagesInThreads` +
-`AddReactions` on a forum; `ViewChannel` + `SendMessagesInThreads` on
-`#private`.
+On top of that: the zone role gets `ViewChannel` + `SendMessages` +
+`AddReactions` on `#summary`. The Location role gets `ViewChannel` +
+`SendMessages` + `SendMessagesInThreads` + `AddReactions` on its own channel —
+top-level talk is allowed (the open street), and thread talk covers both a
+public and a private Room.
 
-**Post/thread creation is denied to `@everyone` on every forum and on
-`#private`.** Creating a forum post is `SEND_MESSAGES` on the forum channel, so
-denying that while allowing `SEND_MESSAGES_IN_THREADS` is what makes posts
-bot-only while keeping the talk inside them open; `CREATE_PUBLIC_THREADS` and
-`CREATE_PRIVATE_THREADS` are denied alongside as belt-and-braces. Players hold
-no create permission anywhere, which is what keeps `PlayerThread` a complete
-record — persistence, expiry and invites all hang off that row.
+**Room and Conversation creation is denied to `@everyone` on every Location
+channel.** `CREATE_PUBLIC_THREADS` and `CREATE_PRIVATE_THREADS` are both
+denied, while `SEND_MESSAGES_IN_THREADS` stays open — so players can talk
+inside any thread they can see but can never open one themselves. The bot
+alone creates a Room (the sync, from `docs/zones.yaml`) or a Conversation (the
+Converse button, §4). Players hold no create permission anywhere, which is
+what keeps `PlayerThread` a complete record of every Conversation that exists.
 
-**Per-member overwrites on zone channels are gone.** The old model added a
-`ViewChannel` overwrite keyed on `Character.discordUserId` to every channel of
-a Location and removed it from the old one. Two role calls now replace eight to
-fourteen overwrite writes per hop, and the channel doctor treats *any* member
-overwrite on a zone channel as a stray to be deleted (§6). The only surviving
-member overwrites in the game are the special channels' grants (§7).
+**Per-member overwrites on zone and Location channels are gone.** The old
+model added a `ViewChannel` overwrite keyed on `Character.discordUserId` to
+every channel of a Location and removed it from the old one. Two role calls
+now replace many overwrite writes per hop, and the channel doctor treats *any*
+member overwrite on a zone or Location channel as a stray to be deleted (§6).
+The only surviving member overwrites in the game are the special channels'
+grants (§7) and each private Room's thread membership (§4).
 
 Every `ALIVE` character still has a **personal Discord role**
 (`Character.discordRoleId`), titled after their **bare** name — first + last via
@@ -200,198 +213,144 @@ reporter or a GM, so there is no further gate. Both are audited
 `/gm/audit`).
 
 Report threads are **not** `PlayerThread` rows, and that is what keeps them
-alive: `dawnWipe`, `fullWipe`, `threadExpiryPass` and the channel doctor all
-walk zone channels, `SPECIAL_CHANNELS` or `PlayerThread`, so a thread under a
-channel none of them know about is never touched.
+alive: `dawnWipe`, `fullWipe` and the channel doctor all walk zone/Location
+channels, `SPECIAL_CHANNELS` or `PlayerThread`, so a thread under a channel
+none of them know about is never touched.
 
-### The two travel twins
+### One function does the Discord half of every location change
 
-`performTravel` does no Discord work (`MAP.md` §4); each caller runs its own
-half:
+`db/lib/locationTravel.js#performLocationMove` does no Discord work — it's the
+database half only (validation, the cooldown or the Move it files, dragging;
+`MAP.md` §4). Every caller, whichever face it runs on, hands the result to the
+same function for the Discord half:
 
-| Trigger | Code | Mechanism |
-|---|---|---|
-| Travel button on `#turns`, or `/location` | `bot/src/lib/zoneTravel.js#performMove` → `swapZoneRole` | Gateway |
-| Web map | `web/app/(app)/map/travelActions.js#travelTo` → `syncCharacterZoneRole` | REST |
-| GM raw edit, GM Bulk Move, character creation | `web/lib/discordGuild.js#syncCharacterZoneRole` | REST |
-| Staged relocation, applied at the turn push | `db/lib/zoneMove.js#applyZoneMoveSideEffects`, from the side-effect thunk | REST |
+`db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)` — grants
+the new Location role before revoking the old one, and (only if the zone
+changed too) swaps the zone role and reconciles narrowcast access; then
+resyncs private-Room membership for wherever the character now stands
+(`db/lib/roomAccess.js#syncCharacterRoomAccess`) and replays any standing
+Conversation invites there (`db/lib/threadInvites.js#applyPendingInvites`).
+Every call inside it is individually catch-logged, never thrown — the channel
+doctor is the safety net for whatever one call misses.
 
-All of them **grant before revoke**, deliberately: an interrupted swap leaves the
-player seeing two zones for a moment (harmless, self-healing) rather than none
-(a lockout a player can't diagnose). Neither swallows a failure silently — the
-doctor reconciles whatever they miss.
+It's pure REST, so the Travel button on `#turns`, `/location`, the web's
+writers (creation, GM raw edit, GM Bulk Move, `MOVE_CHARACTER`) and the staged
+"Relocate to" applied at the turn push all call it after their own DB write
+has committed. Grant-before-revoke throughout, deliberately: an interrupted
+swap leaves the player seeing two Locations for a moment (harmless,
+self-healing) rather than none (a lockout a player can't diagnose).
 
-Any new writer of `Character.zoneId` must call one of these. A raw Prisma write
-alone leaves the old role held and the new one missing, and the player either
-sees the wrong zone or none.
+Any new writer of `Character.locationId` must call
+`applyLocationMoveSideEffects`. A raw Prisma write alone leaves the old roles
+held and the new ones missing, and the player either sees the wrong place or
+none.
 
 ### Death and departure
 
-`db/lib/accessSweep.js#revokeAllCharacterAccess` strips every zone role (a
-removal of a role the member doesn't hold is a no-op, so all six cost less than
-working out which one they held from possibly-stale state) and sweeps their
-member overwrites off every zone channel and special channel. Its callers are
-`killCharacter`, `guildMemberRemove` and `wipeGameData`; any new path that ends
-a character must call it too.
+`db/lib/accessSweep.js#revokeAllCharacterAccess` strips every zone **and**
+Location role (a removal of a role the member doesn't hold is a no-op, so this
+costs less than working out which ones they held from possibly-stale state)
+and sweeps their member overwrites off every zone channel, Location channel
+and special channel. Its callers are `killCharacter`, `guildMemberRemove` and
+`wipeGameData`; any new path that ends a character must call it too.
 
 `revokeAccessForCharacters` in the same file is the bulk form for Restart Game:
-one paginated member-list read, then one removal per (member × zone role
-actually held), plus a channel-major overwrite sweep — read each channel once,
+one paginated member-list read, then one removal per (member × zone/Location
+role actually held), plus a channel-major overwrite sweep — read each channel once,
 delete only what's actually on it. That's what keeps a full-roster wipe at
 hundreds of calls instead of tens of thousands. Both return counts and failure
 lists rather than nothing, because a revoke that silently fails leaves a
 departed player still reading rooms.
 
-## 4. Topics, anchors and player-made threads
+## 4. Anchors, rooms and conversations
 
-### Location topics (sync-owned)
+### The pinned anchor
 
-Each `topics:` entry in `docs/zones.yaml` becomes one `LocationTopic` row and
-one generated forum post in its zone's public forum. The starter message
-carries the topic's name and prose in bold/italic, then a compact
-sub-location block: one `**Sublocations**: name1 | name2 | name3` index line
-naming every sub-location, followed by one `-#` subtext line per
-sub-location that actually has descriptive text. A sub-location with no text
-appears in the index only — it gets no `-#` line, since there's nothing to
-caption yet.
+Every Location channel carries one pinned anchor message, hash-reconciled on
+`Location.anchorHash` (body + its button row) so a re-sync with no YAML edits
+makes no Discord writes at all (`db/lib/syncZones.js#syncLocationAnchor`, the
+successor to the old `zoneAnchorRow.js`). A body change is edited in place; a
+message a GM deleted by hand 404s and gets reposted. Its shape
+(`buildAnchorBody`, `db/lib/locationAnchorRow.js`):
 
-These posts are **unlocked** (players roleplay in them — that is the point of
-the rework) and **not pinned** (Discord caps pinned posts per forum). They wear
-the **Location** forum tag instead, which is the discoverability mechanism.
-They are reconciled by content hash on `LocationTopic.postHash`, so a re-sync
-with no YAML edits makes no Discord writes at all, and a changed body is
-rewritten **in place**: unlock, delete every message except the starter, edit
-the starter, re-post overflow chunks, then re-assert name, tags and lock state.
-The starter message's id *is* the thread id, and deleting it would destroy the
-post.
+```
+**Square**
+-# An open clearing — …
 
-The starter message's button row is hashed separately, on
-`LocationTopic.componentsHash` — a Location post currently carries no
-buttons, but the column exists so a future button change on it never has to
-go through the destructive rebuild above just to update a row of components:
-a components-only change takes a cheap starter-message **edit** instead,
-which matters here because the body rewrite deletes every reply in the
-thread, and a Location post is where the day's roleplay actually lives.
+**Public Rooms**: <#t1> | <#t2>
+[Who's here?] [Secret rooms?] [Converse]
+```
 
-Creating a new post first checks the forum for one already carrying that
-exact title and adopts it rather than posting a duplicate (§7 has the same
-posture for a special channel). This exists because a retried create — the
-429 bounded-retry loop in `discordRest.js`, or a request Discord actually
-applied before the client gave up waiting on it — can otherwise leave two
-empty posts with the same name sitting side by side.
+Private Rooms are deliberately absent from the index — **Secret rooms?** is
+what surfaces those. The three buttons (`loc:who:{id}`, `loc:secret:{id}`,
+`loc:converse:{id}`, all keyed on the Location's id) are routed by the bot.
+Rooms are synced **before** the anchor, since the anchor body embeds their
+thread mentions.
 
-A topic whose zone changed in the YAML **moves**: a forum post can't change
-forums, so the old post is deleted and the recorded ids nulled, and the post
-pass recreates it in the new forum.
+### Rooms: public and private
 
-### The two anchors
+A Room is a thread under its Location's channel, authored in `docs/zones.yaml`
+(`SYNC.md`) and owned end-to-end by the sync — **players cannot create one.**
+Public rooms are ordinary public threads; private rooms are non-invitable
+private threads (`Room.accessTagSlugs` non-empty makes a room PRIVATE), never
+locked, so nothing here stops the roleplay inside once you're in. Both
+auto-archive after 10080 minutes (a week) idle, and the sync re-asserts
+`archived: false` on every run — so a Room that idled into the archive comes
+back at the next `db:sync-zones`, not seven days of dead air.
 
-| Anchor | Where | What it is |
-|---|---|---|
-| **Create a Topic** | one pinned, **unlocked**, Location-tagged forum post at the top of every public forum (surface and cave level) | Its single message carries the zone's blurb plus instructions; the `topic:new:{zoneId}` and `zone:who:{zoneId}` buttons ride on it |
-| **Create** | one permanent message in every `#private` (surface and cave level) | Carries the `priv:new:{zoneId}` button |
+Each Room's first message is its body (name + description), reconciled by
+content hash on `Room.postHash`; a changed body is rewritten **in place**
+(clear every reply but the starter, edit it, re-post overflow). Because a
+thread's starter has its own message id, distinct from the thread id itself —
+unlike a forum post, where they're the same — `Room.starterMessageId` is
+tracked separately, and it's what the Dawn wipe clears down to (§8) rather
+than the thread id.
 
-The Create-a-Topic anchor is **unlocked on purpose**. Discord greys a message's
-buttons out for anyone who cannot send in the thread, so while it was locked
-every player saw two dead buttons and only GMs — who hold `MANAGE_THREADS` on
-the forum — could press them. The lock's tidiness job is done instead by
-`bot/src/events/messageCreate.js`, which deletes anything typed into an anchor
-before it can be proxied or archived.
+**Private-room membership is pull-based, not pushed from a tag writer.**
+`db/lib/roomAccess.js#syncCharacterRoomAccess(prisma, character)` recomputes,
+for every PRIVATE room, whether the character should be a thread member: any
+of `Room.accessTagSlugs` held **and** standing in that Room's Location adds
+them; anything else removes them. It's called from both travel side-effect
+paths (§3) and from every existing call site that already calls
+`syncCharacterNarrowcastAccess` when tags, location or life status change —
+`/heal`, a character joining the guild, and the ~15 web request/GM-action
+writers that grant, revoke, consume, transfer, heal, loot, bind, free or harm
+tags. A miss is logged and left for the doctor's `room-membership` check (§6)
+to catch and repair. Hold the Baron's Key and you're admitted to The Charon
+the moment you next arrive or the key changes hands — there is no separate
+"open the door" action.
 
-**Who's here?** replies privately with the names of every `ALIVE` character
-standing in the zone — plus each name's `roleTitle` for anyone who shares the
-viewer's faction, the same same-faction gate the bot's 🔍 inspect embed uses
-(`FACTIONS.md` §4a). It lives on the anchor only, not on every generated
-Location post below — one button per forum, not one per post. No extra gate
-sits on the button itself: the forum it lives in is already visible only to
-that zone's role, so pressing it reveals nothing a player in the room
-couldn't already see by walking around.
+### Conversations
 
-Both are hash-gated the same way the topics are (`Zone.createTopicHash`,
-`Zone.privateAnchorHash`). The `#private` anchor is a plain message, not a
-thread, so a GM who deletes it by hand gets it reposted on the next sync (the
-edit 404s and the code falls through to a post).
+A **Conversation** is the one thread a player can open: a private thread
+linked to a Room, created from the anchor's **Converse** button and tracked as
+a `PlayerThread` row (`locationId`, optional `roomId` — the room the
+whispering is heard in, §below). `/add` and `/remove` still work exactly as
+before, and a standing `PlayerThreadInvite` is replayed the moment its target
+next arrives at the Conversation's `locationId`
+(`db/lib/threadInvites.js#applyPendingInvites`) — Discord refuses to add a
+member who can't see the parent channel, so the invite waits for them to be
+able to.
 
-The button opens a modal asking for a **name** and a **persistent** checkbox
-(`bot/src/lib/topicModal.js`). A modal must be shown within three seconds and
-cannot be deferred first, so nothing is read when the button is pressed — every
-gate runs on submit: a living character, standing in the zone whose id rode in
-the custom id. A button is a hint, not a lock, and the ephemeral UI outlives
-the player walking out of the zone.
+Leaving a Location does **not** drop you from a Conversation you're already in
+— you stay a member, exactly as before. There is no more per-message
+`/conceal` prefix, no `persistent` flag, no forum tags, and no inactivity
+expiry on a Conversation: every one of them is wiped clean at the next Dawn
+(§8), so nothing needs to age out on its own.
 
-On submit the bot creates the post or thread, adds the creator, and writes a
-`PlayerThread` row (`kind: PUBLIC | PRIVATE`, creator, `persistent`,
-`lastActivityTurn`) plus an audit entry. A public topic's opening message
-mentions the creator, which is what puts the new post in their mentions and
-makes them a follower.
+**The whisper poll.** Every 15 minutes, each Conversation linked to a Room
+posts one line into that Room naming who's been talking in it — "A young man
+and an old woman are whispering…" — built from `ArchiveEntry` rows in the last
+15 minutes (up to 5 named, then "and others"), aliased the same way a
+concealed message is, so the Room never learns who's actually inside.
 
-### Persistence
+### What's gone
 
-**`PlayerThread.persistent` in the database is the truth.** The wipe reads the
-column, never a Discord marker, so a hand-stripped forum tag can't make a
-standing side-room vanish. On a public post the **Persistent** forum tag is
-mirrored for visibility (and re-asserted by the wipe); a private thread carries
-**no marker at all** — the old ⏰ name prefix and its two-renames-per-ten-minutes
-rate limit are gone.
-
-None of the three forum tags carries an emoji. **Location** is the strongest
-and is applied only by the sync: a Persistent post survives the wipe but is
-*emptied*, while a Location post keeps its starter forever and loses only its
-replies. `/persistent` refuses to touch a sync-owned post, checked against the
-recorded thread ids rather than the tag, so a hand-edited tag opens no hole.
-`db/lib/persistence.js` owns all three names.
-
-`/persistent` is documented in `COMMANDS.md`; it writes a
-`thread_persistence_changed` audit row.
-
-### Quest posts
-
-**Quest** is the third tag, and the GM-made counterpart of a Location topic. A
-GM presses Discord's own **New Post** button in a location forum and types the
-hook; `bot/src/lib/questPost.js`, hooked in ahead of the proxy gate in
-`bot/src/events/messageCreate.js`, deletes that post and immediately re-creates
-it verbatim **as the bot** — same title, same text, tagged Quest, starter
-message pinned in-thread — then records it as a `PlayerThread` with
-`persistent: true, keepStarter: true`.
-
-Three things make the trigger safe without a role check. Players are denied
-`CREATE_PUBLIC_THREADS` on every location forum, so a hand-made post is a GM's
-by construction. Every legitimate bot-made post (the Location topics, the
-anchor, a player's topic) arrives with a bot author, which `messageCreate`
-filters out first. And the hook sits **before** `isDesignatedTupperChannel`, so
-a GM who also has a living character never has their starter proxied — deleting
-a forum post's starter message would destroy the post.
-
-It is **text only**: attachments are not re-uploaded, and the GM gets a DM
-saying so rather than a silent loss. An image-only post can't be re-sent at all
-(Discord refuses a forum post with no body), so that one is left standing and
-explained by DM. The replacement always goes up *before* the original comes
-down, so a failed create costs nothing.
-
-At Dawn a Quest post is treated exactly like a Location topic — replies
-cleared, starter kept — and the wipe never deletes it. `/persistent` refuses to
-toggle it. **Inactivity expiry still applies**, so a hook nobody answers for
-`THREAD_EXPIRY_TURNS` turns still ages out; one reply resets that clock.
-Otherwise it goes away when a GM deletes it by hand. The audit row is
-`gm_quest_created`.
-
-### Inactivity expiry
-
-`db/lib/threadExpiryPass.js` runs at every Dawn, after the Dawn wipe. The
-wipe already deletes every non-persistent `PlayerThread` outright, that same
-Dawn (§8) — so by the time this pass runs, the only rows left to find are
-`persistent: true` ones. This pass exists purely to age those out: any
-`PlayerThread` with no messages for `THREAD_EXPIRY_TURNS` turns (hardcoded,
-5) is deleted — thread, row and invites. Location topics and the anchors
-have no `PlayerThread` row, so they are structurally exempt; there is no
-exclusion list to keep in sync.
-
-The clock is **turns, not wall time**, and it lives on the row rather than in
-Discord: a persistent thread is emptied nightly, so "no messages for N turns"
-cannot be read back out of it. `bot/src/events/messageCreate.js` writes
-`lastActivityTurn`/`lastActivityAt` live (debounced), and before deleting
-anything the pass cross-checks the thread's `last_message_id` snowflake, so a
-message the bot missed while disconnected still counts.
+Persistence, the three forum tags, `/persistent`, quest posts
+(`bot/src/lib/questPost.js`) and inactivity expiry (`threadExpiryPass.js`) are
+all retired — a Conversation has no long-lived form any more, and a
+GM-made off-catalog thread is simply adopted by the Dawn wipe the same way an
+ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 
 ## 5. The ghost seat
 
@@ -421,17 +380,26 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 
 Two scopes:
 
-- **cheap** — role membership only (zone roles vs `Character.zoneId`, turn-ping
-  vs `turnPingOptIn`, cursed vs the dead-and-not-yet-rerolled set), character
-  roles existing/orphaned, and the structural checks: zone channels and roles
-  exist, the **bot's own highest role sits above every zone role** (or the
-  swaps 403 — report-only, moving roles is a human decision), cursed colour 0,
-  and no seat-scoped `zoneId` pointing at a cave level. One member-list read plus a handful of requests.
-- **full** — all of the above plus the expensive halves: channel overwrites vs
-  the spec, leftover per-member overwrites on zone channels, `PlayerThread`
-  rows whose threads 404, dead `PlayerThreadInvite` rows, the special
-  channels' member overwrites vs the registry rules, and `#turns`'s own
-  overwrites vs `db/lib/turnsChannelAccess.js` (§3a).
+- **cheap** — role membership (zone roles vs `Character.zoneId`, **Location
+  roles vs `Character.locationId`**, turn-ping vs `turnPingOptIn`, cursed vs
+  the dead-and-not-yet-rerolled set), character roles existing/orphaned, and
+  the structural checks: zone **and Location** channels and roles exist, a
+  **`character-place` check** that `Character.zoneId` agrees with
+  `location.zoneId` (repaired from the location, the authority), the **bot's
+  own highest role sits above every zone and Location role** (or the swaps
+  403 — report-only, moving roles is a human decision), cursed colour 0, and
+  no seat-scoped `zoneId` pointing at a cave level. One member-list read plus
+  a handful of requests.
+- **full** — all of the above plus the expensive halves: zone and **Location
+  channel overwrites** vs the spec, leftover per-member overwrites on zone and
+  Location channels, **`room-thread`** (a Room's thread exists and is
+  unarchived — recreating a missing one is the sync's job, so this is
+  report-only), **`room-membership`** (a private Room's actual thread
+  membership vs who currently holds one of its `accessTagSlugs` and stands in
+  its Location, via `listThreadMembers`), `PlayerThread` rows whose threads
+  404, dead `PlayerThreadInvite` rows, the special channels' member overwrites
+  vs the registry rules, and `#turns`'s own overwrites vs
+  `db/lib/turnsChannelAccess.js` (§3a).
 
 Where it runs: **cheap + apply on every bot ready** (`bot/src/events/ready.js`),
 after every turn advance when `GameConfig.autoReconcileEnabled` is on, as the
@@ -494,9 +462,11 @@ channel that already exists is adopted rather than duplicated. Run it with
 grants name zone roles the zone sync may have just recreated.
 
 Per-character access is applied by the two `syncCharacterNarrowcastAccess`
-twins: `bot/src/lib/zoneTravel.js` (gateway, after every zone change and after
-`/heal` moves a tag) and `web/lib/discordGuild.js` (REST, from the web travel
-action, GM raw edits, Bulk Move, character creation and `grantTag`/`revokeTag`).
+twins: `db/lib/locationMove.js#reconcileNarrowcastAccess` (REST, shared by bot
+and web, run from `applyLocationMoveSideEffects` on every zone-crossing move
+and from `/heal` when a tag moves) and `web/lib/discordGuild.js` (REST, from
+the web travel action, GM raw edits, Bulk Move, character creation and
+`grantTag`/`revokeTag`).
 Both build the context with `buildNarrowcastContext` and run
 `computeNarrowcastAccess` against the registry.
 
@@ -505,7 +475,6 @@ Both build the context with `buildNarrowcastContext` and run
 | Pass | When | What it does |
 |---|---|---|
 | **Dawn wipe** (`db/lib/dawnWipe.js`) | every turn that opens with `phase === "DAWN"`, if `GameConfig.messageWipeEnabled` | clears roleplay content per the table below |
-| **Thread expiry** (`db/lib/threadExpiryPass.js`) | every Dawn | deletes idle persistent player threads (§4) |
 | **Full wipe** (`db/lib/fullWipe.js`) | Restart Game only | spares nothing (`LAUNCH.md`) |
 | **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `dawnWipe.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
 
@@ -517,19 +486,19 @@ Dawn-only one above. It is best-effort: a sweep failure is logged but never
 costs the turn announcement that already went out. Its *access* is managed
 though — see §3a.
 
-Both Dawn passes are wired into `db/index.js#advanceTurn()`'s side-effect
-thunk, so they fire identically whether Dawn came from the bot's twice-daily
-cron or a GM's "End Turn" button. Expiry runs **after** the wipe on purpose, so
-a thread the wipe just deleted isn't also "expired".
+The Dawn wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk,
+so it fires identically whether Dawn came from the bot's twice-daily cron or a
+GM's "End Turn" button.
 
 **The Dawn wipe only deletes.** The transcript is recorded at *send* time
 (`db/lib/archive.js`, read at `/archive` — `ARCHIVE.md`), so nothing here reads
 message content and there is no `#archive` channel. Deleting is the cheap half:
 `bulkDeleteMessages` moves 100 messages per request, and it splits by age
 because Discord rejects an entire 100-message batch if a single member is over
-14 days old. Location topics go through the same batching
-(`clearThreadExceptStarter`); they used to be cleared one message per request,
-which on a busy turn was the single largest cost in the whole pass.
+14 days old. Rooms go through the same batching (`clearMessagesExcept`, moved
+into `db/lib/discordRest.js` so both the Location channel's own clear and a
+Room's use it); they used to be cleared one message per request, which on a
+busy turn was the single largest cost in the whole pass.
 
 **Every rule below is bounded by a cutoff, and that is the important part.**
 The wipe takes a `cutoffMs` — the moment `advanceTurn()`'s side-effect thunk
@@ -547,30 +516,30 @@ is that a player posting *during* the wipe keeps their message. The wipe is
 long and walks zones in order, so without a cutoff whether your post survived
 depended on where you were standing.
 
-Per target, for every zone including cave levels:
+Per target, for every zone including cave levels, and per Location in it:
 
 | Target | Dawn wipe behaviour |
 |---|---|
-| `#summary` | every message deleted |
-| the Create-a-Topic anchor | **untouched** — the wipe does not reach into it at all |
-| a generated Location topic | every message deleted **except the starter**, whose id is the thread's own id |
-| a Quest post (`keepStarter: true`) | survives; every message deleted **except the starter**, and its Quest tag is re-asserted. Never deleted by the wipe — a GM removes it by hand |
-| a player topic with `persistent: true` | survives, emptied; its Persistent tag is re-asserted (the DB is the truth, the tag only a mirror) |
-| a player topic with `persistent: false` | deleted entirely — thread, row and invites |
-| a post with **no** `PlayerThread` row | **adopted**: a row is written (`persistent: false`) rather than the post destroyed, so a GM's hand-made post gets one full turn and a visible record instead of vanishing |
-| `#private` threads | the same `PlayerThread` rule, with no visible marker either way. Surviving keeps the thread's member list, which is the practical point of persistence there |
+| a zone's `#summary` | every message deleted |
+| a Location channel | every top-level message deleted **except the pinned anchor** |
+| a Room | every message deleted **except the starter** (`Room.starterMessageId`); unarchived if it had idled into the archive |
+| a Conversation | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
+| a thread newer than the cutoff | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next Dawn |
+| an untracked thread (no `PlayerThread` row, not a Room) | **adopted**: a `PlayerThread` row is written rather than the thread destroyed, so a GM's hand-made thread gets one full turn and a visible record instead of vanishing |
 | every registry entry with `wipe: "clear"` (`#watch`, `#intercom`) | every message deleted |
 
-**Each zone is wiped inside its own `try`**, so one stale channel id costs one
-room rather than every room after it plus the special channels. The forum fetch
-allows a 404 — a channel a GM deleted by hand is an ordinary state for a blind
-sweep, not a reason to stop. The whole run is entirely sequential (no
-`Promise.all` fan-out) to avoid bursting Discord's rate-limit buckets, and
-lands on a `SystemReport` row (`kind: DAWN_WIPE`) the Dev Panel shows.
+**Each Location is wiped inside its own `try`**, so one stale channel id costs
+one Location rather than every Location after it plus the special channels.
+Fetching a channel allows a 404 — one a GM deleted by hand is an ordinary
+state for a blind sweep, not a reason to stop. The whole run is entirely
+sequential (no `Promise.all` fan-out) to avoid bursting Discord's rate-limit
+buckets, and lands on a `SystemReport` row (`kind: DAWN_WIPE`) the Dev Panel
+shows.
 
 That report now carries a **per-step breakdown** — elapsed ms, Discord request
-count, and time spent asleep on a rate limit, one row per zone and per special
-channel, with the five slowest shown on the Dev Panel. The wipe is the longest
+count, and time spent asleep on a rate limit, one row per zone's `#summary`,
+per Location, and per special channel, with the five slowest shown on the Dev
+Panel. The wipe is the longest
 thing either face does, and before this nobody could say which part of it was
 slow. Check the breakdown before optimising anything here; the answer has been
 guessed at twice already.

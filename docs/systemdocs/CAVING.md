@@ -13,10 +13,10 @@ and travel), `TURN-ENGINE.md` (where this hooks into a turn advance),
 Discord category, never a place a character can stand — whose `levels:` list
 is flattened by the sync into three real, standable `CAVE_LEVEL` zones:
 Caverns, Railroad, Aberrant Pits (`caverns` / `railroad` / `aberrant-pits`).
-They're chained one Move apart, same as any other hop on the map — since the
-zone rework there is no free walking anywhere, so the levels need no special
-cost rule, only their place in `zoneConnections`. Moving from Caverns to
-Railroad to Aberrant Pits costs three separate turns.
+Each level is its own zone with its own Locations (Customs, the Station,
+Chrome City), chained one zone crossing apart in `docs/zones.yaml`'s
+`connections:` — so they need no special cost rule. Moving from Caverns to
+Railroad to Aberrant Pits costs three separate turns, mount or no.
 
 The public **Caving** document (`docs/documents.yaml`, key `caving`) is the
 player-facing brief — what the three levels are, what to bring, and that the
@@ -52,13 +52,12 @@ Two triggers share that one primitive:
   back for the caller's own side-effect half, the same split `performTravel`
   already uses for the zone-role swap. Five callers:
 
-  - `db/lib/travel.js#performTravel` — player travel, including a first
-    placement (Migrant and Mercenary start in the Depths). Returns the DM as
-    `cavingDm` for `bot/src/lib/zoneTravel.js` and
-    `web/app/(app)/map/travelActions.js` to send.
-  - Fast travel (`web/app/(app)/character/requestActions.js`) — calls
-    `rollCaving` directly per rider/passenger with `trigger: "ARRIVAL"`, same
-    rule as an ordinary hop.
+  - `db/lib/locationTravel.js#performLocationMove` — player travel, including
+    a first placement (Migrant and Mercenary start in the Depths) and a
+    mount's second crossing, which is just a second pass through this same
+    function. Rolls for the mover and every dragged character; the DM(s)
+    ride back on `moved[].cavingDm` for whichever face's location-move caller
+    sends them.
   - The Dev Panel's zone edit and **Bulk Move** — the raw GM relocations.
     They roll too, on purpose: being *dropped* into the Depths by a GM used to
     be the one free walk in, which is exactly how the die first looked broken.
@@ -269,8 +268,8 @@ for `db:prune-tags` once nothing holds them.
 | The loot table | `db/lib/cavingLoot.js` |
 | Turn-start registration | `db/index.js#advanceTurn()`, run against the newly created turn — deliberately not in `TURN_PASSES`/`resolveNeeds()` |
 | Arrival trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
-| Its callers | `db/lib/travel.js#performTravel`, the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#bulkMoveCharacters` |
-| Arrival DM senders | `bot/src/lib/zoneTravel.js`, `web/app/(app)/map/travelActions.js` (travel); the two GM paths send their own |
+| Its callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#bulkMoveCharacters` |
+| Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels | `web/lib/cavingLabels.js` |
 | Loot grant → Request/Undo | `web/lib/requestEffects.js` (`CAVING_LOOT`) |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |

@@ -17,11 +17,10 @@ provisioned channels, or a special channel whose registry entry says
 | Channel | Tupper | Summary |
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
-| A zone's `#public` (forum), or a cave level's forum | yes | no |
-| A zone's `#private` (text) | yes | no |
-| `#watch` / `#intercom` | yes | no |
+| A Location's channel (text), and every Room or Conversation thread under it | yes | no |
+| `#watch` / `#intercom` / `#mindlink` | yes | no |
 
-`#watch`/`#intercom` aren't tied to a place, so they're never summary.
+The special channels aren't tied to a place, so they're never summary.
 
 Two independent implementations of that rule, kept in sync by hand — the
 gateway/REST twin pattern (`ARCHITECTURE.md` §3):
@@ -220,18 +219,22 @@ The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
 
 ## 5. Concealed identity (`/conceal`)
 
-A message in a tupper channel beginning `/conceal` is reposted under an
-anonymous alias instead of the character's name.
+Concealment is a **toggle on the character** — `Character.concealed`, flipped
+by the `/conceal` slash command (registered everywhere, the bot's DMs included)
+or the switch beside turn-ping on `/character`. While it is on, every message
+the character sends — typed into a channel or through the Speak modal — is
+reposted under an anonymous alias instead of the name, and **Who's here?** on
+a Location's anchor lists them under that alias too (`CHANNELS.md` §4). The
+old per-message `/conceal` text prefix and the Speak modal's checkbox are
+gone: a player who wants to be unnamed is unnamed until they say otherwise.
 
 **It is open to everyone** — nothing equipped, no tag required. A player
 decides for themselves when to go unnamed. `Tag.concealsIdentity` still exists
 in the catalog and is still synced but nothing reads it (`TAGS.md`); re-gating
-would be one query in `messageCreate.js`.
+would be one query where `messageCreate.js` reads the flag.
 
-It is a **literal text prefix, deliberately not a registered slash command**. A
-slash command replies through an interaction rather than the webhook, so
-✏️/❌/⭐/🔍 would all stop working on the result. As a prefix it rides the
-ordinary proxy path and every reaction behaves unchanged.
+The slash command only flips the column and replies; the message itself still
+rides the ordinary proxy path, so ✏️/❌/⭐/🔍 all behave unchanged.
 
 The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
 `characterName.js`):
@@ -301,7 +304,7 @@ the real `characterId`/`characterName` — so `/archive` renders
 which is why `archiveVisible` is meant to stay shut until the game ends
 (`ARCHIVE.md`).
 
-## 6. Mentions and private threads
+## 6. Mentions and conversations
 
 A character's personal Discord role is a **mentionable name token and nothing
 else** — held by nobody, granting nothing (`CHANNELS.md` §3). `Character.discordRoleId`
@@ -341,9 +344,9 @@ Otherwise, gated so a ping can't carry further than a voice would. Without a gat
 pinging is a free cross-map signalling channel. Two rules, because the two
 kinds of channel mean different things by "in earshot":
 
-- **Zone channels** gate on the **zone** — which is exactly as loose as the
-  room now: someone in the Square topic can shout for someone reading the
-  Cathedral one.
+- **Location channels** (and the Rooms and Conversations under them) gate on
+  the **location** — you can call for someone standing where you stand, not
+  for someone across the zone.
 - **The special channels** have no zone at all, so they gate on whether the
   target currently *hears that channel* — `computeNarrowcastAccess` from
   `db/lib/specialChannels.js`, keyed on `NARROWCAST_SLUGS` rather than a
@@ -358,9 +361,10 @@ quoted.
 who spoke, and a DM naming the place would hand the target a thread to pull
 on.
 
-### Adding to a private thread
+### Adding to a conversation
 
-In a private thread, a mention also **adds that character's player to it**.
+In a Conversation (a `PlayerThread` row, `CHANNELS.md` §4), a mention also
+**adds that character's player to it**.
 Discord does this for free today by auto-adding a mentioned role's members, but
 that stops working the moment the roles have zero members, so the bot takes it
 over.
@@ -373,16 +377,16 @@ them. Anyone already in the thread may add or remove, plus GMs.
 **A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b):
 a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
 if the target is standing somewhere else `applyPendingInvites` replays it the
-moment they arrive. Discord still requires a thread member to be able to view
-the parent channel — that view is the zone role now — so an out-of-zone add
-would put a thread in their sidebar they can't open. The pinger is told who was
+moment they arrive in that Location. Discord still requires a thread member to
+be able to view the parent channel — that view is the location role now — so
+an add from elsewhere would put a thread in their sidebar they can't open. The pinger is told who was
 invited rather than notified (collected into one DM, not one per target), since
 a proxied message has no interaction to reply to and silence would read as a
 bug.
 
 One thing worth knowing rather than fixing: removing a member the bot didn't
 add needs `MANAGE_THREADS`, which comes from the bot's own role and is not
-granted by `zoneChannelSpec` — `/remove` reports that failure rather than
+granted by `locationChannelSpec` — `/remove` reports that failure rather than
 silently timing out.
 
 ## 7. Notes (⭐) and the Journal

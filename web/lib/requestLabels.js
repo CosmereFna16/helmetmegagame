@@ -28,7 +28,6 @@ export const REQUEST_TYPE_LABELS = {
   FREE_CHARACTER: "Free Character",
   HARM_CHARACTER: "Harm Character",
   BURY_CHARACTER: "Bury Person",
-  FAST_TRAVEL: "Fast Travel",
   BIRD_MESSAGE: "Bird Message",
   DEPOT_BUY: "Depot Purchase",
   DEPOT_SELL: "Depot Sale",

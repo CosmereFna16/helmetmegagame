@@ -51,7 +51,6 @@ import {
   freeCharacterRequest,
   harmCharacterRequest,
   buryCharacterRequest,
-  fastTravelRequest,
   birdMessageRequest,
 } from "../(app)/character/requestActions";
 
@@ -295,9 +294,10 @@ export const ACTION_HELP = {
     "Use something up. You can also just click on the tag on your sheet.",
   loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",
   move:
-    "Forcibly move someone with the Bound tag. Use this before changing zones " +
-    "yourself. If you're a Leader, you can also move people within your own " +
-    "faction. It does not spend their turn. Bodies can be dragged by anyone.",
+    "Forcibly move someone with the Bound tag, from anywhere in your zone to " +
+    "somewhere next door to you. Use this before moving yourself. If you're a " +
+    "Leader, you can also move people within your own faction. It does not " +
+    "spend their turn. Bodies can be dragged by anyone. ‡",
   bind: "Tie up anyone standing where you are. Once they're Bound you can loot them or march them somewhere.",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
   harm: "Further injure someone who is bound or incapacitated.",
@@ -309,9 +309,6 @@ export const ACTION_HELP = {
     "into words. Nobody is told you read it.",
   bury:
     "Write the person's name letter by letter—be precise!—or they won't be buried.",
-  fasttravel:
-    "Fast travel, optionally bringing someone with you. You can use a cart to " +
-    "travel with up to 6 people.",
   resources: (
     <>
       <p>Both ends have to be within reach of you.</p>
@@ -338,7 +335,6 @@ const TITLES = {
   free: "Free",
   harm: "Harm",
   bury: "Bury Person",
-  fasttravel: "Fast Travel",
   bird: "Send Bird",
 };
 
@@ -367,13 +363,10 @@ export default function RequestActionsProvider({
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
   moveTargets = [],
-  moveZones = [],
+  moveLocations = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
-  canFastTravel = false,
-  fastTravelSeats = 0,
-  fastTravelTargets = [],
   // The Bird. birdTargets is EVERY character, alive or dead, on purpose.
   hasBird = false,
   isLiterate = false,
@@ -395,10 +388,10 @@ export default function RequestActionsProvider({
   // tagId -> quantity, for Loot. Always replaced wholesale, never mutated
   // (react-hooks/immutability is an error here).
   const [picks, setPicks] = useState({});
+  // The Bird's guessed zone.
   const [zoneId, setZoneId] = useState("");
-  // Fast Travel passengers, a Set — same shape BulkComposer.js uses for
-  // multi-character selection.
-  const [passengerIds, setPassengerIds] = useState(() => new Set());
+  // Move Player's destination.
+  const [locationId, setLocationId] = useState("");
   const [lethal, setLethal] = useState(false);
   // Bury types its target instead of picking it — a dropdown would be a
   // list of the dead (REQUESTS.md §5d).
@@ -514,21 +507,6 @@ export default function RequestActionsProvider({
     setQuantity("1");
   }
 
-  // Passenger cap, rider excluded; floors at 0 for a seatless vehicle
-  // (unreachable in practice since canFastTravel gates the button).
-  const passengerCap = Math.max(0, fastTravelSeats - 1);
-
-  // Capped client-side at the rider's vehicle seats; the server re-derives
-  // the same cap as the real enforcement.
-  function togglePassenger(id) {
-    setPassengerIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else if (next.size < passengerCap) next.add(id);
-      return next;
-    });
-  }
-
   // Loot takes a mix, so its picks are a checkbox set rather than one choice.
   function togglePick(id, held) {
     setPicks((prev) => {
@@ -558,7 +536,7 @@ export default function RequestActionsProvider({
       setAmount("1");
       setPicks({});
       setZoneId("");
-      setPassengerIds(new Set());
+      setLocationId("");
       setLethal(false);
       setBuryName("");
       setBirdBody("");
@@ -646,7 +624,7 @@ export default function RequestActionsProvider({
       case "move":
         return moveCharacterRequest({
           targetCharacterId: targetId,
-          targetZoneId: zoneId,
+          targetLocationId: locationId,
           reason,
         });
       case "bind":
@@ -662,12 +640,6 @@ export default function RequestActionsProvider({
         });
       case "bury":
         return buryCharacterRequest({ firstName: buryName, reason });
-      case "fasttravel":
-        return fastTravelRequest({
-          targetZoneId: zoneId,
-          passengerIds: [...passengerIds],
-          reason,
-        });
       case "bird":
         // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
@@ -701,7 +673,7 @@ export default function RequestActionsProvider({
       case "loot":
         return Boolean(targetId && takingSomething);
       case "move":
-        return Boolean(targetId && zoneId);
+        return Boolean(targetId && locationId);
       case "bind":
       case "free":
         return Boolean(targetId);
@@ -709,8 +681,6 @@ export default function RequestActionsProvider({
         return Boolean(targetId && (tagId || lethal));
       case "bury":
         return Boolean(buryName.trim());
-      case "fasttravel":
-        return Boolean(zoneId);
       default:
         return Boolean(tagId);
     }
@@ -724,7 +694,6 @@ export default function RequestActionsProvider({
       canTransfer: transferable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
-      canFastTravel,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
@@ -737,7 +706,6 @@ export default function RequestActionsProvider({
       transferable,
       consumable,
       canHeal,
-      canFastTravel,
       hasBird,
       isLiterate,
       birdSentToday,
@@ -1177,24 +1145,26 @@ export default function RequestActionsProvider({
                     <label className="field">
                       <span className="field-label">Where to?</span>
                       <Select
-                        value={zoneId}
-                        onChange={(e) => setZoneId(e.target.value)}
+                        value={locationId}
+                        onChange={(e) => setLocationId(e.target.value)}
                         required
                       >
                         <option value="" disabled>
-                          Choose a neighboring zone…
+                          Choose somewhere next door… ‡
                         </option>
-                        {moveZones.map((z) => (
-                          <option key={z.id} value={z.id}>
-                            {z.name}
+                        {moveLocations.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                            {l.crossesZone && l.zoneName ? ` — crosses into ${l.zoneName}` : ""}
                           </option>
                         ))}
                       </Select>
                     </label>
                     <p className="text-xs text-muted">
                       You can move someone you lead, someone you&apos;ve bound,
-                      or a body. It does not spend their turn — and it does not
-                      move you, so go there yourself afterwards.
+                      or a body — anyone standing anywhere in your zone. It does
+                      not spend their turn, and it does not move you, so go
+                      there yourself afterwards. ‡
                     </p>
                   </>
                 )}
@@ -1221,65 +1191,6 @@ export default function RequestActionsProvider({
                 <p className="text-xs text-muted">
                   Write the person&apos;s name letter by letter&mdash;be
                   precise!&mdash;or they won&apos;t be buried.
-                </p>
-              </>
-            )}
-
-            {mode === "fasttravel" && (
-              <>
-                <label className="field">
-                  <span className="field-label">Where are you riding?</span>
-                  <Select
-                    value={zoneId}
-                    onChange={(e) => setZoneId(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Choose a neighboring zone…
-                    </option>
-                    {moveZones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.name}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                {passengerCap > 0 && (
-                  <div className="flex flex-col gap-2">
-                    <span className="field-label">
-                      Bring anyone? ({passengerIds.size + 1} / {fastTravelSeats}{" "}
-                      seats)
-                    </span>
-                    {fastTravelTargets.length === 0 ? (
-                      <p className="text-xs text-muted">
-                        Nobody else is standing here.
-                      </p>
-                    ) : (
-                      fastTravelTargets.map((t) => {
-                        const checked = passengerIds.has(t.id);
-                        const full =
-                          !checked && passengerIds.size >= passengerCap;
-                        return (
-                          <CheckField
-                            key={t.id}
-                            checked={checked}
-                            disabled={full}
-                            onChange={() => togglePassenger(t.id)}
-                          >
-                            {t.name}
-                            {full ? " — seats full" : ""}
-                          </CheckField>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-                <p className="text-xs text-muted">
-                  {passengerCap > 0
-                    ? `Bring up to ${passengerCap} more people, if they're standing here. They don't ` +
-                      "need to be tied up or led — anyone can ride along, and a GM can undo it if it " +
-                      "needs a look."
-                    : "One zone over, and it does not spend your turn — you can still act when you arrive."}
                 </p>
               </>
             )}

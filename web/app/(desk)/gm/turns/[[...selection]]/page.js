@@ -89,12 +89,10 @@ function summarize(request) {
     }
     case "MOVE_CHARACTER":
       return `${e.targetStatus === "DEAD" ? "Dragged" : "Moved"} ${e.targetName ?? "?"} to ${
-        e.toZoneName ?? "?"
+        e.toLocationName ?? "?"
       }`;
     case "BURY_CHARACTER":
       return `Buried ${e.targetName ?? "?"} — curse lifted`;
-    case "FAST_TRAVEL":
-      return `Rode ${e.fromZoneName ?? "?"} → ${e.toZoneName ?? "?"}`;
     case "BIRD_MESSAGE":
       return `${e.delivered ? "Wrote" : "Missed"} ${e.recipientName ?? "?"} in ${e.guessedZoneName ?? "?"}`;
     case "DEPOT_BUY":
@@ -164,6 +162,7 @@ export default async function TurnsWorkspacePage({ params }) {
     stagedMessages,
     roster,
     presenceZones,
+    stagingLocations,
     tagCatalog,
     members,
     myZones,
@@ -221,14 +220,18 @@ export default async function TurnsWorkspacePage({ params }) {
         zone: { select: { name: true } },
       },
     }),
-    // Every zone picker on this desk (staged relocation, public-declaration
-    // delivery) offers PRESENCE zones only — a character stands in a
-    // surface zone or a single cave level, never on the abstract Caves
-    // group row (mirrors web/lib/devPanelData.js's zone query).
+    // The public-declaration composer picks a ZONE, because #summary belongs
+    // to the zone: PRESENCE zones only, never the abstract Caves group row.
     prisma.zone.findMany({
       where: { kind: { not: "CAVE_GROUP" } },
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true },
+    }),
+    // The staged "Relocate to" picker's options, grouped by zone in
+    // docs/zones.yaml order.
+    prisma.location.findMany({
+      orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+      select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
     }),
     // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
     // is what TagChip/ChipLabel need to render coloured with a working
@@ -314,9 +317,15 @@ export default async function TurnsWorkspacePage({ params }) {
 
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
 
-  const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
+  const locationRows = stagingLocations.map((l) => ({
+    id: l.id,
+    name: l.name,
+    zoneId: l.zoneId,
+    zoneName: l.zone?.name ?? null,
+  }));
+  const locationNameById = new Map(locationRows.map((l) => [l.id, l.name]));
 
-  const effectCtx = { usernameById, presenceZoneNameById, openTurn };
+  const effectCtx = { usernameById, locationNameById, openTurn };
   const messageCtx = { usernameById, openTurn };
   const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
   const messages = stagedMessages.map((m) => stagedMessageRow(m, messageCtx));
@@ -417,6 +426,7 @@ export default async function TurnsWorkspacePage({ params }) {
         username: usernameById.get(c.discordUserId) ?? "",
       }))}
       presenceZones={presenceZones}
+      stagingLocations={locationRows}
       factions={factions}
       moves={moves}
       requests={requestRows}

@@ -48,9 +48,6 @@ export default function CharacterSheet({
   desireAddiction = null,
   desiresEnabled = true,
   canHeal = false,
-  canFastTravel = false,
-  fastTravelSeats = 0,
-  fastTravelTargets = [],
   hasBird = false,
   isLiterate = false,
   birdSentToday = false,
@@ -63,7 +60,7 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   lootTargets = [],
   moveTargets = [],
-  moveZones = [],
+  moveLocations = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
@@ -120,9 +117,6 @@ export default function CharacterSheet({
             otherCharacters={otherCharacters ?? []}
             transferParties={transferParties}
             canHeal={canHeal}
-            canFastTravel={canFastTravel}
-            fastTravelSeats={fastTravelSeats}
-            fastTravelTargets={fastTravelTargets}
             hasBird={hasBird}
             isLiterate={isLiterate}
             birdSentToday={birdSentToday}
@@ -132,7 +126,7 @@ export default function CharacterSheet({
             healParties={healParties}
             lootTargets={lootTargets}
             moveTargets={moveTargets}
-            moveZones={moveZones}
+            moveLocations={moveLocations}
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}

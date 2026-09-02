@@ -46,16 +46,9 @@ export function consumableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
-// The tags that unlock Fast Travel. Lives here (not requestActions.js, which
-// is "use server") so the page's gate and the server action's re-derivation
-// read the same set. See DEPOT.md §3.
-export const FAST_TRAVEL_SLUGS = new Set(["horse", "wild-horse", "steam-automobile"]);
-
-// Seats a Fast Travel can carry, rider included. Steam Automobile is a fixed
-// 6 and doesn't stack with Cart. A horse alone seats 2; Cart upgrades to 6.
-export function fastTravelCapacity(heldSlugs) {
-  if (heldSlugs.has("steam-automobile")) return 6;
-  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("wild-horse");
-  if (!hasHorse) return 0;
-  return heldSlugs.has("cart") ? 6 : 2;
-}
+// The mount tags — what lets a character cross into a second zone in one
+// turn, and how many people the mount seats. Both live in db/lib/mounts.js so
+// the bot's travel flow and this page's gates read one set; re-exported here
+// because the rest of this module's callers already import from it.
+// See DEPOT.md §3.
+export { FAST_TRAVEL_SLUGS, fastTravelCapacity } from "@lifeweb/db/lib/mounts";

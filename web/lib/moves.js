@@ -28,13 +28,14 @@ const MOVE_KIND_LABELS = {
   GAMBIT: "Gambit",
 };
 
-// A gmNotes marker a GM never types themselves — stamped by db/lib/travel.js
-// to identify a Move the desk generated rather than a player submitted.
+// A gmNotes marker a GM never types themselves — stamped by
+// db/lib/locationTravel.js to identify a Move the desk generated rather than
+// a player submitted.
 export const AUTO_ZONE_CHANGE = "auto:zone_change";
 
-// A travel stub (db/lib/travel.js#performTravel) files a Move with no
-// moveKind — there's no Routine/Gambit to pick, it's just "walked to a
-// place". gmNotes can carry more than one marker (stagedPush appends
+// A travel stub (db/lib/locationTravel.js#performLocationMove) files a Move
+// with no moveKind — there's no Routine/Gambit to pick, it's just "walked to
+// a place". gmNotes can carry more than one marker (stagedPush appends
 // auto:silent_close on top), so check for the substring, not equality.
 export function isTravelMove(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_ZONE_CHANGE);

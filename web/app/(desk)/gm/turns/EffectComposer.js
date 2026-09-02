@@ -38,6 +38,7 @@ export default function EffectComposer({
   roster,
   tagCatalog,
   presenceZones = [],
+  stagingLocations = [],
   onDone,
   onCancel,
 }) {
@@ -58,7 +59,7 @@ export default function EffectComposer({
     const v = existing?.tagPoints ?? 0;
     return v ? String(v) : "";
   });
-  const [zoneId, setZoneId] = useState(() => existing?.zoneId ?? "");
+  const [locationId, setLocationId] = useState(() => existing?.locationId ?? "");
   const [targetSearch, setTargetSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -290,7 +291,7 @@ export default function EffectComposer({
           tagOps = [...merged.values()];
         }
         const res = existing
-          ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps, zoneId })
+          ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps, locationId })
           : await createStagedEffects({
               targetCharacterIds: targets.map((t) => t.id),
               moveId,
@@ -298,7 +299,7 @@ export default function EffectComposer({
               resources,
               tagPoints,
               tagOps,
-              zoneId,
+              locationId,
             });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
@@ -398,17 +399,21 @@ export default function EffectComposer({
           <label className="field" style={{ width: "12rem" }}>
             <span className="field-label">Relocate to</span>
             <Select
-              value={zoneId}
+              value={locationId}
               onChange={(e) => {
-                setZoneId(e.target.value);
+                setLocationId(e.target.value);
                 markDirty();
               }}
             >
               <option value="">— no move —</option>
-              {presenceZones.map((z) => (
-                <option key={z.id} value={z.id}>
-                  {z.name}
-                </option>
+              {groupByZone(stagingLocations).map((group) => (
+                <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned ‡"}>
+                  {group.locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </Select>
           </label>
@@ -586,4 +591,16 @@ export default function EffectComposer({
       </div>
     </Modal>
   );
+}
+
+// The relocation picker's <optgroup>s. Locations arrive already ordered by
+// zone then sortOrder, so one pass keeps them in docs/zones.yaml order.
+function groupByZone(locations) {
+  const groups = [];
+  for (const l of locations ?? []) {
+    const last = groups[groups.length - 1];
+    if (last && last.zoneId === l.zoneId) last.locations.push(l);
+    else groups.push({ zoneId: l.zoneId, zoneName: l.zoneName, locations: [l] });
+  }
+  return groups;
 }

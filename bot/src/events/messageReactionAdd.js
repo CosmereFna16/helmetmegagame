@@ -226,8 +226,12 @@ async function handleWindReaction(reaction, user) {
   const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
   if (!member?.roles.cache.has(cursedRoleId)) return;
 
+  // Public ground only: a zone's #summary, a Location's channel, or a Room
+  // under it (a thread reports its parent's kind). A private Room or a
+  // Conversation needs no rule here — a ghost is never a member, so it can't
+  // react there in the first place.
   const { channelKind } = resolveChannelContext(reaction.message.channel);
-  if (channelKind !== "summary" && channelKind !== "public") return;
+  if (channelKind !== "summary" && channelKind !== "location") return;
 
   const claim = await claimGhostWhisper(prisma, user.id);
   if (!claim.ok) {

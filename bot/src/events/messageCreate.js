@@ -2,47 +2,18 @@ const { prisma, concealedAlias } = require("@lifeweb/db");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
-const { convertToQuestPost } = require("../lib/questPost");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const {
   canHearPing,
-  isPrivateThread,
   messageLink,
   notifyMentioned,
   resolveMentionedCharacters,
 } = require("../lib/mentions");
 
-// A literal prefix rather than a registered slash command: a slash command
-// replies through an interaction, which would not be a webhook message, so
-// ✏️ / ❌ / ⭐ / 🔍 would all stop working on it. As a prefix it rides the
-// ordinary proxy path and every reaction keeps behaving.
-const CONCEAL_PREFIX = "/conceal";
-
 // How many character-role mentions one message may relay. Each one is a user
 // fetch, a DM channel open, a send and a database insert, strictly serial —
 // so an uncapped list is a fan-out anyone can trigger by pasting mentions.
 const MAX_MENTION_RELAYS = 10;
-
-// The Create-a-Topic anchor is a pinned but UNLOCKED forum post — locking it
-// would grey its own buttons out for every player (db/lib/syncZones.js). So
-// the lock's job moves here: anything typed into an anchor is deleted, and
-// never proxied or archived. The id set is cached because this runs on every
-// threaded message; anchors only change on a db:sync-zones.
-const ANCHOR_CACHE_MS = 60_000;
-let anchorIds = null;
-let anchorFetchedAt = 0;
-
-async function isCreateTopicAnchor(threadId) {
-  if (!anchorIds || Date.now() - anchorFetchedAt > ANCHOR_CACHE_MS) {
-    const zones = await prisma.zone.findMany({
-      where: { createTopicThreadId: { not: null } },
-      select: { createTopicThreadId: true },
-    });
-    anchorIds = new Set(zones.map((z) => z.createTopicThreadId));
-    anchorFetchedAt = Date.now();
-  }
-  return anchorIds.has(threadId);
-}
 
 module.exports = {
   name: "messageCreate",
@@ -81,31 +52,17 @@ module.exports = {
       return;
     }
 
-    // Same treatment as #turns, and for the same reason: the anchor is a
-    // control surface, not a scene. Runs before the character gate so a GM's
-    // stray line is swept too.
-    if (message.channel.isThread?.() && (await isCreateTopicAnchor(message.channel.id))) {
-      await message.delete().catch(() => {});
-      return;
-    }
-
-    // Ahead of the proxy gate on purpose. A GM who presses Discord's own New
-    // Post button in a location forum gets that post re-authored as the bot
-    // (bot/src/lib/questPost.js); running after the gate would let a GM who
-    // also has a living character have their starter message proxied, and
-    // deleting a forum post's starter message destroys the post.
-    if (await convertToQuestPost(message).catch((err) => {
-      console.error("Quest-post conversion failed:", err);
-      return false;
-    })) {
-      return;
-    }
+    // A Location channel's own anchor sits at the top level of the channel,
+    // pinned, and that top level IS the open street — so unlike the retired
+    // zone anchors there is nothing here to sweep. Someone talking in a
+    // Location channel is simply talking in public.
 
     if (!isDesignatedTupperChannel(message.channel)) return;
 
-    // Inactivity clock for player-made threads (db/lib/threadExpiryPass.js).
-    // Debounced to one write per thread per turn; runs before the character
-    // gate on purpose — a GM talking in a scene keeps it alive too.
+    // Activity clock for Conversations. Informational since Bascinet 2
+    // retired inactivity expiry — the Dawn wipe takes them instead — and
+    // debounced to one write per thread per turn; runs before the character
+    // gate on purpose, so a GM talking in a scene counts too.
     if (message.channel.isThread?.()) {
       touchThreadActivity(message.channel.id).catch((err) =>
         console.error("Thread activity write failed:", err),
@@ -117,24 +74,12 @@ module.exports = {
     });
     if (!character) return;
 
-    const trimmed = message.content.trimStart();
-    const wantsConceal = trimmed.toLowerCase().startsWith(CONCEAL_PREFIX);
-
-    let conceal = null;
-    let content = null;
-    if (wantsConceal) {
-      content = trimmed.slice(CONCEAL_PREFIX.length).trim();
-
-      // Open to everyone, with nothing equipped and no tag required — a player
-      // decides for themselves when to go unnamed. Tag.concealsIdentity still
-      // exists in the catalog but nothing reads it; re-gating is one query here.
-      if (!content && message.attachments.size === 0) {
-        await message.delete().catch(() => {});
-        await sendDm(message.author, "» *Add a message after `/conceal`.*", { source: "system_notice" }).catch(() => {});
-        return;
-      }
-      conceal = { alias: concealedAlias(character) };
-    }
+    // Concealment is a standing state now (Character.concealed, toggled by
+    // /conceal or the switch on /character) rather than a per-message prefix.
+    // A player who has decided to go unnamed should not have to remember it
+    // on every line — forgetting once is exactly the failure the feature
+    // exists to prevent. Open to everyone, nothing equipped, no tag required.
+    const conceal = character.concealed ? { alias: concealedAlias(character) } : null;
 
     // Captured BEFORE proxying: sendAsCharacter deletes the original message,
     // and the mention list goes with it.
@@ -147,7 +92,7 @@ module.exports = {
     // it refused, and there is no proxied message left to relay mentions for.
     let proxied;
     try {
-      proxied = await sendAsCharacter(channel, character, message, { conceal, content });
+      proxied = await sendAsCharacter(channel, character, message, { conceal });
     } catch (err) {
       console.error("Failed to proxy message:", err);
       return;
@@ -180,13 +125,13 @@ async function touchThreadActivity(threadId) {
     where: { threadId },
     data: { lastActivityTurn: turnNumber ?? undefined, lastActivityAt: new Date() },
   });
-  // Only remember threads we actually track — a Location topic has no row,
-  // and caching its id would just grow the map.
+  // Only remember threads we actually track — a Room thread has no
+  // PlayerThread row, and caching its id would just grow the map.
   if (updated.count > 0 && turnNumber !== null) activityWritten.set(threadId, turnNumber);
 }
 
 // Two independent things a character-role mention does: notify the player,
-// and — in a private thread — let them in. Discord won't auto-add a mentioned
+// and — in a Conversation — let them in. Discord won't auto-add a mentioned
 // role's members once the role is assigned to nobody, so the bot does both.
 async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   const context = resolveChannelContext(channel);
@@ -197,7 +142,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   // One line per ping makes it diagnosable from the Railway logs.
   console.log(
     `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
-      `zone=${context.zoneId ?? "none"} kind=${context.channelKind ?? "location"}`,
+      `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
   );
   if (mentioned.length === 0) return;
 
@@ -213,23 +158,32 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
     await sendDm(
       message.author,
       `» *That pinged ${mentioned.length} people at once, so only the first ${MAX_MENTION_RELAYS} were told. ` +
-        `Not notified: ${dropped.map((t) => t.name).join(", ")}.*`,
+        `Not notified: ${dropped.map((t) => t.name).join(", ")}.* ‡`,
       { source: "system_notice" },
     ).catch(() => {});
   }
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
-  const privateThread = isPrivateThread(channel);
+  // A mention only becomes an invite inside a Conversation. A private Room is
+  // a private thread too, but it is gated on a key tag
+  // (db/lib/roomAccess.js) — letting a ping hand out a seat there would
+  // route straight around the lock.
+  const conversation = await prisma.playerThread
+    .findUnique({ where: { threadId: channel.id }, select: { locationId: true } })
+    .catch((err) => {
+      console.error("Conversation lookup failed for a mention:", err);
+      return null;
+    });
 
   // Collected rather than sent one-per-target, so the author gets one DM
   // instead of one per absent person named.
   const notHere = [];
 
   for (const target of relayed) {
-    if (privateThread) {
-      // A mention into a private thread is an invite, same contract as /add:
-      // recorded, applied now if the target can already see the zone, and
-      // replayed by applyPendingInvites when they arrive otherwise.
+    if (conversation) {
+      // A mention into a Conversation is an invite, same contract as /add:
+      // recorded, applied now if the target already stands in the location,
+      // and replayed by applyPendingInvites when they arrive otherwise.
       await prisma.playerThreadInvite
         .upsert({
           where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },
@@ -237,13 +191,13 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
           create: { threadId: channel.id, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
-      if (context.zoneId && target.zoneId === context.zoneId) {
+      if (target.locationId === conversation.locationId) {
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
         );
         await notifyMentioned(message.client, target, context, link);
       } else {
-        console.log(`[mentions] ${target.name}: not in ${context.zoneName ?? "this zone"}, invite recorded`);
+        console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, invite recorded`);
         notHere.push(target.name);
       }
       continue;
@@ -257,12 +211,12 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   }
 
   if (notHere.length > 0) {
-    const where = context.zoneName ?? "this zone";
+    const where = context.locationName ?? context.zoneName ?? "this place";
     await sendDm(
       message.author,
       notHere.length === 1
-        ? `» *${notHere[0]} isn't in ${where} — they're invited, and they'll see this thread when they arrive.*`
-        : `» *${notHere.join(", ")} aren't in ${where} — they're invited, and they'll see this thread when they arrive.*`,
+        ? `» *${notHere[0]} isn't in ${where} — they're invited, and they'll see this conversation when they arrive.* ‡`
+        : `» *${notHere.join(", ")} aren't in ${where} — they're invited, and they'll see this conversation when they arrive.* ‡`,
       { source: "system_notice" },
     ).catch(() => {});
   }

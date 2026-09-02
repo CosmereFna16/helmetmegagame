@@ -11,6 +11,7 @@ const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
+const { runWhisperPoll } = require("../lib/whisperPoll");
 const { registerCommands } = require("../lib/commands");
 
 module.exports = {
@@ -141,5 +142,17 @@ module.exports = {
     // turn advance, and these are the hours with the best player overlap.
     cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
     cron.schedule("0 12 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
+
+    // Every Room hears who has been whispering in the Conversations linked to
+    // it, aliased, on a stateless 15-minute lookback
+    // (bot/src/lib/whisperPoll.js). Runs on the bot rather than the web app
+    // because it is a plain cron with no request behind it.
+    cron.schedule("*/15 * * * *", () => {
+      runWhisperPoll(prisma)
+        .then((posted) => {
+          if (posted > 0) console.log(`Whisper poll: ${posted} room(s) told.`);
+        })
+        .catch((err) => console.error("Whisper poll failed:", err));
+    });
   },
 };

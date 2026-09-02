@@ -29,7 +29,7 @@ import {
 import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { isTradeable, fastTravelCapacity, addRequirementSatisfied } from "@/lib/tagRequests";
+import { isTradeable, addRequirementSatisfied } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   exclusiveConflict,
@@ -62,16 +62,14 @@ import {
   syncCharacterNarrowcastAccess,
   syncCharacterNickname,
   ensureCharacterRole,
-  syncCharacterZoneRole,
   removeCursedRole,
   sendDm,
   killCharacter,
 } from "@/lib/discordGuild";
-import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
+import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
-import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
-import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import {
   projectDesireTemplateForGates,
@@ -405,6 +403,7 @@ async function addTagRequestImpl({
     });
   });
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, character).catch(() => {});
   revalidateAll();
   return {};
 }
@@ -471,6 +470,7 @@ async function removeTagRequestImpl({
     });
   });
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, character).catch(() => {});
   revalidateAll();
   return {};
 }
@@ -554,6 +554,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     });
   });
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, character).catch(() => {});
   revalidateAll();
   return {};
 }
@@ -694,6 +695,8 @@ async function transferTagRequestImpl({
   await Promise.all([
     syncCharacterNarrowcastAccess(source.id).catch(() => {}),
     syncCharacterNarrowcastAccess(recipient.id).catch(() => {}),
+    syncCharacterRoomAccess(prisma, source).catch(() => {}),
+    syncCharacterRoomAccess(prisma, recipient).catch(() => {}),
   ]);
 
   if (isLoot) {
@@ -827,6 +830,7 @@ async function healCharacterRequestImpl({
   });
 
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, target).catch(() => {});
   if (target.id !== character.id) {
     notifyCharacter(target, `Your ${held.tag.name} was treated.`);
   }
@@ -942,7 +946,10 @@ async function lootCharacterRequestImpl({
 
   await Promise.all([
     target.status === "ALIVE"
-      ? syncCharacterNarrowcastAccess(target.id).catch(() => {})
+      ? Promise.all([
+          syncCharacterNarrowcastAccess(target.id).catch(() => {}),
+          syncCharacterRoomAccess(prisma, target).catch(() => {}),
+        ])
       : Promise.resolve(),
     syncCharacterNarrowcastAccess(character.id).catch(() => {}),
   ]);
@@ -960,16 +967,19 @@ async function lootCharacterRequestImpl({
 // --- Moving another character -------------------------------------------
 
 // A character who follows the filer: a faction member the filer leads, or
-// anyone helpless (bound, dying, paralyzed, catatonic, or dead). Destination
-// is validated the same way as an ordinary /move hop, but this does NOT
-// spend a Move or file an Action — no network call may run inside a
-// $transaction (ARCHITECTURE.md §5), so the Discord zone-role swap runs
-// after commit.
-async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reason: rawReason }) {
+// anyone helpless (bound, dying, paralyzed, catatonic, or dead). Who you may
+// take is judged by ZONE — anyone standing anywhere in your zone — while
+// where you may take them is judged by the Location graph, the same edge an
+// ordinary walk uses. This does NOT spend a Move or file an Action, and no
+// network call may run inside a $transaction (ARCHITECTURE.md §5), so the
+// Discord fan-out runs after commit.
+async function moveCharacterRequestImpl({ targetCharacterId, targetLocationId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (!character.zoneId || !character.locationId) {
+    throw new UserError("You aren't anywhere you could do that.");
+  }
 
   const target = await prisma.character.findFirst({
     where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
@@ -989,39 +999,51 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
     throw new UserError("You can only move someone you lead, or someone who can't stop you.");
   }
 
-  const targetZone = await prisma.zone.findUnique({ where: { id: targetZoneId ?? "" } });
-  if (!targetZone) throw new UserError("Unknown destination.");
-  if (targetZone.kind === "CAVE_GROUP") throw new UserError("That isn't a place you can stand.");
-  if (targetZone.id === target.zoneId) throw new UserError("They're already there.");
-
-  const currentZone = await prisma.zone.findUnique({
-    where: { id: character.zoneId },
-    include: { connectsTo: { where: { id: targetZone.id } } },
+  const targetLocation = await prisma.location.findUnique({
+    where: { id: targetLocationId ?? "" },
+    include: { zone: true },
   });
-  if (!currentZone || currentZone.connectsTo.length === 0) {
+  if (!targetLocation) throw new UserError("Unknown destination.");
+  if (targetLocation.id === target.locationId) throw new UserError("They're already there.");
+
+  // The edge is read off the FILER's location, not the target's — you walk
+  // them out of your own doorway.
+  const currentLocation = await prisma.location.findUnique({
+    where: { id: character.locationId },
+    include: { connectsTo: { where: { id: targetLocation.id } } },
+  });
+  if (!currentLocation || currentLocation.connectsTo.length === 0) {
     throw new UserError("You can't get there directly from here.");
   }
 
   const openTurn = await getOpenTurn();
+  const fromLocationId = target.locationId;
   const fromZoneId = target.zoneId;
 
   await prisma.$transaction(async (tx) => {
-    await tx.character.update({ where: { id: target.id }, data: { zoneId: targetZone.id } });
+    // The denormalization contract: locationId and zoneId written together.
+    await tx.character.update({
+      where: { id: target.id },
+      data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId },
+    });
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "MOVE_CHARACTER",
       reason,
-      payload: { targetCharacterId: target.id, targetZoneId: targetZone.id },
-      // Undo restores fromZoneId in the DB only — the Discord role swap
-      // catches up next time the player Moves themselves.
+      payload: { targetCharacterId: target.id, targetLocationId: targetLocation.id },
+      // Undo restores both ids in the DB only — the Discord role swap catches
+      // up next time the player Moves themselves.
       effect: {
         targetCharacterId: target.id,
         targetName: target.name,
         targetStatus: target.status,
+        fromLocationId,
         fromZoneId,
-        toZoneId: targetZone.id,
-        toZoneName: targetZone.name,
+        toLocationId: targetLocation.id,
+        toLocationName: targetLocation.name,
+        toZoneId: targetLocation.zoneId,
+        toZoneName: targetLocation.zone?.name ?? null,
       },
     });
     await logRequest(tx, {
@@ -1029,15 +1051,22 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
       actionType: "request_move_character",
       targetCharacterId: target.id,
       reason,
-      details: { fromZoneId, toZoneId: targetZone.id },
+      details: {
+        fromLocationId,
+        toLocationId: targetLocation.id,
+        toLocationName: targetLocation.name,
+      },
     });
   });
 
   if (!isCorpse) {
-    await syncCharacterZoneRole(target.discordUserId, fromZoneId, targetZone.id).catch(() => {});
-    await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+    await applyLocationMoveSideEffects(prisma, {
+      characterId: target.id,
+      fromLocationId,
+      toLocationId: targetLocation.id,
+    }).catch(() => {});
   }
-  notifyCharacter(target, `You were moved to ${targetZone.name}.`);
+  notifyCharacter(target, `You were moved to ${targetLocation.name}. ‡`);
   revalidateAll();
   return {};
 }
@@ -1108,6 +1137,7 @@ async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   });
 
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, target).catch(() => {});
   notifyCharacter(target, "Someone bound you.");
   revalidateAll();
   return {};
@@ -1161,6 +1191,7 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   });
 
   await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, target).catch(() => {});
   notifyCharacter(target, "Someone freed you.");
   revalidateAll();
   return {};
@@ -1284,7 +1315,10 @@ async function harmCharacterRequestImpl({
     );
     revalidatePath("/gm/players", "layout");
   } else {
-    if (tag) await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+    if (tag) {
+      await syncCharacterNarrowcastAccess(target.id).catch(() => {});
+      await syncCharacterRoomAccess(prisma, target).catch(() => {});
+    }
     notifyCharacter(target, "Someone hurt you.");
   }
   revalidateAll();
@@ -1513,6 +1547,7 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   await ensureCharacterRole(updated).catch(() => {});
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
+  await syncCharacterRoomAccess(prisma, character).catch(() => {});
   if (isDynastyHead(character.role?.slug) && next.lastName !== previous.lastName) {
     await propagateDynastyLastName(next.lastName).catch((err) =>
       console.error("propagateDynastyLastName failed:", err),
@@ -1590,183 +1625,6 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
 
   revalidateAll();
   return { name: target.name };
-}
-
-// --- Fast travel ----------------------------------------------------------
-
-// The only request that changes a zone and files no Action — riding does
-// not spend a Move. It re-derives performTravel's adjacency rules rather
-// than calling it, since performTravel runs its own transaction and always
-// files a Move (REQUESTS.md §2).
-async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerIds, reason: rawReason }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could ride from.");
-  const heldSlugs = heldSlugsOf(character.tags);
-  const seats = fastTravelCapacity(heldSlugs);
-  if (seats === 0) throw new UserError("You have no horse.");
-
-  const passengerIds = [...new Set((rawPassengerIds ?? []).filter((id) => id && id !== character.id))];
-  if (1 + passengerIds.length > seats) {
-    throw new UserError(
-      seats === 1 ? "Your horse can't carry anyone else." : `Your vehicle only seats ${seats}.`,
-    );
-  }
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is currently open.");
-
-  const targetZone = await prisma.zone.findUnique({ where: { id: targetZoneId ?? "" } });
-  if (!targetZone) throw new UserError("Unknown destination.");
-  if (targetZone.kind === "CAVE_GROUP") throw new UserError("That isn't a place you can stand.");
-  if (targetZone.id === character.zoneId) throw new UserError("You're already there.");
-
-  const fromZoneId = character.zoneId;
-  const currentZone = await prisma.zone.findUnique({
-    where: { id: fromZoneId },
-    include: { connectsTo: { where: { id: targetZone.id } } },
-  });
-  // The caves are one-way for a horse, with one mouth (the Caverns).
-  if (currentZone?.kind === "CAVE_LEVEL") {
-    const ridingOut = currentZone.slug === "caverns" && targetZone.kind === "SURFACE";
-    if (!ridingOut) {
-      throw new UserError(
-        currentZone.slug === "caverns"
-          ? "You can ride out of the Caverns, but not deeper into the caves."
-          : "You're too deep to ride. Only the Caverns open onto the surface.",
-      );
-    }
-  }
-  if (!currentZone || currentZone.connectsTo.length === 0) {
-    throw new UserError("You can't get there directly from here.");
-  }
-
-  // A passenger who wandered off between opening the dialog and submitting
-  // fails the whole request rather than being quietly dropped.
-  const passengers = passengerIds.length
-    ? await prisma.character.findMany({
-        where: { id: { in: passengerIds }, status: "ALIVE", zoneId: fromZoneId },
-        select: { id: true, name: true, discordUserId: true },
-      })
-    : [];
-  if (passengers.length !== passengerIds.length) {
-    throw new UserError("They're not here anymore.");
-  }
-
-  // fastTravelTurnId holds the in-game DAY, not a turn id — two turns run
-  // per day, so comparing against openTurn.id would let a rider claim a free
-  // hop twice a day. describeTurn() is the one place that formula lives.
-  const dayKey = String(describeTurn(openTurn).day);
-
-  await prisma.$transaction(async (tx) => {
-    // The claim comes first and its WHERE is the check — reading the column
-    // in one statement and writing in another let two tabs both pass.
-    const claimed = await tx.character.updateMany({
-      where: {
-        id: character.id,
-        OR: [{ fastTravelTurnId: null }, { fastTravelTurnId: { not: dayKey } }],
-      },
-      data: { fastTravelTurnId: dayKey },
-    });
-    if (claimed.count === 0) throw new UserError("Your horse has already carried you today.");
-
-    await tx.character.update({ where: { id: character.id }, data: { zoneId: targetZone.id } });
-    // A passenger does NOT claim their own fastTravelTurnId — they're being
-    // carried, so they can still fast-travel under their own power later.
-    if (passengers.length) {
-      await tx.character.updateMany({
-        where: { id: { in: passengers.map((p) => p.id) } },
-        data: { zoneId: targetZone.id },
-      });
-    }
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn.id,
-      type: "FAST_TRAVEL",
-      reason,
-      payload: { targetZoneId: targetZone.id, passengerIds: passengers.map((p) => p.id) },
-      effect: {
-        fromZoneId,
-        fromZoneName: currentZone.name,
-        toZoneId: targetZone.id,
-        toZoneName: targetZone.name,
-        previousFastTravelTurnId: character.fastTravelTurnId ?? null,
-        passengers: passengers.map((p) => ({ id: p.id, name: p.name })),
-      },
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_fast_travel",
-      targetCharacterId: character.id,
-      reason,
-      details: { fromZoneId, toZoneId: targetZone.id, passengerIds: passengers.map((p) => p.id) },
-    });
-  });
-
-  const passengerClause = passengers.length
-    ? `, carrying ${passengers.map((p) => p.name).join(" and ")}`
-    : "";
-  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("wild-horse");
-  const rideClause = !hasHorse
-    ? "in a steam automobile"
-    : heldSlugs.has("cart")
-      ? "on a horse-drawn cart"
-      : "on horseback";
-
-  // Deferred, not awaited, same as travelActions.js#travelTo: a pending
-  // server action blocks navigation, and the write has already committed.
-  after(async () => {
-    if (currentZone.discordSummaryChannelId) {
-      await postMessage(
-        currentZone.discordSummaryChannelId,
-        `*${character.name} is seen leaving the area ${rideClause}${passengerClause}.*`,
-      ).catch((err) => console.error("Fast travel: departure post failed:", err));
-    }
-    const riders = [character, ...passengers];
-    for (const rider of riders) {
-      await syncCharacterZoneRole(rider.discordUserId, fromZoneId, targetZone.id).catch((err) =>
-        console.error(`Fast travel: zone role sync failed for ${rider.id}:`, err),
-      );
-      await syncCharacterNarrowcastAccess(rider.id).catch((err) =>
-        console.error(`Fast travel: narrowcast access sync failed for ${rider.id}:`, err),
-      );
-      await applyPendingInvites(prisma, { ...rider, zoneId: targetZone.id }).catch((err) =>
-        console.error(`Fast travel: pending thread invites failed for ${rider.id}:`, err),
-      );
-      // @@unique([characterId, turnId, trigger]) on CavingRoll makes a second
-      // ARRIVAL roll this turn a no-op.
-      if (targetZone.kind === "CAVE_LEVEL") {
-        const { dm } = await rollCaving(prisma, rider, openTurn, targetZone, "ARRIVAL").catch((err) => {
-          console.error(`Fast travel: caving arrival roll failed for ${rider.id}:`, err);
-          return { dm: null };
-        });
-        if (dm) {
-          await sendDm(dm.discordUserId, dm.content).catch((err) =>
-            console.error(`Fast travel: caving arrival DM failed for ${rider.id}:`, err),
-          );
-        }
-      }
-    }
-    for (const passenger of passengers) {
-      notifyCharacter(
-        passenger,
-        `${character.name} brought you along to ${targetZone.name}.`,
-      );
-    }
-  });
-
-  await recordArchiveEvent({
-    kind: "TRAVEL",
-    character,
-    zoneId: targetZone.id,
-    zoneName: targetZone.name,
-    content: `${character.name} rode from ${currentZone.name} into ${targetZone.name}${passengerClause}.`,
-  }).catch((err) => console.error("Fast travel: archive entry failed:", err));
-
-  revalidatePath("/map");
-  revalidateAll();
-  return { name: targetZone.name };
 }
 
 // --- public surface ---------------------------------------------------
@@ -1975,10 +1833,6 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
 
   revalidateAll();
   return { ok: true };
-}
-
-export async function fastTravelRequest(input) {
-  return guarded(() => fastTravelRequestImpl(input));
 }
 
 export async function birdMessageRequest(input) {

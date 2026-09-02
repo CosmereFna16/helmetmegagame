@@ -23,13 +23,13 @@ import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    include: { role: true, faction: true, zone: true },
+    include: { role: true, faction: true, zone: true, location: true },
   });
   if (!character) return null;
 
   const [
     factions,
-    zones,
+    locations,
     roles,
     allTags,
     heldTags,
@@ -46,14 +46,13 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // silo rides along for the ActionBar's Transfer dialog — showing the
     // Silo's current balance beside its name in the party picker.
     prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, silo: true } }),
-    // The zone picker's options: PRESENCE zones only — a character stands in
-    // a surface zone or a single cave level, never on the Caves group row
-    // (see Character.zoneId in schema.prisma). Authoring order, so the list
-    // reads like the YAML rather than the alphabet.
-    prisma.zone.findMany({
-      where: { kind: { not: "CAVE_GROUP" } },
-      orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true },
+    // The place picker's options. A character stands in a Location, never on
+    // a zone row, so this is the whole Location table grouped by zone.
+    // Authoring order both ways, so the list reads like docs/zones.yaml
+    // rather than the alphabet.
+    prisma.location.findMany({
+      orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+      select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
     }),
     prisma.role.findMany({
       orderBy: [{ sortOrder: "asc" }],
@@ -257,6 +256,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       roleTitle: character.roleTitle,
       factionId: character.factionId,
       factionName: character.faction?.name ?? null,
+      locationId: character.locationId,
+      locationName: character.location?.name ?? null,
       zoneId: character.zoneId,
       zoneName: character.zone?.name ?? null,
       status: character.status,
@@ -282,7 +283,12 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     canDelete: isSuperadmin(actingDiscordUserId),
     factions,
     transferRoster,
-    zones,
+    locations: locations.map((l) => ({
+      id: l.id,
+      name: l.name,
+      zoneId: l.zoneId,
+      zoneName: l.zone?.name ?? null,
+    })),
     roles: roles.map((r) => ({ id: r.id, name: r.name, factionName: r.faction?.name ?? null })),
     tags: allTags.map((t) => ({
       id: t.id,

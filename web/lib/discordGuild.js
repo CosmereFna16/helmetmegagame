@@ -21,27 +21,25 @@ import {
   deleteChannelOverwrite,
   discordRequest,
   postDmBatched,
-  addMemberRole,
-  removeMemberRole,
 } from "@lifeweb/db/lib/discordRest";
 
-// Channels opt into summary/tupper behavior by name — see bot/src/lib/channels.js
+// Channels opt into summary/tupper behavior by id — see bot/src/lib/channels.js
 // for the bot-side twin (kept separate since the bot uses its gateway cache).
 const CHANNEL_TYPE_TEXT = 0;
-const CHANNEL_TYPE_FORUM = 15;
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
-// Tupper/summary status is channel-ID-based (getLocationChannelIds below): a
-// Zone's summary/public/private channels, plus #watch/#intercom, which are
-// tupper-only (no zone to post a summary to).
+// Tupper/summary status is channel-ID-based (getLocationChannelIds below).
+// Since Bascinet 2 the tupper set is every Location channel plus each zone's
+// #summary; #summary is also the channel a zone's summaries post to.
+// #watch/#intercom/#mindlink are tupper-only (no zone to summarize into).
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
   return locationChannelIds?.tupperSummary?.has(channel.id) ?? false;
 }
 
 export function isTupperChannel(channel, locationChannelIds) {
-  if (channel.type !== CHANNEL_TYPE_TEXT && channel.type !== CHANNEL_TYPE_FORUM) return false;
+  if (channel.type !== CHANNEL_TYPE_TEXT) return false;
   return (
     (locationChannelIds?.tupperSummary?.has(channel.id) || locationChannelIds?.tupperOnly?.has(channel.id)) ?? false
   );
@@ -50,22 +48,18 @@ export function isTupperChannel(channel, locationChannelIds) {
 const locationChannelCache = ttlCache(30_000);
 
 async function fetchLocationChannelIds() {
-  const [zones, config] = await Promise.all([
-    prisma.zone.findMany({
-      select: {
-        discordSummaryChannelId: true,
-        discordPublicChannelId: true,
-        discordPrivateChannelId: true,
-      },
-    }),
+  const [zones, locations, config] = await Promise.all([
+    prisma.zone.findMany({ select: { discordSummaryChannelId: true } }),
+    prisma.location.findMany({ select: { discordChannelId: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
   ]);
   const tupperSummary = new Set();
   const tupperOnly = new Set();
   for (const zone of zones) {
     if (zone.discordSummaryChannelId) tupperSummary.add(zone.discordSummaryChannelId);
-    if (zone.discordPublicChannelId) tupperSummary.add(zone.discordPublicChannelId);
-    if (zone.discordPrivateChannelId) tupperOnly.add(zone.discordPrivateChannelId);
+  }
+  for (const location of locations) {
+    if (location.discordChannelId) tupperOnly.add(location.discordChannelId);
   }
   for (const entry of SPECIAL_CHANNELS) {
     if (entry.tupper && config?.[entry.configKey]) tupperOnly.add(config[entry.configKey]);
@@ -73,7 +67,7 @@ async function fetchLocationChannelIds() {
   return { tupperSummary, tupperOnly };
 }
 
-const getLocationChannelIds = cache(async () => {
+export const getLocationChannelIds = cache(async () => {
   const cached = locationChannelCache.get("all");
   if (cached !== undefined) return cached;
   const value = await fetchLocationChannelIds();
@@ -406,32 +400,10 @@ export async function deleteCharacterRole(discordRoleId) {
   });
 }
 
-// REST twin of bot/src/lib/zoneTravel.js#swapZoneRole, for paths with no
-// gateway Guild object on hand. Grant before revoke, so an interrupted swap
-// leaves two zones visible (self-healing) rather than none.
-export async function syncCharacterZoneRole(discordUserId, oldZoneId, newZoneId) {
-  const token = process.env.DISCORD_TOKEN;
-  if (!token || !discordUserId || oldZoneId === newZoneId) return;
-
-  const [oldZone, newZone] = await Promise.all([
-    oldZoneId ? prisma.zone.findUnique({ where: { id: oldZoneId } }) : null,
-    newZoneId ? prisma.zone.findUnique({ where: { id: newZoneId } }) : null,
-  ]);
-
-  if (newZone?.discordRoleId) {
-    await addMemberRole(discordUserId, newZone.discordRoleId).catch((err) =>
-      console.error(`Failed to grant ${discordUserId} the ${newZone.name} zone role:`, err.message),
-    );
-  }
-  if (oldZone?.discordRoleId && oldZone.discordRoleId !== newZone?.discordRoleId) {
-    await removeMemberRole(discordUserId, oldZone.discordRoleId).catch((err) =>
-      console.error(`Failed to remove ${discordUserId}'s ${oldZone.name} zone role:`, err.message),
-    );
-  }
-}
-
 // Reconciles per-member overwrites on #watch/#intercom against current tags
-// and Zone (see db/lib/specialChannels.js). REST twin of bot/src/lib/zoneTravel.js.
+// and Zone (see db/lib/specialChannels.js). Every location change goes through
+// db/lib/locationMove.js#applyLocationMoveSideEffects instead, which does this
+// and the two role swaps in one place; this stays for the tag-change callers.
 export async function syncCharacterNarrowcastAccess(characterId) {
   const token = process.env.DISCORD_TOKEN;
   if (!token || !characterId) return;

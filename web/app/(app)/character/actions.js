@@ -44,6 +44,9 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
+  // The conceal toggle. No Discord side effect: the proxy pipeline reads
+  // Character.concealed at send time (PROXYING.md).
+  const concealed = formData.get("concealed") === "on";
   const avatar = formData.get("avatar");
 
   // Age is set once and then fixed. The input renders `disabled` after the
@@ -54,7 +57,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
 
-  const data = { appearance, turnPingOptIn };
+  const data = { appearance, turnPingOptIn, concealed };
   if (age !== null && character.age === null) data.age = age;
 
   // The UI hides the file input while GameConfig.avatarUploadsEnabled is off

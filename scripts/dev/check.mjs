@@ -34,7 +34,6 @@ const DEFAULT_ROUTES = [
   { path: "/depot", as: "player" },
   { path: "/documents", as: "player" },
   { path: "/faction", as: "player" },
-  { path: "/map", as: "player" },
   { path: "/notes", as: "player" },
 
   // Deliberate redirect stubs, kept so old links still land somewhere:

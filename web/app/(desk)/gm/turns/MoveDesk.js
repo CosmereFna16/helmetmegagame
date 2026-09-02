@@ -64,6 +64,7 @@ export default function MoveDesk({
   tagCatalog,
   roster,
   presenceZones,
+  stagingLocations,
   currentTurnNumber,
   onInspect,
   onClose,
@@ -331,6 +332,7 @@ export default function MoveDesk({
           tagCatalog={tagCatalog}
           roster={roster}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           empty="Nothing staged yet."
@@ -345,6 +347,7 @@ export default function MoveDesk({
           roster={roster}
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onDone={() => {
             setComposer(null);
             refresh();

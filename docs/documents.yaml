@@ -629,9 +629,9 @@ documents:
     public: true
     tags: []
     description: |-
-      Typing `/conceal` before your message hides your identity.
+      Run `/conceal` (or flip the switch on your Character page) to hide your identity until you turn it off.
 
-      You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
+      You'll appear as a stranger — in what you say and in Who's here? — but people can still see (using the 🔎 reaction) any visible wounds or gear. ‡
   thepusher:
     name: The Pusher
     public: true

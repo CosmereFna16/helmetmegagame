@@ -26,6 +26,7 @@ export function StagedEffectRow({
   tagCatalog,
   roster,
   presenceZones,
+  stagingLocations,
   onInspect,
   showBatch,
   batchCount,
@@ -122,6 +123,7 @@ export function StagedEffectRow({
           roster={roster}
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onDone={() => {
             setEditing(false);
             refresh();
@@ -275,7 +277,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   );
 }
 
-export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, onInspect, empty, gmProfiles }) {
+export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, stagingLocations, onInspect, empty, gmProfiles }) {
   const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
@@ -292,6 +294,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, pre
           tagCatalog={tagCatalog}
           roster={roster}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
         />

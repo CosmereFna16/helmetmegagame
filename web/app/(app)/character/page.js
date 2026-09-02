@@ -33,7 +33,7 @@ import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { isTradeable, FAST_TRAVEL_SLUGS, fastTravelCapacity } from "@/lib/tagRequests";
+import { isTradeable } from "@/lib/tagRequests";
 import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf, LITERATE_SLUG } from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
@@ -63,7 +63,10 @@ async function loadCreationData(discordUserId) {
         factions: {
           orderBy: { sortOrder: "asc" },
           include: {
-            roles: { orderBy: { sortOrder: "asc" }, include: { startingZone: true } },
+            roles: {
+              orderBy: { sortOrder: "asc" },
+              include: { startingLocation: { include: { zone: true } } },
+            },
           },
         },
       },
@@ -122,7 +125,8 @@ async function loadCreationData(discordUserId) {
                 lockedGender: role.lockedGender,
                 difficulty: role.difficulty,
                 factionName: faction.name,
-                startingZoneName: role.startingZone?.name ?? null,
+                startingLocationName: role.startingLocation?.name ?? null,
+                startingZoneName: role.startingLocation?.zone?.name ?? null,
                 startingResources: role.startingResources,
                 extraStartingPoints: role.extraStartingPoints,
                 startingTagNames: role.startingTagSlugs,
@@ -153,6 +157,7 @@ export default async function CharacterPage() {
     include: {
       faction: true,
       zone: true,
+      location: true,
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
@@ -367,10 +372,6 @@ export default async function CharacterPage() {
 
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
-  const canFastTravel = character.tags.some((ct) => FAST_TRAVEL_SLUGS.has(ct.tag.slug));
-  // Rider included: a solo horse trip is "1 seat used, 2 available".
-  const fastTravelSeats = fastTravelCapacity(heldSlugs);
-
   const hasBird = holdsBirdAndLetters(character.tags);
   const isLiterate = heldSlugs.has(LITERATE_SLUG);
   // Compared against the in-game DAY (birdTurnId stores the day), not the
@@ -482,22 +483,31 @@ export default async function CharacterPage() {
   // Deliberately unfiltered: narrowing to who you may actually move would
   // give away who's tied up. The server's own gate rejects the rest.
   const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
-  // Unlike Move Player's target, this one IS filtered — riding along is a
-  // friendly act, so a corpse or Bound person never appears.
-  const fastTravelTargets = moveTargets.filter((c) => c.status === "ALIVE");
-  const moveZones = character.zoneId
+
+  // Where you may walk someone: the neighbours of YOUR OWN location, the same
+  // edge an ordinary walk uses. Each option carries its zone so the dialog can
+  // warn that the hop crosses one.
+  const moveLocations = character.locationId
     ? (
-        await prisma.zone.findUnique({
-          where: { id: character.zoneId },
-          select: {
-            connectsTo: {
-              where: { kind: { not: "CAVE_GROUP" } },
-              select: { id: true, name: true },
-              orderBy: { name: "asc" },
+        (
+          await prisma.location.findUnique({
+            where: { id: character.locationId },
+            select: {
+              connectsTo: {
+                select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
+                orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+              },
             },
-          },
-        })
-      )?.connectsTo ?? []
+          })
+        )?.connectsTo ?? []
+      ).map((l) => ({
+        id: l.id,
+        name: l.name,
+        zoneName: l.zone?.name ?? null,
+        // The UI says "crosses into Fortress" only for an edge that leaves
+        // the zone you're standing in.
+        crossesZone: l.zoneId !== character.zoneId,
+      }))
     : [];
 
   // Only fetched for someone who holds a bird. Recipient list is EVERY
@@ -594,9 +604,6 @@ export default async function CharacterPage() {
       desireLockNotes={desireLockNotes}
       desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
-      canFastTravel={canFastTravel}
-      fastTravelSeats={fastTravelSeats}
-      fastTravelTargets={fastTravelTargets}
       hasBird={hasBird}
       isLiterate={isLiterate}
       birdSentToday={birdSentToday}
@@ -615,7 +622,7 @@ export default async function CharacterPage() {
       healParties={healParties}
       lootTargets={lootTargets}
       moveTargets={moveTargets}
-      moveZones={moveZones}
+      moveLocations={moveLocations}
       bindTargets={bindTargets}
       harmTargets={harmTargets}
       harmTags={harmTags}

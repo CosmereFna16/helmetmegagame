@@ -276,18 +276,18 @@ function normalizeStagedTagPoints(raw) {
 }
 
 // The composer's "Relocate to" select. Raw relocation — no Action row, Move
-// cost, or adjacency check (deliberately not performTravel). A presence zone
-// only, never the Caves group row.
-async function normalizeStagedZone(raw) {
-  const zoneId = raw?.toString().trim() || null;
-  if (!zoneId) return null;
-  const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
-  if (!zone) throw new UserError("That zone no longer exists.");
-  if (zone.kind === "CAVE_GROUP") throw new UserError("That isn't a place a character can stand.");
-  return zoneId;
+// cost, adjacency check or walk cooldown (deliberately not
+// performLocationMove). The push writes Character.zoneId off the Location, so
+// only the Location id is staged.
+async function normalizeStagedLocation(raw) {
+  const locationId = raw?.toString().trim() || null;
+  if (!locationId) return null;
+  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!location) throw new UserError("That location no longer exists.");
+  return locationId;
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, resources, tagPoints, tagOps, zoneId }) {
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, resources, tagPoints, tagOps, locationId }) {
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
   if (!targets.length) throw new UserError("Pick at least one target.");
@@ -295,8 +295,10 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   const delta = normalizeStagedResources(resources);
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  const zone = await normalizeStagedZone(zoneId);
-  if (!delta && !points && !ops.length && !zone) throw new UserError("Stage a resource, tag-point, tag change, or zone change.");
+  const place = await normalizeStagedLocation(locationId);
+  if (!delta && !points && !ops.length && !place) {
+    throw new UserError("Stage a resource, tag-point, tag change, or relocation. ‡");
+  }
 
   // Validated now with the same engine the push runs, so they can't disagree.
   if (ops.length) {
@@ -318,7 +320,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
     ...(delta ? { resources: delta } : {}),
     ...(points ? { tagPoints: points } : {}),
     ...(ops.length ? { tagOps: ops } : {}),
-    ...(zone ? { zoneId: zone } : {}),
+    ...(place ? { locationId: place } : {}),
   };
 
   const created = await prisma.$transaction(
@@ -415,7 +417,7 @@ async function createStagedTransferImpl({
   return { id: created.id };
 }
 
-async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, zoneId }) {
+async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId }) {
   const session = await requireGm();
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
   if (!existing) throw new UserError("That staged effect is gone.");
@@ -424,8 +426,10 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
   const delta = normalizeStagedResources(resources);
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  const zone = await normalizeStagedZone(zoneId);
-  if (!delta && !points && !ops.length && !zone) throw new UserError("Stage a resource, tag-point, tag change, or zone change.");
+  const place = await normalizeStagedLocation(locationId);
+  if (!delta && !points && !ops.length && !place) {
+    throw new UserError("Stage a resource, tag-point, tag change, or relocation. ‡");
+  }
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
     try {
@@ -444,7 +448,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
         ...(delta ? { resources: delta } : {}),
         ...(points ? { tagPoints: points } : {}),
         ...(ops.length ? { tagOps: ops } : {}),
-        ...(zone ? { zoneId: zone } : {}),
+        ...(place ? { locationId: place } : {}),
       },
       batchId: null,
     },
@@ -1049,11 +1053,14 @@ async function getMoveHistoryImpl({ turnId }) {
   if (!turn) throw new UserError("That turn no longer exists.");
   if (turn.status !== "RESOLVED") throw new UserError("That turn hasn't been pushed yet.");
 
-  const [actions, cavingRolls, members, presenceZones, openTurn] = await Promise.all([
+  const [actions, cavingRolls, members, stagingLocations, openTurn] = await Promise.all([
     prisma.action.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: MOVE_INCLUDE }),
     prisma.cavingRoll.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: CAVING_ROLL_INCLUDE }),
     listGuildMembers(),
-    prisma.zone.findMany({ where: { kind: { not: "CAVE_GROUP" } }, select: { id: true, name: true } }),
+    prisma.location.findMany({
+      orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+      select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
+    }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } }),
   ]);
 
@@ -1077,13 +1084,13 @@ async function getMoveHistoryImpl({ turnId }) {
       : [[], []];
 
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
-  const presenceZoneNameById = new Map(presenceZones.map((z) => [z.id, z.name]));
+  const locationNameById = new Map(stagingLocations.map((l) => [l.id, l.name]));
   const now = new Date();
 
   return {
     moves: actions.map((a) => moveRow(a, { usernameById, now })),
     cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
-    effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, presenceZoneNameById, openTurn })),
+    effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn })),
     messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn })),
     tagsById: tagsByIdFor(actions),
   };

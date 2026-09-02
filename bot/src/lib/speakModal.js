@@ -4,7 +4,6 @@ const {
   TextInputBuilder,
   TextInputStyle,
   TextDisplayBuilder,
-  CheckboxBuilder,
   ActionRowBuilder,
   StringSelectMenuBuilder,
 } = require("discord.js");
@@ -21,7 +20,11 @@ const {
 // but it does stop the message existing in plain sight before the proxy
 // deletes it.
 
-const SPEAK_HELP = "-# Sent as your character. Nobody sees you typing.";
+// Concealment is no longer asked here: it is a standing state on the
+// character (Character.concealed, toggled by /conceal or the switch on
+// /character), so a modal checkbox would be a second, contradictable answer
+// to a question already settled.
+const SPEAK_HELP = "-# Sent as your character. Nobody sees you typing. ‡";
 
 function buildSpeakPicker(options, truncated) {
   const menu = new StringSelectMenuBuilder()
@@ -58,10 +61,6 @@ function buildSpeakModal(channelId, channelName) {
             .setMaxLength(1800)
             .setRequired(true),
         ),
-      new LabelBuilder()
-        .setLabel("Conceal")
-        .setDescription("Post under an anonymous alias instead of your name.")
-        .setCheckboxComponent(new CheckboxBuilder().setCustomId("say:conceal")),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(SPEAK_HELP));
 }

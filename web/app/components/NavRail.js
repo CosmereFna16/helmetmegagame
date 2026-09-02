@@ -15,7 +15,6 @@ import {
   DocumentsIcon,
   ArchiveIcon,
   LifewebIcon,
-  MapIcon,
   HelpIcon,
   SignOutIcon,
   MoreIcon,
@@ -38,7 +37,6 @@ const ICONS = {
   documents: DocumentsIcon,
   archive: ArchiveIcon,
   lifeweb: LifewebIcon,
-  map: MapIcon,
   help: HelpIcon,
   store: StoreIcon,
 };

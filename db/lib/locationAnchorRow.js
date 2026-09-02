@@ -28,19 +28,19 @@ function locationAnchorRow(locationId) {
         type: BUTTON,
         style: SUCCESS,
         custom_id: `${WHOS_HERE_PREFIX}${locationId}`,
-        label: "Who's here?",
+        label: "Who's here? ‡",
       },
       {
         type: BUTTON,
         style: SECONDARY,
         custom_id: `${SECRET_ROOMS_PREFIX}${locationId}`,
-        label: "Secret rooms?",
+        label: "Secret rooms? ‡",
       },
       {
         type: BUTTON,
         style: SECONDARY,
         custom_id: `${CONVERSE_PREFIX}${locationId}`,
-        label: "Converse",
+        label: "Converse ‡",
       },
     ],
   };

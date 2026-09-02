@@ -178,6 +178,10 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
             </Row>
           )}
 
+          {/* Where they stand is the Location; the zone is the region it
+              sits in, and what the #summary channel belongs to. */}
+          <Row label="Location">{character.location?.name ?? "Nowhere ‡"}</Row>
+
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
           <Row label="Resources">{character.resources} ⬢</Row>

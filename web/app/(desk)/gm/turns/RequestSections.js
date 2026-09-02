@@ -365,10 +365,13 @@ export const SECTIONS = {
             (effect.targetName ?? "—")
           )}
         </Line>
-        <Line label="To">{effect.toZoneName ?? "—"}</Line>
+        <Line label="To">
+          {effect.toLocationName ?? "—"}
+          {effect.toZoneName ? ` — ${effect.toZoneName}` : ""}
+        </Line>
         <p className="text-xs text-muted">
-          Undo restores their previous zone in the database. It does not re-sync Discord access —
-          that catches up the next time they make an ordinary Move.
+          Undo restores where they stood in the database. It does not re-sync Discord access —
+          that catches up the next time they make an ordinary Move. ‡
         </p>
       </>
     ),
@@ -410,26 +413,6 @@ export const SECTIONS = {
           One letter a day, to a named person in a GUESSED zone — a wrong guess or a dead
           recipient means it never arrived, and the sender is told a turn later. Undo hands the
           day back and closes any reply window, but it cannot unsend a message that landed.
-        </p>
-      </>
-    ),
-  },
-
-  FAST_TRAVEL: {
-    heading: "Fast Travel",
-    render: ({ effect }) => (
-      <>
-        <Line label="Rode">
-          {effect.fromZoneName ?? "—"} → {effect.toZoneName ?? "—"}
-        </Line>
-        {effect.passengers?.length > 0 && (
-          <Line label="Carrying">{effect.passengers.map((p) => p.name).join(", ")}</Line>
-        )}
-        <p className="text-xs text-muted">
-          A horse hop: one zone, no Move spent, once a day, up to 6 seats with a Cart or a Steam
-          Automobile. A passenger needed no permission to come along — anyone standing there could.
-          Undo puts everyone back and returns the ride. It does not re-sync Discord access — that
-          catches up on their next ordinary Move.
         </p>
       </>
     ),

@@ -21,6 +21,7 @@ import {
 } from "@/lib/characterCreation";
 import { addToStack, dropCharacterTag } from "@/lib/requestEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 
 // The /store checkout. One cart, one transaction, ONE batched BUY_TAGS
 // request — applied immediately and reviewed by a GM afterwards, the same
@@ -222,9 +223,10 @@ async function buyTagsImpl({ tagIds }) {
     });
   });
 
-  // A bought tag can open a narrowcast channel (#watch, #intercom) the same
-  // way a granted one does.
+  // A bought tag can open a narrowcast channel (#watch, #intercom) or a
+  // private room the same way a granted one does.
   await syncCharacterNarrowcastAccess(character.id);
+  await syncCharacterRoomAccess(prisma, character).catch(() => {});
   revalidatePath("/store");
   revalidatePath("/character");
   revalidatePath(TURNS_PATH, "page");

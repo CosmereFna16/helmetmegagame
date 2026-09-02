@@ -47,7 +47,7 @@ export default function DevPanel({
   canDelete,
   factions,
   transferRoster,
-  zones,
+  locations,
   roles,
   tags,
   held,
@@ -253,7 +253,7 @@ export default function DevPanel({
         canDelete={canDelete}
         hasActed={Boolean(openTurnAction)}
         openTurn={openTurn}
-        zones={zones}
+        locations={locations}
         factions={factions}
         transferRoster={transferRoster}
         tags={tags}
@@ -290,7 +290,7 @@ export default function DevPanel({
           staged={staged}
           lastNameLocked={lastNameLocked}
           factions={factions}
-          zones={zones}
+          locations={locations}
           roles={roles}
           edits={edits}
           onField={setField}
@@ -443,6 +443,7 @@ function StateStrip({
           "Faction",
           <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
         ],
+        ["Location", character.locationName ?? "—"],
         ["Zone", character.zoneName ?? "—"],
       ],
     ],

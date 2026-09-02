@@ -144,7 +144,7 @@ function fingerprintUnapplied(effects, messages) {
   for (const e of effects) {
     if (e.applied) continue;
     parts.push(
-      `e:${e.id}:${e.resources}:${e.tagPoints}:${e.zoneId ?? ""}:${JSON.stringify(e.tagOps ?? [])}`,
+      `e:${e.id}:${e.resources}:${e.tagPoints}:${e.locationId ?? ""}:${JSON.stringify(e.tagOps ?? [])}`,
     );
   }
   for (const m of messages) {
@@ -166,6 +166,7 @@ export default function Workspace({
   tagCatalog,
   roster,
   presenceZones,
+  stagingLocations,
   factions,
   moves,
   requests,
@@ -623,6 +624,7 @@ export default function Workspace({
               tagCatalog={tagCatalog}
               roster={roster}
               presenceZones={presenceZones}
+              stagingLocations={stagingLocations}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={deselect}
@@ -649,6 +651,7 @@ export default function Workspace({
               tagCatalog={tagCatalog}
               roster={roster}
               presenceZones={presenceZones}
+              stagingLocations={stagingLocations}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={deselect}
@@ -671,6 +674,7 @@ export default function Workspace({
               tagCatalog={tagCatalog}
               roster={roster}
               presenceZones={presenceZones}
+              stagingLocations={stagingLocations}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={deselect}
@@ -719,6 +723,7 @@ export default function Workspace({
         moves={moves}
         roster={roster}
         presenceZones={presenceZones}
+        stagingLocations={stagingLocations}
         factions={factions}
         tagCatalog={tagCatalog}
         onInspect={inspect}

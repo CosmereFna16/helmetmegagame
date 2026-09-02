@@ -36,6 +36,7 @@ export default function CavingDesk({
   tagCatalog,
   roster,
   presenceZones,
+  stagingLocations,
   onInspect,
   onClose,
   registerEscape,
@@ -220,6 +221,7 @@ export default function CavingDesk({
           tagCatalog={tagCatalog}
           roster={roster}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           empty="Nothing staged yet."
@@ -233,6 +235,7 @@ export default function CavingDesk({
           roster={roster}
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
           onDone={() => {
             setComposer(null);
             refresh();

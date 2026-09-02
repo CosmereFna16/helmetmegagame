@@ -1,4 +1,3 @@
-const { ChannelType } = require("discord.js");
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("@lifeweb/db");
 const { sendDm } = require("./dm");
 
@@ -17,9 +16,11 @@ const { sendDm } = require("./dm");
 // becomes a free cross-map signalling channel. Two cases, because the two
 // kinds of channel mean different things by "in earshot":
 //
-//   - A zone channel is gated on the zone: someone in the Square topic can
-//     shout for someone reading the Cathedral one.
-//   - The special channels have no zone at all, so they're gated on whether
+//   - A Location channel is gated on the location: a shout in the Square
+//     does not carry to the Cathedral, because a voice wouldn't.
+//   - A zone's #summary belongs to the whole zone rather than any one
+//     location, so it stays gated on the zone.
+//   - The special channels have no place at all, so they're gated on whether
 //     the target currently *hears that channel* under its own rules — which
 //     reuses db/lib/specialChannels.js rather than inventing a second copy.
 async function canHearPing(character, context) {
@@ -27,8 +28,9 @@ async function canHearPing(character, context) {
     const ctx = await buildNarrowcastContext(prisma, character.id);
     return Boolean(computeNarrowcastAccess(ctx)[context.channelKind]?.view);
   }
-  if (!context.zoneId) return false;
-  return character.zoneId === context.zoneId;
+  if (context.locationId) return character.locationId === context.locationId;
+  if (context.zoneId) return character.zoneId === context.zoneId;
+  return false;
 }
 
 // The ALIVE characters behind the roles mentioned in `message`. Read BEFORE
@@ -59,22 +61,18 @@ function messageLink(guildId, channelId, messageId) {
 // content to them, and a DirectMessage row outlives the ❌ that deletes the
 // message it quoted.
 async function notifyMentioned(client, character, context, link) {
+  const place = context.locationName ?? context.zoneName ?? null;
   const where = context.threadName
-    ? `${context.zoneName ?? "somewhere"} · ${context.threadName}`
-    : (context.zoneName ?? (context.channelKind === "watch" ? "the Watch's radio" : "the Intercom"));
+    ? `${place ?? "somewhere"} · ${context.threadName}`
+    : (place ?? (context.channelKind === "watch" ? "the Watch's radio" : "the Intercom"));
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;
-  await sendDm(user, `» *You were mentioned in ${where}.*\n${link}`, { source: "system_notice" }).catch(() => {});
-}
-
-function isPrivateThread(channel) {
-  return channel?.type === ChannelType.PrivateThread;
+  await sendDm(user, `» *You were mentioned in ${where}.* ‡\n${link}`, { source: "system_notice" }).catch(() => {});
 }
 
 module.exports = {
   canHearPing,
-  isPrivateThread,
   messageLink,
   notifyMentioned,
   resolveMentionedCharacters,

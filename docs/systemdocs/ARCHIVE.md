@@ -37,10 +37,9 @@ Five things about it are load-bearing:
   `zoneName`/`characterName` snapshots survive both, and the snapshot is
   the more correct record anyway: who someone was known as *then*.
 
-  The place columns are **`zoneId`/`zoneName`** since the zone rework — a row
-  records the zone it was said in, and the topic or thread it was said in is
-  `threadName`. `channelKind` reads `summary | public | private | watch |
-  intercom`.
+  The place columns are **`zoneId`/`zoneName`** — a row records the zone it
+  was said in, and the Room or Conversation it was said in is `threadName`.
+  `channelKind` reads `summary | location | watch | intercom | mindlink`.
 - **Restart Game clears the table.** `wipeGameData` deletes every
   `ArchiveEntry` inside the same transaction as Characters and Turns, so a
   restart starts on an empty transcript. It is the one thing here that is not
@@ -69,10 +68,11 @@ Five things about it are load-bearing:
   THREAD's own id when it was said inside a thread, since that's what a jump
   link's channel slot needs — written by the bot's `resolveChannelContext`
   alongside `channelKind`/`threadName`. It has two jobs, and only one of them
-  stays useful: the Dawn wipe deletes non-persistent Discord messages every
-  turn, so a jump link built from this id is only live for the turn it was
-  posted in, plus persistent threads and the Location topics, whose starter
-  messages are never deleted. The other job — exact channel-identity grouping
+  stays useful: the Dawn wipe deletes every Discord message every turn, so a
+  jump link built from this id is only live for the turn it was posted in
+  (Room threads survive, emptied to their starter). The whisper poll
+  (`bot/src/lib/whisperPoll.js`) is its other reader: "who spoke in this
+  Conversation in the last fifteen minutes" is one query on this column. The other job — exact channel-identity grouping
   for the desk's archive-context popup — works regardless of the wipe, since it
   never depends on the Discord message still existing. Rows written before this
   column existed are null and stay null; the backfill that filled some of them
