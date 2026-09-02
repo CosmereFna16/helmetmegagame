@@ -1588,7 +1588,7 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
     select: { desiresEnabled: true, desireSlots: true },
   });
   if (config?.desiresEnabled === false) {
-    throw new UserError("Temporary disabled.");
+    throw new UserError("Temporarily disabled.");
   }
   const desireSlots = config?.desireSlots ?? 2;
 

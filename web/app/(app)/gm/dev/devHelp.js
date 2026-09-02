@@ -29,7 +29,7 @@ export const CONFIG_HELP = {
   archiveTravelEvents: "Record arrivals/departures in the archive.",
   lifewebBlood: "0-100, raw override.",
   desiresEnabled:
-    "Let players set new Desires on /character. Turning this off shows “Temporary disabled.” in place of the Desire form. A Desire already ACTIVE can still be fulfilled or cancelled, and GMs can still set one — catalog or free text — from a character's Dev Panel regardless.",
+    "Let players set new Desires on /character. Turning this off shows “Temporarily disabled.” in place of the Desire form. A Desire already ACTIVE can still be fulfilled or cancelled, and GMs can still set one — catalog or free text — from a character's Dev Panel regardless.",
   desireSlots:
     "How many Desire slots every character gets. Each slot holds one Desire at a time, fulfilled or cancelled independently of the others. Lowering this doesn't clear an already-ACTIVE Desire sitting in a slot past the new count.",
 };

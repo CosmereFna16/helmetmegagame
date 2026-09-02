@@ -430,7 +430,7 @@ server-side in `setDesireImpl`, not just hidden in the UI) so nobody can
 start a **new** Desire, but an already-`ACTIVE` one in any slot can still be
 fulfilled or cancelled — the system drains out rather than stopping
 mid-goal. `/character` greys the "set a new Desire" form and shows
-"Temporary disabled." in its place. Unaffected: `setDesireGm`/`endDesireGm`
+"Temporarily disabled." in its place. Unaffected: `setDesireGm`/`endDesireGm`
 on the Dev Panel (host access, not game permission — same split
 `/lifeweb`'s GM panel uses; a GM grant also bypasses every catalog gate, per
 `DESIRES.md` §6) and the Discord 🔍/⚜️ inspect surfaces, which stay

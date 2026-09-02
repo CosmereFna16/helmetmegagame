@@ -35,7 +35,7 @@ function desireHelp(desireSlots) {
 // Body only — the panel chrome lives in GoalsPanel.js, which renders this.
 // Renders `desireSlots` rows: filled, empty+free (opens the catalog),
 // empty+cooling, or — if Desires are switched off entirely — the single
-// "Temporary disabled." line in place of every slot.
+// "Temporarily disabled." line in place of every slot.
 export default function DesirePanel({
   desireSlots = 2,
   slotStates = [],
@@ -89,7 +89,7 @@ export default function DesirePanel({
       </h3>
 
       {!desiresEnabled ? (
-        <p className="text-sm text-muted">Temporary disabled.</p>
+        <p className="text-sm text-muted">Temporarily disabled.</p>
       ) : (
         <div className="flex flex-col gap-3">
           {Array.from({ length: desireSlots }, (_, slotIndex) => {

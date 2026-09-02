@@ -285,7 +285,7 @@ Three `GameConfig` knobs govern this system, all live-editable from
   hidden in the UI); an already-`ACTIVE` Desire can still be fulfilled or
   cancelled, and `setDesireGm`/`endDesireGm` on the Dev Panel are unaffected
   (host access, not game permission). `/character` greys the "set a new
-  Desire" form and shows "Temporary disabled." in its place.
+  Desire" form and shows "Temporarily disabled." in its place.
 - **`desireSlots`** (default 2) — how many Desires a character may hold
   `ACTIVE` at once, one per slot. See §1.
 - **`maxDrawbackTags`** (default 5) — **not** a Desires-system knob itself,
