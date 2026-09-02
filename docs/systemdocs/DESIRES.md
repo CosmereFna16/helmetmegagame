@@ -173,8 +173,15 @@ patching it from behind.
 and also opens* is **0**; one that only locks is negative. Pacifist (locks
 `violence`/`feud`, opens two of its own) and Kleptomaniac (locks `wealth`, opens
 thievery) are both 0. Eunuch (−1), Prudish (−2), Craven (−3) and Depressed (−8)
-only lock. `ascetic` and `blood-feud` were removed entirely in that pass, along
-with `sit-in-bliss` and the four clan-feud desires that gated on Blood Feud.
+only lock. `blood-feud` was removed entirely in that pass, along with the four
+clan-feud desires that gated on it.
+
+`ascetic` went the same way, came back the same day, and was pulled again for
+good later on 2026-09-02 — with it went the `ascetic` Desire family and its one
+member, `sit-in-bliss`. Because that second removal was a design retraction and
+not a cure, §7's clawback deliberately did **not** apply: `db:retire-ascetic`
+(`db/prisma/retire-ascetic.js`) deleted the row and its seven holdings and left
+every holder's `tagPoints` untouched.
 
 ‡ The price band follows an income-based rationale: a tag is priced by how
 much of the catalog it closes against how much it opens. Depressed, closing

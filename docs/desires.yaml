@@ -194,11 +194,6 @@ families:
     group: mind
     color: "#9fa9c8"
     # Death and the near side of it: dying, returning, burial, the Lifeweb.
-  - key: ascetic
-    name: Ascetic
-    group: mind
-    color: "#7f95cf"
-    # Self-denial and stillness. Exactly one desire lives here.
   - key: charity
     name: Charity
     group: heart
@@ -307,15 +302,37 @@ desires:
     tier: 5
     families: [violence]
 
-  - slug: win-3-gambling
-    name: Win 3 ⬢ gambling
+  # Gambling ladder (2026-09-02): a bet, then stakes that climb, then the
+  # once-ever big win. win-3-gambling was retired by this pass.
+  - slug: win-a-bet
+    name: Win a bet
     tier: 1
+    families: [gambling]
+
+  - slug: win-5-gambling
+    name: Win 5 ⬢ gambling
+    tier: 2
     families: [gambling]
 
   - slug: win-10-gambling
     name: Win 10 ⬢ gambling
     tier: 3
     families: [gambling]
+
+  - slug: win-25-gambling-one-game
+    name: Win 25 ⬢ gambling in one game
+    tier: 4
+    families: [gambling]
+
+  - slug: win-50-gambling-one-game
+    name: Win 50 ⬢ gambling in one game
+    tier: 5
+    families: [gambling]
+
+  - slug: win-a-fortune-gambling
+    name: Win a gun, manor, or similarly very valuable item gambling
+    tier: 7
+    families: [gambling, wealth]
 
   - slug: get-a-hug
     name: Get a hug
@@ -375,8 +392,8 @@ desires:
     families: [romance, scheming]
 
   - slug: win-a-game
-    name: Win a game
-    tier: 2
+    name: Win a friendly game of chance, with no stakes
+    tier: 1
     families: [gambling, social]
 
   - slug: cheat-someone
@@ -533,7 +550,7 @@ desires:
     # F-13: the proper noun "Theb Etter" is unverified against any other doc
     # — carried through as the planner wrote it.
     requires:
-      anyTags: [ascetic, existentialist]
+      anyTags: [existentialist]
 
   - slug: praised-footwork
     name: Be complimented on your footwork
@@ -2132,13 +2149,3 @@ desires:
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
-
-  # Restored with the Ascetic tag (2026-09-02). The sole member of the
-  # `ascetic` family, and therefore the only thing that tag leaves open.
-  - slug: sit-in-bliss
-    name: "Sit in bliss"
-    tier: 1
-    families: [ascetic]
-    requires:
-      anyTags: [ascetic]
-    cooldownTurns: 2

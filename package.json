@@ -27,6 +27,7 @@
     "db:report-inactive-characters": "node db/prisma/report-inactive-characters.js",
     "db:prune-orphan-roles": "node db/prisma/prune-orphan-roles.js",
     "db:retire-quick-learner": "node db/prisma/retire-quick-learner.js",
+    "db:retire-ascetic": "node db/prisma/retire-ascetic.js",
     "db:topup-quick-learner": "node db/prisma/topup-quick-learner.js",
     "db:economy-reminder": "node db/prisma/economy-reminder.js",
     "copy:extract": "node scripts/copy/extract.js",

@@ -545,6 +545,7 @@ zones:
               - Literate
               - Post-Christian
               - Bishop's Mitre
+              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -572,6 +573,7 @@ zones:
               - Pious
               - Literate
               - Post-Christian
+              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -592,6 +594,7 @@ zones:
               - Ravenhearter
               - Literate
               - Post-Christian
+              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -692,6 +695,7 @@ zones:
               - Mail Shirt
               - Post-Christian
               - Inquisitor's Longcoat
+              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -726,6 +730,7 @@ zones:
               - Cudgel
               - Post-Christian
               - Practicii's Robes
+              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -758,6 +763,7 @@ zones:
               - Ravenhearter
               - Pious
               - Post-Christian
+              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
