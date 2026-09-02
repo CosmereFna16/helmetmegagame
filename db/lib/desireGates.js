@@ -1,14 +1,9 @@
-// Pure Desire-catalog gate evaluator. NO prisma import, NOT in the
-// @lifeweb/db barrel — deep-imported directly by client components and by
-// server actions/character/page.js, which load rows with prisma and pass
-// plain objects.
-//
-// Evaluation order (first match wins): hidden, locked, spent, cooldown,
-// available. The hidden state must be WITHHELD from the returned payload
-// entirely, and a locked reason must never name a hidden tag — either leaks
-// a hidden roster (Demoness, Bacchus). slotLocks does not collapse into
-// `state`, because the same template can be open in one slot and shut in
-// another (a caller dropping `locked` rows still has to consult it).
+// Pure Desire-catalog gate evaluator. No prisma import, not in the
+// @lifeweb/db barrel — deep-imported by client components and server
+// actions, which pass plain objects.
+// Order (first match wins): hidden, locked, spent, cooldown, available. A
+// hidden state must be withheld entirely; a locked reason must never name a
+// hidden tag (leaks Demoness/Bacchus).
 function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, history, openTurnNumber, desireSlots = 2 }) {
   const heldTagIds = new Set((heldTags || []).map((t) => t.id));
   const hidden_ = hiddenTagIds instanceof Set ? hiddenTagIds : new Set(hiddenTagIds || []);
@@ -17,8 +12,7 @@ function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, hi
   const scopedClauses = allClauses.filter(({ clause }) => clause.slot != null);
   const hist = history || [];
 
-  // One reason-or-null per slot, from the scoped clauses only. Computed even
-  // for a locked/spent/cooldown row so the shape is uniform.
+  // One reason-or-null per slot, from the scoped clauses only.
   const slotLocksFor = (template) =>
     Array.from({ length: desireSlots }, (_, slotIndex) =>
       lockedReasonForTemplate(template, scopedClauses, { slotIndex, desireSlots }),
@@ -78,14 +72,10 @@ function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, hi
   return { visible, hidden };
 }
 
-// Checks requires.anyTags/allTags/anyRoles/notTags/notRoles — AND across the
-// keys, OR within each `any` list, ALL of `allTags`, empty/absent list = no
-// constraint. Returns { ok: true } | { ok: false, reason } | { hidden: true }.
-//
-// The ONE exception to "AND across the keys" is requiresAnyOf (YAML
-// `requires.combine: or`), which joins anyTags and anyRoles with OR so that
-// either alone opens the Desire. notTags/notRoles are never part of that —
-// a forbidden pairing is not something an OR may open.
+// Checks requires.anyTags/allTags/anyRoles/notTags/notRoles — AND across
+// keys, OR within an `any` list, empty list = no constraint. Returns
+// { ok: true } | { ok: false, reason } | { hidden: true }. requiresAnyOf
+// (`requires.combine: or`) joins anyTags/anyRoles with OR instead.
 function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   const anyTags = template.requiresAnyTags || [];
   const allTags = template.requiresAllTags || [];
@@ -93,10 +83,8 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   const anyRoles = template.requiresAnyRoles || [];
   const notRoles = template.requiresNotRoles || [];
 
-  // notTags / notRoles first — neither can ever trigger the hidden rule
-  // (that rule only applies to a failed anyTags gate), so evaluating them
-  // first just decides which "locked" reason wins when more than one
-  // clause fails, which is harmless.
+  // notTags/notRoles never trigger the hidden rule (only a failed anyTags
+  // gate can).
   const heldForbidden = notTags.find((t) => heldTagIds.has(t.id));
   if (heldForbidden) {
     return { ok: false, reason: `Locked by ${heldForbidden.name}` };
@@ -106,13 +94,9 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
     return { ok: false, reason: `Locked by your ${heldForbiddenRole.name} role` };
   }
 
-  // allTags is ALWAYS AND — it never joins the requiresAnyOf OR, since "all of
-  // these, or something else entirely" is not a gate anyone means to write.
-  // The sync refuses the combination outright.
+  // allTags never joins the requiresAnyOf OR; the sync refuses that combination.
   const missingAll = allTags.filter((t) => !heldTagIds.has(t.id));
   if (missingAll.length > 0) {
-    // Same oracle rule as anyTags: a missing tag the character cannot even see
-    // must withhold the row rather than name it in a reason string.
     if (missingAll.some((t) => hiddenTagIds.has(t.id))) return { hidden: true };
     return { ok: false, reason: `Requires the ${missingAll[0].name} tag` };
   }
@@ -120,14 +104,11 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   const holdsGatingTag = anyTags.some((t) => heldTagIds.has(t.id));
   const holdsGatingRole = Boolean(roleSlug) && anyRoles.some((r) => r.slug === roleSlug);
 
-  // OR mode. An EMPTY list must not be what satisfies the OR: under AND an
-  // empty list means "no constraint", and carrying that reading over here
-  // would open the Desire to everyone. The sync refuses `combine: or` unless
-  // both lists are populated, so this is belt and braces.
+  // OR mode. An empty list must not satisfy the OR (that would open the
+  // Desire to everyone); the sync refuses `combine: or` unless both lists
+  // are populated.
   if (template.requiresAnyOf) {
     if (holdsGatingTag || holdsGatingRole) return { ok: true };
-    // The hidden rule still outranks the reason string: naming a hidden tag
-    // is the oracle it exists to prevent.
     if (anyTags.some((t) => hiddenTagIds.has(t.id))) return { hidden: true };
     return {
       ok: false,
@@ -148,10 +129,8 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   return { ok: true };
 }
 
-// UNION across held tags' desireLocks arrays (each already the normalized
-// db/lib/desireShapes.js shape), keeping each clause paired with the name
-// of the tag that contributed it, so a lock hit can say "Locked by
-// Alcoholic". Locks only ever add, never subtract.
+// Union across held tags' desireLocks arrays, each clause paired with the
+// name of the tag that contributed it.
 function unionLockClauses(heldTags) {
   const pairs = [];
   for (const tag of heldTags) {
@@ -164,9 +143,8 @@ function unionLockClauses(heldTags) {
   return pairs;
 }
 
-// Whether a clause reaches the slot being checked. `slot: "bottom"` binds the
-// LAST slot only; an unscoped clause binds every slot. `slotIndex: null` means
-// "not asking about a slot" — used for the slot-agnostic pass, where a scoped
+// `slot: "bottom"` binds the last slot only; an unscoped clause binds every
+// slot. `slotIndex: null` means the slot-agnostic pass, where a scoped
 // clause must never fire.
 function clauseAppliesToSlot(clause, { slotIndex, desireSlots }) {
   if (clause.slot == null) return true;
@@ -175,11 +153,8 @@ function clauseAppliesToSlot(clause, { slotIndex, desireSlots }) {
   return false;
 }
 
-// { all: true } beats everything. { tiers, exceptFamilies }: locks a
-// tier-matching template unless it shares a family with exceptFamilies.
-// { families }: locks on any family overlap. Checked in that precedence
-// order so an {all} clause always wins even if a families clause from a
-// different tag would otherwise have matched first.
+// { all: true } beats everything, then { families } (any overlap locks),
+// then { tiers, exceptFamilies } (locks unless it shares an exceptFamily).
 function lockedReasonForTemplate(template, pairs, scope = { slotIndex: null, desireSlots: 2 }) {
   const templateFamilies = template.families || [];
   const inScope = pairs.filter(({ clause }) => clauseAppliesToSlot(clause, scope));
@@ -204,10 +179,8 @@ function lockedReasonForTemplate(template, pairs, scope = { slotIndex: null, des
   return null;
 }
 
-// "1–4" for a run of tiers with no gap, "1, 2, 5" otherwise. A gap is
-// measured on the tier LADDER, not the integers — tier 6 doesn't exist
-// (syncDesires.js#TIER_WHITELIST), so 2, 3, 4, 5, 7 is the unbroken run
-// "2–7". Tiers arrive sorted from desireShapes.js.
+// "1–4" for a run with no gap on the tier ladder (tier 6 doesn't exist, so
+// 2,3,4,5,7 is unbroken), "1, 2, 5" otherwise.
 const TIER_LADDER = [1, 2, 3, 4, 5, 7];
 function formatTiers(tiers) {
   const steps = tiers.map((t) => TIER_LADDER.indexOf(t));
@@ -217,19 +190,13 @@ function formatTiers(tiers) {
 
 // Every lock a character's held tags put on the catalog, as one sentence per
 // clause: "Alcoholic shuts your bottom Desire slot to everything outside
-// Alcohol." The picker drops locked rows outright (character/page.js), so
-// without this a narrowed catalog would just look small — the player couldn't
-// tell an Addiction was doing it. `familyNames` maps family key → display name
-// (db/lib/desireFamilies.js); an unknown key falls back to itself.
+// Alcohol." `familyNames` maps family key -> display name.
 function describeDesireLocks(heldTags, familyNames) {
   const name = (key) => familyNames?.get?.(key) ?? familyNames?.[key] ?? key;
   const list = (keys) => keys.map(name).join(", ");
   const notes = [];
   for (const { clause, sourceName } of unionLockClauses(heldTags || [])) {
     const except = Array.isArray(clause.exceptFamilies) ? ` outside ${list(clause.exceptFamilies)}` : "";
-    // A scoped clause names the slot it binds instead of speaking for the
-    // whole catalog — this is the sentence that tells a player their
-    // Addiction only costs them one slot.
     if (clause.slot === "bottom") {
       if (clause.all) {
         notes.push(`${sourceName} shuts your bottom Desire slot to everything${except}.`);
@@ -253,11 +220,8 @@ function describeDesireLocks(heldTags, familyNames) {
   return notes;
 }
 
-// The held tag that binds the bottom Desire slot — i.e. the character's
-// Addiction, found by the shape of what it does rather than by its tag group,
-// so the panel's "Addiction: Alcoholic" caption follows the data. Returns
-// { name } or null. At most one can be held (every Addiction is
-// `exclusive: true` in its group), so the first hit wins.
+// The held tag that binds the bottom Desire slot (a character's Addiction).
+// Returns { name } or null; at most one can be held.
 function bottomSlotAddiction(heldTags) {
   for (const { clause, sourceName } of unionLockClauses(heldTags || [])) {
     if (clause.slot === "bottom") return { name: sourceName };
@@ -265,13 +229,9 @@ function bottomSlotAddiction(heldTags) {
   return null;
 }
 
-// What opened a template to THIS character — the held tag(s) among its
-// requires.anyTags and/or the role among its requires.anyRoles — as a short
-// string ("Pacifist", "Innkeeper role", "Dancer · Minstrel role"), or null
-// for a template open to everyone. Only ever call this for a template whose
-// gate the character PASSES: the row is already theirs, so naming the gate
-// leaks nothing (the same reasoning as PointBuy's "Requires:" line). Never
-// call it for a locked or hidden one.
+// What opened a template to this character, as a short string ("Pacifist",
+// "Innkeeper role"), or null. Only call for a template whose gate the
+// character passes — never a locked or hidden one.
 function unlockedBy(template, { heldTagIds, roleSlug }) {
   const parts = [...(template.requiresAllTags || []), ...(template.requiresAnyTags || [])]
     .filter((t) => heldTagIds.has(t.id))
@@ -281,27 +241,10 @@ function unlockedBy(template, { heldTagIds, roleSlug }) {
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-// Per-slot lock. A Desire is claimed retroactively straight into a slot, which
-// shuts that slot for `lockTurns` whole turns afterwards:
-//
-//     locked while  openTurnNumber <= maxEnded + lockTurns
-//     reopens on    maxEnded + lockTurns + 1
-//
-// Claim on turn N with the default lockTurns of 2 and the slot is shut for the
-// rest of N, shut through N+1 and N+2, and open on N+3. `lockTurns` is
-// GameConfig.desireSlotLockTurns, live-editable from /gm/dev.
-//
-// Note this is one TURN, not one day — Turn.number increments twice a day
-// (DAWN then DUSK), so each turn of lockout is 12 hours.
-//
-// `lockedUntilTurn` is literally the turn the slot reopens, because that is
-// what the UI renders. Keep it that way.
-//
-// `lastEnded` is the slot's most recent ended row, which the panel prints as
-// "Last: <text>" — a claim is over the moment it lands, so this is the only
-// thing a slot ever has to show. A row with a null endedTurnNumber (a revoked
-// or undone claim) is deliberately excluded from BOTH: it neither locks the
-// slot nor counts as the last thing that happened in it.
+// Per-slot lock: claiming a Desire shuts that slot until
+// maxEnded + lockTurns + 1 (`lockTurns` is GameConfig.desireSlotLockTurns).
+// A turn is 12 hours (DAWN then DUSK). `lastEnded` is the slot's most recent
+// FULFILLED row; a row with null endedTurnNumber counts toward neither.
 function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
   const hist = history || [];
   const slots = [];

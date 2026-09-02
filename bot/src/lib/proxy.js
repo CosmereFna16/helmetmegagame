@@ -7,28 +7,18 @@ const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
-// One entry per proxied message, and the ✏️/❌/⭐/🔍 reactions only work on
-// messages still in here. Needs to cover roster scale (15 locations of
-// active play) across a full turn, or a player editing something said an
-// hour ago finds the reaction silently inert — PROXYING.md §2 defines the
-// bound as the bot's last restart. Entries are small, so 20k is a few MB.
+// One entry per proxied message; the ✏️/❌/⭐/🔍 reactions only work on
+// messages still in here (bound: bot's last restart, PROXYING.md §2).
 const MAX_RECENT = 20_000;
 
-// Two caches, both keyed for the process lifetime, mirroring the REST twin in
-// db/lib/discordRest.js.
-//
-//   webhookCache   channelId -> { id, token }
-//   clientCache    webhookId -> WebhookClient
-//
-// clientCache exists because a WebhookClient is not free: it carries its own
-// REST manager, and a fresh one starts rate-limit-blind against a ~5-per-5s
-// bucket. Keyed on the webhook rather than the channel so the ❌/✏️ reaction
-// handlers, which only hold an id and a token, share it too.
+// webhookCache: channelId -> { id, token }. clientCache: webhookId ->
+// WebhookClient, kept because a fresh client starts rate-limit-blind
+// against a ~5-per-5s bucket.
 const webhookCache = new Map();
 const clientCache = new Map();
 
-// A cold channel hit by two messages in the same tick would otherwise run
-// fetchWebhooks twice and, finding nothing both times, create two webhooks.
+// Guards a cold channel hit by two messages in the same tick from running
+// fetchWebhooks twice and creating two webhooks.
 const webhookPending = new Map(); // channelId -> Promise<{ id, token }>
 
 const recentProxies = new Map(); // webhookMessageId -> { discordUserId, characterId, webhookId, webhookToken, threadId, concealed, alias }
@@ -50,9 +40,8 @@ function webhookClientFor({ id, token }) {
   return client;
 }
 
-// Un-learn a channel's webhook. Without this, a GM deleting the "Bascinet
-// Tupper" webhook would break every proxy in that room until the next
-// restart — and each failure leaves the player's real name on screen.
+// Un-learn a channel's webhook (e.g. after a GM deletes it), so proxying
+// recovers instead of breaking until the next restart.
 function forgetChannelWebhook(channelId) {
   const info = webhookCache.get(channelId);
   webhookCache.delete(channelId);
@@ -95,11 +84,8 @@ async function fetchOrCreateWebhook(channel) {
   }
 }
 
-// Attachments are recorded as a placeholder and nothing more. Storing the CDN
-// url would be worse than useless: Discord's links carry expiry parameters,
-// so the archive would fill with dead images. Actually preserving them would
-// mean downloading and re-hosting the bytes (a deliberate non-goal for now),
-// but the placeholder at least makes the gap visible in the transcript.
+// Attachments are recorded as a placeholder, not the CDN url — Discord's
+// links expire, so the archive would fill with dead images.
 function attachmentPlaceholders(message) {
   return [...(message.attachments?.values() ?? [])].map((a) =>
     a.contentType?.startsWith("image/") ? "[image]" : "[attachment]",
@@ -112,29 +98,18 @@ function avatarUrlFor(character) {
   return `${base}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 }
 
-// The silhouette every concealed message posts under. A static file served
-// straight out of web/public by Next — no /api/avatar round trip, and
-// deliberately identical for everyone, since a per-character concealed avatar
-// would be a fingerprint.
+// The silhouette every concealed message posts under — deliberately
+// identical for everyone, since a per-character avatar would be a fingerprint.
 function concealedAvatarUrl() {
   const base = process.env.WEB_BASE_URL;
   return base ? `${base}/assets/unknown.png` : undefined;
 }
 
 // The core send: post `content` (and any files) into `channel` as
-// `character`, track it, and write the transcript row. Deliberately takes no
-// Message — the Speak modal (bot/src/lib/speakModal.js) has no source message
-// to read or delete, only an interaction. sendAsCharacter below is the
-// message-driven wrapper, and is the only thing that deletes an original.
-//
-// `conceal` carries { alias } when the message is going out anonymously.
-// Everything downstream of the send — tracking, the ✏️/❌/⭐/🔍/⚜️ reactions —
-// is identical either way; only the username, the avatar and the recorded
-// alias change.
-//
-// Tracking through trackProxy is not optional for either caller: every
-// reaction in bot/src/events/messageReactionAdd.js is gated on recentProxies,
-// so an untracked message is inert to all of them.
+// `character`, track it, and write the transcript row. Takes no Message —
+// the Speak modal has no source message, only an interaction.
+// `conceal` carries { alias } for an anonymous send. Tracking via
+// trackProxy is mandatory: every reaction handler is gated on recentProxies.
 async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, conceal = null }) {
   const threadId = channel.isThread() ? channel.id : undefined;
 
@@ -149,12 +124,9 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
     avatarURL: conceal ? concealedAvatarUrl() : avatarUrlFor(character),
     files,
     threadId,
-    // Role mentions render as a chip but notify nobody — allowed_mentions
-    // governs notification, not display. Character-role pings are relayed as a
-    // DM instead (bot/src/lib/mentions.js), gated on whether the target could
-    // actually hear it; letting Discord also fire the role would double-notify
-    // now and, once the roles are assigned to nobody, notify no one at all.
-    // Matches db/lib/discordRest.js#executeWebhook, which already does this.
+    // Role mentions render but never notify — character-role pings are
+    // relayed as a DM instead (bot/src/lib/mentions.js). Matches
+    // db/lib/discordRest.js#executeWebhook.
     allowedMentions: { parse: ["users"] },
   };
 
@@ -169,9 +141,7 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
   try {
     ({ info, message: webhookMessage } = await send());
   } catch (err) {
-    // Only a webhook Discord no longer has is worth rebuilding for. Anything
-    // else — a 429, an oversized attachment, a payload it rejected — is not
-    // fixed by a second identical attempt, and retrying a 429 immediately
+    // Only rebuild for a webhook Discord no longer has — retrying a 429
     // makes it worse.
     if (err.code !== RESTJSONErrorCodes.UnknownWebhook) throw err;
     forgetChannelWebhook(webhookChannelFor(channel).id);
@@ -186,10 +156,10 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
     webhookId: id,
     webhookToken: token,
     threadId,
-    // Read by messageReactionAdd.js: 🔍 swaps to the anonymous embed, and ⭐
-    // files the alias rather than the real name. Because recentProxies is
-    // in-memory and capped, a bot restart makes an old concealed message
-    // inert to every reaction — which is the safe direction.
+    // Read by messageReactionAdd.js: 🔍 swaps to the anonymous embed, ⭐
+    // files the alias. recentProxies is in-memory and capped, so a restart
+    // makes an old concealed message inert to every reaction — the safe
+    // direction.
     concealed: Boolean(conceal),
     alias: conceal?.alias ?? null,
   });
@@ -200,8 +170,8 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
 const DISCORD_MESSAGE_LIMIT = 2000;
 const DM_CHUNK = 1900;
 
-// Discord's per-file upload ceiling for this guild. discord.js exposes
-// maximumBitrate but not this, so it is derived from the boost tier.
+// Discord's per-file upload ceiling for this guild, derived from boost tier
+// (discord.js doesn't expose it directly).
 function uploadLimitBytes(guild) {
   switch (guild?.premiumTier) {
     case GuildPremiumTier.Tier2:
@@ -214,8 +184,7 @@ function uploadLimitBytes(guild) {
 }
 
 // What, if anything, makes this message impossible to repost as a webhook.
-// Checked BEFORE sending, because the failure mode of finding out afterwards
-// is the one this whole file exists to prevent (see sendAsCharacter).
+// Checked before sending.
 function proxyRefusal(message, content) {
   const text = content ?? "";
 
@@ -235,9 +204,8 @@ function proxyRefusal(message, content) {
     );
   }
 
-  // A sticker-only message, or one carrying nothing but a Discord effect,
-  // arrives with empty content and no attachments. The webhook would reject
-  // it as an empty message.
+  // A sticker-only or effect-only message arrives empty; the webhook would
+  // reject it.
   if (!text.trim() && message.attachments.size === 0) {
     return "There was nothing in that the bot could repost. Stickers and Discord's own effects don't survive being proxied.";
   }
@@ -245,8 +213,7 @@ function proxyRefusal(message, content) {
   return null;
 }
 
-// Deleting the original is what keeps a player's real account off the screen,
-// so a failure here is a real problem and never a shrug.
+// Deleting the original keeps a player's real account off the screen.
 async function deleteOriginal(message) {
   try {
     await message.delete();
@@ -255,10 +222,8 @@ async function deleteOriginal(message) {
   }
 }
 
-// Gives the player their words back after a refusal, so nothing they typed is
-// lost along with the message. Sent in pieces because the commonest refusal is
-// "this was too long for one message", and the hand-back would hit the same
-// wall.
+// Gives the player their words back after a refusal. Sent in pieces since
+// the commonest refusal is the message being too long for one DM too.
 async function handBack(message, reason, text) {
   try {
     await sendDm(message.author, `» *${reason}*`, { source: "system_notice" });
@@ -267,28 +232,15 @@ async function handBack(message, reason, text) {
       await sendDm(message.author, body.slice(i, i + DM_CHUNK), { source: "system_notice" });
     }
   } catch (err) {
-    // DMs closed. Nothing else to try — but the original is already gone,
-    // which is the half that mattered.
     console.error(`Couldn't return the unproxied message to ${message.author.id}:`, err);
   }
 }
 
 // The message-driven path: proxy what a player typed in a tupper channel,
-// then delete their original. Everything except the attachment plumbing and
-// that deletion lives in postAsCharacterTo above.
-//
-// THE ORIGINAL IS DELETED ON EVERY PATH, including the failing ones. That is
-// the whole point of the file: this game's premise is that a player's account
-// and their character are separate, and a message left sitting un-proxied
-// under a real Discord name breaks that premise for everyone reading the
-// channel — worse still for /conceal, where the leak is the exact text they
-// wanted anonymous.
-//
-// Losing a message is recoverable, and handBack recovers it. Losing the mask
-// is not.
-//
-// Returns null when the message could not be proxied; the caller has nothing
-// left to do in that case.
+// then delete their original. The original is deleted on every path,
+// including failing ones — a message left under a real Discord name breaks
+// the character/account separation the game depends on. Returns null when
+// the message could not be proxied.
 async function sendAsCharacter(channel, character, message, { conceal = null, content: override = null } = {}) {
   const text = override ?? message.content;
 
@@ -315,10 +267,9 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     return null;
   }
 
-  // The transcript row, written here rather than reconstructed at Dawn. Both
-  // halves of a concealed send are kept: the alias is what the room saw,
-  // character.name is who it actually was. recordArchiveMessage swallows its
-  // own failures — a transcript row is never worth breaking a message over.
+  // Both halves of a concealed send are kept: alias is what the room saw,
+  // character.name is who it was. recordArchiveMessage swallows its own
+  // failures.
   await recordArchiveMessage(prisma, {
     discordMessageId: webhookMessage.id,
     content: [content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),

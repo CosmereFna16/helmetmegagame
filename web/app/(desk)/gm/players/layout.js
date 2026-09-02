@@ -13,14 +13,10 @@ import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVer
 import InspectorHost from "./InspectorHost";
 import BulkMessageButton from "./BulkMessageButton";
 
-// The player desk's server half. It owns the rail's data and nothing else:
-// the child route loads its own conversation, and router.refresh() re-runs
-// this layout so unread counts and previews stay live without a list-only
-// poll. The rail is the union of "everyone with a conversation" and
-// "everyone with a character", so a player who has never written is one
-// click from a reply box.
-//
-// The GM gate lives in (desk)/layout.js above this.
+// The player desk's server half. Owns the rail's data; the child route
+// loads its own conversation. The rail is the union of "everyone with a
+// conversation" and "everyone with a character". The GM gate lives in
+// (desk)/layout.js above this.
 
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
@@ -32,70 +28,43 @@ export default async function PlayerDeskLayout({ children }) {
     getOpenTurn(),
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      // Two different zones, and the difference matters: faction.zone is the
-      // zone seat this character answers to, `zone` is where they are
-      // physically standing.
+      // faction.zone is the zone seat this character answers to; `zone` is
+      // where they are physically standing.
       include: { faction: { include: { zone: true } }, zone: true },
-      // Safety net against unbounded growth, not a real limit — far above any
-      // realistic roster size for this game (100+ players).
-      take: 1000,
+      take: 1000, // safety net, not a real limit
     }),
-    // Every held tag, ids only — the rail and the roster both search by tag
-    // name ("who is a smith", "who has Pale"), and one grouped read beats a
-    // per-character include on a 100+ roster.
-    // ALIVE only: this powers search over the roster, and it re-runs on every
-    // layout revalidation — no reason to drag a dead character's sheet along.
+    // Held tags, ids only, ALIVE characters only — feeds rail/roster tag search.
     prisma.characterTag.findMany({
       where: { character: { status: "ALIVE" } },
       select: { characterId: true, tagId: true },
     }),
-    // Names for the search field above, and the catalog behind the
-    // inspector's custom-tag door — one query for both rather than two.
+    // Names for the search field, and the catalog behind the inspector's
+    // custom-tag door.
     prisma.tag.findMany({
       orderBy: { name: "asc" },
-      // No description: this projection is serialised into the client
-      // InspectorHost on every layout render (every GM reply revalidates it),
-      // and its two consumers — the rail's tag search and the custom-tag
-      // dialog's Clone-from/Category lists — only need names and groups.
       select: {
         id: true,
         name: true,
-        // For the rail's AFK badge — the one slug this layout reads.
         slug: true,
         category: true,
         pointCost: true,
         group: { select: { id: true, name: true } },
       },
     }),
-    // This turn's (and any stray) unapplied staging, so the shared inspector
-    // can dim a staged removal and suffix a staged ± on both desks rather
-    // than only on /gm/turns. Ids and payload only — cheap.
+    // This turn's unapplied staging, so the shared inspector can dim a
+    // staged removal / suffix a staged ± on both desks.
     prisma.stagedEffect.findMany({
       where: { appliedAt: null },
       select: { targetCharacterId: true, payload: true },
     }),
   ]);
 
-  // Newest message per conversation, one round trip. DISTINCT ON is
-  // Postgres-specific and has no Prisma equivalent. Rides
-  // @@index([discordUserId, createdAt]).
-  //
-  // The noise predicate is web/lib/dmThread.js#withoutDmNoise, written out as
-  // SQL because this query cannot go through Prisma. Keep it null-safe:
-  // `NOT (x = y)` is NULL, not true, when x is NULL, and a NULL predicate
-  // drops the row — that trap once emptied every thread.
-  //
-  // Two DISTINCT ON queries rather than one window-function scan, kept apart
-  // because the predicates mean different things — one drives recency and
-  // unread state, the other (genuineConversationSql) only the preview
-  // snippet, which additionally drops bot/effect noise (a resource grant, a
-  // dev-panel summary) that isn't a real conversational turn. The row's
-  // timestamp and "awaiting reply" status still key off ANY DM, so an
-  // automated notification bumps the relative-time chip but never buries a
-  // player's real question under it in the preview.
-  //
-  // These four depend on nothing above them or each other, so they go out in
-  // one batch.
+  // Newest message per conversation. DISTINCT ON is Postgres-specific, no
+  // Prisma equivalent; rides @@index([discordUserId, createdAt]). The noise
+  // predicate (dmThread.js#withoutDmNoise) must stay null-safe: `NOT (x = y)`
+  // is NULL, not true, when x is NULL, and a NULL predicate drops the row.
+  // Two DISTINCT ON queries because genuineConversationSql additionally
+  // drops bot/effect noise from the preview only, not the recency/unread state.
   const [latestMessages, genuineMessages, unreadRows, claims, clock] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
@@ -111,9 +80,8 @@ export default async function PlayerDeskLayout({ children }) {
       WHERE ${genuineConversationSql()}
       ORDER BY "discordUserId", "createdAt" DESC
     `,
-    // Per-GM unread counts: INBOUND rows newer than this GM's read cursor for
-    // that conversation (epoch when no cursor row exists yet). Rides the same
-    // @@index([direction, discordUserId, createdAt]).
+    // Per-GM unread counts: INBOUND rows newer than this GM's read cursor
+    // (epoch when no cursor row exists yet).
     prisma.$queryRaw`
       SELECT dm."discordUserId", COUNT(*)::int AS "unreadCount"
       FROM "DirectMessage" dm
@@ -134,10 +102,8 @@ export default async function PlayerDeskLayout({ children }) {
         ],
       },
     }),
-    // When these rows were read, on the DATABASE's clock. The live inbox
-    // (liveInbox.js) lays its patches over them only when the patch is newer,
-    // and the web container's Date.now() is a different machine's clock —
-    // drift either way would make every patch win, or none.
+    // Database clock, not the web container's — a clock mismatch would make
+    // every live-inbox patch win or none.
     prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`,
   ]);
   const rowsAsOfMs = Number(clock[0].nowMs);
@@ -154,23 +120,20 @@ export default async function PlayerDeskLayout({ children }) {
   const usernameById = new Map(guildMembers.map((mem) => [mem.id, mem.username]));
   const globalNameById = new Map(guildMembers.map((mem) => [mem.id, mem.globalName]));
 
-  // Cursed is a live Discord role, not a DB field — joined in by
-  // discordUserId from the guild's member list rather than included above.
+  // Cursed is a live Discord role, not a DB field.
   const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
   const cursedUserIds = new Set(
     cursedRoleId ? guildMembers.filter((m) => m.roles.includes(cursedRoleId)).map((m) => m.id) : [],
   );
 
   // Name/role/faction/zone resolve together under one ALIVE-wins rule.
-  // Splitting them into separate lookups is how a dead character's zone ends
-  // up deciding a live player's row.
   const characterByUser = new Map();
   for (const c of characters) {
     const existing = characterByUser.get(c.discordUserId);
     if (!existing || c.status === "ALIVE") characterByUser.set(c.discordUserId, c);
   }
 
-  // Who's AFK, from rows already in hand — feeds the rail avatar's badge.
+  // Who's AFK — feeds the rail avatar's badge.
   const catatonicTagId = allTags.find((t) => t.slug === CATATONIC_SLUG)?.id ?? null;
   const catatonicCharacterIds = new Set(
     characterTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
@@ -221,28 +184,22 @@ export default async function PlayerDeskLayout({ children }) {
       preview: genuine ? `${authorLabel}${genuine.content}` : "",
       lastAtMs: last ? last.createdAt.getTime() : 0,
       lastDirection: last?.direction ?? null,
-      // Whether there is a thread at all, not how long it is — the rail only
-      // ever asked "count > 0", and a per-user COUNT groupBy is a whole extra
-      // scan of DirectMessage to answer a boolean.
+      // Whether a thread exists, not how long — avoids a per-user COUNT scan.
       hasConversation: latestByUser.has(discordUserId),
       unreadCount: unreadByUser.get(discordUserId) ?? 0,
       claimedByDiscordUserId: claimByUser.get(discordUserId) ?? null,
-      // A GM said this one needs no reply — but only while the mark is at or
-      // after the last message. The next inbound DM outruns the stamp and the
-      // row is awaiting again, with nothing to clean up.
+      // Handled only while the mark is at or after the last message; a new
+      // inbound DM outruns it and the row is awaiting again.
       handled:
         handledAtByUser.has(discordUserId) &&
         handledAtByUser.get(discordUserId) >= (last ? last.createdAt.getTime() : 0),
-      // Desk-side only, and standing rather than self-expiring: a muted row
-      // is out of the rail and out of both counts until a GM lifts it.
       muted: mutedUserIds.has(discordUserId),
       tag: c ? (tagNamesByCharacter.get(c.id) ?? []).join(" ") : "",
       tagNames: c ? (tagNamesByCharacter.get(c.id) ?? []) : [],
     };
   });
 
-  // BulkComposer's recipient pool: living characters only, since a broadcast
-  // to a dead one is refused server-side anyway.
+  // BulkComposer's recipient pool: living characters only.
   const bulkCharacters = rows
     .filter((r) => r.characterId && r.status === "ALIVE")
     .map((r) => ({
@@ -254,9 +211,8 @@ export default async function PlayerDeskLayout({ children }) {
     }));
 
   return (
-    // Once a deploy latches the desk-version stale flag, every refresh under
-    // this gate (reply sends, note saves, the inbox poll) skips instead of
-    // hard-reloading across the build boundary — same as /gm/turns.
+    // Skips a hard-reload across the build boundary once deploy latches the
+    // stale flag — same as /gm/turns.
     <DeskStaleRefreshGate>
     <div className="desk-shell">
       <DeskHeader
