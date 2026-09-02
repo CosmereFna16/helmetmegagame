@@ -22,7 +22,7 @@ async function main() {
   } else {
     console.log("no zones needed Discord provisioning");
   }
-  console.log(`reconciled (topic + slowmode + permissions + tags): ${summary.reconciled}`);
+  console.log(`reconciled (topic + slowmode + permissions): ${summary.reconciled}`);
   if (summary.permissionRepairs.length > 0) {
     console.log(`permission repairs (${summary.permissionRepairs.length}):`);
     for (const repair of summary.permissionRepairs) console.log(`  - ${repair}`);
@@ -36,15 +36,11 @@ async function main() {
   const fmt = (s) =>
     `${s.created} created, ${s.updated} updated, ${s.unchanged} unchanged` +
     (s.skipped > 0 ? `, ${s.skipped} skipped` : "");
-  console.log(`create-a-topic posts: ${fmt(summary.anchors)}`);
-  console.log(`private anchors: ${fmt(summary.privateAnchors)}`);
-  console.log(
-    `location topics: ${fmt(summary.topics)}` +
-      (summary.topics.moved.length > 0 ? `, moved: ${summary.topics.moved.join(", ")}` : ""),
-  );
-  if (summary.topicsPruned.length > 0) {
-    console.log(`topics pruned: ${summary.topicsPruned.join(", ")}`);
-  }
+  console.log(`room threads: ${fmt(summary.rooms)}` + (summary.roomsMoved.length > 0 ? `, recreated: ${summary.roomsMoved.join(", ")}` : ""));
+  console.log(`location anchors: ${fmt(summary.anchors)}`);
+  console.log(`locations: ${summary.locationsCreated} created, ${summary.locationsUpdated} updated` + (summary.locationsMoved.length > 0 ? `, moved: ${summary.locationsMoved.join(", ")}` : ""));
+  if (summary.roomsPruned.length > 0) console.log(`rooms pruned: ${summary.roomsPruned.join(", ")}`);
+  if (summary.locationsPruned.length > 0) console.log(`locations pruned (channel + role): ${summary.locationsPruned.join(", ")}`);
   if (summary.pruned.length > 0) {
     console.log(`zones pruned (DB + Discord, role included): ${summary.pruned.join(", ")}`);
   }

@@ -1,56 +1,58 @@
-# Source of truth for the game's Zones and their Location topics,
-# hand-edited then pushed with `npm run db:sync-zones`
-# (db/lib/syncZones.js). This sync is fully destructive in both
-# directions: entries here are upserted into the DB and Discord by `id`
-# slug, and any Zone/Topic NOT listed here gets its Discord objects deleted
-# and its DB row removed — for a Zone that means a whole category, its
-# channels, and its "Zone: {Name}" access role; for a Topic it means one
-# forum post. Removing an entry is a real delete — there's no undo short of
-# re-adding it (which provisions brand-new Discord objects, since a
-# removed/re-added Zone or Topic loses its old Discord IDs).
+# Source of truth for the game's Zones, their Locations and each Location's
+# Rooms, hand-edited then pushed with `npm run db:sync-zones`
+# (db/lib/syncZones.js). This sync is fully destructive in both directions:
+# entries here are upserted into the DB and Discord by `id` slug, and any
+# Zone/Location/Room NOT listed here gets its Discord objects deleted and its
+# DB row removed — for a Zone that means a whole category, its #summary and
+# its "Zone: {Name}" role; for a Location its channel and its "Location:
+# {Name}" role; for a Room one thread. Removing an entry is a real delete —
+# there's no undo short of re-adding it (which provisions brand-new Discord
+# objects, since a removed/re-added entry loses its old Discord IDs).
 #
-# Zones, topics and levels are maps keyed by `id` (`town:`, not `- id: town`);
-# `subLocations:` stays a sequence, since those carry only a name. See
-# docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
+# Zones, levels, locations and rooms are maps keyed by `id` (`town:`, not
+# `- id: town`). See docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
 #
-# A ZONE is a place a character can stand. It owns a Discord category, a
-# "Zone: {Name}" access role, and channels. A TOPIC is prose only — one
-# generated, Location-tagged forum post inside its zone's public forum. You
-# cannot travel to a topic; only a Zone is a travel destination.
+# A ZONE is a region: a Discord category, a #summary channel anyone in the
+# zone reads, and a "Zone: {Name}" role. A LOCATION is where a character
+# actually STANDS: one text channel under the zone's category, opened by a
+# "Location: {Name}" role held by exactly the characters there. A ROOM is a
+# thread under its Location's channel — public (a public thread everyone in
+# the Location sees) or private (a private thread whose members are exactly
+# the characters holding one of its `access:` tag slugs; the bot adds and
+# removes them as tags come and go). Every presence zone needs at least one
+# Location, and a Location may have no Rooms.
 #
-# - id: a stable slug, used to match this entry (Zone or Topic) to its DB
-#   row across syncs. Renaming an entry later means changing `name` here,
-#   NOT `id` — a changed `id` is treated as a brand-new Zone/Topic (old one
-#   pruned, new one provisioned from scratch) instead of a rename.
-# - name: display name (Title Case). Only used as the Discord
-#   channel/category name the FIRST time a Zone is provisioned — renaming it
-#   here later does not rename already-provisioned Discord channels (see
-#   CLAUDE.md).
+# - id: a stable slug, used to match this entry to its DB row across syncs.
+#   Zones, locations and rooms share ONE slug namespace. Renaming an entry
+#   later means changing `name` here, NOT `id` — a changed `id` is treated as
+#   a brand-new entry (old one pruned, new one provisioned from scratch)
+#   instead of a rename.
+# - name: display name (Title Case). Only used as the Discord channel/
+#   category/role name the FIRST time an entry is provisioned — renaming it
+#   here later does not rename already-provisioned Discord objects.
+# - description: prose. A Location's is the -# subtext on its channel's
+#   pinned anchor and the channel topic; a Room's is its thread's starter
+#   message.
+# - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
+#   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
+#   Slugs aren't checked against the tag catalog here (tags sync after
+#   zones); a typo is a room nobody can enter, reported by the channel doctor.
 #
 # PROSE STYLE — every prose value in this file is a `>-` folded block
 # scalar, one physical line per paragraph, no hard wrapping, UNLESS it has
 # real paragraph breaks, in which case it takes `|-` instead, with ONE blank
-# line between paragraphs (a folded scalar collapses a blank line to a
-# single newline, not the `\n\n` a paragraph break needs). An unwritten
-# value is literally `""`.
+# line between paragraphs. An unwritten value is literally `""`.
 #
-# map: where a Zone sits on the /map plate. `label: { x, y }` is the
-# **node anchor** — the point the Zone's rhombus is drawn on, as
-# percentages (0-100) of the plate art (1078 x 825), origin top-left. It is
-# what the panel reads; retuning the map is an edit here and a re-sync.
-# The Caves group carries an anchor of its own because the whole cave
-# system is ONE node on the plate; its three levels keep their anchors as
-# dormant data (the panel tells them apart in the depth strip below the
-# plate instead). `polygon:` is a list of [x, y] pairs on the same scale,
-# left over from the clickable-region map — still synced to
-# Zone.mapPolygon, read by nothing. A group Zone has no standable
-# footprint, so its polygon is empty.
+# map: where a Zone sits on the old /map plate. Dormant data since the map
+# panel was retired — still synced to Zone.mapPolygon/mapLabelX/mapLabelY,
+# read by nothing. Left in place for the map's return.
 #
-# zoneConnections: the whole travel graph — every hop costs the character's
-# Move (Location-to-location free walks within a Zone are gone; the topics
-# system replaces them with prose only). A `kind: group` zone may never
-# appear here — it isn't a place you can stand, only a container for its
-# levels.
+# connections: the whole travel graph, as pairs of `zone/location`. A hop
+# between two Locations of the SAME zone is free, on the cooldown set on
+# /gm/dev (GameConfig.locationMoveCooldownSeconds). A hop whose pair crosses
+# into ANOTHER zone costs the character's Move — once a turn, twice with a
+# mount — exactly as zone travel used to. A `kind: group` zone's own id may
+# never appear here; only its levels' locations are places.
 
 zones:
   # --- Surface zones ---
@@ -68,85 +70,99 @@ zones:
         - [55, 80]
         - [40, 55]
       label: { x: 58.4, y: 65.4 }
-    topics:
-      # Old location id "town" collides with this zone's own id (topic ids
-      # and zone ids share one validation namespace) — renamed to
-      # "town-square".
+    locations:
+      # Old location id "town" collides with this zone's own id (all slugs
+      # share one namespace) — hence "town-square".
       town-square:
         name: Square
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
-        subLocations:
-          - name: Courtyard
+        rooms:
+          courtyard:
+            name: Courtyard
             description: >-
               A rectangular patch of salted earth. Spectator stands awaiting bloodshed surround it. Perfect place for a duel, competition or random bout of violence!
-          - name: Market Row
+          market-row:
+            name: Market Row
             description: >-
               Lines of stalls and tents perched against buildings. You can find all sorts of bargains here, if buying random crap is your kind of thing.
-          - name: Smithery
+          smithery:
+            name: Smithery
             description: >-
               The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
-          - name: The Old Cock Inn
+          old-cock-inn:
+            name: The Old Cock Inn
             description: >-
               The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
       fields:
         name: Fields
         description: >-
           Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
-        subLocations: []
+        rooms: {}
       church:
         name: Cathedral
         description: >-
           Stained limestone erected modestly upon a tall wooded hill on the western edge of the town — still within the walls. Hundreds of candles light the ornate interior.
-        subLocations:
-          - name: Bell Tower
+        rooms:
+          bell-tower:
+            name: Bell Tower
             description: >-
               A grand, bronze bell sits up here watching over the town, waiting for a tug from below to let it sound across the land. Some vagrant has painstakingly scraped their initials into it.
-          - name: Confessionals
+          confessionals:
+            name: Confessionals
             description: >-
               Cramped and dark, the confession box was the church's primary source of information until the arrival of the inquisition and their more proactive methods. If the bishop is feeling generous, he may even take your confession free of charge.
-          - name: Order Chambers
+          order-chambers:
+            name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
-          - name: Scriptorium
+          scriptorium:
+            name: Scriptorium
             description: >-
               It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
       sanctuary:
         name: Sanctuary
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
-        subLocations:
-          - name: Ward
+        rooms:
+          ward:
+            name: Ward
             description: >-
               A long, tiled room, on either side are small bedframes. Potted plants offer the patients a quiet hope.
-          - name: Esculap's Office
+          esculaps-office:
+            name: Esculap's Office
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
-          - name: Operating Theater
+          operating-theater:
+            name: Operating Theater
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
-          - name: Garden
+          garden:
+            name: Garden
             description: >-
               You can grow herbs here.
       underquarter:
         name: Underquarter
         description: >-
           Squat buildings, piled into discomfort.
-        subLocations:
-          - name: Shacks
+        rooms:
+          shacks:
+            name: Shacks
             description: >-
               These crudely constructed dwellings — scrap metal, wood — were never designed to last, and yet here they remain. Very few have proper owners, even fewer have working locks. An endless cycle of vagrants staking claim to an empty shack, before being turfed off by another. There are old abandoned lots too, dozens of empty buildings without purpose.
-          - name: Abandoned Theater
+          abandoned-theater:
+            name: Abandoned Theater
             description: >-
               Once a bustling center of culture, this place now serves as a home for an ever-growing population of the destitute. A side room functions as a gambling den. Neon lights soak the interior, illuminating the felted gambling tables. There is a counter at the far end of the room with a bell waiting for patrons to ring it and have their worldly desires fulfilled.
-          - name: Bathhouse
+          bathhouse:
+            name: Bathhouse
             description: >-
               One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color — it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for a coin inserted into a slot.
       forest:
         name: Forest
         description: >-
           Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
-        subLocations: []
+        rooms: {}
 
   fortress:
     name: Fortress
@@ -163,103 +179,129 @@ zones:
         - [50, 45]
         - [5, 45]
       label: { x: 35.0, y: 40.2 }
-    topics:
-      keep:
-        name: Keep
-        description: |-
-          Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
-
-          The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
-        subLocations:
-          - name: Throne Room
-            description: |-
-              Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a patch directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
-
-              There's a trapdoor in the center. You can hear something rumbling in the darkness.
-          - name: Great Hall
-            description: >-
-              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest.
-          - name: Council Room
-            description: >-
-              A wide table. There's a holographic map of Ravenheart and a button for the intercom.
-          - name: Swimming Pool
-            description: >-
-              An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown. You swear you can see something shiny at the bottom.
-          - name: Servant's Wing
-            description: >-
-              A small corridor leads into the kitchen and pantry. A few ovens line the back of the room, with a firepit and stew pot stationed at the center. Latrines can be found on the other side of the corridor.
-          - name: Library
-            description: >-
-              Rows upon rows of bookcases, most of which lie empty. Various offices of members of the court branch off from here.
-          - name: Noble Chambers
-            description: >-
-              The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the center. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness. Just adjacent are the Heir and Successors rooms, both significantly smaller, and decorated to their occupants' preferences.
-          - name: The Charon
-            description: >-
-              A sealed gate. The Baron's key opens this.
-          - name: Reliquary Chapel
-            description: >-
-              The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
-      garrison:
-        name: Garrison
-        description: >-
-          The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
-        subLocations:
-          - name: Captain's Office
-            description: >-
-              On the second floor of the tower, the captain's office is a spacious room. A small portrait of the captain's beloved Baron is perched on the wall. A window looks out over the training ground below, perhaps you should let in some air — it smells like alcohol…
-          - name: Barracks
-            description: >-
-              Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
-          - name: Armory
-            description: >-
-              The garrison's store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Simple smithing document or below) — but nothing else. Consider stocking it.
-          - name: Dungeons
-            description: >-
-              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison. Connects to the Undercroft.
-          - name: Training Yard
-            description: >-
-              In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
-          - name: Kennels
-            description: >-
-              Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
+    locations:
       gatehouse:
         name: Gatehouse
         description: |-
           Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
 
           There is a triple-barreled machinegun in the center of the yard, on a rotor. It seems to be off.
-        subLocations:
-          - name: Gate
+        rooms:
+          gate:
+            name: Gate
             description: >-
               Menacing iron, with several inset windows, built by a paranoid man. There are old logs to the side, piled and bound.
-          - name: Lifeweb
+          lifeweb:
+            name: Lifeweb
             description: >-
               A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
-          - name: Yard
+          yard:
+            name: Yard
             description: >-
               The constant rains have raised vines across the fortress walls, which flower white and pink.
-          - name: Stables
+          stables:
+            name: Stables
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
+      keep:
+        name: Keep
+        description: |-
+          Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
+
+          The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
+        rooms:
+          throne-room:
+            name: Throne Room
+            description: |-
+              Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a patch directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
+
+              There's a trapdoor in the center. You can hear something rumbling in the darkness.
+          great-hall:
+            name: Great Hall
+            description: >-
+              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest.
+          council-room:
+            name: Council Room
+            description: >-
+              A wide table. There's a holographic map of Ravenheart and a button for the intercom.
+          swimming-pool:
+            name: Swimming Pool
+            description: >-
+              An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown. You swear you can see something shiny at the bottom.
+          servants-wing:
+            name: Servant's Wing
+            description: >-
+              A small corridor leads into the kitchen and pantry. A few ovens line the back of the room, with a firepit and stew pot stationed at the center. Latrines can be found on the other side of the corridor.
+          library:
+            name: Library
+            description: >-
+              Rows upon rows of bookcases, most of which lie empty. Various offices of members of the court branch off from here.
+          noble-chambers:
+            name: Noble Chambers
+            description: >-
+              The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the center. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness. Just adjacent are the Heir and Successors rooms, both significantly smaller, and decorated to their occupants' preferences.
+          the-charon:
+            name: The Charon
+            description: >-
+              A sealed gate. The Baron's key opens this.
+            access: [the-barons-key]
+          reliquary-chapel:
+            name: Reliquary Chapel
+            description: >-
+              The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
+            access: [incarns-key]
+      garrison:
+        name: Garrison
+        description: >-
+          The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
+        rooms:
+          captains-office:
+            name: Captain's Office
+            description: >-
+              On the second floor of the tower, the captain's office is a spacious room. A small portrait of the captain's beloved Baron is perched on the wall. A window looks out over the training ground below, perhaps you should let in some air — it smells like alcohol…
+          barracks:
+            name: Barracks
+            description: >-
+              Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
+          armory:
+            name: Armory
+            description: >-
+              The garrison's store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Simple smithing document or below) — but nothing else. Consider stocking it.
+          dungeons:
+            name: Dungeons
+            description: >-
+              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison. Connects to the Undercroft.
+          training-yard:
+            name: Training Yard
+            description: >-
+              In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
+          kennels:
+            name: Kennels
+            description: >-
+              Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
       undercroft:
         name: Undercroft
         description: >-
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
-        subLocations:
-          - name: Sauna
+        rooms:
+          sauna:
+            name: Sauna
             description: >-
               A bath and a sauna. The Baron's preferred way to wash. The water is kept at a comfortably warm temperature, and is actually changed, unlike the public bathhouse.
-          - name: Cistern
+          cistern:
+            name: Cistern
             description: >-
               Dark, connected rooms with ornate pillars, full of knee-high water. A starry tile mosaic is visible beneath the water.
-          - name: Tombs
+          tombs:
+            name: Tombs
             description: >-
               The Baron's progenitors bear faces of varying humanity.
-          - name: Bricked-up Door
+          bricked-up-door:
+            name: Bricked-up Door
             description: >-
               Where does this go…? It wouldn't be easy to open this passageway.
-          - name: Ancient Shrine
+          ancient-shrine:
+            name: Ancient Shrine
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
 
@@ -276,49 +318,54 @@ zones:
         - [95, 98]
         - [5, 98]
       label: { x: 52.2, y: 82.4 }
-    topics:
+    locations:
       warcamp:
         name: Warcamp
         description: >-
           An arbitrary array of tents, shields, and banners rise against the mountainside.
-        subLocations:
-          - name: War Pavilion
+        rooms:
+          war-pavilion:
+            name: War Pavilion
             description: >-
               Inside the enormous tent is a round table, with a parchment map of Ravenheart and its surroundings strewn across it.
-          - name: Common Grounds
+          common-grounds:
+            name: Common Grounds
             description: >-
               The wide open area features a round sparring ground with training weapons strewn around the perimeter. Nearby is the well—don't fall in.
-          - name: Healer's Tents
+          healers-tents:
+            name: Healer's Tents
             description: >-
               A handful of individual bunks under small tents surround the larger healer's tent. Inside the main tent, a central slab serves as an operating table, with very basic instruments and herbal remedies in drawers around it.
-          - name: Fields
+          warcamp-fields:
+            name: Fields
             description: >-
               Ranch animals — some distant descendants of the cow — mull around. The crops grown here are measly and bitter due to the great distance from the Lifeweb.
-          - name: Mess Hall
+          mess-hall:
+            name: Mess Hall
             description: >-
               There are tables lined up to form rows with stools situated on either side. At the far end of the pavilion is a large pot, gently bubbling over some coals.
       broken-spears-camp:
         name: Broken Spears Camp
         description: >-
           The Broken Spears have claimed this part of the camp as their own. Despite the signs of revelry — a hookah tent, flagons are scattered across the tables, tentholes torn in from scuffles — this is clearly a place of survivors, efficient and minimal.
-        subLocations: []
+        rooms: {}
       windriders-camp:
         name: Windriders Camp
         description: >-
           The Windriders have established themselves here. Tents are placed in orderly rows with equipment in convenient locations, ready to be equipped at a moments notice. There are banners woven out of human hair.
-        subLocations: []
+        rooms: {}
       mountains:
         name: Mountains
         description: >-
           Great peaks which rise above the landscape, shielding the valley from the worst of the winds. Traversing them will not be easy — the easiest route would be around and through the river valley, into the Town.
-        subLocations: []
+        rooms: {}
 
   # --- Caves (group) ---
-  # Category + GM seat only, NOT a standable place: no summary/private
-  # channels, no "Zone: Caves" access role, and it never appears in
-  # zoneConnections. Its `levels:` list is what actually gets flattened by
-  # the sync into three real, standable zones (caverns / railroad /
-  # aberrant-pits), each shaped like a surface zone minus `kind`.
+  # Category + GM seat only, NOT a standable place: no #summary, no "Zone:
+  # Caves" access role, and it never appears in connections. Its `levels:`
+  # map is what actually gets flattened by the sync into three real zones
+  # (caverns / railroad / aberrant-pits), each shaped like a surface zone
+  # minus `kind`; their Location channels parent to this one category.
   caves:
     name: Caves
     kind: group
@@ -341,17 +388,13 @@ zones:
             - [21, 74]
             - [5, 74]
           label: { x: 13, y: 68 }
-        topics:
+        locations:
           customs:
             name: Customs
             description: >-
               The sentry beholds migrants and mercenaries as they talk around the fire. To the side, there's the merchant's depot; crates of a foreign design are scattered around a decayed metal frame. Light flows forth, powered by their own basic generator. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the depot's light — there is an automated small-caliber mounted on the outside wall to account for that. It's off.
-            subLocations: []
+            rooms: {}
 
-      # The three levels of the Depths, chained one Move apart like every
-      # other hop — since the zone rework there is no free walking anywhere,
-      # so the levels need no special cost rule, only their place in
-      # zoneConnections below.
       railroad:
         name: Railroad
         sort: 2
@@ -363,7 +406,13 @@ zones:
             - [19, 88]
             - [3, 88]
           label: { x: 11, y: 82 }
-        topics: []
+        locations:
+          station:
+            name: Station
+            description: >-
+              A powered train station looming over an inscrutable abyss. You could get on, but where would you go? Openings in the subway tunnels lead into ancient, unused maintenance areas; where they break into open air, the pits show below, deformed and warped into unnatural stone. ‡
+            rooms: {}
+
       aberrant-pits:
         name: Aberrant Pits
         sort: 3
@@ -376,16 +425,38 @@ zones:
             - [17, 99]
             - [1, 99]
           label: { x: 9, y: 95 }
-        topics: []
+        locations:
+          chrome-city:
+            name: Chrome City
+            description: >-
+              The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome rise ahead — a city within the deep, and nobody to say who built it. ‡
+            rooms: {}
 
-# Every hop in this list costs the character's Move. A `kind: group` zone
-# (caves) may never appear here — only its levels (caverns, railroad,
-# aberrant-pits) are real travel destinations.
-zoneConnections:
-  - [town, fortress]
-  - [town, windlands]
-  - [town, caverns]
-  - [fortress, railroad]
-  - [windlands, railroad]
-  - [caverns, railroad]
-  - [railroad, aberrant-pits]
+# The whole travel graph, as `zone/location` pairs. A pair inside one zone
+# is a free walk (on the cooldown); a pair crossing zones costs the Move. A
+# `kind: group` zone (caves) may never appear here — only its levels' locations.
+connections:
+  # Town
+  - [town/town-square, town/church]
+  - [town/town-square, town/sanctuary]
+  - [town/town-square, town/underquarter]
+  - [town/town-square, town/fields]
+  - [town/fields, town/forest]
+  # Fortress
+  - [fortress/gatehouse, fortress/keep]
+  - [fortress/gatehouse, fortress/garrison]
+  - [fortress/keep, fortress/undercroft]
+  - [fortress/garrison, fortress/undercroft]
+  # Windlands
+  - [windlands/warcamp, windlands/broken-spears-camp]
+  - [windlands/warcamp, windlands/windriders-camp]
+  - [windlands/warcamp, windlands/mountains]
+  # Between zones — each of these costs the Move.
+  - [town/forest, fortress/gatehouse]
+  - [town/fields, windlands/mountains]
+  - [town/forest, caverns/customs]
+  - [windlands/mountains, caverns/customs]
+  - [fortress/undercroft, railroad/station]
+  - [windlands/mountains, railroad/station]
+  - [caverns/customs, railroad/station]
+  - [railroad/station, aberrant-pits/chrome-city]

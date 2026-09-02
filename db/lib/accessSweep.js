@@ -1,5 +1,5 @@
 // Strips everything that grants a character sight of the game — the zone
-// role, and any per-member channel overwrites (the special channels' grants,
+// and location roles, and any per-member channel overwrites (the special channels' grants,
 // plus whatever strays the pre-rework member-overwrite model left behind).
 // Used on death, on guildMemberRemove, and — in bulk — by Restart Game.
 //
@@ -17,8 +17,7 @@ function zoneChannelIds(zone) {
   return [
     zone.discordCategoryId,
     zone.discordSummaryChannelId,
-    zone.discordPublicChannelId,
-    zone.discordPrivateChannelId,
+    ...(zone.locations ?? []).map((l) => l.discordChannelId),
   ].filter(Boolean);
 }
 
@@ -28,8 +27,7 @@ async function allAccessChannelIds(prisma) {
       select: {
         discordCategoryId: true,
         discordSummaryChannelId: true,
-        discordPublicChannelId: true,
-        discordPrivateChannelId: true,
+        locations: { select: { discordChannelId: true } },
       },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
@@ -39,26 +37,32 @@ async function allAccessChannelIds(prisma) {
   return channelIds.filter(Boolean);
 }
 
-// One character's full revoke: every zone role stripped (removing a role the
-// member doesn't hold is a no-op, so all six cost less than working out which
-// one they held from possibly-stale state), then their member overwrites
-// swept from every zone channel and special channel.
+// One character's full revoke: every zone AND location role stripped
+// (removing a role the member doesn't hold is a no-op, so all of them cost
+// less than working out which they held from possibly-stale state), then
+// their member overwrites swept from every zone channel and special channel.
 async function revokeAllCharacterAccess(prisma, character) {
   const targetIds = [character.discordUserId, character.discordRoleId].filter(Boolean);
   const failures = [];
   let attempted = 0;
 
   if (character.discordUserId) {
-    const zoneRoles = await prisma.zone.findMany({
-      where: { discordRoleId: { not: null } },
-      select: { discordRoleId: true, name: true },
-    });
-    for (const zone of zoneRoles) {
+    const [zoneRoles, locationRoles] = await Promise.all([
+      prisma.zone.findMany({
+        where: { discordRoleId: { not: null } },
+        select: { discordRoleId: true, name: true },
+      }),
+      prisma.location.findMany({
+        where: { discordRoleId: { not: null } },
+        select: { discordRoleId: true, name: true },
+      }),
+    ]);
+    for (const row of [...zoneRoles, ...locationRoles]) {
       attempted += 1;
       try {
-        await removeMemberRole(character.discordUserId, zone.discordRoleId);
+        await removeMemberRole(character.discordUserId, row.discordRoleId);
       } catch (err) {
-        failures.push({ target: `zone role ${zone.name}`, message: err.message });
+        failures.push({ target: `access role ${row.name}`, message: err.message });
       }
     }
   }
@@ -112,11 +116,11 @@ async function revokeAccessForCharacters(prisma, characters) {
   let rolesRemoved = 0;
   let failed = 0;
 
-  const zoneRoles = await prisma.zone.findMany({
-    where: { discordRoleId: { not: null } },
-    select: { discordRoleId: true },
-  });
-  const zoneRoleIds = new Set(zoneRoles.map((z) => z.discordRoleId));
+  const [zoneRoles, locationRoles] = await Promise.all([
+    prisma.zone.findMany({ where: { discordRoleId: { not: null } }, select: { discordRoleId: true } }),
+    prisma.location.findMany({ where: { discordRoleId: { not: null } }, select: { discordRoleId: true } }),
+  ]);
+  const zoneRoleIds = new Set([...zoneRoles, ...locationRoles].map((z) => z.discordRoleId));
   if (zoneRoleIds.size > 0) {
     try {
       const members = await listGuildMembers();

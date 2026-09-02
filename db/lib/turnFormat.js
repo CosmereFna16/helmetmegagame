@@ -54,4 +54,11 @@ function expiryFor(tag, openTurn) {
   return expiryFrom(openTurn.number, tag?.defaultDurationTurns);
 }
 
-module.exports = { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor };
+// The in-game DAY of a turn: two turns (Dawn, Dusk) make one day. This is
+// the formula web/lib/turnFormat.js#describeTurn shows, and the claim key
+// Character.fastTravelTurnId / birdTurnId store.
+function turnDay(turn) {
+  return Math.ceil(turn.number / 2);
+}
+
+module.exports = { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor, turnDay };

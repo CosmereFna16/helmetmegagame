@@ -1,9 +1,9 @@
 // docs/zones.yaml -> DB + Discord, used by `npm run db:sync-zones` and
 // wipeGameData's "Restart Game" flow. docs/zones.yaml is the sole source of
-// truth for the Zone roster: this reconciles DB + Discord to match it,
-// upserting entries present in the YAML and destructively removing anything
-// no longer listed. Five passes: parse+validate, DB upsert, Discord
-// provisioning (create-only), reconcile (every run), and prune.
+// truth for the Zone / Location / Room roster: this reconciles DB + Discord
+// to match it, upserting entries present in the YAML and destructively
+// removing anything no longer listed. Five passes: parse+validate, DB
+// upsert, Discord provisioning (create-only), reconcile (every run), prune.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const {
@@ -18,33 +18,41 @@ const {
   putChannelOverwrite,
   deleteChannelOverwrite,
   getChannel,
-  ensureForumTag,
-  getForumTagId,
-  createForumPost,
+  startThread,
+  startPrivateThread,
   patchThread,
+  deleteThread,
   editMessage,
   postMessage,
-  clearThreadExceptStarter,
+  clearMessagesExcept,
   chunkMessage,
-  THREAD_FLAG_PINNED,
   pinMessage,
   fetchActiveThreads,
   listActiveThreadsForChannel,
   listArchivedPublicThreads,
+  listArchivedPrivateThreads,
 } = require("./discordRest");
 const crypto = require("node:crypto");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
 const { docsPath } = require("./repoPaths");
-const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
-const { zoneChannelSpec, zoneRoleName } = require("./zoneChannelSpec");
+const {
+  zoneChannelSpec,
+  locationChannelSpec,
+  zoneRoleName,
+  locationRoleName,
+} = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
-const { createTopicRow, createPrivateRow } = require("./zoneAnchorRow");
+const { locationAnchorRow } = require("./locationAnchorRow");
 const { entriesOf } = require("./yamlEntries");
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
 const KIND_BY_YAML = { surface: "SURFACE", group: "CAVE_GROUP" };
+
+// Cave levels share one category, so their location channels interleave
+// there: level.sortOrder * this + location.sortOrder.
+const LEVEL_CHANNEL_STRIDE = 10;
 
 // docsPath() is null only when docs/ cannot be found at all — fatal for a
 // YAML master, since it would otherwise read as "everything was deleted".
@@ -58,23 +66,15 @@ function hashBody(body) {
   return crypto.createHash("sha256").update(body).digest("hex").slice(0, 32);
 }
 
-function normalizeSubLocations(entries) {
-  return (entries ?? [])
-    .map((entry) =>
-      typeof entry === "string"
-        ? { name: entry, description: "" }
-        : { name: entry?.name ?? "", description: entry?.description ?? "" },
-    )
-    .filter((entry) => entry.name);
-}
-
 // --- Pass 0: parse + validate ------------------------------------------
 
-// Flattens the YAML into zone entries and topic entries. Throws on anything
-// structurally wrong; a bad master must fail before the first write.
+// Flattens the YAML into zone, location and room entries plus the location
+// graph. Throws on anything structurally wrong; a bad master must fail
+// before the first write.
 function parseZonesYaml(doc) {
   const zoneEntries = [];
-  const topicEntries = [];
+  const locationEntries = [];
+  const roomEntries = [];
   const problems = [];
   const warnings = [];
 
@@ -102,8 +102,8 @@ function parseZonesYaml(doc) {
     });
 
     if (kind === "CAVE_GROUP") {
-      if (entriesOf(zone.topics, "id").length > 0) {
-        problems.push(`group zone "${zone.id}" carries topics — topics belong on its levels`);
+      if (entriesOf(zone.locations, "id").length > 0) {
+        problems.push(`group zone "${zone.id}" carries locations — they belong on its levels`);
       }
       for (const [levelIndex, level] of entriesOf(zone.levels, "id").entries()) {
         if (!level?.id) {
@@ -121,73 +121,102 @@ function parseZonesYaml(doc) {
           mapLabelX: level.map?.label?.x ?? null,
           mapLabelY: level.map?.label?.y ?? null,
         });
-        collectTopics(level, level.id, topicEntries, problems);
+        collectLocations(level, level.id, locationEntries, roomEntries, problems);
       }
     } else {
       if (entriesOf(zone.levels, "id").length > 0) {
         problems.push(`zone "${zone.id}" carries levels but is not kind: group`);
       }
-      collectTopics(zone, zone.id, topicEntries, problems);
+      collectLocations(zone, zone.id, locationEntries, roomEntries, problems);
     }
   }
 
-  // Zone and topic slugs share one namespace.
+  // Zone, location and room slugs share one namespace.
   const seen = new Set();
-  for (const entry of [...zoneEntries, ...topicEntries]) {
+  for (const entry of [...zoneEntries, ...locationEntries, ...roomEntries]) {
     if (seen.has(entry.slug)) problems.push(`duplicate slug "${entry.slug}"`);
     seen.add(entry.slug);
   }
 
-  const bySlug = new Map(zoneEntries.map((z) => [z.slug, z]));
-  const connections = doc?.zoneConnections ?? [];
-  for (const pair of connections) {
-    for (const slug of pair) {
-      const zone = bySlug.get(slug);
-      if (!zone) problems.push(`zoneConnections references unknown zone "${slug}"`);
-      else if (zone.kind === "CAVE_GROUP")
-        problems.push(`zoneConnections references group zone "${slug}" — a group isn't a place`);
+  // A presence zone with no location is a zone nobody can stand in.
+  for (const zone of zoneEntries) {
+    if (zone.kind === "CAVE_GROUP") continue;
+    if (!locationEntries.some((l) => l.zoneSlug === zone.slug)) {
+      problems.push(`zone "${zone.slug}" has no locations — a character has nowhere to stand`);
     }
   }
 
-  // A presence zone with no road is legal but almost always a typo.
+  // connections: pairs of "zone/location".
+  const locationByRef = new Map(locationEntries.map((l) => [`${l.zoneSlug}/${l.slug}`, l]));
+  const connections = [];
+  for (const pair of doc?.connections ?? []) {
+    if (!Array.isArray(pair) || pair.length !== 2) {
+      problems.push(`connections entry ${JSON.stringify(pair)} is not a pair`);
+      continue;
+    }
+    const resolved = pair.map((ref) => {
+      const location = locationByRef.get(String(ref));
+      if (!location) problems.push(`connections references unknown location "${ref}" (want zone/location)`);
+      return location?.slug ?? null;
+    });
+    if (resolved.every(Boolean)) connections.push(resolved);
+  }
+
+  // A location with no road is legal but almost always a typo.
   const connected = new Set(connections.flat());
-  for (const zone of zoneEntries) {
-    if (zone.kind !== "CAVE_GROUP" && !connected.has(zone.slug)) {
-      warnings.push(`zone "${zone.slug}" appears in no zoneConnections entry — it is unreachable`);
+  for (const location of locationEntries) {
+    if (!connected.has(location.slug)) {
+      warnings.push(`location "${location.zoneSlug}/${location.slug}" appears in no connections entry — it is unreachable`);
     }
   }
 
   if (problems.length > 0) {
     throw new Error(`docs/zones.yaml is invalid:\n  - ${problems.join("\n  - ")}`);
   }
-  return { zoneEntries, topicEntries, connections, warnings };
+  return { zoneEntries, locationEntries, roomEntries, connections, warnings };
 }
 
-function collectTopics(zone, zoneSlug, topicEntries, problems) {
-  for (const [index, topic] of entriesOf(zone.topics, "id").entries()) {
-    if (!topic?.id) {
-      problems.push(`zone "${zoneSlug}" topics[${index}] has no id`);
+function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems) {
+  for (const [index, location] of entriesOf(zone.locations, "id").entries()) {
+    if (!location?.id) {
+      problems.push(`zone "${zoneSlug}" locations[${index}] has no id`);
       continue;
     }
-    topicEntries.push({
-      slug: topic.id,
-      name: topic.name ?? topic.id,
-      description: topic.description ?? "",
-      subLocations: normalizeSubLocations(topic.subLocations),
+    locationEntries.push({
+      slug: location.id,
+      name: location.name ?? location.id,
+      description: location.description ?? "",
       sortOrder: index,
       zoneSlug,
     });
+    for (const [roomIndex, room] of entriesOf(location.rooms, "id").entries()) {
+      if (!room?.id) {
+        problems.push(`location "${location.id}" rooms[${roomIndex}] has no id`);
+        continue;
+      }
+      const access = Array.isArray(room.access) ? room.access.map(String).filter(Boolean) : [];
+      if (room.access != null && !Array.isArray(room.access)) {
+        problems.push(`room "${room.id}" has a non-list access:`);
+      }
+      roomEntries.push({
+        slug: room.id,
+        name: room.name ?? room.id,
+        description: room.description ?? "",
+        sortOrder: roomIndex,
+        kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
+        accessTagSlugs: access,
+        locationSlug: location.id,
+      });
+    }
   }
 }
 
 // The overwrite targets this sync may DELETE. @everyone is deliberately NOT
 // in the set: its ViewChannel deny is the overwrite the whole privacy model
-// rests on, so no future spec edit can strip a zone's privacy here.
-function managedOverwriteIds(zoneRoleIds) {
+// rests on, so no future spec edit can strip a channel's privacy here.
+function managedOverwriteIds(roleIds) {
   return new Set(
-    [process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID, cursedRoleId(), ...zoneRoleIds].filter(
-      Boolean,
-    ),
+    [process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID, cursedRoleId(), ...roleIds].filter(Boolean),
   );
 }
 
@@ -208,7 +237,7 @@ async function reconcileChannelOverwrites(channelId, want, managed) {
   }
 
   // allow404 deliberately NOT passed: a recorded channel id pointing at
-  // nothing is worth failing this zone over.
+  // nothing is worth failing this target over.
   const live = await getChannel(channelId);
   for (const existing of live?.permission_overwrites ?? []) {
     if (wanted.has(existing.id)) continue;
@@ -220,151 +249,167 @@ async function reconcileChannelOverwrites(channelId, want, managed) {
   return changes;
 }
 
-// --- Anchor + topic post bodies ----------------------------------------
+// --- Bodies ------------------------------------------------------------
 
-function buildCreateTopicBody(zone) {
-  const parts = [`## ${zone.name}`];
-  const description = (zone.description || "").trim();
+function italicParagraphs(text) {
+  // Italic markup doesn't survive a blank line, so each paragraph wraps on
+  // its own.
+  return (text || "")
+    .trim()
+    .split(/\n{2,}/)
+    .filter(Boolean)
+    .map((paragraph) => `*${paragraph.trim()}*`)
+    .join("\n\n");
+}
+
+function buildRoomBody(room) {
+  const parts = [`**${room.name}**`];
+  const description = italicParagraphs(room.description);
   if (description) parts.push(description);
+  return parts.join("\n\n");
+}
+
+// The pinned anchor: name, -# description, and the Public Rooms index as
+// thread mentions. Private rooms are deliberately absent — they're what the
+// Secret rooms? button is for.
+function buildAnchorBody(location, rooms) {
+  const parts = [`**${location.name}**`];
+  const description = (location.description || "").trim();
+  if (description) {
+    parts.push(
+      description
+        .split(/\n{2,}/)
+        .map((paragraph) => `-# ${paragraph.trim().replace(/\s*\n+\s*/g, " ")}`)
+        .join("\n"),
+    );
+  }
+  const publicRooms = rooms
+    .filter((r) => r.kind === "PUBLIC" && r.discordThreadId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
   parts.push(
-    "Use this channel to create new roleplay locations or scenes. Use `/persistent` to toggle whether your topic gets wiped or not.",
+    publicRooms.length > 0
+      ? `**Public Rooms**: ${publicRooms.map((r) => `<#${r.discordThreadId}>`).join(" | ")}`
+      : "**Public Rooms**: none ‡",
   );
   return parts.join("\n\n");
 }
 
-const PRIVATE_ANCHOR_BODY =
-  "Use this channel to roleplay privately. Use `/add <character>` and `/remove <character>` to invite people to your thread.";
+// --- Room threads ------------------------------------------------------
 
-function buildTopicBody(topic) {
-  const parts = [`**${topic.name}**`];
-  const description = (topic.description || "").trim();
-  if (description) {
-    // Italic markup doesn't survive a blank line, so each paragraph wraps
-    // on its own.
-    parts.push(
-      description
-        .split(/\n{2,}/)
-        .map((paragraph) => `*${paragraph.trim()}*`)
-        .join("\n\n"),
-    );
-  }
-  const subs = normalizeSubLocations(topic.subLocations);
-  if (subs.length) {
-    const index = `**Sublocations**: ${subs.map((sub) => sub.name).join(" | ")}`;
-    const captions = subs
-      .filter((sub) => (sub.description || "").trim())
-      .map((sub) => `-# ${sub.name}: ${sub.description.trim().replace(/\s*\n+\s*/g, " ")}`);
-    parts.push([index, ...captions].join("\n"));
-  }
-  return parts.join("\n\n");
+// Finds a thread already under the channel with this exact title, so
+// syncRoomThread can adopt it instead of creating a duplicate (a retried
+// create Discord already applied).
+async function findExistingThread(channelId, title, snapshot, kind) {
+  const active = await listActiveThreadsForChannel(channelId, snapshot);
+  const found = active.find((t) => t.name === title);
+  if (found) return found;
+  const archived =
+    kind === "PRIVATE"
+      ? await listArchivedPrivateThreads(channelId)
+      : await listArchivedPublicThreads(channelId);
+  return archived.find((t) => t.name === title) ?? null;
 }
 
-// Rebuilds a generated forum post in place: everything except the starter
-// message is deleted, the starter is edited, thread state re-asserted.
-// Unlock first (a locked thread rejects edits), lock last.
-async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, pinned, components }) {
-  await patchThread(threadId, { locked: false, archived: false });
-
-  await clearThreadExceptStarter(threadId);
-
-  await editMessage(threadId, threadId, chunks[0], components);
+// Writes a room's starter into a thread that has none recorded: first chunk
+// becomes the starter (pinned in-thread), the rest follow.
+async function writeRoomStarter(threadId, chunks) {
+  const starter = await postMessage(threadId, chunks[0]);
   for (const chunk of chunks.slice(1)) await postMessage(threadId, chunk);
-
-  await patchThread(threadId, {
-    name,
-    locked,
-    archived: false,
-    ...(pinned ? { flags: THREAD_FLAG_PINNED } : {}),
-    applied_tags: appliedTags,
-  });
+  // Best-effort: a pin failure must never abort the sync.
+  await pinMessage(threadId, starter.id).catch((err) =>
+    console.error(`Room starter pin failed (${threadId}):`, err.message),
+  );
+  return starter.id;
 }
 
-// The pinned, UNLOCKED "Create a Topic" post at the top of a zone's forum.
-// Unlocked because Discord disables a message's buttons for anyone who
-// can't send in the thread. Replies are deleted on sight by
-// bot/src/events/messageCreate.js. Returns "created" | "updated" | "unchanged" | "skipped".
-async function syncCreateTopicPost(prisma, zone) {
-  if (!zone.discordPublicChannelId) return "skipped";
+// One thread per room under its location's channel, sync-owned: starter =
+// the room body, reconciled by hash. Never locked (players roleplay inside
+// it); the Dawn wipe clears replies but never the starter. Returns
+// "created" | "updated" | "unchanged" | "skipped".
+async function syncRoomThread(prisma, room, location, snapshot) {
+  if (!location?.discordChannelId) return "skipped";
 
-  const locationTagId = await ensureForumTag(zone.discordPublicChannelId, LOCATION_TAG_NAME, null);
-  const appliedTags = locationTagId ? [locationTagId] : [];
-  const body = buildCreateTopicBody(zone);
+  const body = buildRoomBody(room);
+  const hash = hashBody(body);
   const chunks = chunkMessage(body);
-  const components = [createTopicRow(zone.id)];
-  // The hash folds in the button row and an "unlocked" marker, so a
-  // components-only or lock-state change still trips the no-op guard.
-  const hash = hashBody(`${body} ${JSON.stringify(components)} unlocked`);
+  const title = room.name.slice(0, 100);
 
   let existing = null;
-  if (zone.createTopicThreadId) {
-    existing = await getChannel(zone.createTopicThreadId, { allow404: true });
+  if (room.discordThreadId) {
+    existing = await getChannel(room.discordThreadId, { allow404: true });
   }
-  if (existing && zone.createTopicHash === hash) return "unchanged";
+  if (existing && room.starterMessageId && room.postHash === hash) {
+    // The cheap re-assert that keeps a room visible after seven idle days.
+    if (existing.thread_metadata?.archived) await patchThread(room.discordThreadId, { archived: false });
+    return "unchanged";
+  }
 
   if (!existing) {
-    // Forum-post create's support for `components` has wobbled across API
-    // revisions, so a rejection falls back to create-then-edit.
-    let thread;
-    try {
-      thread = await createForumPost(zone.discordPublicChannelId, {
-        name: "Create a Topic",
-        content: chunks[0],
-        appliedTags,
-        components,
-      });
-    } catch (err) {
-      if (err?.status !== 400) throw err;
-      thread = await createForumPost(zone.discordPublicChannelId, {
-        name: "Create a Topic",
-        content: chunks[0],
-        appliedTags,
-      });
-      await editMessage(thread.id, thread.id, chunks[0], components);
+    const adopted = await findExistingThread(location.discordChannelId, title, snapshot, room.kind);
+    let thread = adopted;
+    if (!thread) {
+      thread =
+        room.kind === "PRIVATE"
+          ? await startPrivateThread(location.discordChannelId, title, 10080)
+          : await startThread(location.discordChannelId, title, 10080);
+    } else {
+      await patchThread(thread.id, { archived: false });
+      await clearMessagesExcept(thread.id, null);
     }
-    for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
-    await patchThread(thread.id, {
-      locked: false,
-      archived: false,
-      flags: THREAD_FLAG_PINNED,
-      applied_tags: appliedTags,
+    const starterMessageId = await writeRoomStarter(thread.id, chunks);
+    await prisma.room.update({
+      where: { id: room.id },
+      data: { discordThreadId: thread.id, starterMessageId, postHash: hash },
     });
-    await prisma.zone.update({
-      where: { id: zone.id },
-      data: { createTopicThreadId: thread.id, createTopicHash: hash },
-    });
-    zone.createTopicThreadId = thread.id;
-    zone.createTopicHash = hash;
-    return "created";
+    room.discordThreadId = thread.id;
+    room.starterMessageId = starterMessageId;
+    room.postHash = hash;
+    return adopted ? "updated" : "created";
   }
 
-  await rewriteForumPost(zone.createTopicThreadId, {
-    name: "Create a Topic",
-    chunks,
-    appliedTags,
-    locked: false,
-    pinned: true,
-    components,
+  // Rewrite in place: unarchive, drop everything but the starter, edit it.
+  await patchThread(room.discordThreadId, { archived: false });
+  let starterMessageId = room.starterMessageId;
+  if (starterMessageId) {
+    await clearMessagesExcept(room.discordThreadId, starterMessageId);
+    try {
+      await editMessage(room.discordThreadId, starterMessageId, chunks[0]);
+      for (const chunk of chunks.slice(1)) await postMessage(room.discordThreadId, chunk);
+    } catch (err) {
+      if (err?.status !== 404) throw err;
+      starterMessageId = null;
+    }
+  }
+  if (!starterMessageId) {
+    await clearMessagesExcept(room.discordThreadId, null);
+    starterMessageId = await writeRoomStarter(room.discordThreadId, chunks);
+  }
+  await patchThread(room.discordThreadId, { name: title, archived: false });
+  await prisma.room.update({
+    where: { id: room.id },
+    data: { starterMessageId, postHash: hash },
   });
-  await prisma.zone.update({ where: { id: zone.id }, data: { createTopicHash: hash } });
-  zone.createTopicHash = hash;
+  room.starterMessageId = starterMessageId;
+  room.postHash = hash;
   return "updated";
 }
 
-// The permanent message in a surface zone's #private, carrying the Create
-// button. Hash-gated; a message a GM deleted by hand is reposted.
-async function syncPrivateAnchor(prisma, zone) {
-  if (!zone.discordPrivateChannelId) return "skipped";
+// The pinned anchor message in a location's channel. Hash-gated on body +
+// components; a message a GM deleted by hand is reposted.
+async function syncLocationAnchor(prisma, location, rooms) {
+  if (!location.discordChannelId) return "skipped";
 
-  const hash = hashBody(PRIVATE_ANCHOR_BODY);
-  const components = [createPrivateRow(zone.id)];
+  const body = buildAnchorBody(location, rooms);
+  const components = [locationAnchorRow(location.id)];
+  const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
-  if (zone.privateAnchorMessageId && zone.privateAnchorHash === hash) return "unchanged";
+  if (location.anchorMessageId && location.anchorHash === hash) return "unchanged";
 
-  if (zone.privateAnchorMessageId) {
+  if (location.anchorMessageId) {
     try {
-      await editMessage(zone.discordPrivateChannelId, zone.privateAnchorMessageId, PRIVATE_ANCHOR_BODY, components);
-      await prisma.zone.update({ where: { id: zone.id }, data: { privateAnchorHash: hash } });
-      zone.privateAnchorHash = hash;
+      await editMessage(location.discordChannelId, location.anchorMessageId, body, components);
+      await prisma.location.update({ where: { id: location.id }, data: { anchorHash: hash } });
+      location.anchorHash = hash;
       return "updated";
     } catch (err) {
       if (err?.status !== 404) throw err;
@@ -372,121 +417,20 @@ async function syncPrivateAnchor(prisma, zone) {
     }
   }
 
-  const message = await postMessage(zone.discordPrivateChannelId, PRIVATE_ANCHOR_BODY, components);
-  await prisma.zone.update({
-    where: { id: zone.id },
-    data: { privateAnchorMessageId: message.id, privateAnchorHash: hash },
+  const message = await postMessage(location.discordChannelId, body, components);
+  await pinMessage(location.discordChannelId, message.id).catch((err) =>
+    console.error(`Anchor pin failed for ${location.slug}:`, err.message),
+  );
+  await prisma.location.update({
+    where: { id: location.id },
+    data: { anchorMessageId: message.id, anchorHash: hash },
   });
-  zone.privateAnchorMessageId = message.id;
-  zone.privateAnchorHash = hash;
+  location.anchorMessageId = message.id;
+  location.anchorHash = hash;
   return "created";
 }
 
-// Finds a forum post already sitting in the forum with this exact title, so
-// syncTopicPost can adopt it instead of creating a duplicate (a retried
-// create Discord already applied).
-async function findExistingTopicThread(forumChannelId, title) {
-  const active = await listActiveThreadsForChannel(forumChannelId, await fetchActiveThreads());
-  const found = active.find((t) => t.name === title);
-  if (found) return found;
-  const archived = await listArchivedPublicThreads(forumChannelId);
-  return archived.find((t) => t.name === title) ?? null;
-}
-
-// One generated, Location-tagged, UNLOCKED, unpinned forum post per topic.
-// Never locked (players roleplay inside it); the Dawn wipe clears replies
-// but never the starter. Not pinned: Discord caps pinned posts per forum.
-async function syncTopicPost(prisma, topic, zone) {
-  if (!zone?.discordPublicChannelId) return "skipped";
-
-  const locationTagId = await getForumTagId(zone.discordPublicChannelId, LOCATION_TAG_NAME);
-  const appliedTags = locationTagId ? [locationTagId] : [];
-  const body = buildTopicBody(topic);
-  const hash = hashBody(body);
-  const chunks = chunkMessage(body);
-  const title = topic.name.slice(0, 100);
-  const components = [];
-  const componentsHash = hashBody(JSON.stringify(components));
-
-  let existing = null;
-  if (topic.discordThreadId) {
-    existing = await getChannel(topic.discordThreadId, { allow404: true });
-  }
-  if (existing && topic.postHash === hash && topic.componentsHash === componentsHash) return "unchanged";
-
-  if (!existing) {
-    // Adopt a same-named post already in the forum instead of duplicating it
-    // (same posture as syncSpecialChannels.js, CHANNELS.md §7).
-    const adopted = await findExistingTopicThread(zone.discordPublicChannelId, title);
-    if (adopted) {
-      await rewriteForumPost(adopted.id, { name: title, chunks, appliedTags, locked: false, components });
-      // Best-effort: a pin failure must never abort the sync.
-      await pinMessage(adopted.id, adopted.id).catch((err) =>
-        console.error(`Location topic pin failed for ${topic.slug} (adopted ${adopted.id}):`, err),
-      );
-      await prisma.locationTopic.update({
-        where: { id: topic.id },
-        data: { discordThreadId: adopted.id, postHash: hash, componentsHash },
-      });
-      topic.discordThreadId = adopted.id;
-      topic.postHash = hash;
-      topic.componentsHash = componentsHash;
-      return "updated";
-    }
-
-    let thread;
-    try {
-      thread = await createForumPost(zone.discordPublicChannelId, {
-        name: title,
-        content: chunks[0],
-        appliedTags,
-        components,
-      });
-    } catch (err) {
-      if (err?.status !== 400) throw err;
-      thread = await createForumPost(zone.discordPublicChannelId, {
-        name: title,
-        content: chunks[0],
-        appliedTags,
-      });
-      await editMessage(thread.id, thread.id, chunks[0], components);
-    }
-    await pinMessage(thread.id, thread.id).catch((err) =>
-      console.error(`Location topic pin failed for ${topic.slug} (${thread.id}):`, err),
-    );
-    for (const chunk of chunks.slice(1)) await postMessage(thread.id, chunk);
-    await patchThread(thread.id, { archived: false, applied_tags: appliedTags });
-    await prisma.locationTopic.update({
-      where: { id: topic.id },
-      data: { discordThreadId: thread.id, postHash: hash, componentsHash },
-    });
-    topic.discordThreadId = thread.id;
-    topic.postHash = hash;
-    topic.componentsHash = componentsHash;
-    return "created";
-  }
-
-  // A components-only change takes a cheap starter-message edit instead of
-  // the full rebuild, which would delete the day's roleplay in the thread.
-  if (topic.postHash === hash) {
-    await editMessage(topic.discordThreadId, topic.discordThreadId, chunks[0], components);
-    await prisma.locationTopic.update({ where: { id: topic.id }, data: { componentsHash } });
-    topic.componentsHash = componentsHash;
-    return "updated";
-  }
-
-  await rewriteForumPost(topic.discordThreadId, {
-    name: title,
-    chunks,
-    appliedTags,
-    locked: false,
-    components,
-  });
-  await prisma.locationTopic.update({ where: { id: topic.id }, data: { postHash: hash, componentsHash } });
-  topic.postHash = hash;
-  topic.componentsHash = componentsHash;
-  return "updated";
-}
+// --- Ordering ----------------------------------------------------------
 
 async function sortZoneCategories(prisma) {
   const zones = await prisma.zone.findMany({ where: { discordCategoryId: { not: null } } });
@@ -509,26 +453,36 @@ async function sortZoneCategories(prisma) {
   if (updates.length > 0) await patchGuildChannelPositions(updates);
 }
 
-// `parent_id` must NOT ride along in the bulk position PATCH (Discord 400
-// code 40009 — reparenting is one channel at a time), so drifted channels
-// are repaired separately first.
+// Per surface zone: #summary then its location channels in sortOrder, under
+// the zone's category. Per cave level: its location channels under the
+// group's category, offset by level. `parent_id` must NOT ride along in the
+// bulk position PATCH (Discord 400 code 40009 — reparenting is one channel
+// at a time), so drifted channels are repaired separately first.
 async function sortZoneChannels(prisma) {
-  const zones = await prisma.zone.findMany({ orderBy: { sortOrder: "asc" } });
+  const zones = await prisma.zone.findMany({
+    orderBy: { sortOrder: "asc" },
+    include: { locations: { orderBy: { sortOrder: "asc" } } },
+  });
 
   const intended = [];
   for (const zone of zones) {
     if (zone.kind === "SURFACE") {
-      [zone.discordSummaryChannelId, zone.discordPublicChannelId, zone.discordPrivateChannelId]
-        .forEach((id, position) => {
-          if (id) intended.push({ id, position, parentId: zone.discordCategoryId });
-        });
+      let position = 0;
+      if (zone.discordSummaryChannelId) {
+        intended.push({ id: zone.discordSummaryChannelId, position: position++, parentId: zone.discordCategoryId });
+      }
+      for (const location of zone.locations) {
+        if (location.discordChannelId) {
+          intended.push({ id: location.discordChannelId, position: position++, parentId: zone.discordCategoryId });
+        }
+      }
     } else if (zone.kind === "CAVE_LEVEL") {
       const parent = zones.find((z) => z.id === zone.parentZoneId);
-      [zone.discordPublicChannelId, zone.discordPrivateChannelId].forEach((id, offset) => {
-        if (id) {
+      zone.locations.forEach((location, offset) => {
+        if (location.discordChannelId) {
           intended.push({
-            id,
-            position: zone.sortOrder * 2 + offset,
+            id: location.discordChannelId,
+            position: zone.sortOrder * LEVEL_CHANNEL_STRIDE + offset,
             parentId: parent?.discordCategoryId ?? null,
           });
         }
@@ -550,27 +504,45 @@ async function sortZoneChannels(prisma) {
   return { ordered: intended.length, reparented };
 }
 
+// --- The sync ----------------------------------------------------------
+
+async function ensureRole(name, liveRoles) {
+  const role = await createGuildRole({
+    name,
+    permissions: "0",
+    color: 0,
+    hoist: false,
+    mentionable: false,
+  });
+  liveRoles.add(role.id);
+  return role;
+}
+
 async function syncZonesFromYaml(prisma) {
   const yamlPath = requireDocsPath("zones.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
-  const { zoneEntries, topicEntries, connections, warnings } = parseZonesYaml(doc);
+  const { zoneEntries, locationEntries, roomEntries, connections, warnings } = parseZonesYaml(doc);
   for (const warning of warnings) console.warn(`zones.yaml: ${warning}`);
 
   const report = {
     warnings,
     zonesCreated: 0,
     zonesUpdated: 0,
+    locationsCreated: 0,
+    locationsUpdated: 0,
+    locationsMoved: [],
+    roomsMoved: [],
     rolesCreated: [],
     provisioned: [],
     reconciled: 0,
     permissionRepairs: [],
+    rooms: { created: 0, updated: 0, unchanged: 0, skipped: 0 },
     anchors: { created: 0, updated: 0, unchanged: 0, skipped: 0 },
-    privateAnchors: { created: 0, updated: 0, unchanged: 0, skipped: 0 },
-    topics: { created: 0, updated: 0, unchanged: 0, skipped: 0, moved: [] },
     channelsOrdered: 0,
     channelsReparented: [],
     pruned: [],
-    topicsPruned: [],
+    locationsPruned: [],
+    roomsPruned: [],
     turnsAccess: null,
   };
 
@@ -605,6 +577,7 @@ async function syncZonesFromYaml(prisma) {
     }
     zonesBySlug.set(entry.slug, zone);
   }
+  const zoneById = new Map([...zonesBySlug.values()].map((z) => [z.id, z]));
 
   // Pass 1b: seatZoneId — parentZoneId ?? id, now that every id exists.
   for (const zone of zonesBySlug.values()) {
@@ -615,35 +588,58 @@ async function syncZonesFromYaml(prisma) {
     }
   }
 
-  // Pass 1c: topics, matched by slug. A topic whose zone changed moves: its
-  // old post is deleted and the null'd ids let the post pass recreate it.
-  const topicsBySlug = new Map();
-  for (const entry of topicEntries) {
+  // Pass 1c: locations, matched by slug. A location whose zone changed
+  // keeps its channel and role — a text channel CAN be reparented, which the
+  // ordering pass does once the category is known.
+  const locationsBySlug = new Map();
+  for (const entry of locationEntries) {
     const zone = zonesBySlug.get(entry.zoneSlug);
     const data = {
       name: entry.name,
       description: entry.description,
-      subLocations: entry.subLocations,
       sortOrder: entry.sortOrder,
       zoneId: zone.id,
     };
-
-    let topic = await prisma.locationTopic.findUnique({ where: { slug: entry.slug } });
-    if (!topic) {
-      topic = await prisma.locationTopic.create({ data: { ...data, slug: entry.slug } });
+    let location = await prisma.location.findUnique({ where: { slug: entry.slug } });
+    if (!location) {
+      location = await prisma.location.create({ data: { ...data, slug: entry.slug } });
+      report.locationsCreated += 1;
     } else {
-      if (topic.zoneId !== zone.id && topic.discordThreadId) {
-        await deleteChannel(topic.discordThreadId);
-        report.topics.moved.push(entry.slug);
-        topic = await prisma.locationTopic.update({
-          where: { id: topic.id },
-          data: { ...data, discordThreadId: null, postHash: null },
-        });
-      } else {
-        topic = await prisma.locationTopic.update({ where: { id: topic.id }, data });
-      }
+      if (location.zoneId !== zone.id) report.locationsMoved.push(entry.slug);
+      location = await prisma.location.update({ where: { id: location.id }, data });
+      report.locationsUpdated += 1;
     }
-    topicsBySlug.set(entry.slug, topic);
+    locationsBySlug.set(entry.slug, location);
+  }
+
+  // Pass 1c-bis: rooms, matched by slug. A thread can't change parents, so a
+  // room whose location changed is deleted and recreated by the room pass.
+  const roomsBySlug = new Map();
+  for (const entry of roomEntries) {
+    const location = locationsBySlug.get(entry.locationSlug);
+    const data = {
+      name: entry.name,
+      description: entry.description,
+      sortOrder: entry.sortOrder,
+      kind: entry.kind,
+      accessTagSlugs: entry.accessTagSlugs,
+      locationId: location.id,
+    };
+    let room = await prisma.room.findUnique({ where: { slug: entry.slug } });
+    if (!room) {
+      room = await prisma.room.create({ data: { ...data, slug: entry.slug } });
+    } else if ((room.locationId !== location.id || room.kind !== entry.kind) && room.discordThreadId) {
+      // A kind change is a thread-type change, which Discord can't do either.
+      await deleteThread(room.discordThreadId);
+      report.roomsMoved.push(entry.slug);
+      room = await prisma.room.update({
+        where: { id: room.id },
+        data: { ...data, discordThreadId: null, starterMessageId: null, postHash: null },
+      });
+    } else {
+      room = await prisma.room.update({ where: { id: room.id }, data });
+    }
+    roomsBySlug.set(entry.slug, room);
   }
 
   // Pass 1d: the travel graph — both directions explicit.
@@ -654,29 +650,31 @@ async function syncZonesFromYaml(prisma) {
     neighbors.get(a).add(b);
     neighbors.get(b).add(a);
   }
-  for (const zone of zonesBySlug.values()) {
-    const set = [...(neighbors.get(zone.slug) ?? [])].map((slug) => ({
-      id: zonesBySlug.get(slug).id,
+  for (const location of locationsBySlug.values()) {
+    const set = [...(neighbors.get(location.slug) ?? [])].map((slug) => ({
+      id: locationsBySlug.get(slug).id,
     }));
-    await prisma.zone.update({ where: { id: zone.id }, data: { connectsTo: { set } } });
+    await prisma.location.update({ where: { id: location.id }, data: { connectsTo: { set } } });
   }
 
-  // Pass 2a: zone roles for presence zones — create when null OR the
-  // recorded role was deleted by hand (doctor reports it, this repairs it).
+  // Pass 2a: roles — one per presence zone, one per location. Created when
+  // null OR the recorded role was deleted by hand (doctor reports it, this
+  // repairs it).
   const liveRoles = new Set((await getGuildRoles()).map((r) => r.id));
   for (const zone of zonesBySlug.values()) {
     if (zone.kind === "CAVE_GROUP") continue;
     if (zone.discordRoleId && liveRoles.has(zone.discordRoleId)) continue;
-    const role = await createGuildRole({
-      name: zoneRoleName(zone),
-      permissions: "0",
-      color: 0,
-      hoist: false,
-      mentionable: false,
-    });
+    const role = await ensureRole(zoneRoleName(zone), liveRoles);
     await prisma.zone.update({ where: { id: zone.id }, data: { discordRoleId: role.id } });
     zone.discordRoleId = role.id;
     report.rolesCreated.push(zoneRoleName(zone));
+  }
+  for (const location of locationsBySlug.values()) {
+    if (location.discordRoleId && liveRoles.has(location.discordRoleId)) continue;
+    const role = await ensureRole(locationRoleName(location), liveRoles);
+    await prisma.location.update({ where: { id: location.id }, data: { discordRoleId: role.id } });
+    location.discordRoleId = role.id;
+    report.rolesCreated.push(locationRoleName(location));
   }
 
   // Pass 2b: categories + channels, create-only. Groups before levels.
@@ -684,54 +682,46 @@ async function syncZonesFromYaml(prisma) {
     const rank = (z) => (z.kind === "CAVE_GROUP" ? 0 : z.kind === "SURFACE" ? 1 : 2);
     return rank(a) - rank(b) || a.sortOrder - b.sortOrder;
   });
+  const categoryIdFor = (zone) =>
+    zone.discordCategoryId ?? (zone.parentZoneId ? zoneById.get(zone.parentZoneId)?.discordCategoryId : null) ?? null;
 
   for (const zone of provisionOrder) {
     const spec = zoneChannelSpec(zone);
     const updates = {};
-    let touched = false;
 
     if (spec.category && !zone.discordCategoryId) {
       const category = await createChannel(spec.category);
       updates.discordCategoryId = category.id;
-      touched = true;
+      zone.discordCategoryId = category.id;
     }
-    const parent = zone.parentZoneId
-      ? [...zonesBySlug.values()].find((z) => z.id === zone.parentZoneId)
-      : null;
-    const categoryId =
-      updates.discordCategoryId ?? zone.discordCategoryId ?? parent?.discordCategoryId ?? null;
-
     if (spec.summary && !zone.discordSummaryChannelId) {
       updates.discordSummaryChannelId = (
-        await createChannel({ ...spec.summary, parent_id: categoryId })
+        await createChannel({ ...spec.summary, parent_id: categoryIdFor(zone) })
       ).id;
-      touched = true;
+      zone.discordSummaryChannelId = updates.discordSummaryChannelId;
     }
-    if (spec.public && !zone.discordPublicChannelId) {
-      updates.discordPublicChannelId = (
-        await createChannel({ ...spec.public, parent_id: categoryId })
-      ).id;
-      touched = true;
-    }
-    if (spec.private && !zone.discordPrivateChannelId) {
-      updates.discordPrivateChannelId = (
-        await createChannel({ ...spec.private, parent_id: categoryId })
-      ).id;
-      touched = true;
-    }
-
-    if (touched) {
-      Object.assign(zone, updates);
+    if (Object.keys(updates).length > 0) {
       zone.justProvisioned = true;
       await prisma.zone.update({ where: { id: zone.id }, data: updates });
       report.provisioned.push(zone.name);
     }
   }
+  for (const location of [...locationsBySlug.values()].sort((a, b) => a.sortOrder - b.sortOrder)) {
+    if (location.discordChannelId) continue;
+    const zone = zoneById.get(location.zoneId);
+    const channel = await createChannel({ ...locationChannelSpec(location), parent_id: categoryIdFor(zone) });
+    await prisma.location.update({ where: { id: location.id }, data: { discordChannelId: channel.id } });
+    location.discordChannelId = channel.id;
+    location.justProvisioned = true;
+    report.provisioned.push(`${zone.name} / ${location.name}`);
+  }
 
   // Pass 3: reconcile everything already provisioned. Freshly provisioned
-  // zones skip the overwrite/topic reconcile but still get anchors + posts.
-  const zoneRoleIds = [...zonesBySlug.values()].map((z) => z.discordRoleId).filter(Boolean);
-  const managed = managedOverwriteIds(zoneRoleIds);
+  // targets skip the overwrite reconcile but still get threads + anchors.
+  const managed = managedOverwriteIds([
+    ...[...zonesBySlug.values()].map((z) => z.discordRoleId),
+    ...[...locationsBySlug.values()].map((l) => l.discordRoleId),
+  ]);
 
   for (const zone of zonesBySlug.values()) {
     if (zone.justProvisioned) continue;
@@ -739,8 +729,6 @@ async function syncZonesFromYaml(prisma) {
     const targets = [
       ["category", zone.discordCategoryId, spec.category],
       ["summary", zone.discordSummaryChannelId, spec.summary],
-      ["public", zone.discordPublicChannelId, spec.public],
-      ["private", zone.discordPrivateChannelId, spec.private],
     ];
     let reconciledAny = false;
     for (const [label, channelId, want] of targets) {
@@ -758,13 +746,18 @@ async function syncZonesFromYaml(prisma) {
       for (const id of removed) {
         report.permissionRepairs.push(`${zone.name} (${label}): removed stray overwrite for ${id}`);
       }
-      if (want.available_tags) {
-        await ensureForumTag(channelId, PERSISTENT_TAG_NAME, null);
-        await ensureForumTag(channelId, LOCATION_TAG_NAME, null);
-        await ensureForumTag(channelId, QUEST_TAG_NAME, null);
-      }
     }
     if (reconciledAny) report.reconciled += 1;
+  }
+  for (const location of locationsBySlug.values()) {
+    if (location.justProvisioned || !location.discordChannelId) continue;
+    const want = locationChannelSpec(location);
+    await patchChannel(location.discordChannelId, { topic: want.topic ?? "" });
+    const removed = await reconcileChannelOverwrites(location.discordChannelId, want, managed);
+    for (const id of removed) {
+      report.permissionRepairs.push(`${location.name}: removed stray overwrite for ${id}`);
+    }
+    report.reconciled += 1;
   }
 
   await sortZoneCategories(prisma);
@@ -772,45 +765,54 @@ async function syncZonesFromYaml(prisma) {
   report.channelsOrdered = channelOrder.ordered;
   report.channelsReparented = channelOrder.reparented;
 
-  for (const zone of zonesBySlug.values()) {
-    if (zone.discordPublicChannelId) {
-      report.anchors[await syncCreateTopicPost(prisma, zone)] += 1;
-    }
-    if (zone.discordPrivateChannelId) {
-      report.privateAnchors[await syncPrivateAnchor(prisma, zone)] += 1;
-    }
+  // Room threads, then anchors — the anchor body embeds the thread ids.
+  // The active-thread snapshot is fetched ONCE; it only serves adoption.
+  const snapshot = await fetchActiveThreads().catch((err) => {
+    console.error("sync-zones: active-thread snapshot failed, falling back to per-channel fetches:", err.message);
+    return null;
+  });
+  const roomsByLocationId = new Map();
+  for (const room of roomsBySlug.values()) {
+    if (!roomsByLocationId.has(room.locationId)) roomsByLocationId.set(room.locationId, []);
+    roomsByLocationId.get(room.locationId).push(room);
   }
-  for (const topic of topicsBySlug.values()) {
-    const zone = [...zonesBySlug.values()].find((z) => z.id === topic.zoneId);
-    report.topics[await syncTopicPost(prisma, topic, zone)] += 1;
+  const locationById = new Map([...locationsBySlug.values()].map((l) => [l.id, l]));
+  for (const room of roomsBySlug.values()) {
+    report.rooms[await syncRoomThread(prisma, room, locationById.get(room.locationId), snapshot)] += 1;
+  }
+  for (const location of locationsBySlug.values()) {
+    report.anchors[await syncLocationAnchor(prisma, location, roomsByLocationId.get(location.id) ?? [])] += 1;
   }
 
   await ensureCursedRoleAppearance().catch((err) =>
     console.warn(`cursed role appearance: ${err.message}`),
   );
 
-  // Pass 4: prune. Topics first (their posts live in zone forums), then
-  // zones — Discord objects, role included, then the row.
-  const topicSlugs = [...topicsBySlug.keys()];
-  const staleTopics = await prisma.locationTopic.findMany({
-    where: { slug: { notIn: topicSlugs } },
-  });
-  for (const topic of staleTopics) {
-    if (topic.discordThreadId) await deleteChannel(topic.discordThreadId);
-    await prisma.locationTopic.delete({ where: { id: topic.id } });
-    report.topicsPruned.push(topic.name);
+  // Pass 4: prune. Rooms first (threads under location channels), then
+  // locations (channel, role, row — characters standing there are set null
+  // and the doctor reports them), then zones.
+  const staleRooms = await prisma.room.findMany({ where: { slug: { notIn: [...roomsBySlug.keys()] } } });
+  for (const room of staleRooms) {
+    if (room.discordThreadId) await deleteThread(room.discordThreadId);
+    await prisma.room.delete({ where: { id: room.id } });
+    report.roomsPruned.push(room.name);
   }
 
-  const zoneSlugs = [...zonesBySlug.keys()];
-  const staleZones = await prisma.zone.findMany({ where: { slug: { notIn: zoneSlugs } } });
+  const staleLocations = await prisma.location.findMany({
+    where: { slug: { notIn: [...locationsBySlug.keys()] } },
+  });
+  for (const location of staleLocations) {
+    if (location.discordChannelId) await deleteChannel(location.discordChannelId);
+    if (location.discordRoleId) await deleteGuildRole(location.discordRoleId);
+    await prisma.location.delete({ where: { id: location.id } });
+    report.locationsPruned.push(location.name);
+  }
+
+  const staleZones = await prisma.zone.findMany({ where: { slug: { notIn: [...zonesBySlug.keys()] } } });
   for (const zone of staleZones) {
-    const channelIds = [
-      zone.discordSummaryChannelId,
-      zone.discordPublicChannelId,
-      zone.discordPrivateChannelId,
-      zone.discordCategoryId,
-    ].filter(Boolean);
-    for (const id of channelIds) await deleteChannel(id);
+    for (const id of [zone.discordSummaryChannelId, zone.discordCategoryId].filter(Boolean)) {
+      await deleteChannel(id);
+    }
     if (zone.discordRoleId) await deleteGuildRole(zone.discordRoleId);
     await prisma.zone.delete({ where: { id: zone.id } });
     report.pruned.push(zone.name);
@@ -830,4 +832,5 @@ module.exports = {
   syncZonesFromYaml,
   reconcileChannelOverwrites,
   managedOverwriteIds,
+  buildAnchorBody,
 };

@@ -18,11 +18,16 @@ const {
   getChannel,
   deleteChannelOverwrite,
   putChannelOverwrite,
+  patchThread,
+  listThreadMembers,
+  addThreadMember,
+  removeThreadMember,
 } = require("./discordRest");
 const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { hashNameToColor } = require("./roleColor");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
-const { zoneChannelSpec } = require("./zoneChannelSpec");
+const { zoneChannelSpec, locationChannelSpec } = require("./zoneChannelSpec");
+const { accessibleRooms, heldTagSlugs } = require("./roomAccess");
 const { reconcileChannelOverwrites, managedOverwriteIds } = require("./syncZones");
 const { SPECIAL_CHANNELS, buildNarrowcastContext, computeNarrowcastAccess } = require("./specialChannels");
 const {
@@ -101,7 +106,9 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   const report = makeReporter(findings, apply);
 
   const [zones, characters, liveRoles, memberList, config] = await Promise.all([
-    prisma.zone.findMany({ include: { seatZone: { select: { kind: true } } } }),
+    prisma.zone.findMany({
+      include: { seatZone: { select: { kind: true } }, locations: { orderBy: { sortOrder: "asc" } } },
+    }),
     prisma.character.findMany({
       select: {
         id: true,
@@ -110,6 +117,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         discordUserId: true,
         discordRoleId: true,
         zoneId: true,
+        locationId: true,
         turnPingOptIn: true,
       },
     }),
@@ -122,6 +130,8 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   const rolesById = new Map(liveRoles.map((r) => [r.id, r]));
   const alive = characters.filter((c) => c.status === "ALIVE");
   const zonesById = new Map(zones.map((z) => [z.id, z]));
+  const locations = zones.flatMap((z) => z.locations.map((l) => ({ ...l, zoneName: z.name })));
+  const locationsById = new Map(locations.map((l) => [l.id, l]));
 
   // --- cheap: structure ------------------------------------------------
 
@@ -135,14 +145,49 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     for (const [label, id] of [
       ["category", zone.discordCategoryId],
       ["summary", zone.discordSummaryChannelId],
-      ["public", zone.discordPublicChannelId],
-      ["private", zone.discordPrivateChannelId],
     ]) {
       if (!id) continue;
       const live = await getChannel(id, { allow404: true }).catch(() => undefined);
       if (live === null) {
         await report("zone-structure", `${zone.name}/${label}`, "recorded channel no longer exists (run db:sync-zones)");
       }
+    }
+    if (zone.kind !== "CAVE_GROUP" && zone.locations.length === 0) {
+      await report("zone-structure", zone.name, "zone has no locations — nobody can stand in it (check docs/zones.yaml)");
+    }
+  }
+  for (const location of locations) {
+    const label = `${location.zoneName}/${location.name}`;
+    if (!location.discordRoleId) {
+      await report("location-structure", label, "location has no role recorded (run db:sync-zones)");
+    } else if (!rolesById.has(location.discordRoleId)) {
+      await report("location-structure", label, "recorded location role no longer exists (run db:sync-zones)");
+    }
+    if (!location.discordChannelId) {
+      await report("location-structure", label, "location has no channel recorded (run db:sync-zones)");
+    } else {
+      const live = await getChannel(location.discordChannelId, { allow404: true }).catch(() => undefined);
+      if (live === null) {
+        await report("location-structure", label, "recorded channel no longer exists (run db:sync-zones)");
+      }
+    }
+  }
+
+  // Character.zoneId is denormalized from location.zoneId; a mismatch means
+  // some writer forgot the contract. Repaired from the location, which is
+  // the authority.
+  for (const c of alive) {
+    if (!c.locationId) {
+      await report("character-place", c.name, "living character stands in no location");
+      continue;
+    }
+    const location = locationsById.get(c.locationId);
+    if (!location) {
+      await report("character-place", c.name, "living character stands in a location that no longer exists");
+    } else if (c.zoneId !== location.zoneId) {
+      await report("character-place", c.name, "zoneId disagrees with the location's zone", () =>
+        prisma.character.update({ where: { id: c.id }, data: { zoneId: location.zoneId } }),
+      );
     }
   }
 
@@ -155,6 +200,12 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       const role = zone.discordRoleId ? rolesById.get(zone.discordRoleId) : null;
       if (role && role.position >= botTop) {
         await report("zone-structure", zone.name, "zone role sits above the bot's highest role — swaps will 403");
+      }
+    }
+    for (const location of locations) {
+      const role = location.discordRoleId ? rolesById.get(location.discordRoleId) : null;
+      if (role && role.position >= botTop) {
+        await report("location-structure", location.name, "location role sits above the bot's highest role — swaps will 403");
       }
     }
   }
@@ -176,6 +227,18 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       roleId: zone.discordRoleId,
       label: `Zone: ${zone.name}`,
       shouldHave: alive.filter((c) => c.zoneId === zone.id).map((c) => c.discordUserId),
+      members,
+      report,
+    });
+  }
+
+  // Location roles: exactly the living characters standing in each location.
+  for (const location of locations) {
+    if (!location.discordRoleId) continue;
+    await reconcileRoleMembership({
+      roleId: location.discordRoleId,
+      label: `Location: ${location.name}`,
+      shouldHave: alive.filter((c) => c.locationId === location.id).map((c) => c.discordUserId),
       members,
       report,
     });
@@ -216,6 +279,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   const claimedRoleIds = new Set(characters.map((c) => c.discordRoleId).filter(Boolean));
   const standing = standingRoleIds();
   const zoneRoleIds = new Set(zones.map((z) => z.discordRoleId).filter(Boolean));
+  const locationRoleIds = new Set(locations.map((l) => l.discordRoleId).filter(Boolean));
   for (const c of alive) {
     if (!c.discordRoleId) {
       await report("character-role", c.name, "living character has no Discord role recorded");
@@ -224,7 +288,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
   }
   for (const role of liveRoles) {
-    if (claimedRoleIds.has(role.id) || standing.has(role.id) || zoneRoleIds.has(role.id)) continue;
+    if (claimedRoleIds.has(role.id) || standing.has(role.id) || zoneRoleIds.has(role.id) || locationRoleIds.has(role.id)) continue;
     if (!looksLikeCharacterRole(role)) continue;
     if (role.managed || role.permissions !== "0") continue;
     const held = memberList.some((m) => m.roles.includes(role.id));
@@ -253,36 +317,38 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   // --- full: overwrites + threads --------------------------------------
 
   if (scope === "full") {
-    const managed = managedOverwriteIds([...zoneRoleIds]);
+    const managed = managedOverwriteIds([...zoneRoleIds, ...locationRoleIds]);
     const characterUserIds = new Set(characters.map((c) => c.discordUserId));
 
+    const overwriteTargets = [];
     for (const zone of zones) {
       const spec = zoneChannelSpec(zone);
-      const targets = [
-        ["category", zone.discordCategoryId, spec.category],
-        ["summary", zone.discordSummaryChannelId, spec.summary],
-        ["public", zone.discordPublicChannelId, spec.public],
-        ["private", zone.discordPrivateChannelId, spec.private],
-      ];
-      for (const [label, channelId, want] of targets) {
+      overwriteTargets.push([`${zone.name}/category`, zone.discordCategoryId, spec.category]);
+      overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary]);
+    }
+    for (const location of locations) {
+      overwriteTargets.push([`${location.zoneName}/${location.name}`, location.discordChannelId, locationChannelSpec(location)]);
+    }
+    {
+      for (const [label, channelId, want] of overwriteTargets) {
         if (!channelId || !want) continue;
         let live;
         try {
           live = await getChannel(channelId, { allow404: true });
         } catch (err) {
-          errors.push({ check: "overwrites", target: `${zone.name}/${label}`, message: err.message });
+          errors.push({ check: "overwrites", target: label, message: err.message });
           continue;
         }
         if (!live) continue;
 
-        // A member overwrite on a zone channel belongs to nobody; access
-        // rides the zone role.
+        // A member overwrite on a zone or location channel belongs to
+        // nobody; access rides the roles.
         for (const overwrite of live.permission_overwrites ?? []) {
           if (overwrite.type !== 1) continue;
           await report(
             "member-overwrite",
-            `${zone.name}/${label}/${overwrite.id}`,
-            "stray per-member overwrite on a zone channel",
+            `${label}/${overwrite.id}`,
+            "stray per-member overwrite on a game channel",
             () => deleteChannelOverwrite(channelId, overwrite.id),
           );
         }
@@ -304,8 +370,74 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
           }
         }
         if (drifted) {
-          await report("overwrites", `${zone.name}/${label}`, "channel overwrites drifted from the spec", () =>
+          await report("overwrites", label, "channel overwrites drifted from the spec", () =>
             reconcileChannelOverwrites(channelId, want, managed),
+          );
+        }
+      }
+    }
+
+    // Room threads: exist and are unarchived. Recreating one is the sync's
+    // job (it needs the YAML body), so a missing thread is report-only.
+    const rooms = await prisma.room.findMany({ include: { location: { select: { name: true } } } });
+    const privateRooms = [];
+    for (const room of rooms) {
+      const label = `${room.location.name}/${room.name}`;
+      if (!room.discordThreadId) {
+        await report("room-thread", label, "room has no thread recorded (run db:sync-zones)");
+        continue;
+      }
+      let live;
+      try {
+        live = await getChannel(room.discordThreadId, { allow404: true });
+      } catch (err) {
+        errors.push({ check: "room-thread", target: label, message: err.message });
+        continue;
+      }
+      if (!live) {
+        await report("room-thread", label, "recorded room thread no longer exists (run db:sync-zones)");
+        continue;
+      }
+      if (live.thread_metadata?.archived) {
+        await report("room-thread", label, "room thread is archived", () =>
+          patchThread(room.discordThreadId, { archived: false }),
+        );
+      }
+      if (room.kind === "PRIVATE") privateRooms.push({ ...room, label });
+    }
+
+    // Private-room membership: exactly the living characters standing in the
+    // room's location who hold one of its access tags. Thread-major: one
+    // member-list read per private room.
+    if (privateRooms.length > 0) {
+      const heldByCharacter = new Map();
+      for (const c of alive) heldByCharacter.set(c.id, await heldTagSlugs(prisma, c.id));
+      for (const room of privateRooms) {
+        const shouldHave = new Set(
+          alive
+            .filter((c) => c.locationId === room.locationId && c.discordUserId)
+            .filter((c) => accessibleRooms([room], heldByCharacter.get(c.id)).length > 0)
+            .map((c) => c.discordUserId),
+        );
+        let live;
+        try {
+          live = await listThreadMembers(room.discordThreadId);
+        } catch (err) {
+          errors.push({ check: "room-membership", target: room.label, message: err.message });
+          continue;
+        }
+        const present = new Set(live.map((m) => m.user_id));
+        for (const userId of shouldHave) {
+          if (present.has(userId)) continue;
+          await report("room-membership", `${room.label}/${userId}`, "holds a key and isn't in the room", () =>
+            addThreadMember(room.discordThreadId, userId),
+          );
+        }
+        for (const userId of present) {
+          if (shouldHave.has(userId)) continue;
+          if (!characterUserIds.has(userId)) continue; // GMs and the bot may sit in any thread
+          await report("room-membership", `${room.label}/${userId}`, "in the room without a key", () =>
+            removeThreadMember(room.discordThreadId, userId),
           );
         }
       }

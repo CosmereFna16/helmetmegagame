@@ -142,21 +142,30 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
     }
 
     // Raw relocation — no Action row, no Move cost, no adjacency check (same
-    // as the Dev Panel's zone edit and Bulk Move; doesn't go through
-    // performTravel). Re-verified here since the zone may since have been
-    // deleted or reworked into a CAVE_GROUP by a zone sync.
-    const zoneId = row.payload?.zoneId ?? null;
-    if (zoneId) {
-      const zone = await tx.zone.findUnique({ where: { id: zoneId } });
-      if (!zone || zone.kind === "CAVE_GROUP") {
+    // as the Dev Panel's location edit and Bulk Move; doesn't go through
+    // performLocationMove). Re-verified here since the location may since
+    // have been pruned by a zone sync. Writes zoneId alongside — the
+    // denormalization contract on Character.
+    const locationId = row.payload?.locationId ?? null;
+    if (locationId) {
+      const location = await tx.location.findUnique({ where: { id: locationId } });
+      if (!location) {
         throw new StagedZoneError("That isn't a place a character can stand.");
       }
       const before = await tx.character.findUnique({
         where: { id: row.targetCharacterId },
-        select: { zoneId: true },
+        select: { locationId: true, zoneId: true },
       });
-      await tx.character.update({ where: { id: row.targetCharacterId }, data: { zoneId } });
-      snapshot.zone = { from: before?.zoneId ?? null, to: zoneId };
+      await tx.character.update({
+        where: { id: row.targetCharacterId },
+        data: { locationId, zoneId: location.zoneId },
+      });
+      snapshot.location = {
+        from: before?.locationId ?? null,
+        to: locationId,
+        fromZoneId: before?.zoneId ?? null,
+        toZoneId: location.zoneId,
+      };
     }
 
     await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
@@ -184,17 +193,17 @@ async function runStagedPushPass(prisma, turn, config) {
       const snapshot = await applyOneStagedEffect(prisma, row, turn, equipSlots);
       if (snapshot) {
         effectsApplied += 1;
-        if (snapshot.zone) {
+        if (snapshot.location) {
           const target = row.targetCharacter;
           if (target?.status === "ALIVE" && target.discordUserId) {
             const existing = zoneMovesByCharacter.get(row.targetCharacterId);
             zoneMovesByCharacter.set(row.targetCharacterId, {
               characterId: row.targetCharacterId,
               discordUserId: target.discordUserId,
-              // The FIRST applied move's "from" is the true prior zone; a
+              // The FIRST applied move's "from" is the true prior location; a
               // later move in the same batch overwrites only "to".
-              fromZoneId: existing ? existing.fromZoneId : snapshot.zone.from,
-              toZoneId: snapshot.zone.to,
+              fromLocationId: existing ? existing.fromLocationId : snapshot.location.from,
+              toLocationId: snapshot.location.to,
             });
           }
         }

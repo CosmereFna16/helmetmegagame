@@ -91,9 +91,11 @@ enum ZoneKind {
   CAVE_LEVEL
 }
 
-// Which kind of player-made thread a PlayerThread row tracks: a forum post in
-// a zone's #public, or a private thread under a zone's #private.
-enum PlayerThreadKind {
+// A Room is a thread under its Location's channel. PUBLIC is a public thread
+// anyone standing in the Location can read; PRIVATE is a private thread whose
+// members are exactly the characters holding one of its accessTagSlugs,
+// reconciled by db/lib/roomAccess.js.
+enum RoomKind {
   PUBLIC
   PRIVATE
 }
@@ -282,6 +284,11 @@ model GameConfig {
   // default so nothing gets swept until a GM explicitly opts in from the
   // Dev Panel.
   messageWipeEnabled Boolean @default(false)
+
+  // How long a character waits between two walks from one Location to
+  // another inside the same zone (db/lib/locationTravel.js). Edited on
+  // /gm/dev. Crossing into another zone is gated by the Move, not by this.
+  locationMoveCooldownSeconds Int @default(60)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
@@ -553,16 +560,19 @@ model Faction {
   updatedAt DateTime @updatedAt
 }
 
-// A place a character stands — the unit of presence, travel and channel
-// access since the zone rework retired per-Location channels. Mastered by
+// A region of the map: a Discord category, its #summary channel and the
+// "Zone: {Name}" role. Since Bascinet 2 a character STANDS in a Location
+// (below), not in a zone; Character.zoneId is kept equal to
+// location.zoneId because dozens of readers group by it. Mastered by
 // docs/zones.yaml (db/lib/syncZones.js, npm run db:sync-zones), which is
 // destructive both ways, matched on `slug`.
 //
 // Access is ONE Discord guild role per presence zone ("Zone: Town",
-// discordRoleId below): moving a character is a role swap, and every zone
-// channel carries a handful of role overwrites instead of one per member.
-// That is what makes drift cheap to detect and repair — see
-// db/lib/channelDoctor.js.
+// discordRoleId below) opening #summary, #turns and #intercom, plus one
+// "Location: {Name}" role per Location opening that Location's channel.
+// Moving a character is a role swap, and every channel carries a handful of
+// role overwrites instead of one per member. That is what makes drift cheap
+// to detect and repair — see db/lib/channelDoctor.js.
 //
 // kind decides the Discord footprint (see ZoneKind above). seatZoneId is the
 // denormalized GM-seat key: parentZoneId ?? id, written by the sync. Every
@@ -571,11 +581,9 @@ model Faction {
 // seatZoneId, so the four GM seats stay four while presence is six. Writers
 // stamp it via db/lib/seatZone.js#seatZoneIdFor, never by hand.
 //
-// connectsTo/connectedFrom back a single undirected travel graph, mastered by
-// docs/zones.yaml's zoneConnections. The sync writes each zone's full
-// neighbor set both directions explicitly, so only connectsTo is ever read;
-// connectedFrom exists because Prisma requires both sides of a self-relation
-// named. Every hop costs the character's Move — there is no free travel.
+// There is no zone-level travel graph any more: the graph is between
+// Locations (Location.connectsTo), and a hop whose edge crosses a zone
+// boundary is what costs the character's Move.
 model Zone {
   id   String @id @default(cuid())
   slug String @unique
@@ -602,33 +610,19 @@ model Zone {
   seatZone    Zone?   @relation("ZoneSeat", fields: [seatZoneId], references: [id])
   seatedZones Zone[]  @relation("ZoneSeat")
 
-  connectsTo    Zone[] @relation("ZoneConnections")
-  connectedFrom Zone[] @relation("ZoneConnections")
-
   // Discord footprint. Null until provisioned by the sync (create-only,
   // keyed on discordCategoryId being null — names are one-time; renaming a
-  // zone in the YAML does not rename live channels). Which of these a row
-  // uses depends on kind: SURFACE gets all four channels under its own
-  // category, CAVE_GROUP only the category, CAVE_LEVEL only the public forum
-  // (parented to the group's category).
+  // zone in the YAML does not rename live channels). SURFACE gets a category
+  // and #summary; CAVE_GROUP only the category; CAVE_LEVEL neither — its
+  // Location channels parent to the group's category.
   discordCategoryId       String?
   discordSummaryChannelId String?
-  discordPublicChannelId  String?
-  discordPrivateChannelId String?
 
   // The zone's access role ("Zone: Town"). Held by every character standing
-  // here; grants ViewChannel on the zone's channels via role overwrites.
-  // Permissions 0, color 0, never hoisted or mentionable.
+  // in any of its Locations; grants ViewChannel on #summary (and, via
+  // db/lib/turnsChannelAccess.js and the #intercom registry, on the standing
+  // channels). Permissions 0, color 0, never hoisted or mentionable.
   discordRoleId String? @unique
-
-  // The pinned, locked "Create a Topic" anchor post in the public forum, and
-  // the permanent anchor message in #private — both content-hash reconciled
-  // by the sync exactly as the old description posts were, so a no-op re-sync
-  // makes zero Discord calls.
-  createTopicThreadId    String?
-  createTopicHash        String?
-  privateAnchorMessageId String?
-  privateAnchorHash      String?
 
   // Clickable region on the /map plate: a polygon of [x, y] percentage pairs
   // (0-100 of the 4:3 plate, origin top-left), plus where the label sits.
@@ -638,8 +632,7 @@ model Zone {
   mapLabelX  Float?
   mapLabelY  Float?
 
-  topics           LocationTopic[]
-  playerThreads    PlayerThread[]
+  locations        Location[]
   factions         Faction[]      @relation("FactionHomeZone")
   siloFactions     Faction[]      @relation("FactionSiloZone")
   characters       Character[]
@@ -698,43 +691,54 @@ model GmAssignment {
   @@index([discordUserId])
 }
 
-/// A former Location, demoted to prose. NOT a place a character stands —
-/// presence is Zone-level since the rework. Each row is one generated,
-/// "Location"-tagged forum post in its zone's public forum, whose starter
-/// message is the location's description plus its formatted sub-locations.
-/// The Dawn wipe deletes every message in it EXCEPT that starter; nothing
-/// player-facing can delete or unwipe the post itself. Mastered by
-/// docs/zones.yaml's per-zone `topics:` lists; reconciled by content hash
-/// exactly as the old description posts were (db/lib/syncZones.js).
-model LocationTopic {
+/// Where a character STANDS — the unit of presence and channel access since
+/// Bascinet 2. One Discord text channel per Location under its zone's
+/// category, opened by one "Location: {Name}" role (discordRoleId) held by
+/// exactly the living characters standing here. Its Rooms are threads under
+/// that channel. Mastered by docs/zones.yaml's per-zone `locations:` maps
+/// (db/lib/syncZones.js); everything Discord-side is create-once and
+/// reconciled every run, the way zones are.
+///
+/// connectsTo/connectedFrom back the single undirected travel graph, mastered
+/// by docs/zones.yaml's `connections:`. The sync writes each Location's full
+/// neighbour set both directions explicitly, so only connectsTo is ever read;
+/// connectedFrom exists because Prisma requires both sides of a self-relation
+/// named. A hop between two Locations of the same zone is free (on the
+/// GameConfig.locationMoveCooldownSeconds cooldown); a hop whose edge crosses
+/// into another zone costs the Move, exactly as zone travel used to.
+model Location {
   id   String @id @default(cuid())
   slug String @unique
   name String
 
-  // Long-form body of the starter message.
+  // The -# subtext under the name on the channel's anchor message, and the
+  // channel topic.
   description String @default("")
 
-  // [{ name, description }], ordered — one ### section per entry in the
-  // starter message. An empty description still gets its heading: the post
-  // is a skeleton, and the bare heading is the prompt.
-  subLocations Json @default("[]")
-
-  // Authoring order within the zone, from the YAML.
+  // Authoring order within the zone, from the YAML — channel order under the
+  // category and picker order.
   sortOrder Int @default(0)
 
   zoneId String
   zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  // The forum post's thread id (also its starter message's id), plus a hash
-  // of the body last written — the no-op-resync guard.
-  discordThreadId String?
-  postHash        String?
+  connectsTo    Location[] @relation("LocationConnections")
+  connectedFrom Location[] @relation("LocationConnections")
 
-  // Hash of the starter message's button row (the "Who's here?" button),
-  // tracked separately from postHash so a components-only change can take
-  // the cheap starter-edit path in syncTopicPost instead of the full
-  // rewriteForumPost rebuild, which would delete the day's roleplay replies.
-  componentsHash String?
+  // The Location's text channel and its access role, null until provisioned.
+  discordChannelId String?
+  discordRoleId    String? @unique
+
+  // The pinned anchor message (name, description, the Public Rooms index and
+  // the Who's here? / Secret rooms? / Converse buttons), content-hash
+  // reconciled so a no-op re-sync makes zero Discord calls.
+  anchorMessageId String?
+  anchorHash      String?
+
+  rooms            Room[]
+  characters       Character[]
+  playerThreads    PlayerThread[]
+  startingForRoles Role[]         @relation("RoleStartingLocation")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -742,66 +746,92 @@ model LocationTopic {
   @@index([zoneId])
 }
 
-/// Every forum post and private thread the bot has created on a player's
-/// behalf. The bot is the ONLY creator since the rework (players lose
-/// Create Posts / Create Private Threads), so this table is complete — which
-/// is what lets persistence live here instead of in an emoji name-prefix, and
-/// what makes turn-based inactivity expiry measurable at all (a persistent
-/// thread is EMPTIED every Dawn, so "no messages for N turns" cannot be read
-/// from its contents).
-///
-/// `persistent` here is the source of truth. For a PUBLIC post the
-/// "Persistent" forum tag is a visible mirror, re-asserted by the wipe; for a
-/// PRIVATE thread there is no marker at all — no rename, and none of the
-/// 2-renames-per-10-minutes rate limit the old prefix toggle fought.
+/// A thread under a Location's channel, sync-owned: the starter message is the
+/// room's description, the Dawn wipe empties the thread down to that starter,
+/// and nothing player-facing can create, delete or unwipe one. PUBLIC rooms
+/// are public threads; PRIVATE rooms are private threads whose membership is
+/// exactly "holds one of accessTagSlugs", reconciled by db/lib/roomAccess.js
+/// on every arrival and tag change. Mastered by docs/zones.yaml's per-location
+/// `rooms:` maps.
+model Room {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  description String @default("")
+
+  // Authoring order within the location, from the YAML.
+  sortOrder Int @default(0)
+
+  kind RoomKind @default(PUBLIC)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // Tag slugs, any of which admits a character to a PRIVATE room. Slugs, not
+  // FKs, because the room is authored against docs/tags.yaml's fixed
+  // identifiers and the two syncs run independently. Empty for PUBLIC.
+  accessTagSlugs String[] @default([])
+
+  // The thread, its starter message (a thread in a text channel has an
+  // ordinary first message with its own id — only a forum post's starter
+  // shares the thread id) and the body hash last written.
+  discordThreadId  String?
+  starterMessageId String?
+  postHash         String?
+
+  playerThreads PlayerThread[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([locationId])
+}
+
+/// A Conversation: the one kind of thread a player can open, from the
+/// Converse button on a Location's anchor. A private thread under the
+/// Location's channel, linked to one of its Rooms — every 15 minutes the
+/// linked room hears who is whispering in it (bot/src/lib/whisperPoll.js).
+/// Deleted at every Dawn, no exceptions; there is no persistence any more.
+/// The bot is the ONLY creator (players hold no create-thread permission),
+/// so this table is complete.
 ///
 /// Creator fields are snapshots, not FKs — the thread outlives a dead or
 /// wiped character, same posture as the log tables.
 model PlayerThread {
-  id       String           @id @default(cuid())
-  threadId String           @unique
-  kind     PlayerThreadKind
+  id       String @id @default(cuid())
+  threadId String @unique
   name     String
 
-  zoneId String
-  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // The room the whispering is heard in. Set-null rather than cascade: a
+  // room pruned from the YAML mid-day shouldn't destroy a live conversation.
+  roomId String?
+  room   Room?   @relation(fields: [roomId], references: [id], onDelete: SetNull)
 
   creatorCharacterId   String?
   creatorDiscordUserId String?
 
-  persistent Boolean @default(false)
-
-  /// The Quest tier: a GM's hand-made forum post, converted and re-authored
-  /// as the bot by bot/src/lib/questPost.js. Implies `persistent` — both are
-  /// set together. Where a persistent post is EMPTIED at Dawn, a keepStarter
-  /// post keeps its starter message and loses only its replies, the same
-  /// treatment a sync-owned Location topic gets — but on a row a GM can
-  /// delete by hand. Inactivity expiry still applies, so a quest hook nobody
-  /// answers for THREAD_EXPIRY_TURNS turns still ages out.
-  keepStarter Boolean @default(false)
-
-  // Inactivity clock, in TURNS — the game's own clock, not wall time.
   // Written by the bot's messageCreate (debounced to one write per thread
-  // per turn) and cross-checked at sweep time against the thread's
-  // last_message_id snowflake, which covers messages the bot missed while
-  // disconnected. Swept by db/lib/threadExpiryPass.js once
-  // openTurn.number - lastActivityTurn reaches THREAD_EXPIRY_TURNS.
+  // per turn). Informational since Bascinet 2 retired inactivity expiry.
   lastActivityTurn Int?
   lastActivityAt   DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([zoneId])
+  @@index([locationId])
   @@index([lastActivityTurn])
 }
 
-/// Who /add has invited into a private thread. Discord's thread-member list
+/// Who /add has invited into a conversation. Discord's thread-member list
 /// is the live truth, but it refuses (or loses) a member who can't currently
-/// view the parent channel — which is exactly what /add now supports: invite
-/// anyone, they see the thread when they reach the zone. So the invite is
+/// view the parent channel — which is exactly what /add supports: invite
+/// anyone, they see the thread when they reach the Location. So the invite is
 /// recorded here and re-applied by applyPendingInvites whenever the character
-/// enters the zone, in the same pass that swaps their zone role.
+/// arrives in the Location, in the same pass that swaps their location role.
 ///
 /// threadId deliberately carries no FK to PlayerThread so the doctor can
 /// clean the two independently; characterId is a plain id for the same
@@ -910,15 +940,32 @@ model Character {
   factionId String?
   faction   Faction? @relation(fields: [factionId], references: [id])
 
-  // AUTHORITATIVE "where is this character" since the zone rework — always a
-  // presence zone (SURFACE or CAVE_LEVEL, never the CAVE_GROUP row). Drives
-  // the character's "Zone: {Name}" Discord role (swapped on travel by
-  // bot/src/lib/zoneTravel.js / web/lib/discordGuild.js#syncCharacterZoneRole)
-  // and therefore everything they can see. Note this is the PRESENCE zone;
-  // rows stamped onto Action/Note/DefaultEffort/StagedMessage carry the SEAT
-  // zone instead (db/lib/seatZone.js#seatZoneIdFor).
+  // AUTHORITATIVE "where is this character" since Bascinet 2. Drives the
+  // "Location: {Name}" Discord role (swapped by
+  // db/lib/locationMove.js#applyLocationMoveSideEffects) and therefore the
+  // one channel they can see. Null only for a character not yet placed.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  // DENORMALIZED from location.zoneId — every writer of locationId writes
+  // both, and db/lib/channelDoctor.js flags a mismatch. Kept because dozens
+  // of readers group by zone (the seat tables, factions, #summary, the
+  // narrowcast rules). Always a presence zone (SURFACE or CAVE_LEVEL, never
+  // the CAVE_GROUP row); rows stamped onto Action/Note/DefaultEffort/
+  // StagedMessage carry the SEAT zone instead (db/lib/seatZone.js).
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id])
+
+  // When this character last walked between Locations under their own power
+  // — the GameConfig.locationMoveCooldownSeconds clock. Set only by
+  // db/lib/locationTravel.js#performLocationMove; a GM teleport or creation
+  // leaves it alone so the character can step at once.
+  lastLocationMoveAt DateTime?
+
+  // The conceal toggle (/conceal, or the switch on /character). While on,
+  // every message proxies under the concealedAlias with the unknown avatar,
+  // and Who's here? lists the alias instead of the name.
+  concealed Boolean @default(false)
 
   // Personal Discord role titled after this character's BARE name (first +
   // last, via formatBareName) and seeded to a muted color by
@@ -1528,10 +1575,15 @@ model Role {
   // is only the hint.
   lockedGender Gender?
 
-  // Where characters with this role begin — the presence Zone their zone
-  // role points at when the character is created.
-  startingZoneId String?
-  startingZone   Zone?   @relation("RoleStartingZone", fields: [startingZoneId], references: [id])
+  // Where characters with this role begin. startingLocationId is what
+  // creation writes; startingZoneId is its zone, kept for the readers that
+  // group by zone. Derived by db/lib/syncRoles.js from `starting_location:`
+  // in docs/roles.yaml, or — when absent — the first Location of
+  // `starting_zone:`.
+  startingZoneId     String?
+  startingZone       Zone?     @relation("RoleStartingZone", fields: [startingZoneId], references: [id])
+  startingLocationId String?
+  startingLocation   Location? @relation("RoleStartingLocation", fields: [startingLocationId], references: [id])
 
   characters   Character[]
   reservations RoleReservation[]

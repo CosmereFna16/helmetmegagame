@@ -1,17 +1,17 @@
 // Dawn message wipe: called from db/index.js#advanceTurn() whenever the
 // newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is on.
-// Per zone: clears #summary and #private, and clears the public forum per
-// each post's PlayerThread row (persistent survives emptied; unrouted posts
-// are adopted, not deleted). Every rule is bounded by a CUTOFF (the moment
-// the turn advance's side effects began), so it can't eat its own push's
-// #summary post or a message sent while the wipe is still walking there.
-// Sequential, not Promise.all, to respect Discord's rate limits.
-const { PERSISTENT_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
+// Per zone: clears #summary; per location: clears the channel down to its
+// pinned anchor, empties every Room thread down to its starter, and deletes
+// every Conversation outright (there is no persistence any more). Every rule
+// is bounded by a CUTOFF (the moment the turn advance's side effects began),
+// so it can't eat its own push's #summary post or a message sent while the
+// wipe is still walking there. Sequential, not Promise.all, to respect
+// Discord's rate limits.
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
   fetchAllMessages,
   bulkDeleteMessages,
-  clearThreadExceptStarter,
+  clearMessagesExcept,
   listActiveThreadsForChannel,
   fetchActiveThreads,
   getChannel,
@@ -49,23 +49,10 @@ async function clearMessages(channelOrThreadId, before) {
   );
 }
 
-// Everything in a channel except one message, by id. Unlike
-// clearThreadExceptStarter, a plain channel has no un-bulk-deletable starter
-// to route around; this keeps one nominated message instead. Used by #turns'
-// per-turn console repost (db/lib/turnAnnouncement.js), not the Dawn wipe
-// itself: #turns runs this every turn, Dawn or Dusk, and isn't in
-// SPECIAL_CHANNELS — so it takes no cutoff either.
-async function clearMessagesExcept(channelId, keepId) {
-  const messages = await fetchAllMessages(channelId);
-  const toDelete = messages.filter((m) => m.id !== keepId).map((m) => m.id);
-  if (toDelete.length === 0) return;
-  await bulkDeleteMessages(channelId, toDelete);
-}
-
-async function collectThreads(channelId, { public: includePublic, private: includePrivate }, activeSnapshot) {
+async function collectThreads(channelId, activeSnapshot) {
   const active = await listActiveThreadsForChannel(channelId, activeSnapshot);
-  const archivedPublic = includePublic ? await listArchivedPublicThreads(channelId) : [];
-  const archivedPrivate = includePrivate ? await listArchivedPrivateThreads(channelId) : [];
+  const archivedPublic = await listArchivedPublicThreads(channelId);
+  const archivedPrivate = await listArchivedPrivateThreads(channelId);
 
   const byId = new Map();
   for (const thread of [...active, ...archivedPublic, ...archivedPrivate]) byId.set(thread.id, thread);
@@ -75,15 +62,13 @@ async function collectThreads(channelId, { public: includePublic, private: inclu
 // Adopt a thread the DB doesn't know: write the row rather than delete the
 // thread. First seen at the wipe after it appears, so it always survives one
 // turn — and from then on it lives under the ordinary rules.
-async function adoptThread(prisma, thread, zone, kind) {
+async function adoptThread(prisma, thread, location) {
   return prisma.playerThread
     .create({
       data: {
         threadId: thread.id,
-        kind,
         name: thread.name ?? "thread",
-        zoneId: zone.id,
-        persistent: false,
+        locationId: location.id,
       },
     })
     .catch((err) => {
@@ -98,84 +83,43 @@ async function deletePlayerThread(prisma, threadId) {
   await prisma.playerThreadInvite.deleteMany({ where: { threadId } }).catch(() => {});
 }
 
-async function wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeSnapshot, cutoff) {
-  if (!zone.discordPublicChannelId) return;
+async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, activeSnapshot, cutoff) {
+  if (!location.discordChannelId) return;
 
   // allow404: a channel someone deleted by hand is an ordinary state for a
   // blind sweep, not a reason to abandon it.
-  const channel = await getChannel(zone.discordPublicChannelId, { allow404: true });
+  const channel = await getChannel(location.discordChannelId, { allow404: true });
   if (!channel) return;
-  const tagIdByName = (name) => channel.available_tags?.find((t) => t.name === name)?.id ?? null;
-  const persistentTagId = tagIdByName(PERSISTENT_TAG_NAME);
-  const questTagId = tagIdByName(QUEST_TAG_NAME);
 
-  // Re-assert a mirror tag the DB says should be there. Best-effort: the DB
-  // is the truth the wipe reads, so a failed PATCH costs a visual cue, not a
-  // rule.
-  const reassertTag = async (thread, tagId) => {
-    if (!tagId || thread.applied_tags?.includes(tagId)) return;
-    await patchThread(thread.id, {
-      archived: false,
-      applied_tags: [...(thread.applied_tags ?? []), tagId],
-    }).catch((err) => console.error(`Dawn wipe: tag re-assert on ${thread.id} failed:`, err.message));
-  };
+  // The open street: everything but the pinned anchor.
+  await clearMessagesExcept(location.discordChannelId, location.anchorMessageId, { before: cutoff.before });
 
-  const threads = await collectThreads(
-    zone.discordPublicChannelId,
-    { public: true, private: false },
-    activeSnapshot,
-  );
-
+  const threads = await collectThreads(location.discordChannelId, activeSnapshot);
   for (const thread of threads) {
-    if (thread.id === zone.createTopicThreadId) continue;
-
-    if (topicThreadIds.has(thread.id)) {
-      await clearThreadExceptStarter(thread.id, { before: cutoff.before });
+    const room = roomsByThreadId.get(thread.id);
+    if (room) {
+      await clearMessagesExcept(thread.id, room.starterMessageId, { before: cutoff.before });
+      // A room that idled into the archive comes back at Dawn.
+      if (thread.thread_metadata?.archived) {
+        await patchThread(thread.id, { archived: false }).catch((err) =>
+          console.error(`Dawn wipe: unarchive of room ${room.name} failed:`, err.message),
+        );
+      }
       continue;
     }
 
     // A thread younger than the cutoff was opened while this very wipe was
-    // running. Leave it entirely — deleting it would destroy a post whose
-    // author is still looking at it. It comes under the ordinary rules next
-    // Dawn, exactly like an adopted thread.
+    // running. Leave it entirely — deleting it would destroy a conversation
+    // whose author is still looking at it. It comes under the ordinary rules
+    // next Dawn, exactly like an adopted thread.
     if (isAfterCutoff(thread.id, cutoff)) continue;
 
     let row = rowsByThreadId.get(thread.id);
-    if (!row) row = await adoptThread(prisma, thread, zone, "PUBLIC");
-    // Checked before `persistent`: a Quest row carries both, and this is the
-    // stronger of the two.
-    if (row?.keepStarter) {
-      await clearThreadExceptStarter(thread.id, { before: cutoff.before });
-      await reassertTag(thread, questTagId);
-    } else if (row?.persistent) {
-      await clearMessages(thread.id, cutoff.before);
-      // Re-assert the mirror: the DB said it survives, so the tag should say
-      // so too, whatever a hand-edit did to it.
-      await reassertTag(thread, persistentTagId);
-    } else {
-      await deletePlayerThread(prisma, thread.id);
+    if (!row) {
+      row = await adoptThread(prisma, thread, location);
+      continue;
     }
-  }
-}
-
-async function wipePrivateChannel(prisma, zone, rowsByThreadId, activeSnapshot, cutoff) {
-  if (!zone.discordPrivateChannelId) return;
-
-  const threads = await collectThreads(
-    zone.discordPrivateChannelId,
-    { public: false, private: true },
-    activeSnapshot,
-  );
-  for (const thread of threads) {
-    if (isAfterCutoff(thread.id, cutoff)) continue;
-
-    let row = rowsByThreadId.get(thread.id);
-    if (!row) row = await adoptThread(prisma, thread, zone, "PRIVATE");
-    if (row?.persistent) {
-      await clearMessages(thread.id, cutoff.before);
-    } else {
-      await deletePlayerThread(prisma, thread.id);
-    }
+    await deletePlayerThread(prisma, thread.id);
   }
 }
 
@@ -187,16 +131,17 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
   const cutoff = buildCutoff(cutoffMs);
   const steps = [];
 
-  const [zones, config, topics, playerThreads] = await Promise.all([
+  const [zones, config, rooms, playerThreads] = await Promise.all([
     prisma.zone.findMany({
       where: { kind: { not: "CAVE_GROUP" } },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      include: { locations: { orderBy: { sortOrder: "asc" } } },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    prisma.locationTopic.findMany({ select: { discordThreadId: true } }),
+    prisma.room.findMany({ where: { discordThreadId: { not: null } } }),
     prisma.playerThread.findMany(),
   ]);
-  const topicThreadIds = new Set(topics.map((t) => t.discordThreadId).filter(Boolean));
+  const roomsByThreadId = new Map(rooms.map((r) => [r.discordThreadId, r]));
   const rowsByThreadId = new Map(playerThreads.map((row) => [row.threadId, row]));
 
   // Fetched ONCE for the whole wipe — the endpoint is guild-wide. A thread
@@ -210,8 +155,8 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
 
   // Each step is timed and counted, and lands in the SystemReport below. The
   // wipe is the longest thing the bot does and nobody could say which part of
-  // it was the slow part; a per-zone request count answers that from the Dev
-  // Panel instead of from a stopwatch.
+  // it was the slow part; a per-location request count answers that from the
+  // Dev Panel instead of from a stopwatch.
   const timeStep = async (name, fn) => {
     const at = Date.now();
     const metrics = beginRequestMetrics();
@@ -226,17 +171,29 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
     }
   };
 
+  let locationCount = 0;
   for (const zone of zones) {
     console.log(`Dawn wipe: ${zone.name}`);
-    try {
-      await timeStep(zone.name, async () => {
-        if (zone.discordSummaryChannelId) await clearMessages(zone.discordSummaryChannelId, cutoff.before);
-        await wipeForum(prisma, zone, rowsByThreadId, topicThreadIds, activeThreads, cutoff);
-        await wipePrivateChannel(prisma, zone, rowsByThreadId, activeThreads, cutoff);
-      });
-    } catch (err) {
-      failures.push({ step: "zone", target: zone.name, message: err.message });
-      console.error(`Dawn wipe: ${zone.name} failed, continuing with the rest:`, err.message);
+    if (zone.discordSummaryChannelId) {
+      try {
+        await timeStep(`${zone.name} / summary`, () => clearMessages(zone.discordSummaryChannelId, cutoff.before));
+      } catch (err) {
+        failures.push({ step: "summary", target: zone.name, message: err.message });
+        console.error(`Dawn wipe: ${zone.name} #summary failed, continuing:`, err.message);
+      }
+    }
+    // Each location inside its own try, so one stale channel id costs one
+    // room rather than every room after it.
+    for (const location of zone.locations) {
+      locationCount += 1;
+      try {
+        await timeStep(`${zone.name} / ${location.name}`, () =>
+          wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, activeThreads, cutoff),
+        );
+      } catch (err) {
+        failures.push({ step: "location", target: `${zone.name} / ${location.name}`, message: err.message });
+        console.error(`Dawn wipe: ${location.name} failed, continuing with the rest:`, err.message);
+      }
     }
   }
 
@@ -272,6 +229,7 @@ async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
         ok: failures.length === 0,
         summary: {
           zones: zones.length,
+          locations: locationCount,
           elapsedMs,
           requests: steps.reduce((n, step) => n + step.requests, 0),
           sleepMs: steps.reduce((n, step) => n + step.sleepMs, 0),

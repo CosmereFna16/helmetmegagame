@@ -1,23 +1,22 @@
-// The complete intended Discord layout for one Zone — the single description
-// both first-time provisioning and the every-run reconcile build from, so
-// the two can never disagree.
+// The complete intended Discord layout for one Zone and for one Location —
+// the single description both first-time provisioning and the every-run
+// reconcile build from, so the two can never disagree.
 //
 // Every target states its own privacy in full — nothing is inherited from
 // the category, because Discord's category "sync" is a one-time copy at
 // creation that drifts independently afterwards.
 //
-// The @everyone VIEW_CHANNEL deny is the entire mechanism that makes a zone
-// private; every other overwrite here is an allow layered on top of it. On a
-// forum channel, post creation is gated by SEND_MESSAGES, not by a thread
-// permission — deny it on @everyone while allowing SEND_MESSAGES_IN_THREADS
-// to make posts bot-only while keeping the talk inside them open.
+// The @everyone VIEW_CHANNEL deny is the entire mechanism that makes a
+// channel private; every other overwrite here is an allow layered on top of
+// it. Since Bascinet 2 a zone carries only its category and #summary (opened
+// by the "Zone: X" role); every Location has its own text channel opened by
+// its own "Location: X" role, and its Rooms are threads under it that the
+// bot alone may create.
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { cursedOverwrite } = require("./cursedAccess");
-const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
-const CHANNEL_TYPE_FORUM = 15;
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_SEND_MESSAGES = 2048n;
@@ -36,13 +35,9 @@ const SUMMARY_SLOWMODE_SECONDS = 300;
 
 const SUMMARY_TOPIC =
   "What did people in your zone see your character do over the last 12 hours? Abstracted, big-picture play.";
-const PUBLIC_TOPIC =
-  "What are you doing right now? Moment-to-moment roleplay. Assign the persistent tag to prevent your location from getting removed.";
-const PRIVATE_TOPIC =
-  "What are you doing right now? Moment-to-moment private roleplay. Use `/add (character name)` and `/remove (character name)` to control who's in your thread.";
 
-// All three forum tags, no emoji on any of them — the ⏰/🗺 era is over.
-const FORUM_TAGS = [{ name: PERSISTENT_TAG_NAME }, { name: LOCATION_TAG_NAME }, { name: QUEST_TAG_NAME }];
+// Discord caps a channel topic at 1024 characters.
+const TOPIC_MAX = 1024;
 
 // GM gets an explicit overwrite on every channel (not just the category) so
 // it can't be clawed back by a channel-level @everyone deny — Discord
@@ -50,17 +45,10 @@ const FORUM_TAGS = [{ name: PERSISTENT_TAG_NAME }, { name: LOCATION_TAG_NAME }, 
 // of its own falls through to whatever @everyone says there.
 const GM_SUMMARY_PERMS =
   PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_MANAGE_MESSAGES + PERM_ATTACH_FILES;
-const GM_FORUM_PERMS =
+const GM_LOCATION_PERMS =
   PERM_VIEW_CHANNEL +
   PERM_SEND_MESSAGES +
   PERM_CREATE_PUBLIC_THREADS +
-  PERM_SEND_MESSAGES_IN_THREADS +
-  PERM_MANAGE_THREADS +
-  PERM_MANAGE_MESSAGES +
-  PERM_ATTACH_FILES;
-const GM_PRIVATE_PERMS =
-  PERM_VIEW_CHANNEL +
-  PERM_SEND_MESSAGES +
   PERM_CREATE_PRIVATE_THREADS +
   PERM_SEND_MESSAGES_IN_THREADS +
   PERM_MANAGE_THREADS +
@@ -85,8 +73,7 @@ function roleAllow(roleId, allow) {
 }
 
 // The overwrites EVERY target carries: @everyone's deny (the privacy
-// mechanism), the GM seat, the spectator seat, and the ghost seat — which
-// since the rework covers every zone, cave levels included.
+// mechanism), the GM seat, the spectator seat, and the ghost seat.
 function baseOverwrites(guildId, gmRoleId) {
   return [
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
@@ -96,92 +83,25 @@ function baseOverwrites(guildId, gmRoleId) {
   ];
 }
 
-// The forum payload is identical for a surface #public and a cave-level
-// forum; only the name differs.
-function forumSpec(name, zoneRoleId, base, gmRoleId, guildId) {
-  return {
-    name,
-    type: CHANNEL_TYPE_FORUM,
-    topic: PUBLIC_TOPIC,
-    default_auto_archive_duration: 1440,
-    available_tags: FORUM_TAGS,
-    permission_overwrites: [
-      ...roleAllow(gmRoleId, GM_FORUM_PERMS),
-      ...roleAllow(
-        zoneRoleId,
-        PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
-      ),
-      // Post creation is SEND_MESSAGES on a forum; deny it (and both thread
-      // bits) so players can only talk inside existing posts.
-      {
-        id: guildId,
-        type: 0,
-        deny: (
-          PERM_SEND_MESSAGES |
-          PERM_CREATE_PUBLIC_THREADS |
-          PERM_CREATE_PRIVATE_THREADS
-        ).toString(),
-      },
-    ].reduce(mergeOverwrite, base),
-  };
-}
-
-// The text-channel payload for private scenes — identical for a surface
-// #private and a cave level's "{level}-private"; only the name differs.
-function privateSpec(name, zoneRoleId, base, gmRoleId, guildId) {
-  return {
-    name,
-    type: CHANNEL_TYPE_TEXT,
-    topic: PRIVATE_TOPIC,
-    permission_overwrites: [
-      ...roleAllow(gmRoleId, GM_PRIVATE_PERMS),
-      ...roleAllow(
-        zoneRoleId,
-        PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
-      ),
-      // No top-level messages, and — the rework's point — no player-created
-      // threads of either kind. The bot spawns every private thread.
-      {
-        id: guildId,
-        type: 0,
-        deny: (
-          PERM_SEND_MESSAGES |
-          PERM_CREATE_PUBLIC_THREADS |
-          PERM_CREATE_PRIVATE_THREADS
-        ).toString(),
-      },
-    ].reduce(mergeOverwrite, base),
-  };
-}
-
 // The intended layout for one zone, as create payloads minus parent_id
 // (which only exists once the category has been made). Which keys are
 // present depends on zone.kind:
-//   SURFACE     { category, summary, public, private }
+//   SURFACE     { category, summary }
 //   CAVE_GROUP  { category }
-//   CAVE_LEVEL  { public, private }   (parented to the group's category by
-//                                      the sync)
+//   CAVE_LEVEL  { }   (its Location channels parent to the group's category)
 function zoneChannelSpec(zone) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   const base = baseOverwrites(guildId, gmRoleId);
   const zoneRoleId = zone.discordRoleId ?? null;
 
-  if (zone.kind === "CAVE_GROUP") {
-    return {
-      category: { name: zone.name, type: CHANNEL_TYPE_CATEGORY, permission_overwrites: base },
-    };
-  }
+  if (zone.kind === "CAVE_LEVEL") return {};
 
-  if (zone.kind === "CAVE_LEVEL") {
-    return {
-      public: forumSpec(zone.slug, zoneRoleId, base, gmRoleId, guildId),
-      private: privateSpec(`${zone.slug}-private`, zoneRoleId, base, gmRoleId, guildId),
-    };
-  }
+  const category = { name: zone.name, type: CHANNEL_TYPE_CATEGORY, permission_overwrites: base };
+  if (zone.kind === "CAVE_GROUP") return { category };
 
   return {
-    category: { name: zone.name, type: CHANNEL_TYPE_CATEGORY, permission_overwrites: base },
+    category,
     summary: {
       name: "summary",
       type: CHANNEL_TYPE_TEXT,
@@ -195,18 +115,51 @@ function zoneChannelSpec(zone) {
         ),
       ].reduce(mergeOverwrite, base),
     },
-    public: forumSpec("public", zoneRoleId, base, gmRoleId, guildId),
-    private: privateSpec("private", zoneRoleId, base, gmRoleId, guildId),
   };
 }
 
-// The name every zone role wears, and the signature the doctor and
-// prune-orphan-roles match on — "Zone: Town".
+// The text channel for one Location. Its role may talk at top level (the
+// location's open street) and inside its Room threads, but may create no
+// thread of either kind — the bot spawns every Room and every Conversation,
+// which is what keeps PlayerThread a complete record.
+function locationChannelSpec(location) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
+  const base = baseOverwrites(guildId, gmRoleId);
+  const topic = (location.description || "").replace(/\s*\n+\s*/g, " ").trim().slice(0, TOPIC_MAX);
+
+  return {
+    name: location.slug,
+    type: CHANNEL_TYPE_TEXT,
+    topic,
+    permission_overwrites: [
+      ...roleAllow(gmRoleId, GM_LOCATION_PERMS),
+      ...roleAllow(
+        location.discordRoleId ?? null,
+        PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
+      ),
+      {
+        id: guildId,
+        type: 0,
+        deny: (PERM_CREATE_PUBLIC_THREADS | PERM_CREATE_PRIVATE_THREADS).toString(),
+      },
+    ].reduce(mergeOverwrite, base),
+  };
+}
+
+// The names the roles wear, and the signatures the doctor and
+// prune-orphan-roles match on — "Zone: Town", "Location: Square".
 function zoneRoleName(zone) {
   return `Zone: ${zone.name}`;
 }
 
+function locationRoleName(location) {
+  return `Location: ${location.name}`;
+}
+
 module.exports = {
   zoneChannelSpec,
+  locationChannelSpec,
   zoneRoleName,
+  locationRoleName,
 };

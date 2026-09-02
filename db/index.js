@@ -18,7 +18,6 @@ const { expiryFrom } = require("./lib/turnFormat");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
-const { runThreadExpiry } = require("./lib/threadExpiryPass");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
@@ -733,10 +732,10 @@ async function advanceTurn() {
       );
     }
 
-    const { applyZoneMoveSideEffects } = require("./lib/zoneMove");
+    const { applyLocationMoveSideEffects } = require("./lib/locationMove");
     for (const move of zoneMoves) {
-      await applyZoneMoveSideEffects(prisma, move).catch((err) =>
-        console.error(`Staged zone-move side effects failed for ${move.characterId}:`, err),
+      await applyLocationMoveSideEffects(prisma, move).catch((err) =>
+        console.error(`Staged relocation side effects failed for ${move.characterId}:`, err),
       );
     }
 
@@ -835,12 +834,6 @@ async function advanceTurn() {
     if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
       await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch((err) =>
         console.error("Dawn message wipe failed:", err),
-      );
-    }
-
-    if (newTurn.phase === "DAWN") {
-      await runThreadExpiry(prisma, newTurn).catch((err) =>
-        console.error("Thread expiry pass failed:", err),
       );
     }
 

@@ -440,6 +440,33 @@ async function addThreadMember(threadId, userId) {
   });
 }
 
+// The revoke half of db/lib/roomAccess.js — a key tag lost is a room door
+// closed. 404 is "wasn't a member", which is the state we want.
+async function removeThreadMember(threadId, userId) {
+  return discordRequest(`/channels/${threadId}/thread-members/${userId}`, {
+    method: "DELETE",
+    allow404: true,
+  });
+}
+
+// Every member of a thread, paginated (100 per page). The doctor diffs this
+// against what db/lib/roomAccess.js says a private room's roster should be.
+async function listThreadMembers(threadId) {
+  const members = [];
+  let after = null;
+  for (;;) {
+    const page = await discordRequest(
+      `/channels/${threadId}/thread-members?limit=100${after ? `&after=${after}` : ""}`,
+      { allow404: true },
+    );
+    if (!page || page.length === 0) break;
+    members.push(...page);
+    if (page.length < 100) break;
+    after = page[page.length - 1].user_id;
+  }
+  return members;
+}
+
 // A thread is a channel, so this is patchChannel under a clearer name.
 // flags bit 1 (value 2) is PINNED, pinning a forum post to the top of its
 // forum — there is no /pins endpoint for forum posts.
@@ -550,6 +577,17 @@ async function clearThreadExceptStarter(threadId, { before } = {}) {
   const ids = messages.filter((m) => m.id !== threadId).map((m) => m.id);
   if (ids.length === 0) return;
   await bulkDeleteMessages(threadId, ids);
+}
+
+// Everything in a channel or thread except one nominated message — a
+// Location channel's pinned anchor, a Room thread's starter (which, unlike a
+// forum post's, has an id of its own). `before` bounds it the way the Dawn
+// wipe's cutoff bounds every other clear.
+async function clearMessagesExcept(channelId, keepId, { before } = {}) {
+  const messages = await fetchAllMessages(channelId, { before });
+  const toDelete = messages.filter((m) => m.id !== keepId).map((m) => m.id);
+  if (toDelete.length === 0) return;
+  await bulkDeleteMessages(channelId, toDelete);
 }
 
 // No per-channel "active threads" endpoint, only guild-wide — filtered
@@ -818,6 +856,7 @@ module.exports = {
   fetchAllMessages,
   bulkDeleteMessages,
   clearThreadExceptStarter,
+  clearMessagesExcept,
   snowflakeForTimestamp,
   beginRequestMetrics,
   readRequestMetrics,
@@ -831,6 +870,8 @@ module.exports = {
   startThread,
   startPrivateThread,
   addThreadMember,
+  removeThreadMember,
+  listThreadMembers,
   getGuildRoles,
   createGuildRole,
   patchGuildRole,

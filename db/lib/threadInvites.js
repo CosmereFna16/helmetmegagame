@@ -1,19 +1,19 @@
-// Applies a character's standing private-thread invites when they arrive in
-// a zone — the second half of the /add contract: "invite anyone; they see
+// Applies a character's standing conversation invites when they arrive in a
+// Location — the second half of the /add contract: "invite anyone; they see
 // the thread when they get here."
 //
 // Discord refuses (or quietly sheds) a thread member who can't view the
-// parent channel, so /add records a PlayerThreadInvite row and every zone
-// arrival replays the invites for that zone through this function. Pure REST
-// (thread-member adds have no gateway-only form), so both travel twins call
-// this same function rather than keeping two copies.
+// parent channel, so /add records a PlayerThreadInvite row and every
+// Location arrival replays the invites for that Location through this
+// function. Pure REST (thread-member adds have no gateway-only form), so
+// every travel path calls this same function rather than keeping copies.
 //
 // Takes `prisma` as a parameter — the db/lib/dm.js convention — and is
 // deliberately not on the @lifeweb/db barrel; require it by path.
 const { addThreadMember } = require("./discordRest");
 
 async function applyPendingInvites(prisma, character) {
-  if (!character?.zoneId || !character.discordUserId) return 0;
+  if (!character?.locationId || !character.discordUserId) return 0;
 
   const invites = await prisma.playerThreadInvite.findMany({
     where: { characterId: character.id },
@@ -23,8 +23,7 @@ async function applyPendingInvites(prisma, character) {
   const threads = await prisma.playerThread.findMany({
     where: {
       threadId: { in: invites.map((i) => i.threadId) },
-      zoneId: character.zoneId,
-      kind: "PRIVATE",
+      locationId: character.locationId,
     },
     select: { threadId: true },
   });

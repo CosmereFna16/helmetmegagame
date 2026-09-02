@@ -69,12 +69,17 @@ const SPECIAL_CHANNELS = [
 const NARROWCAST_SLUGS = SPECIAL_CHANNELS.map((c) => c.slug);
 
 // Loads the inputs the member rules need for one character. Slugs, not ids —
-// the rules are authored against docs/zones.yaml's fixed identifiers.
+// the rules are authored against docs/zones.yaml's fixed identifiers. The
+// zone is read THROUGH the location (one authority), falling back to the
+// denormalized Character.zoneId only for an unplaced character.
 async function buildNarrowcastContext(prisma, characterId) {
-  const [character, tags] = await Promise.all([
+  const [row, tags] = await Promise.all([
     prisma.character.findUnique({
       where: { id: characterId },
-      select: { zone: { select: { slug: true, seatZone: { select: { slug: true } } } } },
+      select: {
+        location: { select: { zone: { select: { slug: true, seatZone: { select: { slug: true } } } } } },
+        zone: { select: { slug: true, seatZone: { select: { slug: true } } } },
+      },
     }),
     prisma.characterTag.findMany({
       where: { characterId },
@@ -82,9 +87,10 @@ async function buildNarrowcastContext(prisma, characterId) {
     }),
   ]);
 
+  const zone = row?.location?.zone ?? row?.zone ?? null;
   return {
-    zoneSlug: character?.zone?.slug ?? null,
-    seatZoneSlug: character?.zone?.seatZone?.slug ?? character?.zone?.slug ?? null,
+    zoneSlug: zone?.slug ?? null,
+    seatZoneSlug: zone?.seatZone?.slug ?? zone?.slug ?? null,
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
   };
 }
