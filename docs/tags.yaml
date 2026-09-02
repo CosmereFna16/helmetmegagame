@@ -360,8 +360,8 @@ tags:
     name: Soft Hands
     category: general
     group: general-court
-    description: "You've never done a day's labor. It'll be harder to work."
-    pointCost: -3
+    description: "You've never done a day's labor. You make half the Resources when laboring."
+    pointCost: -4
     purchasable: true
     purchasableAfterStart: false
 

@@ -76,6 +76,7 @@ async function syncDesiresFromYaml(prisma) {
       console.warn(`docs/desires.yaml: desire "${d.slug}" is in no family`);
     }
     const anyTags = d.requires?.anyTags ?? [];
+    const allTags = d.requires?.allTags ?? [];
     const notTags = d.requires?.notTags ?? [];
     const anyRoles = d.requires?.anyRoles ?? [];
     const notRoles = d.requires?.notRoles ?? [];
@@ -89,6 +90,17 @@ async function syncDesiresFromYaml(prisma) {
       if (!(await prisma.tag.findUnique({ where: { slug } }))) {
         throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.anyTags references unknown tag "${slug}" — run npm run db:sync-tags first`);
       }
+    }
+    for (const slug of allTags) {
+      if (!(await prisma.tag.findUnique({ where: { slug } }))) {
+        throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.allTags references unknown tag "${slug}" — run npm run db:sync-tags first`);
+      }
+    }
+    const allNotOverlap = allTags.filter((slug) => notTags.includes(slug));
+    if (allNotOverlap.length > 0) {
+      throw new Error(
+        `docs/desires.yaml: desire "${d.slug}" has "${allNotOverlap[0]}" in both requires.allTags and requires.notTags`,
+      );
     }
     for (const slug of notTags) {
       if (!(await prisma.tag.findUnique({ where: { slug } }))) {
@@ -120,6 +132,14 @@ async function syncDesiresFromYaml(prisma) {
     // `combine: or` with only one populated list is a silent no-op, and worse,
     // it reads like a working gate. Refuse it rather than ship a Desire whose
     // YAML says one thing and whose evaluation says another.
+    // allTags is unconditional AND by definition; ORing it with anyRoles would
+    // mean "hold every one of these, or just have the role", which nobody
+    // writes on purpose.
+    if (combine === "or" && allTags.length > 0) {
+      throw new Error(
+        `docs/desires.yaml: desire "${d.slug}" cannot use requires.combine: or together with requires.allTags`,
+      );
+    }
     if (combine === "or" && (anyTags.length === 0 || anyRoles.length === 0)) {
       throw new Error(
         `docs/desires.yaml: desire "${d.slug}" has requires.combine: or but needs BOTH requires.anyTags and requires.anyRoles to be non-empty`,
@@ -174,6 +194,7 @@ async function syncDesiresFromYaml(prisma) {
   // --- Pass 2: requiresAnyTags/requiresNotTags m2m, requiresAny/NotRoleSlugs. ---
   for (const entry of desireEntries) {
     const id = idBySlug.get(entry.slug);
+    const allTagSlugs = entry.requires?.allTags ?? [];
     const anyTagSlugs = entry.requires?.anyTags ?? [];
     const notTagSlugs = entry.requires?.notTags ?? [];
     const anyRoleSlugs = entry.requires?.anyRoles ?? [];
@@ -183,11 +204,14 @@ async function syncDesiresFromYaml(prisma) {
     const notTags = await prisma.tag.findMany({ where: { slug: { in: notTagSlugs } }, select: { id: true } });
     const anyTagIds = anyTags.map((t) => t.id);
     const notTagIds = notTags.map((t) => t.id);
+    const allTagsRows = await prisma.tag.findMany({ where: { slug: { in: allTagSlugs } }, select: { id: true } });
+    const allTagIds = allTagsRows.map((t) => t.id);
 
     const current = await prisma.desireTemplate.findUnique({
       where: { id },
       select: {
         requiresAnyTags: { select: { id: true } },
+        requiresAllTags: { select: { id: true } },
         requiresNotTags: { select: { id: true } },
         requiresAnyRoleSlugs: true,
         requiresNotRoleSlugs: true,
@@ -195,6 +219,8 @@ async function syncDesiresFromYaml(prisma) {
     });
     const currentAnyIds = current.requiresAnyTags.map((t) => t.id).sort();
     const desiredAnyIds = [...anyTagIds].sort();
+    const currentAllIds = current.requiresAllTags.map((t) => t.id).sort();
+    const desiredAllIds = [...allTagIds].sort();
     const currentNotIds = current.requiresNotTags.map((t) => t.id).sort();
     const desiredNotIds = [...notTagIds].sort();
     const currentAnyRoles = [...current.requiresAnyRoleSlugs].sort();
@@ -204,6 +230,7 @@ async function syncDesiresFromYaml(prisma) {
 
     const idsChanged =
       JSON.stringify(currentAnyIds) !== JSON.stringify(desiredAnyIds) ||
+      JSON.stringify(currentAllIds) !== JSON.stringify(desiredAllIds) ||
       JSON.stringify(currentNotIds) !== JSON.stringify(desiredNotIds);
     const roleSlugsChanged =
       JSON.stringify(currentAnyRoles) !== JSON.stringify(desiredAnyRoles) ||
@@ -214,6 +241,7 @@ async function syncDesiresFromYaml(prisma) {
         where: { id },
         data: {
           requiresAnyTags: { set: anyTagIds.map((tid) => ({ id: tid })) },
+          requiresAllTags: { set: allTagIds.map((tid) => ({ id: tid })) },
           requiresNotTags: { set: notTagIds.map((tid) => ({ id: tid })) },
           requiresAnyRoleSlugs: anyRoleSlugs,
           requiresNotRoleSlugs: notRoleSlugs,

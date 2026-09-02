@@ -133,9 +133,9 @@ function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, hi
   return { visible, hidden };
 }
 
-// Checks requires.anyTags/anyRoles/notTags/notRoles — AND across the four
-// keys, OR within each list, empty/absent list = no constraint. Returns
-// { ok: true } | { ok: false, reason } | { hidden: true }.
+// Checks requires.anyTags/allTags/anyRoles/notTags/notRoles — AND across the
+// keys, OR within each `any` list, ALL of `allTags`, empty/absent list = no
+// constraint. Returns { ok: true } | { ok: false, reason } | { hidden: true }.
 //
 // The ONE exception to "AND across the keys" is requiresAnyOf (YAML
 // `requires.combine: or`), which joins anyTags and anyRoles with OR so that
@@ -143,6 +143,7 @@ function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, hi
 // a forbidden pairing is not something an OR may open.
 function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   const anyTags = template.requiresAnyTags || [];
+  const allTags = template.requiresAllTags || [];
   const notTags = template.requiresNotTags || [];
   const anyRoles = template.requiresAnyRoles || [];
   const notRoles = template.requiresNotRoles || [];
@@ -158,6 +159,17 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   const heldForbiddenRole = roleSlug && notRoles.find((r) => r.slug === roleSlug);
   if (heldForbiddenRole) {
     return { ok: false, reason: `Locked by your ${heldForbiddenRole.name} role` };
+  }
+
+  // allTags is ALWAYS AND — it never joins the requiresAnyOf OR, since "all of
+  // these, or something else entirely" is not a gate anyone means to write.
+  // The sync refuses the combination outright.
+  const missingAll = allTags.filter((t) => !heldTagIds.has(t.id));
+  if (missingAll.length > 0) {
+    // Same oracle rule as anyTags: a missing tag the character cannot even see
+    // must withhold the row rather than name it in a reason string.
+    if (missingAll.some((t) => hiddenTagIds.has(t.id))) return { hidden: true };
+    return { ok: false, reason: `Requires the ${missingAll[0].name} tag` };
   }
 
   const holdsGatingTag = anyTags.some((t) => heldTagIds.has(t.id));
@@ -316,7 +328,9 @@ function bottomSlotAddiction(heldTags) {
 // leaks nothing (the same reasoning as PointBuy's "Requires:" line). Never
 // call it for a locked or hidden one.
 function unlockedBy(template, { heldTagIds, roleSlug }) {
-  const parts = (template.requiresAnyTags || []).filter((t) => heldTagIds.has(t.id)).map((t) => t.name);
+  const parts = [...(template.requiresAllTags || []), ...(template.requiresAnyTags || [])]
+    .filter((t) => heldTagIds.has(t.id))
+    .map((t) => t.name);
   const role = roleSlug && (template.requiresAnyRoles || []).find((r) => r.slug === roleSlug);
   if (role) parts.push(`${role.name} role`);
   return parts.length > 0 ? parts.join(" · ") : null;

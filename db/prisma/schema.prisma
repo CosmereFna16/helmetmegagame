@@ -1392,6 +1392,7 @@ model Tag {
 
   desireRequiredBy  DesireTemplate[] @relation("DesireRequiresAnyTag")
   desireForbiddenBy DesireTemplate[] @relation("DesireForbidsTag")
+  desireAllRequiredBy DesireTemplate[] @relation("DesireRequiresAllTag")
 
   characters  CharacterTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")
@@ -2013,13 +2014,27 @@ model JournalEntry {
   @@index([discordUserId])
 }
 
+// How much of a Silo row the faction's own Leader/Treasurer sees on /faction.
+// OPEN is every ordinary row. HIDDEN and COVER exist so a GM can adjudicate a
+// secret move — a gambit steal out of a Silo — without the ledger announcing
+// it to the victim: the HIDDEN row is the real, balance-affecting one and
+// renders on GM surfaces only, and the COVER row is a display-only fiction
+// standing in for it, carrying the SAME signed amount so the player-visible
+// column still adds up to the real balance. Only the who and the why differ.
+enum SiloRowVisibility {
+  OPEN
+  HIDDEN
+  COVER
+}
+
 // One row per change to a Faction's Silo — deposits, manual Dev Panel
 // corrections, and Leader/Treasurer transfers to a member — so the faction
 // panel can show a plain-language "who took what, when, how much, to whom"
 // history instead of just the current total. `amount` is signed: positive
 // grows the silo, negative shrinks it. No FK relations (log rows should
 // survive/ignore character or faction deletion) — snapshot names instead,
-// same reasoning as AuditLog.
+// same reasoning as AuditLog. `coverForId` follows that rule too: it points at
+// the HIDDEN row this COVER row fronts for, without a relation.
 model SiloTransaction {
   id                 String     @id @default(cuid())
   factionId          String
@@ -2032,6 +2047,8 @@ model SiloTransaction {
   turnNumber         Int?
   turnPhase          TurnPhase?
   note               String?
+  visibility         SiloRowVisibility @default(OPEN)
+  coverForId         String?
   createdAt          DateTime   @default(now())
 
   @@index([factionId])
@@ -2250,6 +2267,10 @@ model DesireTemplate {
   // and refuse to delete a Tag a live desire depends on.
   requiresAnyTags Tag[] @relation("DesireRequiresAnyTag")
   requiresNotTags Tag[] @relation("DesireForbidsTag")
+  // ALL of these, not any (docs/desires.yaml `requires.allTags`). A real
+  // relation for the same reason as the two above. Always AND — never joined
+  // by requiresAnyOf, since an "all" list combined with OR is meaningless.
+  requiresAllTags Tag[] @relation("DesireRequiresAllTag")
   // Slug arrays, not FKs: db:sync-roles prunes Role rows and an FK would
   // block that (Document.roleSlugs precedent).
   requiresAnyRoleSlugs String[] @default([])

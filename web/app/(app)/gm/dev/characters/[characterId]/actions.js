@@ -413,8 +413,17 @@ async function spendTurnImpl({ characterId, description }) {
 // resolveParty already reject a malformed or unknown key, so there's nothing
 // to re-validate here. Without the player-side reach gate (a GM isn't
 // standing anywhere) but with the same balance check every transfer gets.
-async function transferResourcesImpl({ fromKey, toKey, amount, reason }) {
-  const result = await gmTransferResources({ fromKey, toKey, amount, reason });
+async function transferResourcesImpl({ fromKey, toKey, amount, reason, quiet, coverActorName, coverToName, coverNote }) {
+  const result = await gmTransferResources({
+    fromKey,
+    toKey,
+    amount,
+    reason,
+    quiet,
+    coverActorName,
+    coverToName,
+    coverNote,
+  });
   for (const key of [fromKey, toKey]) {
     const [kind, id] = (key ?? "").split(":");
     if (kind === "character" && id) repaint(id);

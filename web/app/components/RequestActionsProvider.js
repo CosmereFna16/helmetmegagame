@@ -1287,10 +1287,8 @@ export default function RequestActionsProvider({
                 answer "who is dead in this room?" without anyone choosing to
                 ask. You type a name and find out whether you were right. */}
                 <p className="text-xs text-muted">
-                  Their first name only, spelled the way they spell it. The body
-                  has to be lying where you are. Burying lays the soul to rest
-                  and lifts the curse from the player it belonged to, so they
-                  can roll a full character again.
+                  Write the person&apos;s name letter by letter&mdash;be
+                  precise!&mdash;or they won&apos;t be buried.
                 </p>
               </>
             )}

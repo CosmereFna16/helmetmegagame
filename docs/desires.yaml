@@ -5,9 +5,12 @@
 # vocabulary every entry's `families` list draws from; nothing here writes
 # to it dynamically.
 #
-# REQUIRES SEMANTICS: `requires.anyTags` / `requires.anyRoles` /
-# `requires.notTags` / `requires.notRoles` combine as AND ACROSS the four
-# lists, OR WITHIN each one. So `anyTags: [dancer]` + `anyRoles: [minstrel,
+# REQUIRES SEMANTICS: `requires.anyTags` / `requires.allTags` /
+# `requires.anyRoles` / `requires.notTags` / `requires.notRoles` combine as
+# AND ACROSS the lists, OR WITHIN each `any` one. `allTags` is the odd one:
+# EVERY tag in it must be held (butcher-a-human wants Cruel and Butcher
+# both). It is always AND and can never carry `combine: or` — the sync
+# refuses that pairing. So `anyTags: [dancer]` + `anyRoles: [minstrel,
 # diplomat]` reads "holds Dancer, AND holds Minstrel or Diplomat" — not
 # "Dancer or Minstrel or Diplomat". Omit a sub-key entirely rather than
 # writing an empty list.
@@ -521,11 +524,6 @@ desires:
     cooldownTurns: 5
     families: [faith]
 
-  - slug: discover-undercroft-secret
-    name: Discover the secret in the Undercroft
-    tier: 5
-    families: [esoterica, adventure]
-
   - slug: make-a-merchant-purchase
     name: Make a purchase from the Merchant
     tier: 1
@@ -801,6 +799,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [kleptomaniac]
+    oncePerLife: true
 
   - slug: steal-the-barons-key
     name: Steal the Baron's key
@@ -1032,6 +1031,7 @@ desires:
     families: [status, duty]
     requires:
       anyRoles: [squire]
+    oncePerLife: true
 
   - slug: promoted-to-captain-squire
     name: Be promoted to Captain
@@ -1046,6 +1046,7 @@ desires:
     families: [status, duty]
     requires:
       anyRoles: [watchman]
+    oncePerLife: true
 
   - slug: coronate-a-baron
     name: Coronate a new Baron
@@ -1060,6 +1061,7 @@ desires:
     families: [faith, duty]
     requires:
       anyRoles: [incarn]
+    oncePerLife: true
 
   - slug: cup-of-tea
     name: Enjoy a cup of {tag:tea}
@@ -1088,6 +1090,7 @@ desires:
     families: [faction-success]
     requires:
       anyRoles: [bastard]
+    oncePerLife: true
 
   - slug: slay-the-champion
     name: Slay the Champion
@@ -1854,6 +1857,7 @@ desires:
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
+    oncePerLife: true
 
   - slug: dem-a-face-to-a-funeral
     name: Wear a borrowed face to its owner's funeral
@@ -1954,6 +1958,7 @@ desires:
     families: [craft, wealth]
     requires:
       anyRoles: [innkeeper]
+    oncePerLife: true
 
   # Filed `duty`, not `violence`, on purpose: a Pacifist innkeeper should still
   # be able to show a drunk the door.
@@ -2232,3 +2237,198 @@ desires:
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
+
+  # === 5. Tag and role fill-ins (2026-09-02) ==============================
+  # Every name below is dictated verbatim, so none of them carries a ‡.
+  # Cooldowns: an explicit number was given for some; the rest take the
+  # inverted ladder from the header (tier 1 -> 5, 2 -> 4, 3 -> 3), because
+  # none of them costs anything per attempt. Nothing here is ever written
+  # cooldownTurns 1 or 2 — the slot lock already dominates those.
+
+  - slug: become-new-esculap
+    name: Become the new Esculap
+    tier: 3
+    families: [status, medical]
+    requires:
+      anyTags: [mad-doctor]
+    oncePerLife: true
+
+  - slug: kick-the-incapacitated
+    name: Kick someone while they are incapacitated
+    tier: 1
+    families: [cruelty]
+    requires:
+      anyTags: [cruel]
+    cooldownTurns: 3
+
+  - slug: hear-a-confession
+    name: Have someone confess to you
+    tier: 2
+    families: [faith, social]
+    requires:
+      anyRoles: [chaplain]
+    cooldownTurns: 4
+
+  - slug: expose-a-converter
+    name: Expose someone after they attempt to convert you
+    tier: 1
+    families: [faith, social]
+    requires:
+      anyTags: [pious, post-christian, fundamentalist]
+    cooldownTurns: 5
+
+  - slug: adventure-with-a-dwarf
+    name: Go on an adventure with a dwarf character
+    tier: 4
+    families: [adventure, social]
+    requires:
+      anyTags: [giant]
+    oncePerLife: true
+
+  - slug: adventure-with-a-giant
+    name: Go on an adventure with a giant character
+    tier: 4
+    families: [adventure, social]
+    requires:
+      anyTags: [dwarf]
+    oncePerLife: true
+
+  - slug: best-a-whipper-snapper
+    name: Get the best of a pesky whipper snapper
+    tier: 1
+    families: [social]
+    requires:
+      anyTags: [old]
+    cooldownTurns: 3
+
+  - slug: track-a-missing-person
+    name: Track down a missing person
+    tier: 3
+    families: [duty, adventure]
+    requires:
+      anyTags: [tracking]
+    cooldownTurns: 4
+
+  - slug: make-someone-miserable
+    name: Make someone else miserable
+    tier: 1
+    families: [cruelty]
+    requires:
+      anyTags: [depressed]
+    cooldownTurns: 3
+
+  - slug: drinking-buddies
+    name: Become drinking buddies with a fellow alcoholic
+    tier: 2
+    families: [alcohol, social]
+    requires:
+      anyTags: [alcoholic]
+    cooldownTurns: 4
+
+  - slug: headbutt-unconscious
+    name: Headbutt someone unconscious
+    tier: 2
+    families: [violence]
+    requires:
+      anyTags: [thick-skull]
+    oncePerLife: true
+
+  - slug: flee-a-fight
+    name: "Escape from a fight unharmed, that you should've fought at"
+    tier: 3
+    families: [duty, violence]
+    requires:
+      anyTags: [craven]
+    cooldownTurns: 3
+
+  - slug: gain-barons-trust
+    name: "Gain the Baron's trust"
+    tier: 2
+    families: [status, social]
+    requires:
+      anyTags: [eunuch]
+    oncePerLife: true
+
+  - slug: win-first-fight
+    name: Win your first ever fight
+    tier: 3
+    families: [violence, bravery]
+    requires:
+      anyTags: [green]
+    oncePerLife: true
+
+  - slug: survive-martyrdom
+    name: Survive being martyred
+    tier: 5
+    families: [faith, mortality]
+    requires:
+      anyTags: [saint]
+    oncePerLife: true
+
+  # The one allTags gate in the file: butchering a person takes the stomach
+  # AND the trade, so either tag alone is not enough.
+  - slug: butcher-a-human
+    name: Butcher a human
+    tier: 3
+    families: [cruelty, violence]
+    requires:
+      allTags: [cruel, butcher]
+    cooldownTurns: 3
+
+  - slug: kill-a-giant-with-a-sling
+    name: Kill a giant with a sling
+    tier: 5
+    families: [violence, bravery]
+    requires:
+      anyTags: [sling]
+    oncePerLife: true
+
+  - slug: metal-ride
+    name: Get your hands on a sweet metal ride
+    tier: 5
+    families: [wealth]
+    requires:
+      anyRoles: [pusher]
+    oncePerLife: true
+
+  - slug: steal-the-silver-cross
+    name: Steal the silver cross
+    tier: 5
+    families: [theft, faith]
+    requires:
+      anyTags: [kleptomaniac]
+    oncePerLife: true
+
+  - slug: take-over-a-position
+    name: "Disguise yourself with someones clothes, and take over their position"
+    tier: 3
+    families: [scheming, theft]
+    requires:
+      anyRoles: [bum]
+    cooldownTurns: 3
+
+  # NOTE the slug: docs/tags.yaml spells this tag `unhygenic`, missing the
+  # second i. The sync throws on an unknown slug, so don't "fix" it here.
+  - slug: miasma-in-a-crowd
+    name: Use miasma in a crowded area
+    tier: 2
+    families: [cruelty]
+    requires:
+      anyTags: [unhygenic]
+    oncePerLife: true
+
+  - slug: photograph-the-supernatural
+    name: Photograph the supernatural
+    tier: 2
+    families: [esoterica, craft]
+    requires:
+      anyTags: [instant-camera]
+    oncePerLife: true
+
+  - slug: throw-feces-at-a-noble
+    name: Throw feces at a noble
+    tier: 1
+    families: [social, cruelty]
+    requires:
+      anyRoles: [bum]
+    cooldownTurns: 5

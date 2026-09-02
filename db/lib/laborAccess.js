@@ -26,6 +26,13 @@ const {
 const BUTCHER_SLUG = "butcher";
 const BUTCHER_LABOR_BONUS = 2;
 
+// Soft Hands halves what you make, rounded down — the mirror image of the
+// Butcher bonus, and applied at the same point for the same reasons. It lands
+// AFTER the bonus, so it is literally "half the Resources you make": a
+// Soft-Handed Butcher on basic labor takes 2-5 -> 4-7 -> 2-3. On the base tier
+// (0-2) it floors to 0-1, which is the intended sting.
+const SOFT_HANDS_SLUG = "soft-hands";
+
 // Loads the current zone and held tags for one character — the only inputs
 // the rules and the tier ladder need.
 async function buildLaborContext(prisma, characterId) {
@@ -108,10 +115,11 @@ function resolveLaborRateFrom(ctx, coefficient) {
   // bonus out loud in a subtext line. Folded in silently, a Butcher had no way
   // to tell it had applied — which is exactly what got reported as a bug.
   const bonus = ctx.tagSlugs.has(BUTCHER_SLUG) && tier !== "farming" ? BUTCHER_LABOR_BONUS : 0;
-  const min = rate.min + bonus;
-  const max = rate.max + bonus;
+  const halved = ctx.tagSlugs.has(SOFT_HANDS_SLUG);
+  const min = halved ? Math.floor((rate.min + bonus) / 2) : rate.min + bonus;
+  const max = halved ? Math.floor((rate.max + bonus) / 2) : rate.max + bonus;
 
-  return { ok: true, tier, min, max, bonus, expression: `${min}-${max}` };
+  return { ok: true, tier, min, max, bonus, halved, expression: `${min}-${max}` };
 }
 
 // The one wording for "your roll already includes Butcher", shared so the
@@ -119,9 +127,13 @@ function resolveLaborRateFrom(ctx, coefficient) {
 // Discord `-#` subtext: it explains a number rather than competing with it.
 // Returns null when there is no bonus, so a caller can spread it straight into
 // a lines array.
-function formatLaborBonusNote(bonus) {
-  if (!bonus) return null;
-  return `-# Includes +${bonus} ⬢ from Butcher.`;
+function formatLaborBonusNote(bonus, halved = false) {
+  const parts = [];
+  if (bonus) parts.push(`includes +${bonus} ⬢ from Butcher`);
+  if (halved) parts.push("halved by Soft Hands");
+  if (parts.length === 0) return null;
+  const [first, ...rest] = parts;
+  return `-# ${first.charAt(0).toUpperCase()}${first.slice(1)}${rest.length ? `, ${rest.join(", ")}` : ""}.`;
 }
 
 // Async convenience for the one-character call sites (the Move modal),

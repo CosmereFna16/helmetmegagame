@@ -50,6 +50,7 @@ function resolveDefaultMove(def, ctx, coefficient) {
       resourceDelta: null,
       gateNote: null,
       laborBonus: 0,
+      laborHalved: false,
     };
   }
 
@@ -62,6 +63,7 @@ function resolveDefaultMove(def, ctx, coefficient) {
       resourceDelta: null,
       gateNote: rate.reason ?? "You couldn't labor from where you were standing.",
       laborBonus: 0,
+      laborHalved: false,
     };
   }
 
@@ -76,6 +78,7 @@ function resolveDefaultMove(def, ctx, coefficient) {
     gateNote: null,
     // Inside `rate.expression` already — carried out so the DM can name it.
     laborBonus: rate.bonus ?? 0,
+    laborHalved: rate.halved ?? false,
   };
 }
 
@@ -200,7 +203,7 @@ async function runDefaultMovePass(prisma, turn) {
         return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
       });
 
-      filed.push({ def, action, gateNote: resolved.gateNote, laborBonus: resolved.laborBonus });
+      filed.push({ def, action, gateNote: resolved.gateNote, laborBonus: resolved.laborBonus, laborHalved: resolved.laborHalved });
     } catch (err) {
       console.error(`Default Move for character ${def.characterId} failed:`, err);
     }
@@ -241,9 +244,9 @@ async function runDefaultMovePass(prisma, turn) {
 
   // One DM each: the player needs to know a turn passed and something was
   // filed for them, since they weren't there to see it.
-  const dms = filed.map(({ def, action, gateNote, laborBonus }) => {
+  const dms = filed.map(({ def, action, gateNote, laborBonus, laborHalved }) => {
     const effects = describeMoveEffects(action.appliedEffects);
-    const bonusNote = formatLaborBonusNote(laborBonus);
+    const bonusNote = formatLaborBonusNote(laborBonus, laborHalved);
     // sendDm applies the `»` prefix to the first line itself — don't write
     // one here or it doubles up.
     const lines = [

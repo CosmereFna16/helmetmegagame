@@ -25,7 +25,8 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // escalates with the streak (a Character column, not a tag), so the Gambit
 // modifier needs both (db/lib/gambitModifier.js).
 //
-// `laborBonus` is the Butcher +2 the submit path already resolved
+// `laborBonus` is the Butcher +2, and `laborHalved` the Soft Hands halving,
+// that the submit path already resolved
 // (db/lib/laborAccess.js). It has to be passed in rather than read off the
 // row: the Action stores only the finished range, so nothing here could tell
 // a bonused 9-11 from a plain one. Optional — a caller with no Labor in hand
@@ -33,7 +34,7 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 //
 // Returns { updated, lines } — the resolved row, and the summary the player
 // is shown. It writes its own AuditLog row but sends nothing.
-async function confirmMove(action, actorDiscordUserId, { laborBonus = 0 } = {}) {
+async function confirmMove(action, actorDiscordUserId, { laborBonus = 0, laborHalved = false } = {}) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
   // the RAW roll and the SUM of every contributor (today just Hunger, scaled
@@ -100,7 +101,7 @@ async function confirmMove(action, actorDiscordUserId, { laborBonus = 0 } = {}) 
     );
     // The range above already has the bonus baked in, so say so — otherwise a
     // Butcher sees 9-11 and has no way to know it isn't the plain 7-9.
-    const bonusNote = formatLaborBonusNote(laborBonus);
+    const bonusNote = formatLaborBonusNote(laborBonus, laborHalved);
     if (bonusNote) lines.push(bonusNote);
   }
   lines.push("» *Locked in. Results land when the turn ends.*");

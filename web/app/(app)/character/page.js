@@ -323,6 +323,7 @@ export default async function CharacterPage() {
           requiresAnyRoleSlugs: true,
           requiresNotRoleSlugs: true,
           requiresAnyTags: { select: { id: true, name: true } },
+          requiresAllTags: { select: { id: true, name: true } },
           requiresNotTags: { select: { id: true, name: true } },
         },
       }),

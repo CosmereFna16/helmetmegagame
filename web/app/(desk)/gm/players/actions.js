@@ -548,8 +548,17 @@ export async function sendGmBroadcast({ characterIds, message }) {
 // "character:<id>" or "faction:<id>", so this also covers Silo -> Silo,
 // which has no staging model on the turn desk to fight and no reach gate to
 // satisfy (a GM isn't standing anywhere). See web/lib/gmTransfer.js.
-async function transferSiloResourcesImpl({ fromKey, toKey, amount, reason }) {
-  const result = await gmTransferResources({ fromKey, toKey, amount, reason });
+async function transferSiloResourcesImpl({ fromKey, toKey, amount, reason, quiet, coverActorName, coverToName, coverNote }) {
+  const result = await gmTransferResources({
+    fromKey,
+    toKey,
+    amount,
+    reason,
+    quiet,
+    coverActorName,
+    coverToName,
+    coverNote,
+  });
   revalidatePath("/gm/players", "layout");
   revalidatePath("/faction");
   return result;

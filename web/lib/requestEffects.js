@@ -1,6 +1,6 @@
 import { bumpBlood } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs } from "@lifeweb/db/lib/tagWrites";
-import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { moveParty, writeSiloRows, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { UserError } from "@/lib/actionResult";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -57,22 +57,28 @@ export async function moveResources(tx, party, delta) {
   }
 }
 
+// The Silo row itself is written by writeSiloRows (db/lib/resourceTransfer.js),
+// the one place that knows the row's shape — including the HIDDEN/COVER pair a
+// quiet GM adjustment writes. Nothing on a request path sets those, so these
+// two keep writing a plain OPEN row.
+function ledgerFrom(ctx) {
+  return {
+    actorDiscordUserId: ctx.actorDiscordUserId,
+    actorCharacterId: ctx.actorCharacterId ?? null,
+    actorName: ctx.actorName,
+    note: ctx.note ?? null,
+    turnNumber: ctx.turnNumber ?? null,
+    turnPhase: ctx.turnPhase ?? null,
+    hidden: ctx.hidden ?? false,
+    cover: ctx.cover ?? null,
+  };
+}
+
 export async function creditResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
   await moveResources(tx, party, amount);
   if (party.kind === "faction") {
-    await tx.siloTransaction.create({
-      data: {
-        factionId: party.id,
-        amount,
-        actorDiscordUserId: ctx.actorDiscordUserId,
-        actorCharacterId: ctx.actorCharacterId ?? null,
-        actorName: ctx.actorName,
-        note: ctx.note ?? null,
-        turnNumber: ctx.turnNumber ?? null,
-        turnPhase: ctx.turnPhase ?? null,
-      },
-    });
+    await writeSiloRows(tx, { factionId: party.id, amount, ledger: ledgerFrom(ctx) });
   }
 }
 
@@ -80,18 +86,7 @@ export async function debitResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
   await moveResources(tx, party, -amount);
   if (party.kind === "faction") {
-    await tx.siloTransaction.create({
-      data: {
-        factionId: party.id,
-        amount: -amount,
-        actorDiscordUserId: ctx.actorDiscordUserId,
-        actorCharacterId: ctx.actorCharacterId ?? null,
-        actorName: ctx.actorName,
-        note: ctx.note ?? null,
-        turnNumber: ctx.turnNumber ?? null,
-        turnPhase: ctx.turnPhase ?? null,
-      },
-    });
+    await writeSiloRows(tx, { factionId: party.id, amount: -amount, ledger: ledgerFrom(ctx) });
   }
 }
 

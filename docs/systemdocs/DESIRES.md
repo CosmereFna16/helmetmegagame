@@ -113,9 +113,14 @@ same way it does everything else keyed off `Turn.number`.
 
 ## 3. `requires` semantics
 
-`requires.anyTags` / `requires.anyRoles` / `requires.notTags` /
-`requires.notRoles` combine as **AND across the four lists, OR within each
-one**. `anyTags: [dancer]` + `anyRoles: [minstrel, diplomat]` reads "holds
+`requires.anyTags` / `requires.allTags` / `requires.anyRoles` /
+`requires.notTags` / `requires.notRoles` combine as **AND across the lists, OR
+within each `any` one**. `requires.allTags` is the exception to "OR within":
+every tag in it must be held. `butcher-a-human` is the only entry using it —
+butchering a person takes the stomach (`cruel`) *and* the trade (`butcher`),
+and neither alone will do. `allTags` is always AND and may never carry
+`combine: or`; the sync rejects that pairing outright, since "all of these, or
+something else entirely" is not a gate anyone writes on purpose. `anyTags: [dancer]` + `anyRoles: [minstrel, diplomat]` reads "holds
 Dancer, AND holds Minstrel or Diplomat" — not "Dancer or Minstrel or
 Diplomat". Omit a sub-key entirely rather than writing an empty list; an
 absent/empty list is no constraint at all (`db/lib/desireGates.js#evalRequires`).

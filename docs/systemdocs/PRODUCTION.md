@@ -28,9 +28,9 @@ descriptions, the Producing Resources document) render live
 coefficient-adjusted chips with no web changes, and it is the cheapest place
 to add a second production kind later.
 
-### The Butcher bonus
+### The Butcher bonus and the Soft Hands halving
 
-One tag modifies the ladder. Holding `butcher` adds a flat **+2 to both ends**
+Two tags modify the ladder. Holding `butcher` adds a flat **+2 to both ends**
 of the range, on `base`, `basic` and `skilled` but **not** `farming` — the
 bonus is for taking an animal apart, and Farming is the one tier that isn't.
 It is applied automatically in `resolveLaborRateFrom`, not left as a line in
@@ -51,6 +51,21 @@ applying". So `resolveLaborRateFrom` also returns `bonus` on its own, and
 (`bot/src/lib/moveConfirm.js`, passed `laborBonus` by the submit handler,
 since the Action row stores only the finished range) and the Default Move DM
 (`db/lib/defaultMovePass.js`).
+
+**Soft Hands is the mirror image.** Holding `soft-hands` **halves both ends,
+rounded down**, on every tier including Farming. It lands *after* the Butcher
++2, so it is literally "half the Resources you make" — a Soft-Handed Butcher
+on `basic` goes `2–5` → `4–7` → **`2–3`**. It rides the same rails as the
+bonus for the same reasons: folded into `min`/`max` rather than annotated onto
+`expression`, and returned separately as `halved` so `formatLaborBonusNote`
+can say it out loud. That function now takes `(bonus, halved)` and composes
+one line for either or both — `Includes +2 ⬢ from Butcher, halved by Soft
+Hands.` The Butcher-only wording is unchanged.
+
+The rounding bites hardest at the bottom: `base` is `0–2`, so a Soft-Handed
+labourer with no skill tag rolls **`0–1`** and will often earn nothing at all.
+That is deliberate, and it is why the tag is worth **−4** rather than −3.
+Before 2026-09-02 the tag was pure flavour text that no code read.
 
 Both DMs print the **range** alongside the value —
 `**Resource roll (9–11):** +9 ⬢` — and so does the `/character` status panel

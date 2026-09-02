@@ -9,6 +9,7 @@ import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
+import { normalizeQuiet } from "@/lib/siloCover";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -408,7 +409,17 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
 // end is a character; the RECIPIENT, if both ends are (they're the one who
 // gets staged-diff visibility and the eventual DM); null if neither is —
 // the Silo -> Silo case, which has no per-character home in the tray.
-async function createStagedTransferImpl({ fromKey, toKey, amount: rawAmount, moveId, cavingRollId }) {
+async function createStagedTransferImpl({
+  fromKey,
+  toKey,
+  amount: rawAmount,
+  moveId,
+  cavingRollId,
+  quiet,
+  coverActorName,
+  coverToName,
+  coverNote,
+}) {
   const session = await requireGm();
   const amount = Number.parseInt(rawAmount, 10);
   if (!Number.isInteger(amount) || amount < 1) throw new UserError("Amount must be a positive whole number.");
@@ -424,11 +435,17 @@ async function createStagedTransferImpl({ fromKey, toKey, amount: rawAmount, mov
 
   const openTurn = await requireOpenTurn();
   const targetCharacterId = to.kind === "character" ? to.id : from.kind === "character" ? from.id : null;
+  // The quiet fields ride along in the payload rather than being resolved at
+  // push time — same "never re-derive from live state" rule the rest of the
+  // transfer snapshot follows, so what a GM staged is what a GM gets.
+  const { hidden, cover } = normalizeQuiet({ quiet, coverActorName, coverToName, coverNote });
   const payload = {
     transfer: {
       from: { kind: from.kind, id: from.id, name: from.name },
       to: { kind: to.kind, id: to.id, name: to.name },
       amount,
+      hidden,
+      cover,
     },
   };
 

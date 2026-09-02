@@ -5,6 +5,7 @@ import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { UserError } from "@/lib/actionResult";
 import { requireReason } from "@/lib/requests";
+import { normalizeQuiet } from "@/lib/siloCover";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 
 // The immediate GM transfer — moves ⬢ between any two parties (a character
@@ -24,7 +25,22 @@ import { notifyCharacter } from "@/lib/notifyCharacter";
 //
 // No Request row, so no one-click Undo — the same posture as the Dev Panel's
 // other verbs. The reverse transfer is the reversal.
-export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, reason: rawReason }) {
+//
+// `quiet` and the three `cover*` fields make the move invisible to the faction's
+// own Leader/Treasurer — the adjudication case is a gambit steal, which the
+// Silo history used to announce to the victim. The AuditLog row below always
+// records the truth AND the cover story, so a quiet move is still a move a GM
+// can be held to.
+export async function gmTransferResources({
+  fromKey,
+  toKey,
+  amount: rawAmount,
+  reason: rawReason,
+  quiet = false,
+  coverActorName,
+  coverToName,
+  coverNote,
+}) {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId || !gm) throw new UserError("Not authorized.");
   const reason = requireReason(rawReason);
@@ -38,8 +54,12 @@ export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, r
   if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
   if (amount > from.balance) throw new UserError(`${partyLabel(from)} only has ${from.balance} ⬢.`);
 
+  const { hidden, cover } = normalizeQuiet({ quiet, coverActorName, coverToName, coverNote });
+
   const openTurn = await getOpenTurn();
   const ledger = {
+    hidden,
+    cover,
     actorDiscordUserId: session.discordUserId,
     actorCharacterId: null,
     // Matches the "GM (Dev Panel)" convention updateFaction already uses for
@@ -68,6 +88,8 @@ export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, r
           amount,
           from: { kind: from.kind, id: from.id, name: from.name },
           to: { kind: to.kind, id: to.id, name: to.name },
+          hidden,
+          cover,
         },
       },
     });
