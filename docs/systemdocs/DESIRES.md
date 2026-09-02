@@ -37,9 +37,24 @@ pass:
   same template is unavailable again until
   `openTurnNumber >= endedTurnNumber + (cooldownTurns ?? tier)`. Exactly at
   the boundary turn it's available again, not still cooling. `cooldownTurns`
-  is a per-entry override of the tier-length default — `charitable-act-devoted`
-  (3) and `use-a-censer` (5) are its users, both cheap repeatables that would
-  otherwise be pickable every turn.
+  is a per-entry override of the tier-length default, and after the 2026-09-02
+  balance sweep it has 39 users. See the **COOLDOWN POLICY** block at the top of
+  `docs/desires.yaml` for the rule that governs them; the two loads it carries
+  are worth stating here too.
+
+  First, **`cooldownTurns: 1` and `2` are inert**. The per-slot lock below
+  already shuts a slot for two turns, so any per-desire cooldown at or under 2
+  is dominated by a gate that was going to fire anyway. 3 is the smallest value
+  that changes anything — never write 1 or 2.
+
+  Second, **a `requires` gate is not a throttle.** It decides who may take a
+  goal, never how often, and a tag or role held permanently costs nothing on
+  the second repetition. What throttles a Desire is a per-attempt *cost*: ⬢
+  spent, an item consumed, a risk run. That is why Drink alcohol keeps its
+  tier-length cooldown while Get a hug does not — the drink is the throttle, and
+  the hug has none. The 38 entries that pay nothing per attempt were put on an
+  inverted ladder (tier 1 → 5 turns, tier 2 → 4, tier 3 → 3) so the cheapest
+  goals come back slowest and aiming higher always pays better per turn.
 - **Per-slot lock** — once *any* Desire in a slot ends (cancel or fulfil),
   that slot stays shut for the rest of that turn **and all of the next one**:
   `openTurnNumber <= max(endedTurnNumber over that slot's ended rows) + 1`

@@ -15,11 +15,38 @@
 # TIER: one of 1, 2, 3, 4, 5, 7. Tier 6 is deliberately absent from the
 # whitelist — don't invent it. Tier doubles as the default Tag Point award
 # and the per-desire cooldown in turns; `cooldownTurns` overrides the latter
-# only (sit-in-bliss is the one user of this). Tier 7 is ONCE EVER — the
+# only. Tier 7 is ONCE EVER — the
 # sync defaults `oncePerLife: true` automatically for every tier-7 entry, so
 # it is never written explicitly below. `oncePerLife` IS written by hand on
 # a handful of sub-7 entries where repeating the thing is absurd on its
 # face (a second first-ever Baron coronation, learning to read twice).
+#
+# COOLDOWN POLICY (2026-09-02 balance sweep). Two things make the bare tier a
+# bad cooldown for a cheap goal:
+#
+#   1. The per-slot lock already shuts a slot for the turn a Desire ends AND
+#      the next one, so the soonest anything can be re-fulfilled is 2 turns
+#      later. `cooldownTurns: 1` and `2` therefore do NOTHING — they are
+#      dominated by a gate that was going to fire anyway. 3 is the smallest
+#      value that has any effect at all. Don't write 1 or 2.
+#   2. A gate is not a throttle. `requires` decides WHO may take a goal, never
+#      how often; a tag or role you hold permanently costs nothing on the
+#      second repetition. What actually throttles a Desire is a per-attempt
+#      COST — ⬢ spent, an item consumed, a risk run.
+#
+# So: a Desire you pay for every time (drink alcohol, buy jewelry, win 10 ⬢
+# gambling, feed the poor, host an event) keeps the tier as its cooldown — the
+# spend is the throttle and it needs no help. A Desire that costs nothing but
+# another player's cooperation (a hug, a compliment, an argument, a kiss) is a
+# free income tap, and takes the ladder instead:
+#
+#     tier 1 -> cooldownTurns: 5      0.20 points/turn
+#     tier 2 -> cooldownTurns: 4      0.50 points/turn
+#     tier 3 -> cooldownTurns: 3      1.00 points/turn
+#
+# Deliberately inverted, so the cheap goals are the SLOWEST to come back and
+# aiming higher always pays better per turn. Anything above tier 3 is rare
+# enough by nature to leave on the tier.
 #
 # ‡ marks text the Desires-rework planner wrote — a drafted name/description,
 # an invented tier, or a resolved conflict — exactly like docs/tags.yaml's
@@ -236,6 +263,7 @@ desires:
     name: Win an argument
     tier: 2
     families: [social]
+    cooldownTurns: 4
 
   - slug: win-a-compliment
     name: Win a compliment
@@ -338,11 +366,13 @@ desires:
     name: Get a hug
     tier: 1
     families: [social]
+    cooldownTurns: 5
 
   - slug: give-a-hug
     name: Give a hug
     tier: 1
     families: [social, charity]
+    cooldownTurns: 5
 
   - slug: convert-someone
     name: Convert someone to your religion
@@ -380,6 +410,7 @@ desires:
     name: Make a friend
     tier: 2
     families: [social]
+    cooldownTurns: 4
 
   - slug: gain-a-lover
     name: Gain a lover
@@ -445,11 +476,12 @@ desires:
     families: [charity]
     requires:
       notTags: [charitable]
+    cooldownTurns: 5
 
   - slug: charitable-act-devoted
     name: Perform a charitable act
     tier: 2
-    cooldownTurns: 3
+    cooldownTurns: 4
     families: [charity]
     requires:
       anyTags: [charitable]
@@ -468,6 +500,7 @@ desires:
     name: Listen to music on a {tag:boombox}
     tier: 1
     families: [social]
+    cooldownTurns: 5
 
   - slug: use-a-censer
     name: Use a censer
@@ -505,6 +538,7 @@ desires:
     requires:
       anyTags: [prudish]
       anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+    cooldownTurns: 5
 
   - slug: better-person
     name: Get someone to be a better person
@@ -513,6 +547,7 @@ desires:
     requires:
       anyTags: [prudish]
       anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+    cooldownTurns: 4
 
   - slug: complete-assignment
     name: Complete an assignment given by a superior
@@ -527,6 +562,7 @@ desires:
     families: [craft, social]
     requires:
       anyTags: [artist]
+    cooldownTurns: 4
 
   - slug: learn-to-read
     name: Learn to read
@@ -558,6 +594,7 @@ desires:
     families: [vanity, craft]
     requires:
       anyTags: [dancer]
+    cooldownTurns: 4
 
   - slug: dance-with-someone
     name: Dance with someone
@@ -565,6 +602,7 @@ desires:
     families: [social, craft]
     requires:
       anyTags: [dancer]
+    cooldownTurns: 4
 
   - slug: dance-with-someone-important
     name: Dance with someone important or beautiful
@@ -607,6 +645,7 @@ desires:
     families: [faith]
     requires:
       anyTags: [old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
+    cooldownTurns: 4
 
   - slug: skip-mass
     name: Convince someone to skip mass
@@ -614,6 +653,7 @@ desires:
     families: [faith, scheming]
     requires:
       anyTags: [atheist]
+    cooldownTurns: 4
 
   - slug: win-mortally-injured
     name: Win a fight while mortally injured
@@ -628,6 +668,7 @@ desires:
     families: [social]
     requires:
       anyTags: [tunnel-rat]
+    cooldownTurns: 4
 
   - slug: top-of-a-building
     name: Reach the top of a building
@@ -685,6 +726,7 @@ desires:
     families: [social, craft]
     requires:
       anyTags: [sign-language]
+    cooldownTurns: 5
 
   - slug: eat-dangerous
     name: Eat something impressively dangerous
@@ -706,6 +748,7 @@ desires:
     families: [social, status]
     requires:
       anyTags: [old-blood]
+    cooldownTurns: 5
 
   - slug: gain-court-position
     name: Gain a position in court
@@ -756,6 +799,7 @@ desires:
     families: [faith]
     requires:
       anyTags: [old-ways-thoth]
+    cooldownTurns: 4
 
   - slug: convert-to-old-ways
     name: Convert another willing person to the Old Ways
@@ -767,6 +811,7 @@ desires:
   # Mortus feeds (Task 11) — same gate shape as feed-the-lifeweb above:
   # T: mortus AND R: mortus. feed-the-lifeweb (tier 3) is unchanged and stays
   # what it already is: feeding a living person to the Web.
+    cooldownTurns: 4
   - slug: feed-the-lifeweb-blood
     name: "Offer your own blood to the Lifeweb"
     tier: 1
@@ -1129,6 +1174,7 @@ desires:
     families: [romance]
     requires:
       anyRoles: [diplomat]
+    cooldownTurns: 4
 
   - slug: defuse-a-situation
     name: Defuse a difficult political situation
@@ -1178,6 +1224,7 @@ desires:
     families: [social, status]
     requires:
       anyRoles: [servant]
+    cooldownTurns: 4
 
   - slug: servant-public-recognition
     name: Receive public recognition from the Baron
@@ -1294,6 +1341,7 @@ desires:
       anyRoles: [minstrel]
 
   # === 4d. Gated on new Interests / Restrictions ===========================
+    cooldownTurns: 4
   - slug: torture-someone
     name: Torture someone, for a good enough reason
     tier: 4
@@ -1321,6 +1369,7 @@ desires:
     families: [faith]
     requires:
       anyTags: [pilgrim, fundamentalist]
+    cooldownTurns: 4
 
   - slug: attend-a-sermon
     name: Attend a sermon
@@ -1328,6 +1377,7 @@ desires:
     families: [faith]
     requires:
       anyTags: [pilgrim]
+    cooldownTurns: 4
 
   - slug: cast-a-spell
     name: Cast a spell
@@ -1389,6 +1439,7 @@ desires:
     families: [social]
     requires:
       anyTags: [combative]
+    cooldownTurns: 5
 
   - slug: start-a-large-brawl
     name: Start a large brawl
@@ -1452,6 +1503,7 @@ desires:
     families: [social, vanity]
     requires:
       anyTags: [desperate]
+    cooldownTurns: 4
 
   - slug: berated-for-desperation
     name: Be verbally berated for your clear desperation
@@ -1616,6 +1668,7 @@ desires:
     families: [scheming]
     requires:
       anyTags: [schemer]
+    cooldownTurns: 4
 
   - slug: let-someone-else-hang
     name: Have someone punished for something you did
@@ -1637,6 +1690,7 @@ desires:
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
+    cooldownTurns: 4
 
   - slug: bacchus-boombox
     name: Make the whole street hear the {tag:boombox}
@@ -1652,6 +1706,7 @@ desires:
     families: [cult-bacchus, social]
     requires:
       anyTags: [follower-of-bacchus]
+    cooldownTurns: 4
 
   - slug: bacchus-first-taste
     name: Give a first taste to somebody who has never had one
@@ -1680,6 +1735,7 @@ desires:
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
+    cooldownTurns: 4
 
   - slug: bacchus-break-a-vow
     name: "Make somebody break a vow"
@@ -1729,6 +1785,7 @@ desires:
     families: [demoness, social]
     requires:
       anyTags: [demoness]
+    cooldownTurns: 5
 
   - slug: dem-humiliate
     name: "Humiliate somebody"
@@ -1939,6 +1996,7 @@ desires:
     families: [social, charity]
     requires:
       anyRoles: [mother]
+    cooldownTurns: 5
 
   - slug: bastard-takes-your-advice
     name: Have the Bastard act on your advice
@@ -1946,6 +2004,7 @@ desires:
     families: [social, scheming]
     requires:
       anyRoles: [mother]
+    cooldownTurns: 4
 
   - slug: stop-a-plot-against-the-bastard
     name: Stop a plot against the Bastard
@@ -1961,6 +2020,7 @@ desires:
     families: [status]
     requires:
       anyRoles: [migrant]
+    cooldownTurns: 5
 
   - slug: a-job-in-town
     name: Get a job in Town
@@ -1989,6 +2049,7 @@ desires:
     families: [social]
     requires:
       anyRoles: [bum]
+    cooldownTurns: 5
 
   - slug: make-the-baron-laugh
     name: "Make the Baron laugh"
@@ -2001,6 +2062,7 @@ desires:
   # The pass split several of these into a "someone new" / "someone already
   # {tag:broken}" pair, priced apart: doing it to a stranger is the work,
   # doing it again to somebody you already own is not.
+    cooldownTurns: 5
   - slug: dem-humiliate-publicly
     name: "Humiliate somebody publicly"
     tier: 3
@@ -2021,6 +2083,7 @@ desires:
     families: [demoness, romance]
     requires:
       anyTags: [demoness]
+    cooldownTurns: 5
 
   - slug: dem-break-a-heart
     name: "Break someone's heart (who you haven't yet broken)"
@@ -2042,6 +2105,7 @@ desires:
     families: [demoness, social]
     requires:
       anyTags: [demoness]
+    cooldownTurns: 4
 
   - slug: dem-infidelity
     name: "Make someone commit infidelity"
