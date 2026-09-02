@@ -8,28 +8,13 @@ const MARGIN = 8;
 const GAP = 4;
 const TYPEAHEAD_RESET_MS = 500;
 
-// The drop-in replacement for a bare <select>. Same children (<option> /
-// <optgroup>), same value/onChange/defaultValue/name/required/disabled
-// contract, so almost every call site migrates by renaming the tag. It
-// exists because a native <select>'s OPEN popup is OS-drawn chrome that
-// `color-scheme` only partly controls — on some browsers it renders
-// light-on-light regardless of the page's theme — so this renders the popup
-// itself, following the theme on every pixel.
-//
-// Controlled (value + onChange) and uncontrolled (name + defaultValue, read
-// via FormData in a server action) both work, exactly like a real <select>.
-// onChange is called with a {target: {value, name}} shape so
-// `(e) => setX(e.target.value)` call sites need no change at all.
-//
-// Multi-select has no equivalent here on purpose — gm/dev/page.js's Bulk
-// Move picker (`<select multiple size={8}>`) is an open, always-visible
-// listbox, not a popup, so the OS-popup problem this solves doesn't apply,
-// and it stays a native <select>.
+// Drop-in replacement for a bare <select>, matching its children and
+// value/onChange/defaultValue/name/required/disabled contract. Renders its
+// own popup instead of relying on OS-drawn <select> chrome, which can
+// ignore the page's theme (`color-scheme` only partly controls it).
 
-// A Fragment is transparent, the way it is to a real <select>. React.Children
-// only flattens ARRAYS — it hands a fragment back as a single child — so a
-// helper returning <>…</> for its options must be walked explicitly, or it
-// collapses into one bogus item with no selectable value.
+// React.Children only flattens arrays, not Fragments, so a helper
+// returning <>…</> for its options must be walked explicitly.
 function optionsFromChildren(children) {
   const items = [];
   let lastGroup = null;
@@ -216,12 +201,8 @@ export default function Select({
 
   function handleTriggerKeyDown(e) {
     if (disabled) return;
-    // A modifier combo (⌘K, ⌘C, browser back on ⌘←…) is never this control's
-    // to own — let it bubble untouched. Everything else, while the trigger
-    // has focus, IS this control's: stopPropagation keeps it from also
-    // triggering the desk's window-level shortcuts (QueueRail's
-    // j/k/arrows/m/r/c/h, Workspace's Escape), since this trigger is a
-    // <button>, not one of the tag names those listeners allowlist.
+    // Let modifier combos (⌘K etc.) bubble; otherwise stop propagation so
+    // this doesn't also trigger the desk's window-level shortcuts.
     if (e.metaKey || e.ctrlKey) return;
     e.stopPropagation();
     if (!open) {
@@ -262,8 +243,6 @@ export default function Select({
       return;
     }
 
-    // Open: navigation moves the highlight only; the value commits on
-    // Enter/Space/click, same as the ARIA "select-only combobox" pattern.
     if (e.key === "ArrowDown") {
       e.preventDefault();
       moveHighlight(1);

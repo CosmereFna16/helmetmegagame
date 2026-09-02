@@ -53,10 +53,8 @@ import CreateCharacterWizard from "./CreateCharacterWizard";
 import CreationClosed from "./CreationClosed";
 
 // Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
-// tree it renders. Seat counts (ALIVE characters + live reservations, see
-// takenCounts) are computed here rather than in the client so the numbers
-// can't be stale-rendered from a cached page. This is still only advisory —
-// createActions.js takes the actual lock inside the create transaction.
+// tree it renders. Seat counts are computed here, not the client, so the
+// numbers aren't stale-rendered from a cached page.
 async function loadCreationData(discordUserId) {
   const [zones, tags, config, member, dynastyName] = await Promise.all([
     prisma.zone.findMany({
@@ -73,33 +71,24 @@ async function loadCreationData(discordUserId) {
     loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     getGuildMember(discordUserId),
-    // Shown on the (locked) last-name input if a family seat is picked.
     dynastyLastName(),
   ]);
 
-  // Seated characters (ALIVE, plus DEAD on a seat that never reopens — see
-  // db/lib/roleCapacity.js) plus anyone else's live wizard-in-progress hold —
-  // see db/lib/roleReservation.js. Excludes the viewer's own hold, so a role
-  // they're mid-reserving on renders taken to everyone but them.
+  // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
+  // else's live wizard-in-progress hold; excludes the viewer's own hold.
   const roleRows = zones.flatMap((zone) => zone.factions.flatMap((faction) => faction.roles));
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
   const cursed = isCursed(member);
-  // Mirrors the bypass in createCharacter so the host sees the wizard rather
-  // than the locked-out screen. The server action re-checks regardless — this
-  // is presentation, that is enforcement.
+  // Presentation only; the server action re-checks regardless.
   const superadmin = isSuperadmin(discordUserId);
   const gate = {
     open: superadmin || config?.openToPlayers === true,
     approved: superadmin || isApprovedPlayer(member),
   };
-  // The whitelist gate itself is a Dev Panel switch (GameConfig). `=== false`
-  // rather than a falsy check on purpose: no config row means the gate stays
-  // enforced, matching the fail-closed posture in db/lib/roleIds.js.
+  // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
     superadmin || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  // No superadmin bypass here, unlike the two gates above: this one holds back
-  // an unfinished role, so the host wants it locked too (characterCreation.js).
   const playtestMode = config?.playtestModeEnabled === true;
   const playerCount = config?.playerCount ?? 100;
 
@@ -110,8 +99,6 @@ async function loadCreationData(discordUserId) {
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
-    // Already flattened to PointBuy's shape by loadPointBuyCatalog — shared
-    // with /store so the two menus can never disagree.
     tags,
     zones: zones
       .map((zone) => ({
@@ -123,22 +110,15 @@ async function loadCreationData(discordUserId) {
             name: faction.name,
             roles: faction.roles.map((role) => {
               const cap = roleCapacity(role, playerCount);
-              // Locked roles stay in the tree rather than being filtered out,
-              // so a player can still read the charter of a role that's simply
-              // shut for this run. The card greys itself and says why.
+              // Locked roles stay in the tree; the card greys itself and says why.
               const playtestLocked =
                 playtestMode && isPlaytestLocked({ role, zoneName: zone.name });
               return {
                 id: role.id,
                 name: role.name,
                 intro: role.intro,
-                // Some titles are earned by role rather than by tag, and
-                // db/lib/titles.js keys on the slug (see the Identity step).
                 slug: role.slug,
-                // Null for every ordinary seat; set on the four dynasty roles,
-                // which fix their holder's gender the same way they hand down
-                // the surname. The wizard renders the picker disabled at this
-                // value, and createCharacter stamps it regardless.
+                // Null for ordinary seats; set on the four dynasty roles.
                 lockedGender: role.lockedGender,
                 difficulty: role.difficulty,
                 factionName: faction.name,
@@ -147,20 +127,13 @@ async function loadCreationData(discordUserId) {
                 extraStartingPoints: role.extraStartingPoints,
                 startingTagNames: role.startingTagSlugs,
                 grantsLeader: role.grantsLeader,
-                // Infinity doesn't survive serialization to the client, so
-                // uncapped roles cross the boundary as null and render "∞".
+                // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
                 cap: cap === Infinity ? null : cap,
                 taken: takenByRole.get(role.id) ?? 0,
-                // ^ ALIVE characters + everyone else's live wizard-in-progress
-                // hold on this seat (db/lib/roleReservation.js#takenCounts) —
-                // the viewer's own hold is excluded so their held role never
-                // renders as full to them.
                 selectable: isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked }),
                 playtestLocked,
-                // The Baron's family don't choose a surname (db/lib/dynasty.js).
-                // Resolved here rather than in the wizard so a client component
-                // never imports the barrel and drags PrismaClient into the
-                // browser bundle.
+                // Resolved server-side so a client component never drags
+                // PrismaClient into the browser bundle.
                 lastNameLocked: isDynastyMember(role.slug),
               };
             }),
@@ -180,16 +153,10 @@ export default async function CharacterPage() {
     include: {
       faction: true,
       zone: true,
-      // Only the slug, and only so the Bio panel can grey out the last name
-      // for the Baron's family (db/lib/dynasty.js).
       role: { select: { slug: true } },
-      // group comes along so TagChip can tint the chip and label its
-      // group/category — /gm/turns and referenceData.js share the same
-      // TAG_CHIP_FIELDS select for the same reason.
-      // requirementSkills has to be named explicitly: `include` returns every
-      // scalar but no unnamed relation, and formatTagRequirement guards with
-      // `?.length`, so leaving it off silently drops the skill from the
-      // tooltip's cost line rather than failing.
+      // requirementSkills must be named explicitly: `include` doesn't pull
+      // unnamed relations, and formatTagRequirement's `?.length` guard would
+      // silently drop it rather than fail.
       tags: {
         include: {
           tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
@@ -199,13 +166,9 @@ export default async function CharacterPage() {
     },
   });
 
-  // No living character — this IS the create-a-character screen. Rendered
-  // inline rather than redirecting to a separate route, so a player who just
-  // died lands somewhere that explains itself instead of bouncing.
+  // No living character — this IS the create-a-character screen.
   if (!character) {
     const { gate, ...creation } = await loadCreationData(session.discordUserId);
-    // Both halves have to hold before the wizard is worth rendering; the
-    // server action re-checks them regardless.
     if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
     return <CreateCharacterWizard {...creation} />;
   }
@@ -232,10 +195,8 @@ export default async function CharacterPage() {
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      // The Add Tag menu needs purchasable/craftable, which getVisibleTags (lib/referenceData.js) doesn't
-      // select (and which that unauthenticated route shouldn't grow just to
-      // serve a picker) — so the catalog comes down as props, same as the
-      // creation wizard does it.
+      // getVisibleTags doesn't select purchasable/craftable, so this comes
+      // down as its own props, same as the creation wizard.
       prisma.tag.findMany({
         where: { OR: [{ purchasable: true }, { craftable: true }] },
         orderBy: { name: "asc" },
@@ -246,19 +207,13 @@ export default async function CharacterPage() {
           category: true,
           pointCost: true,
           purchasable: true,
-          // addableTags' purchasable branch requires purchasableAfterStart;
-          // without this select it read undefined and silently dropped every
-          // purchasable-only tag from the Add Tag menu.
+          // addableTags' purchasable branch requires this or it reads
+          // undefined and drops purchasable-only tags from the Add Tag menu.
           purchasableAfterStart: true,
           craftable: true,
           stackable: true,
-          // Both gates the Add Tag menu enforces — the per-tag prerequisite and
-          // the whole-group one behind a hidden category. parentTagId comes
-          // along because the gate walks the tier chain.
           parentTagId: true,
           requiredTagId: true,
-          // The gates' NAMES, for the picker's "Requires: …" line. Safe:
-          // gated tags only render for viewers who hold the gate.
           requiredTag: { select: { name: true } },
           group: {
             select: {
@@ -268,24 +223,16 @@ export default async function CharacterPage() {
               requiredTag: { select: { name: true } },
             },
           },
-          // The recipe's skills are advice here, not a gate (TAGS.md §3b):
-          // `name` feeds the picker's "To make: …" line, `slug` the Dead
-          // Simple 4-per-turn hint.
+          // Recipe skills are advice here, not a gate (TAGS.md §3b).
           requirementSkills: { select: { name: true, slug: true } },
           requirementTurns: true,
-          // Not consumed by any check on this menu yet, but every catalog
-          // projection that could feed conflictingTag() carries the field so
-          // adding a display here later doesn't also need a select change.
           conflictsWith: { select: { id: true } },
         },
       }),
-      // id -> parentTagId for the whole catalog, so a held Medical (Expert)
-      // resolves back down its chain to the Medical (Basic) gate. Four columns
-      // over a few hundred rows — cheaper than nesting three parentTag includes.
+      // id -> parentTagId for the whole catalog, to resolve a held tier back
+      // down its chain to its gate.
       prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-      // ALL statuses — the gate evaluator needs the whole history to compute
-      // per-desire and per-slot cooldowns, and the panel prints each slot's
-      // last claim.
+      // ALL statuses — the gate evaluator needs the whole history.
       prisma.desire.findMany({
         where: { characterId: character.id },
         select: {
@@ -297,15 +244,11 @@ export default async function CharacterPage() {
           points: true,
           setTurnNumber: true,
           endedTurnNumber: true,
-          // So a slot's last claim can say its own cooldown. Null for a GM
-          // free-text Desire, which then just says nothing about it.
           template: { select: { tier: true, cooldownTurns: true, onceEver: true } },
         },
       }),
-      // The gate fields db/lib/desireGates.js needs, projected through
-      // web/lib/desireProjection.js below — never re-derived inline (see
-      // that file's header on why an unresolved role slug must fail closed
-      // rather than being dropped).
+      // Gate fields db/lib/desireGates.js needs, projected through
+      // web/lib/desireProjection.js below.
       prisma.desireTemplate.findMany({
         where: { retired: false },
         orderBy: { sortOrder: "asc" },
@@ -337,11 +280,7 @@ export default async function CharacterPage() {
           desiresEnabled: true,
           desireSlots: true,
           desireSlotLockTurns: true,
-          // Read here too, for the Spend Tag Points modal folded in from the
-          // old /store page — see store below.
           maxDrawbackTags: true,
-          // The Move-cutoff row: no cron, no lock — same input the bot's gate
-          // and the announcement read, or this one surface contradicts them.
           autoTurnAdvanceDisabled: true,
         },
       }),
@@ -349,9 +288,7 @@ export default async function CharacterPage() {
     ]);
 
   // Desires. Every evaluation happens HERE, server-side — the client never
-  // runs the gate logic and never receives a hidden template. character.tags
-  // already carries desireLocks: its `tag` relation is loaded with `include`
-  // (not `select`), which pulls every scalar column, desireLocks included.
+  // runs the gate logic or receives a hidden template.
   const desireSlots = gameConfig?.desireSlots ?? 2;
   const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
   const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
@@ -369,18 +306,10 @@ export default async function CharacterPage() {
     openTurnNumber: openTurn?.number ?? 0,
     desireSlots,
   });
-  // `desireCatalogEvaluated` IS `evaluateDesireCatalog`'s `visible` array —
-  // the `hidden` half (db/lib/desireGates.js) is never bound to a variable
-  // above, so a "hidden" template has no path from here into the shape
-  // below. That is the filter: nothing after this line ever sees it.
-  // A "locked" entry — an unmet requires gate, or a family a held tag shuts —
-  // is dropped here too, so the picker only ever lists what this character
-  // has access to and the evaluator's reason strings never leave the server.
-  // Cooldown and once-ever-done rows stay: those are yours, just not
-  // claimable right now. `slotLocks` rides along instead of being filtered
-  // here, because a slot-scoped lock (an Addiction) shuts one slot and leaves
-  // the others open — which slot the player is claiming into isn't known until
-  // they open the picker.
+  // The `hidden` half (db/lib/desireGates.js) never reaches this variable.
+  // A "locked" entry (unmet requires, or a family a held tag shuts) is
+  // dropped here too. Cooldown/once-ever-done rows stay, since those are
+  // claimed already, just not claimable right now.
   const desireCatalog = desireCatalogEvaluated
     .filter(({ state }) => state !== "locked")
     .map(({ template, state, availableFromTurn, slotLocks }) => ({
@@ -392,20 +321,13 @@ export default async function CharacterPage() {
       state,
       availableFromTurn,
       slotLocks,
-      // The per-desire cooldown, resolved the same way the evaluator does
-      // (desireGates.js: cooldownTurns ?? tier), so the row prints the
-      // number the gate will actually use.
       cooldownTurns: template.cooldownTurns ?? template.tier,
       onceEver: Boolean(template.onceEver),
-      // Safe to name here and only here: every row past the filter above is
-      // one this character's own tags/role opened (desireGates.js#unlockedBy).
       unlockedBy: unlockedBy(template, {
         heldTagIds: heldDesireTagIds,
         roleSlug: character.role?.slug ?? null,
       }),
     }));
-  // Why the list is as short as it is — one line per lock a held tag puts on
-  // the catalog, since the locked rows themselves are gone.
   const desireLockNotes = describeDesireLocks(
     character.tags.map((ct) => ct.tag),
     new Map(desireFamilies().map((f) => [f.key, f.name])),
@@ -416,15 +338,10 @@ export default async function CharacterPage() {
     desireSlots,
     lockTurns: desireSlotLockTurns,
   });
-  // Which held tag, if any, binds the bottom slot — the caption on the panel's
-  // Addiction box. Derived from the lock shape, not from a tag group.
   const desireAddiction = bottomSlotAddiction(character.tags.map((ct) => ct.tag));
 
-  // The mid-game tag store, folded into the sheet as a modal (see
-  // StorePanel.js). Held ids widen the catalog so unpurchasable held tags (a
-  // GM-granted Demoness, a crafted item) still reach the client's byId map —
-  // chain discounts and hidden-category gates key off them. This reuses
-  // character.tags, already loaded above, rather than re-querying the sheet.
+  // Held ids widen the store catalog so unpurchasable held tags (a
+  // GM-granted item) still reach the client's byId map.
   const heldIds = character.tags.map((ct) => ct.tagId);
   const storeTags = await loadPointBuyCatalog(heldIds);
   const heldSet = new Set(heldIds);
@@ -432,17 +349,14 @@ export default async function CharacterPage() {
     .filter((t) => heldSet.has(t.id))
     .map((t) => ({ id: t.id, name: t.name }));
   // Both ends of a transfer list every Silo and every living player,
-  // INCLUDING yourself — pulling ⬢ out of a Silo into your own pocket is the
-  // common case, and self -> self is already refused by the same-party guard
-  // in transferResourcesRequest. See REQUESTS.md §"the source can be anyone".
+  // including yourself. See REQUESTS.md §"the source can be anyone".
   const selfEntry = { id: character.id, name: character.name };
   const transferParties = {
     characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
     factions,
   };
-  // Healing. The medical gate is resolved here, server-side, so no tier-chain
-  // math (and no other character's full sheet) reaches the client bundle —
-  // TagRequestButtons gets a finished, presentational shape.
+  // Healing. The medical gate is resolved here, server-side, so no
+  // tier-chain math reaches the client bundle.
   const ancestry = buildSkillAncestry(tierRows);
   const satisfied = satisfiedSkillIds(
     character.tags.map((ct) => ct.tagId),
@@ -451,31 +365,20 @@ export default async function CharacterPage() {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
-  // Owning a horse is a fact about your OWN sheet, so this one may grey the
-  // button out — ActionGrid.js's rule only forbids greying for facts about who
-  // is standing near you. The server re-derives it anyway.
+  // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const canFastTravel = character.tags.some((ct) => FAST_TRAVEL_SLUGS.has(ct.tag.slug));
-  // Rider included — a solo horse trip is "1 seat used, 2 available", not
-  // "0 passengers". 0 means no vehicle tag at all (fastTravelCapacity),
-  // which canFastTravel above already gates the button on.
+  // Rider included: a solo horse trip is "1 seat used, 2 available".
   const fastTravelSeats = fastTravelCapacity(heldSlugs);
 
-  // The Bird. Both flags are facts about this character's own sheet, so both
-  // may drive the button — see ActionGrid.js for why these two HIDE it rather
-  // than greying it.
   const hasBird = holdsBirdAndLetters(character.tags);
   const isLiterate = heldSlugs.has(LITERATE_SLUG);
-  // Compared against the in-game DAY, not the turn: a day is two turns, and
-  // birdTurnId stores String(describeTurn(turn).day) for exactly that reason.
-  // Advisory only — the server's conditional claim is the real gate.
+  // Compared against the in-game DAY (birdTurnId stores the day), not the
+  // turn. Advisory only — the server's conditional claim is the real gate.
   const birdSentToday =
     Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
 
-  // Skipped entirely for the great majority who aren't medics, and for anyone
-  // a GM hasn't placed yet. Character.zoneId is the authoritative "where are
-  // you" field since the zone rework — always a presence zone, never the
-  // Caves group row.
+  // Skipped for the majority who aren't medics, and for anyone unplaced.
   const coLocated =
     canHeal && character.zoneId
       ? await prisma.character.findMany({
@@ -484,9 +387,7 @@ export default async function CharacterPage() {
           select: {
             id: true,
             name: true,
-            // Deliberately no `resources` — a member's balance stays behind
-            // Silo authority (see CLAUDE.md), and the payer menu never shows
-            // balances anyway. Affordability is re-checked server-side.
+            // No `resources` — a balance stays behind Silo authority.
             tags: {
               select: {
                 tag: {
@@ -506,9 +407,8 @@ export default async function CharacterPage() {
         })
       : [];
 
-  // Filtered down to treatable tags HERE rather than in the client, so nobody
-  // else's full sheet crosses the wire. A target with nothing to treat drops
-  // out of the menu entirely.
+  // Filtered to treatable tags HERE, not the client, so nobody else's full
+  // sheet crosses the wire.
   const healTargets = coLocated
     .map((t) => ({
       id: t.id,
@@ -521,29 +421,21 @@ export default async function CharacterPage() {
           tagName: tag.name,
           cost: healCost(tag),
           requirementLabel: formatTagRequirement(tag),
-          // Empty means this medic may treat it; otherwise the names the
-          // disabled row shows. Re-derived server-side on submit.
           missingSkills: missingSkillsFor(tag, satisfied).map((s) => s.name),
         })),
     }))
     .filter((t) => t.healable.length > 0);
 
-  // Everyone standing here, plus EVERY faction Silo regardless of authority —
-  // the same reach TRANSFER_RESOURCES has, per REQUESTS.md.
+  // Everyone here, plus every faction Silo, per REQUESTS.md.
   const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
 
-  // ONE roster for every action that acts on somebody standing here — Loot,
-  // Move Player, Bind, Free and Harm — so the menus can't disagree about who
-  // is in the room. Trimmed here so nobody else's full sheet crosses the
-  // wire, and a player must open a dialog to see who's helpless (ActionGrid.js).
+  // ONE roster for every action on somebody standing here (Loot, Move,
+  // Bind, Free, Harm), so the menus can't disagree.
   const zoneRoster = character.zoneId
     ? await prisma.character.findMany({
         where: {
           zoneId: character.zoneId,
-          // A buried body has left the world (BURY_CHARACTER): it stops being
-          // lootable, draggable or bindable, so it stops appearing here too.
-          // Every one of the five target menus below derives from this one
-          // roster, which is what keeps them from disagreeing about it.
+          // A buried body has left the world (BURY_CHARACTER) and stops appearing.
           OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }],
           id: { not: character.id },
         },
@@ -564,19 +456,13 @@ export default async function CharacterPage() {
       })
     : [];
 
-  // The catalog name of whichever incapacitating tag they hold, so the target
-  // lists read "Mira Solt — Bound" rather than making a player guess why
-  // somebody is on the menu. db/lib/incapacitation.js owns the set.
+  // The catalog name of whichever incapacitating tag they hold.
   function conditionOf(c) {
     return c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ?? null;
   }
   const helpless = zoneRoster.filter((c) => c.status === "DEAD" || conditionOf(c));
 
-  // A body, or anyone who can't stop you. Only `tradeable` tags come off — the
-  // same per-tag gate the transfer system enforces, so a corpse's House, its
-  // Drone and the thing grafted into its neck all stay put. Someone carrying
-  // nothing still appears: the dialog says so, and hiding them would make an
-  // empty menu mean two different things.
+  // A body, or anyone who can't stop you. Only `tradeable` tags come off.
   const lootTargets = helpless.map((c) => ({
     id: c.id,
     name: c.name,
@@ -593,15 +479,11 @@ export default async function CharacterPage() {
       })),
   }));
 
-  // Deliberately unfiltered: everyone here, led or bound or neither, plus the
-  // bodies. Narrowing it to who you may actually move would turn the menu into
-  // a readout of who is tied up — the server's own gate rejects the rest with
-  // wording that explains itself.
+  // Deliberately unfiltered: narrowing to who you may actually move would
+  // give away who's tied up. The server's own gate rejects the rest.
   const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
-  // Fast Travel passengers, unlike Move Player's target, ARE filtered — the
-  // whole point of the "anyone co-present" rule is that riding along is a
-  // friendly act, not something done to a body or someone tied up, so a
-  // corpse or a Bound person never appears on this particular menu.
+  // Unlike Move Player's target, this one IS filtered — riding along is a
+  // friendly act, so a corpse or Bound person never appears.
   const fastTravelTargets = moveTargets.filter((c) => c.status === "ALIVE");
   const moveZones = character.zoneId
     ? (
@@ -618,13 +500,8 @@ export default async function CharacterPage() {
       )?.connectsTo ?? []
     : [];
 
-  // The Bird's two menus, and only fetched for someone who actually holds a
-  // bird — every other character pays nothing for this feature existing.
-  //
-  // The recipient list is EVERY character, whatever their status. That is the
-  // whole reason it can be shown at all: a list of the living updates itself
-  // into a casualty report, readable by anyone who opens the dialog twice a
-  // week. A letter to a dead name simply never arrives.
+  // Only fetched for someone who holds a bird. Recipient list is EVERY
+  // character regardless of status; a letter to a dead name never arrives.
   const birdTargets = hasBird
     ? (
         await prisma.character.findMany({
@@ -634,8 +511,7 @@ export default async function CharacterPage() {
         })
       )
     : [];
-  // Everywhere standable except the two deep cave levels. birdZones() is the
-  // one place that rule lives, shared with the server action's own re-check.
+  // Everywhere standable except the two deep cave levels (birdZones()).
   const birdZoneOptions = hasBird
     ? birdZonesOf(
         await prisma.zone.findMany({
@@ -645,8 +521,7 @@ export default async function CharacterPage() {
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
 
-  // Bind and Free split this one list on `bound`, so the two menus can never
-  // disagree about the same person.
+  // Bind and Free split this one list on `bound`.
   const bindTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
@@ -655,8 +530,7 @@ export default async function CharacterPage() {
       bound: c.tags.some((ct) => ct.tag.slug === "bound"),
     }));
 
-  // Harm needs someone already helpless, and `finishable` is the narrower
-  // Dying-or-Bound gate on the lethal half. Both re-derived server-side.
+  // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
   const harmTargets = helpless
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
@@ -666,12 +540,9 @@ export default async function CharacterPage() {
       finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
     }));
 
-  // The injuries that can be inflicted. Not the whole Health category — that
-  // is the set the cure ladder TREATS (TAGS.md §5c), and most of it is the
-  // aftermath of an injury rather than an injury. isInflictable narrows it to
-  // wounds and maiming; see web/lib/healRequests.js. The filter runs in JS,
-  // not as a Prisma where, so this and the server action's re-check are the
-  // same predicate and cannot drift.
+  // Not the whole Health category (TAGS.md §5c) — isInflictable narrows it
+  // to wounds and maiming. Filtered in JS so this and the server action's
+  // re-check share the same predicate.
   const harmTags = (
     await prisma.tag.findMany({
       where: { category: HEALABLE_CATEGORY, custom: false },
@@ -685,8 +556,6 @@ export default async function CharacterPage() {
         custom: true,
         pointCost: true,
         stackable: true,
-        // group.slug is what isInflictable reads; name and color are the
-        // picker's heading and swatch.
         group: { select: { slug: true, name: true, color: true } },
       },
     })
@@ -694,18 +563,13 @@ export default async function CharacterPage() {
 
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
-  // The Move cutoff for StatusPanel's "This turn" row. It rides on the turn
-  // object CharacterSheet already forwards rather than becoming a prop on
-  // every layer between here and the panel — the window is a fact about this
-  // turn, and nothing else reads more than openTurn.number.
+  // The Move cutoff for StatusPanel's "This turn" row.
   const openTurnWithWindow = openTurn
     ? { ...openTurn, moveWindow: moveWindow(openTurn, { autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false }) }
     : openTurn;
 
-  // A Gambit's die is rolled at submit but never shown here — the reveal is
-  // the turn-end DM (db/lib/stagedPush.js's gambitRollNotices), alongside the
-  // adjudication that explains what the roll did. Stripped server-side
-  // because currentAction crosses into a client component below.
+  // A Gambit's die is rolled at submit but revealed only in the turn-end DM;
+  // stripped here since currentAction crosses into a client component.
   const sheetAction = currentAction
     ? { ...currentAction, diceRoll: null, diceModifier: null }
     : currentAction;
@@ -742,9 +606,7 @@ export default async function CharacterPage() {
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
       portraitFantasyPartsEnabled={gameConfig?.portraitFantasyPartsEnabled ?? false}
-      // Re-validated here rather than trusted from the column: a stored index
-      // can outlive a catalog change, and a fantasy part can outlive the
-      // switch that allowed it.
+      // Re-validated here: a stored index can outlive a catalog change.
       portraitSelection={parseSelection(character.portrait, {
         allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
       })}
