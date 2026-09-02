@@ -21,31 +21,56 @@ export function isAnyDirty() {
   return dirtyInstances > 0;
 }
 
-export default function useDirtyGuard({ enabled = true } = {}) {
+// `initialDirty` is for a panel that opens ALREADY holding unsaved content —
+// the composer behind "Stage as message" arrives prefilled with the GM's whole
+// outcome. Without it that composer is born clean, so Escape, a backdrop click
+// or Cancel discarded the message with no confirm, no beforeunload and no
+// trace. That is how a staged message came to never be staged.
+export default function useDirtyGuard({ enabled = true, initialDirty = false } = {}) {
   const confirm = useConfirm();
-  const [dirty, setDirty] = useState(false);
-  const dirtyRef = useRef(false);
+  const [dirty, setDirty] = useState(initialDirty);
+  const dirtyRef = useRef(initialDirty);
+  // Whether this instance currently contributes its 1 to dirtyInstances. The
+  // single source of truth for the counter, so registering, marking and
+  // unmounting can never double-count in either direction.
+  const counted = useRef(false);
 
+  // Counter mutations stay OUT of the setState updaters: React may call an
+  // updater twice (StrictMode, or a rebase in a concurrent transition), and
+  // `dirtyInstances` is a side effect — a replayed markClean used to be able
+  // to drive it below this instance's real contribution, which silently
+  // un-gated the 45s poll and the switch-rows confirm. Same discipline as
+  // QueueRail.js's scroll handling.
   const markDirty = useCallback(() => {
-    setDirty((prev) => {
-      if (!prev) dirtyInstances += 1;
-      dirtyRef.current = true;
-      return true;
-    });
+    dirtyRef.current = true;
+    if (!counted.current) {
+      counted.current = true;
+      dirtyInstances += 1;
+    }
+    setDirty(true);
   }, []);
   const markClean = useCallback(() => {
-    setDirty((prev) => {
-      if (prev) dirtyInstances = Math.max(0, dirtyInstances - 1);
-      dirtyRef.current = false;
-      return false;
-    });
+    dirtyRef.current = false;
+    if (counted.current) {
+      counted.current = false;
+      dirtyInstances = Math.max(0, dirtyInstances - 1);
+    }
+    setDirty(false);
   }, []);
 
-  // Unmounting with unsaved edits still in flight (e.g. a hard navigation
-  // past beforeunload) must not leave the counter stuck positive.
+  // Register an initially-dirty panel's contribution, and drop whatever this
+  // instance still holds on unmount — unsaved edits in flight (e.g. a hard
+  // navigation past beforeunload) must not leave the counter stuck positive.
   useEffect(() => {
+    if (dirtyRef.current && !counted.current) {
+      counted.current = true;
+      dirtyInstances += 1;
+    }
     return () => {
-      if (dirtyRef.current) dirtyInstances = Math.max(0, dirtyInstances - 1);
+      if (counted.current) {
+        counted.current = false;
+        dirtyInstances = Math.max(0, dirtyInstances - 1);
+      }
     };
   }, []);
 

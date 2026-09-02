@@ -11,6 +11,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import RequestDialog from "@/app/components/RequestDialog";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
+import { useConfirm } from "@/app/components/ConfirmProvider";
 import useMoveLock from "./useMoveLock";
 import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
@@ -19,6 +20,7 @@ import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
+import { stagingReaches } from "@/lib/moveRows";
 
 // The arbitration desk for one Move. Everything a GM does here STAGES: the
 // Result box is the canon of what happened (GM-facing, one field — gmNotes
@@ -72,6 +74,7 @@ export default function MoveDesk({
   const [refresh] = useRefresh();
   const router = useRouter();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  const confirm = useConfirm();
   const { locked, error: lockError } = useMoveLock(move.id);
 
   // The workspace's layered Escape deselects through the same dirty guard
@@ -108,8 +111,27 @@ export default function MoveDesk({
     [markDirty],
   );
 
-  function run(mode) {
+  // Solving is the last moment anyone looks at this Move, and the Result box
+  // is GM-facing — it is never sent. A Move whose outcome lives only there
+  // reaches its player as silence, and for a Gambit that silence is total
+  // (Gambits are excluded from the passed-Routine fallback DM). So say so
+  // before the GM walks away from it.
+  async function run(mode) {
     setError(null);
+    if (
+      mode === "solve" &&
+      edits.resultMessage.trim() &&
+      !stagingReaches(move.characterId, staged)
+    ) {
+      const ok = await confirm({
+        title: `Nothing you've staged reaches ${move.characterName}`,
+        message:
+          "The Result box is GM-facing and is never sent. Stage it as a message first, or solve anyway if they hear about this another way.",
+        confirmLabel: "Solve anyway",
+        cancelLabel: "Back to staging",
+      });
+      if (!ok) return;
+    }
     startTransition(async () => {
       try {
         const res = await resolveMove({ actionId: move.id, mode, edits });

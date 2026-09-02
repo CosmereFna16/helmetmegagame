@@ -37,7 +37,13 @@ export default function MessageComposer({
   const [search, setSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // A composer opened by "Stage as message" arrives holding the GM's whole
+  // outcome, typed nowhere else. It has to count as unsaved from the first
+  // frame or Escape/backdrop/Cancel throws it away without asking. Editing an
+  // `existing` staged row is not seeded dirty: that text is already a row.
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    initialDirty: !existing && Boolean((initialContent ?? "").trim()),
+  });
 
   const matches = useMemo(() => {
     const q = search.trim();
