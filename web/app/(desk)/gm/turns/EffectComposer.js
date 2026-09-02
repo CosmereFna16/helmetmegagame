@@ -152,22 +152,39 @@ export default function EffectComposer({
   }, [targetSearch, roster, targets]);
 
   const stagedByTagId = useMemo(
-    () => new Map([...ops.entries()].map(([tagId, op]) => [tagId, op.op])),
+    () =>
+      new Map(
+        [...ops.entries()].map(([tagId, op]) => [
+          tagId,
+          op.op === "add" && op.quantity > 1 ? `add ×${op.quantity}` : op.op,
+        ]),
+      ),
     [ops],
   );
 
-  function stageOp(tagId, op) {
+  // A row's in-progress "how many to add" — separate from the staged
+  // quantity itself, same reason quantityDrafts is separate from op.quantity.
+  const [addQtyDrafts, setAddQtyDrafts] = useState(() => new Map());
+
+  function stageOp(tagId, op, quantity = 1) {
     // `cancelledName` is computed OUT HERE, not read inside the functional
     // updater below — React may invoke that updater twice, and the notice is
     // a side effect (same discipline QueueRail's own key handler follows).
     let cancelledName = null;
     setOps((prev) => {
       const next = new Map(prev);
-      const merged = mergeTagOp(next.get(tagId), { tagId, op, quantity: 1 });
+      const merged = mergeTagOp(next.get(tagId), { tagId, op, quantity });
       if (merged == null) {
         next.delete(tagId);
         cancelledName = tagById.get(tagId)?.name ?? "that tag";
       } else {
+        // force is about the TOTAL staged quantity, not the increment just
+        // added — two "+1"s on a non-stackable tag need it exactly as much
+        // as one "+2" does.
+        const tag = tagById.get(tagId);
+        if (merged.op === "add" && merged.quantity > 1 && tag && !tag.stackable) {
+          merged.force = true;
+        }
         next.set(tagId, merged);
       }
       return next;
@@ -185,15 +202,18 @@ export default function EffectComposer({
       const op = next.get(tagId);
       if (!op) return prev;
       let quantity;
-      if (trimmed === "") {
+      if (trimmed === "" && op.op !== "add") {
         // Blanking the box means "the whole holding" — the same null the Dev
-        // Panel's own Remove uses (lib/tagOpAlgebra.js).
+        // Panel's own Remove uses (lib/tagOpAlgebra.js). An `add` has no
+        // "whole holding" to mean, so it just falls back to what was there.
         quantity = null;
       } else {
         const parsed = Number.parseInt(trimmed, 10);
         quantity = Number.isInteger(parsed) && parsed > 0 ? parsed : op.quantity;
       }
-      next.set(tagId, { ...op, quantity });
+      const tag = tagById.get(tagId);
+      const force = op.op === "add" && quantity > 1 && tag && !tag.stackable;
+      next.set(tagId, { ...op, quantity, ...(force ? { force: true } : {}) });
       return next;
     });
     setQuantityDrafts((prev) => {
@@ -209,10 +229,21 @@ export default function EffectComposer({
   }
 
   function renderTagBrowserActions(tag, { held: isHeld, staged }) {
+    const draft = addQtyDrafts.get(tag.id);
+    const n = Number.parseInt(draft ?? "1", 10);
+    const qty = Number.isInteger(n) && n > 0 ? n : 1;
     return (
       <>
-        <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "add")}>
-          + Add
+        <input
+          type="number"
+          min="1"
+          className="desk-qty"
+          value={draft ?? "1"}
+          onChange={(e) => setAddQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))}
+          aria-label="Quantity to add"
+        />
+        <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "add", qty)}>
+          {qty > 1 ? `+ Add ×${qty}` : "+ Add"}
         </button>
         {(!soleTargetId || isHeld) && (
           <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "remove")}>
@@ -403,19 +434,21 @@ export default function EffectComposer({
               <div key={op.tagId} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="mono">{op.op === "add" ? "+" : "−"}</span>
                 {tag ? <TagChip tag={tag} /> : <span>Unknown tag</span>}
-                {tag?.stackable && (
+                {(op.op === "add" || tag?.stackable) && (
                   <input
                     type="number"
                     min="1"
                     className="desk-qty"
                     value={quantityDrafts.has(op.tagId) ? quantityDrafts.get(op.tagId) : (op.quantity ?? "")}
-                    placeholder={op.quantity == null ? "all" : undefined}
+                    placeholder={op.op !== "add" && op.quantity == null ? "all" : undefined}
                     onChange={(e) => {
                       setQuantityDrafts((prev) => new Map(prev).set(op.tagId, e.target.value));
                       markDirty();
                     }}
                     onBlur={(e) => commitQuantity(op.tagId, e.target.value)}
-                    aria-label="Quantity — blank means the whole holding"
+                    aria-label={
+                      op.op === "add" ? "Quantity" : "Quantity — blank means the whole holding"
+                    }
                   />
                 )}
                 <button

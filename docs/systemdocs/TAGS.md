@@ -747,6 +747,21 @@ about `quantity`; everything else goes through them:
 | `dropCharacterTag(tx, characterId, tagId, n)` | decrement, deleting the row at 0. `n = null` (the default) drops the whole holding — what an ordinary tag always wants. |
 | `restoreCharacterTag(tx, characterId, snapshot)` | undo's inverse. **Increments** on the update branch: `snapshot.quantity` is what the request took away, not what the character should end up holding. |
 
+**A GM can stack any tag, catalog `stackable` or not.** The Dev Panel and the
+turn desk's staged effects (`DEV-PANEL.md` §5) let a GM grant more than one of
+a tag the catalog marked non-stackable — the button reads "Grant ×3" and the
+op carries `force: true`, which tells `validateTagOps` (`db/lib/tagOps.js`)
+to skip the "doesn't stack" refusal and tells `addToStack` to actually keep
+the count instead of pinning it to 1. This is a GM surface bypassing a gate
+like every other GM surface (§6 below) — the player-facing paths (Add Tag,
+PointBuy) never see `force` and still can't stack a non-stackable tag. One
+wrinkle: a forced stack on a tag with `expiresInto` is progressed as **one
+row** by the untreated-wound pass (`db/lib/tagExpiryPass.js`) — the whole
+stack turns into one successor together, since that pass only reads
+`stackable: false` rows. `sweepExpiredStacks()` still only handles
+catalog-`stackable` tags, so a forced stack sheds nothing on its own; it just
+sits there until a GM removes it or its chain fires.
+
 Add Tag, Remove Tag and Transfer Tag all carry a quantity, clamped
 server-side to what the sender actually holds, and record it on
 `Request.effect` so Undo stays an exact inverse (`REQUESTS.md` §2). A GM's

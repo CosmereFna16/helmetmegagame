@@ -232,7 +232,7 @@ function BrowserRow({
   return (
     <li className="dev-tag-row" style={{ outline: stagedOutline(staged) }}>
       <span className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
-        {selectable && !held && (
+        {selectable && (
           <input
             type="checkbox"
             checked={selected}
