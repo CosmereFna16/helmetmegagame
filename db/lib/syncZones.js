@@ -1,4 +1,4 @@
-// docs/zones.yaml -> DB + Discord, shared by db/prisma/sync-zones.js
+// docs/zones.yaml -> DB + Discord, shared by db/scripts/sync/sync-zones.js
 // (manual `npm run db:sync-zones`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js). docs/zones.yaml is the sole source of
 // truth for the Zone roster and its Location topics: this function fully

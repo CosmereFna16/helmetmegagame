@@ -10,8 +10,8 @@
 // custom flag — delete the lot. Keeping it out of that path keeps the blast
 // radius somewhere a human is watching.
 require("dotenv").config();
-const { prisma } = require("../index");
-const { pruneTagsFromYaml } = require("../lib/pruneTags");
+const { prisma } = require("../../index");
+const { pruneTagsFromYaml } = require("../../lib/pruneTags");
 
 async function main() {
   const apply = process.argv.includes("--apply");

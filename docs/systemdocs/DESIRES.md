@@ -295,9 +295,9 @@ clan-feud desires that gated on it.
 `ascetic` went the same way, came back the same day, and was pulled again for
 good later on 2026-09-02 — with it went the `ascetic` Desire family and its one
 member, `sit-in-bliss`. Because that second removal was a design retraction and
-not a cure, §7's clawback deliberately did **not** apply: `db:retire-ascetic`
-(`db/prisma/retire-ascetic.js`) deleted the row and its seven holdings and left
-every holder's `tagPoints` untouched.
+not a cure, §7's clawback deliberately did **not** apply: a one-off script
+deleted the row and its seven holdings and left every holder's `tagPoints`
+untouched.
 
 ‡ The price band follows an income-based rationale: a tag is priced by how
 much of the catalog it closes against how much it opens. Depressed, closing
@@ -557,7 +557,7 @@ The section number is kept rather than renumbering everything below it.
 | File | Role |
 |---|---|
 | `docs/desires.yaml` | Sole master for the `DesireTemplate` catalog — families header + desire entries |
-| `db/lib/syncDesires.js` | `docs/desires.yaml` → DB. Four-pass soft-retire sync, `npm run db:sync-desires` / `db/prisma/sync-desires.js` |
+| `db/lib/syncDesires.js` | `docs/desires.yaml` → DB. Four-pass soft-retire sync, `npm run db:sync-desires` / `db/scripts/sync/sync-desires.js` |
 | `db/lib/desireFamilies.js` | Reads only the `families:` / `familyGroups:` headers — `desireFamilyKeys` for `db/lib/syncTags.js` to validate a tag's `desires.locks` families against, `desireFamilies` (key/name/group/colour) and `desireFamilyGroups` for the picker. Tolerates a missing `desires.yaml` |
 | `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3, `slot: bottom` included) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
 | `db/lib/desireGates.js` | Pure gate evaluator, no DB. `evaluateDesireCatalog` (visible/hidden catalog per character, plus per-entry `slotLocks`), `slotStates` (per-slot lock + last claim), `describeDesireLocks`, `bottomSlotAddiction` |
@@ -570,4 +570,3 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action. Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
 | `web/lib/requestEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
 | `bot/src/events/messageReactionAdd.js` | The 🔍/⚜️ embeds' `Last Desire` field — the most recent `FULFILLED` row, gated by `db/lib/inspectVision.js` |
-| `db/prisma/backfill-desires.js` | One-off: moves live holdings off six retired-in-place drawback tags onto their catalog-era replacements; `npm run db:backfill-desires` |

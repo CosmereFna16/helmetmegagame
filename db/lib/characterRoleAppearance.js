@@ -12,7 +12,7 @@
 //
 // Note that a role in the catatonic state no longer matches the
 // character-role signature (mentionable + hashNameToColor(role.name) — see
-// db/prisma/prune-orphan-roles.js). That's safe: the channel doctor and the
+// db/scripts/ops/prune-orphan-roles.js). That's safe: the channel doctor and the
 // pruner both skip any role a character claims before they ever test the
 // signature, and only claimed roles are ever put into this state.
 const { hashNameToColor } = require("./roleColor");

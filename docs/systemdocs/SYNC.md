@@ -241,33 +241,31 @@ It is deliberately terminal-only and **not** wired into Restart Game: a wipe
 clears every `CharacterTag` first, so a prune running there would find every
 custom tag unheld and delete the lot.
 
-## 4. Repair and one-off scripts
+## 4. Ops scripts
 
-The zone rework retired most of what used to be on this list. Every backfill
-that patched per-Location channel overwrites (`db:backfill-member-access`,
-`db:backfill-gm-permissions`, `db:backfill-spectator-access`,
-`db:backfill-cursed-access`, `db:backfill-persistent-tag`,
-`db:backfill-tupper-attachment-restriction`, `db:backfill-archive-channel-ids`)
-is gone, along with `db:prune-orphan-categories` and `map:check`. What replaced
-them is the every-run reconcile in `db:sync-zones` plus the channel doctor,
-which fixes drift by diffing rather than by a script per symptom.
+Everything that runs from a terminal lives under `db/scripts/`: `sync/` for
+the YAML masters (§1) and `ops/` for the tools below. There are no repair
+backfills left; the every-run reconcile in `db:sync-zones` plus the channel
+doctor fix drift by diffing rather than by a script per symptom, and a
+pre-launch wipe rebuilds everything else from YAML.
 
 | Command | What it does |
 |---|---|
+| `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). `-- --seed-silos` also re-seeds every faction Silo. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
-| `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Guards the 250-role guild cap. |
-| `db:backfill-roles` | Creates the personal Discord role for characters that predate it. Does not assign it — nobody holds these. |
-| `db:backfill-name-parts` | Repair pass for the four-part character name; also the drift check on the denormalized `Character.name`. |
-| `db:backfill-fighting-split` | One-off: retires the `fighting-*` tag tree in favour of `melee-*`/`ranged-*` and rescales the point economy. No Discord. |
-| `db:backfill-desires` | One-off (Desires rework): moves live holdings off six retired-in-place drawback tags onto their catalog-era replacements, and drops five tags absorbed into the flat rebalance with no replacement concept. Run after `db:sync-tags` and `db:sync-desires` — see `DESIRES.md` §11 and the script's own header. No Discord. |
 | `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags. |
+| `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Guards the 250-role guild cap. |
+| `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
 | `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch`/`#intercom` channels from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
+| `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
+| `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. `db:sync-zones` re-walls them. |
+| `db:backup` | Takes a Railway volume backup now (`scripts/db/railway-backup.sh`). `migrate.sh` runs it before every migration. |
 
 ## 5. Where the code lives
 
 `db/lib/syncZones.js`, `syncTags.js`, `syncRoles.js`, `syncDesires.js`,
 `syncDocuments.js`, `syncSpecialChannels.js`, each with a thin
-`db/prisma/sync-*.js` terminal wrapper. `db/lib/zoneChannelSpec.js` is the
+`db/scripts/sync/*.js` terminal wrapper (`db/scripts/sync/all.js` runs them in order). `db/lib/zoneChannelSpec.js` is the
 one description of a zone's Discord layout; `db/lib/channelDoctor.js` is the
 reconciler; `db/lib/fullWipe.js` is the Restart Game nuke.

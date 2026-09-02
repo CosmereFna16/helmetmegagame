@@ -1,5 +1,5 @@
 # Source of truth for #info's content, hand-edited then pushed with
-# `npm run db:rebuild-info-channel` (db/prisma/rebuild-info-channel.js).
+# `npm run db:rebuild-info-channel` (db/scripts/sync/rebuild-info-channel.js).
 #
 # Unlike zones.yaml/roles.yaml, this is NOT an upsert — every run is a
 # full destructive wipe of #info (every message, every thread) followed by

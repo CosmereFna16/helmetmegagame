@@ -7,8 +7,8 @@
 //   npm run db:doctor -- --apply       # cheap checks, repaired
 //   npm run db:doctor -- --full --apply
 require("dotenv").config();
-const { prisma } = require("../index");
-const { runChannelDoctor } = require("../lib/channelDoctor");
+const { prisma } = require("../../index");
+const { runChannelDoctor } = require("../../lib/channelDoctor");
 
 async function main() {
   if (!process.env.DISCORD_TOKEN || !process.env.DISCORD_GUILD_ID) {

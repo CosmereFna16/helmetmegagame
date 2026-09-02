@@ -223,8 +223,8 @@ theme would put black labels on a night picture.
 
 There is no `map:check`. The old geometry checker existed to catch crossing
 roads and overlapping nodes in a pointcrawl of two dozen Locations; four nodes
-placed by hand off the art have neither problem, so `db/prisma/check-map.js`
-and the script stay gone.
+placed by hand off the art have neither problem, so the checker and its
+script stay gone.
 
 ## 6. Where the code lives
 

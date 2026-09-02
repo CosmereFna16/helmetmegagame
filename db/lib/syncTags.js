@@ -1,4 +1,4 @@
-// docs/tags.yaml + docs/taggroups.yaml -> DB, called by db/prisma/sync-tags.js
+// docs/tags.yaml + docs/taggroups.yaml -> DB, called by db/scripts/sync/sync-tags.js
 // (manual `npm run db:sync-tags`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js) — see docs/systemdocs/TAGS.md.
 // Those two files are the sole creation path for TagGroup/Tag rows; this

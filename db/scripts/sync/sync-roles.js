@@ -12,7 +12,7 @@
 // Restart Game wipe performs. Useful after changing GameConfig.playerCount
 // on /gm/dev for a game smaller or bigger than the default 100.
 require("dotenv").config();
-const { prisma, syncRolesFromYaml } = require("../index");
+const { prisma, syncRolesFromYaml } = require("../../index");
 
 async function main() {
   const seedSilos = process.argv.includes("--seed-silos");

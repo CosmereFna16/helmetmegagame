@@ -7,7 +7,7 @@
 // Run this AFTER db:sync-tags and db:sync-roles — assignment references are
 // validated against the Tag/Role/Faction rows those two create.
 require("dotenv").config();
-const { prisma, syncDocumentsFromYaml } = require("../index");
+const { prisma, syncDocumentsFromYaml } = require("../../index");
 
 async function main() {
   const summary = await syncDocumentsFromYaml(prisma);

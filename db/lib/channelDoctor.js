@@ -47,7 +47,7 @@ const {
   syncTurnsChannelAccess,
 } = require("./turnsChannelAccess");
 
-// See db/prisma/prune-orphan-roles.js for the signature's provenance:
+// See db/scripts/ops/prune-orphan-roles.js for the signature's provenance:
 // mentionable and coloured by a hash of its own name is something nothing
 // else in the guild reproduces by accident. A Catatonic character's role
 // ("<name> • Catatonic", flat grey — db/lib/characterRoleAppearance.js)

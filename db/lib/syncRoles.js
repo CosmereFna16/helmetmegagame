@@ -1,5 +1,5 @@
 // docs/roles.yaml -> the Zone/Faction/Role tables. Called by
-// db/prisma/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
+// db/scripts/sync/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
 // "Restart Game" flow (web/app/(app)/gm/dev/actions.js).
 //
 // Supersedes the old db/lib/factionSync.js, which read the same file but

@@ -25,7 +25,7 @@ const {
   startThread,
   postMessageBatched,
   postAttachment,
-} = require("../lib/discordRest");
+} = require("../../lib/discordRest");
 
 const YAML_PATH = path.join(__dirname, "..", "..", "docs", "systemdocs", "infochannel.yaml");
 const ROLES_YAML_PATH = path.join(__dirname, "..", "..", "docs", "roles.yaml");

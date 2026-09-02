@@ -4,7 +4,7 @@
 // wipeGameData's "Restart Game" flow (web/app/(app)/gm/dev/actions.js) so a
 // reset lands the Tag catalog on the canonical set from docs/tags.yaml.
 require("dotenv").config();
-const { prisma, syncTagsFromYaml } = require("../index");
+const { prisma, syncTagsFromYaml } = require("../../index");
 
 async function main() {
   const summary = await syncTagsFromYaml(prisma);

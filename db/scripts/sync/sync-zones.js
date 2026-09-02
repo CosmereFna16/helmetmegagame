@@ -4,7 +4,7 @@
 // wipeGameData's "Restart Game" flow (web/app/(app)/gm/dev/actions.js) so a
 // reset lands on the canonical zone set from docs/zones.yaml.
 require("dotenv").config();
-const { prisma, syncZonesFromYaml } = require("../index");
+const { prisma, syncZonesFromYaml } = require("../../index");
 
 async function main() {
   if (!process.env.DISCORD_TOKEN || !process.env.DISCORD_GUILD_ID) {

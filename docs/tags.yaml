@@ -3893,9 +3893,8 @@ tags:
     sellable: true
     sellablePrice: 3
 
-  # Renamed in the Caves Update — the frozen slug means the DB row is
-  # repointed by db:backfill-radio-rename, not just re-synced. See
-  # docs/systemdocs/CAVING.md.
+  # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
+  # See docs/systemdocs/CAVING.md.
   - slug: radio-system-watch
     name: Radio System (Watch)
     category: items

@@ -7,7 +7,7 @@
 // validate their requires.anyTags/notTags and anyRoles/notRoles against the
 // DB, not the YAML.
 require("dotenv").config();
-const { prisma, syncDesiresFromYaml } = require("../index");
+const { prisma, syncDesiresFromYaml } = require("../../index");
 
 async function main() {
   const summary = await syncDesiresFromYaml(prisma);

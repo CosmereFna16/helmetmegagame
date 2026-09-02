@@ -103,8 +103,7 @@ formatter:
 | `web/lib/dynasty.js#propagateDynastyLastName` | The Baron renaming his house | **none — see §1c** |
 | `character/requestActions.js#changeNameRequestImpl` | The "Change name" request | `normalizeEarnedHonorific` |
 
-A fifth must do the same. `npm run db:backfill-name-parts` is the drift check
-that catches one that doesn't.
+A fifth must do the same.
 
 ### A name is immutable — except through the "Change name" request
 
@@ -715,8 +714,8 @@ never deletes. See `SYNC.md`.
 | Concern | File |
 |---|---|
 | Masters | `docs/roles.yaml`, `docs/tags.yaml`, `docs/zones.yaml` |
-| Role sync | `db/lib/syncRoles.js`, `db/prisma/sync-roles.js` |
-| Special channels | `db/lib/specialChannels.js`, `db/lib/syncSpecialChannels.js`, `db/prisma/sync-narrowcast-channels.js` |
+| Role sync | `db/lib/syncRoles.js`, `db/scripts/sync/sync-roles.js` |
+| Special channels | `db/lib/specialChannels.js`, `db/lib/syncSpecialChannels.js`, `db/scripts/sync/sync-narrowcast-channels.js` |
 | Seat math | `db/lib/roleCapacity.js` |
 | Budget/eligibility rules | `web/lib/characterCreation.js` |
 | Wizard | `web/app/(app)/character/CreateCharacterWizard.js` |

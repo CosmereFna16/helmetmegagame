@@ -1,6 +1,6 @@
 // Provisioning + reconciliation for the SPECIAL CHANNELS registry
 // (db/lib/specialChannels.js) — #watch, #intercom, and whatever joins them.
-// Run by db/prisma/sync-narrowcast-channels.js (`npm run
+// Run by db/scripts/sync/sync-narrowcast-channels.js (`npm run
 // db:sync-narrowcast-channels`) and from wipeGameData's Restart Game flow.
 //
 // Everything here derives from the registry entry: the category, the channel,

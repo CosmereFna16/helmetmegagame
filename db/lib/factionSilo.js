@@ -5,7 +5,7 @@
 // re-tuning docs/roles.yaml by hand.
 //
 // Used by db/lib/syncRoles.js (both the create-time seed and the opt-in
-// re-seed) and its CLI entry (db/prisma/sync-roles.js --seed-silos).
+// re-seed) and its CLI entry (db/scripts/sync/sync-roles.js --seed-silos).
 
 // User-picked constant — see the "Silos" section of the laboring-rework plan
 // for the approximated 100-player numbers this produces (Town 32, Court 28,

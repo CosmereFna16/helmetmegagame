@@ -54,7 +54,7 @@ if-chains in `ChipText.js` and `DocumentMarkdown.js`. See `TAGS.md` §5.
 |---|---|
 | The table and the math | `db/lib/partySize.js` |
 | The sibling that rounds differently | `db/lib/roleCapacity.js` |
-| API | `web/app/api/party-sizes/route.js` |
+| Server-side reference data | `web/lib/referenceData.js` (the old `/api/party-sizes` route folded into it) |
 | Context | `PartySizeProvider` |
 | Chip | `web/app/components/PartySizeChip.js` |
 | Token parser | `web/app/components/richTokens.js` |

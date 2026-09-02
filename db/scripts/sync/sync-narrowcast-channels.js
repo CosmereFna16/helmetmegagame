@@ -5,7 +5,7 @@
 // reconciles. Run it AFTER db:sync-zones so the zone roles it grants view to
 // exist.
 require("dotenv").config();
-const { prisma, syncSpecialChannels } = require("../index");
+const { prisma, syncSpecialChannels } = require("../../index");
 
 async function main() {
   const stats = await syncSpecialChannels(prisma);

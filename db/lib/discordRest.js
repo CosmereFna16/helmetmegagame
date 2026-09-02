@@ -2,7 +2,7 @@
 // no gateway/discord.js dependency, no `prisma` dependency (kept separate
 // from turnAnnouncement.js/dawnWipe.js to avoid a circular require with
 // db/index.js, which imports those two). Single-guild (DISCORD_GUILD_ID),
-// same convention as web/lib/discordGuild.js and db/prisma/sync-locations.js.
+// same convention as web/lib/discordGuild.js.
 
 // The pure chunker lives in its own file so client components can import it;
 // re-exported below so every caller of discordRest keeps its import path.

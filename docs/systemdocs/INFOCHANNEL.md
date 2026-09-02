@@ -52,7 +52,7 @@ after creation, by the same bot that created it.
 
 ## 4. Rebuild mechanics
 
-`npm run db:rebuild-info-channel` (`db/prisma/rebuild-info-channel.js`) is
+`npm run db:rebuild-info-channel` (`db/scripts/sync/rebuild-info-channel.js`) is
 **always a full destructive wipe + rebuild**, run in this order:
 
 1. Find `#info` by name (fatal error if missing — there's nothing else for
@@ -97,7 +97,7 @@ content is truncated.
 ## 5. Where the code lives
 
 `db/lib/discordRest.js` (`startThread` and `postAttachment`, alongside the channel/message/thread
-REST helpers `dawnWipe.js` already uses), `db/prisma/rebuild-info-channel.js`
+REST helpers `dawnWipe.js` already uses), `db/scripts/sync/rebuild-info-channel.js`
 (the script itself), `docs/systemdocs/infochannel.yaml` (content),
 `npm run db:rebuild-info-channel` (entry point). No `prisma`/DB dependency —
 `#info` has no DB-backed state, so this is REST-only, same posture as

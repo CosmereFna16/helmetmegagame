@@ -178,7 +178,7 @@ inside the `<button>` a card is.
 | Concern | File |
 |---|---|
 | Master | `docs/documents.yaml` |
-| Sync | `db/lib/syncDocuments.js`, `db/prisma/sync-documents.js` |
+| Sync | `db/lib/syncDocuments.js`, `db/scripts/sync/sync-documents.js` |
 | Page | `web/app/(app)/documents/` |
 | Visibility rule (shared) | `web/lib/documentAccess.js` |
 | Chip index | `getDocumentIndex()` in `web/lib/referenceData.js` (the standalone `web/app/api/documents/route.js` this table used to point at no longer exists — the logic moved here) |

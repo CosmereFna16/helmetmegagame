@@ -257,12 +257,9 @@ Both documented in full in `schema.prisma`'s `Tag` model comments and read by
 Unrelated to the die itself but shipped in the same update: `radio-system`
 and `radio-bracelet` were renamed to `radio-system-watch` /
 `radio-bracelet-watch` ("Radio System (Watch)" / "Radio Bracelet (Watch)"),
-both descriptions gaining "Tuned to the Watch's frequency." Because
-`syncTags.js` upserts by slug and never renames, this needed a one-off
-repair script — `npm run db:backfill-radio-rename`, run after
-`db:sync-tags` and `db:sync-roles` — to repoint every `CharacterTag` holding
-the old rows onto the new ones before the orphans are pruned. See the
-script's own header for the exact order.
+both descriptions gaining "Tuned to the Watch's frequency." `syncTags.js`
+upserts by slug and never renames, so the old rows are simply left behind
+for `db:prune-tags` once nothing holds them.
 
 ## 9. Where the code lives
 
@@ -280,6 +277,3 @@ script's own header for the exact order.
 | The Caving lens | `web/app/(desk)/gm/turns/QueueRail.js`, `CavingDesk.js` |
 | The document | `docs/documents.yaml` (key `caving`) |
 | The public brief text | same entry — kept in sync with players by hand |
-
-See also `docs/item-sources.md`, the shopping list several of this update's
-new tags were drawn from.

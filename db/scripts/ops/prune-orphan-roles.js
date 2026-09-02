@@ -32,14 +32,14 @@
 // nothing else in the guild reproduces by accident. Verified against the live
 // guild: of 14 roles, only the one real character role matched.
 require("dotenv").config();
-const { prisma } = require("../index");
-const { discordRequest } = require("../lib/discordRest");
+const { prisma } = require("../../index");
+const { discordRequest } = require("../../lib/discordRest");
 const {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
-} = require("../lib/roleIds");
-const { hashNameToColor } = require("../lib/roleColor");
+} = require("../../lib/roleIds");
+const { hashNameToColor } = require("../../lib/roleColor");
 
 // See the header: mentionable, and coloured by a hash of its own name. A
 // Catatonic character's role ("<name> • Catatonic", flat grey —

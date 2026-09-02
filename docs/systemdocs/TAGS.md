@@ -45,7 +45,7 @@ hand-edited, `slug` is the stable match key across syncs, and syncing is
 **upsert-only** — removing an entry from either YAML never deletes its row,
 it just stops receiving updates. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
 reads both files and does the sync, run by hand via `npm run db:sync-tags`
-(`db/prisma/sync-tags.js`) or automatically at the end of `wipeGameData`'s
+(`db/scripts/sync/sync-tags.js`) or automatically at the end of `wipeGameData`'s
 "Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
 `syncZonesFromYaml` and the special-channels sync.
 
@@ -525,11 +525,6 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   `crafting` (5) gates 3 items where `smithing` (5) gates 23. Both stay at 5;
   the fix for that imbalance is content, not price. Noted here so the gap
   reads as known rather than accidental.
-
-`docs/tag-design.md` is the player-facing statement of this same scale,
-written for whoever is drafting entries. It carries the YAML format and
-worked examples; this section is the one that governs. **If you change a band
-here, change it there too** — they are meant to say the same thing.
 
 ## 5. Other fields
 
@@ -1276,7 +1271,7 @@ just a flavor of laboring (`PRODUCTION.md`), and no `hunter` entry remains in
 
 ## 7. Where the code lives
 
-`db/lib/syncTags.js` (the sync itself), `db/prisma/sync-tags.js` (terminal
+`db/lib/syncTags.js` (the sync itself), `db/scripts/sync/sync-tags.js` (terminal
 entry point, `npm run db:sync-tags`), `docs/tags.yaml` /
 `docs/taggroups.yaml` (content), `web/lib/referenceData.js#getVisibleTags`
 (the catalog backing `{tag:slug}`/`{tag:id}` references, and the gate from

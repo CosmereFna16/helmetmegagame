@@ -1,4 +1,4 @@
-// docs/documents.yaml -> DB, called by db/prisma/sync-documents.js (manual
+// docs/documents.yaml -> DB, called by db/scripts/sync/sync-documents.js (manual
 // `npm run db:sync-documents`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js), alongside the location/tag/role syncs.
 //

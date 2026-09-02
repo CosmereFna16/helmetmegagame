@@ -1,4 +1,4 @@
-// docs/desires.yaml -> DB, called by db/prisma/sync-desires.js (manual
+// docs/desires.yaml -> DB, called by db/scripts/sync/sync-desires.js (manual
 // `npm run db:sync-desires`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js) — see docs/systemdocs/DESIRES.md.
 // This is the sole write path for DesireTemplate rows.

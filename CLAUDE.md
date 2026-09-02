@@ -227,7 +227,7 @@ you pick the right doc — they are never enough to change code with.
 Other reference docs, outside `systemdocs/`:
 
 - `docs/lore.md` — the setting.
-- `docs/threats.md` — the antagonist seats. It briefs 6 of them, while
+- `docs/threats.md` — the antagonist seats. It briefs 8 of them, while
   `db/lib/antagonists.js` ships 12 opt-in entries.
 - `docs/handbook.md` — the player handbook, read at runtime by the web app
   (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
@@ -279,58 +279,51 @@ npm run db:generate                  # prisma generate. Runs on `npm install`
                                      #   argument` for fields that are right
                                      #   there in schema.prisma, which reads
                                      #   like a schema bug but isn't.
-npm run db:migrate                   # prisma migrate dev (needs DATABASE_URL set)
-npm run db:migrate:deploy            # prisma migrate deploy (production)
+npm run db:migrate                   # prisma migrate dev. LOCAL POSTGRES ONLY.
+                                     #   Against Railway it offers a full reset
+                                     #   on drift, which is how game one died.
+                                     #   .claude/hooks/prisma-guard.sh refuses
+                                     #   it when DATABASE_URL points at Railway.
+npm run db:migrate:deploy            # prisma migrate deploy (production).
+                                     #   ./migrate.sh wraps it with a Railway
+                                     #   backup first.
+npm run db:backup                    # Railway volume backup, now. Needs
+                                     #   RAILWAY_API_TOKEN in .env.
 
-# YAML masters -> DB. Order matters (zones, tags, roles, desires, documents
-# last); see SYNC.md.
+# YAML masters -> DB. `db:sync` runs all six in the working order; the
+# individual scripts exist for one master at a time. See SYNC.md.
+npm run db:sync                      # zones, narrowcast channels, tags,
+                                     #   roles, desires, documents.
+                                     #   `-- --seed-silos` re-seeds every Silo.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   their channels + roles, Location topics)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced;
-                                     #   `-- --seed-silos` also re-seeds every
-                                     #   faction Silo at its computed opening
-                                     #   balance — see SYNC.md)
+                                     #   `-- --seed-silos` re-seeds every Silo)
 npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
-                                     #   retires a DesireTemplate absent from the
-                                     #   YAML rather than deleting it — see
-                                     #   DESIRES.md §10)
+                                     #   retires a template absent from the
+                                     #   YAML — see DESIRES.md §10)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
-npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
-                                     #   DRY RUN unless given `-- --apply`; never
-                                     #   touches a GM-created tag or one anything
-                                     #   references. See SYNC.md.
-
-npm run db:sync-narrowcast-channels  # provisioning + reconcile for the special
-                                     #   channels registry (#watch/#intercom).
-                                     #   Run AFTER db:sync-zones — its view
-                                     #   grants name the zone roles.
+npm run db:sync-narrowcast-channels  # #watch/#intercom provisioning + reconcile.
+                                     #   Run AFTER db:sync-zones.
 npm run db:rebuild-info-channel      # destructive rebuild of #info
 
+# Ops. Scripts live in db/scripts/ops/. See SYNC.md §4.
 npm run db:doctor                    # the channel doctor: diffs Discord roles/
                                      #   channels/threads against the DB. DRY
                                      #   RUN unless given `-- --apply`; add
                                      #   `-- --full` for overwrites + threads.
                                      #   Also runs cheap+apply on every bot
                                      #   start. See CHANNELS.md.
-
-# Repair / one-off scripts. See SYNC.md §4 for what each is for.
-npm run db:backfill-roles
-npm run db:backfill-name-parts
-npm run db:backfill-fighting-split    # one-off; retires the fighting-* tag tree
-npm run db:backfill-desires           # one-off; moves holdings off six retired
-                                       #   drawback tags onto their Desires-rework
-                                       #   replacements, drops five free-lunch
-                                       #   tags, and ends with a read-only report
-                                       #   of any character left holding an
-                                       #   illegal tag pair
-npm run db:prune-orphan-roles          # deletes Discord character roles no living
-                                       #   character claims. DRY RUN unless given
-                                       #   `-- --apply`. Only touches roles carrying
-                                       #   the character-role signature (mentionable
-                                       #   + hashNameToColor colour), so divider,
-                                       #   GM cosmetic and "Zone:" roles are never
-                                       #   candidates. Guards the 250-role cap.
+npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
+                                     #   DRY RUN unless given `-- --apply`.
+npm run db:prune-orphan-roles        # deletes Discord character roles no living
+                                     #   character claims. DRY RUN unless given
+                                     #   `-- --apply`. Guards the 250-role cap.
+npm run db:report-inactive-characters  # read-only inactivity report
+npm run db:open-rp-channels          # between games: open every roleplay
+                                     #   channel to the guild. DRY RUN unless
+                                     #   given `-- --apply`.
 
 npm run build --workspace=web        # production build of the web app
 npm run lint --workspace=web         # eslint over the web app
@@ -684,7 +677,8 @@ npm run deploy      # git push origin master, ./migrate.sh, redeploy web + bot
 npm run redeploy    # just the redeploy, no push, no migration
 ```
 
-`./migrate.sh` sits **between** the push and the redeploy on purpose. If you
+`./migrate.sh` takes a Railway backup first (`npm run db:backup`), then
+migrates. It sits **between** the push and the redeploy on purpose. If you
 migrate first, new columns just sit unused for a few seconds — harmless. If
 you redeploy first, you ship code that queries columns the database doesn't
 have yet, for the whole length of a build.

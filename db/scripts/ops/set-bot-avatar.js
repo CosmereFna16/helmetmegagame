@@ -11,7 +11,7 @@
 require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
-const { discordRequest } = require("../lib/discordRest");
+const { discordRequest } = require("../../lib/discordRest");
 
 const ICON_PATH = path.join(__dirname, "..", "..", "docs", "assets", "bot-icon.png");
 

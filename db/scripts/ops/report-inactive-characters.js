@@ -8,7 +8,7 @@
 //
 //   npm run db:report-inactive-characters
 require("dotenv").config();
-const { prisma } = require("../index");
+const { prisma } = require("../../index");
 
 async function main() {
   const turn =
