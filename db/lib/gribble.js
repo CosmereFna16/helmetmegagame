@@ -1,42 +1,16 @@
-// The Literate cipher — how a written message looks to someone who cannot read.
+// The Literate cipher — how a written message looks to someone who cannot
+// read. Used by the Bird's letters (docs/systemdocs/BIRD.md), and built to
+// be reused by whatever coded documents come next.
 //
-// One primitive, used everywhere literacy gates written text. Right now that is
-// the Bird's letters (docs/systemdocs/BIRD.md); it is built to be reused by
-// whatever coded documents come next, which is why it lives here rather than
-// beside the Bird's own code.
+// LEAF MODULE, ON PURPOSE: it requires nothing, so the web client can import
+// it by path as `@lifeweb/db/lib/gribble`. Never add it to the @lifeweb/db
+// barrel — that drags node:fs into the browser bundle.
 //
-// WHAT THIS IS NOT: cryptography. The key is three lines below, in a repo the
-// players could in principle read. This is obfuscation with a specific job —
-// defeat pen-and-paper analysis and a Google search of rune charts, so that a
-// player without the Literate tag genuinely cannot read the letter in their
-// DMs. It does not, and is not meant to, defeat someone with the source.
-//
-// The obvious design is a substitution cipher: map each letter to a rune, keep
-// the spaces. It looks right and it is worthless — word lengths survive, letter
-// frequencies survive, and a paragraph falls to a pencil in ten minutes. So the
-// output here is statistically flat instead:
-//
-//   plaintext
-//     -> UTF-8 bytes
-//     -> append a 2-byte checksum
-//     -> XOR against a keystream seeded from KEY plus a 2-byte random nonce
-//     -> pack 3 bytes into 4 six-bit symbols
-//     -> index those symbols into 65 Runic codepoints
-//
-// Three consequences worth stating:
-//
-//   - No spaces and no word shapes. The whole message is one unbroken block.
-//   - The nonce means the same sentence never ciphers to the same runes twice,
-//     so nobody learns anything from recognising a repeated block.
-//   - The checksum is what lets decodeGribble() return null on anything that
-//     isn't one of ours, so the Read button can say so instead of printing
-//     mojibake.
-//
-// LEAF MODULE, ON PURPOSE. It requires nothing, so the web client can import it
-// by path as `@lifeweb/db/lib/gribble` — the same trick
-// web/app/components/LifewebRequestButtons.js uses for lib/lifeweb.js. It must
-// never be added to the @lifeweb/db barrel, which drags node:fs into the
-// browser bundle.
+// This is obfuscation, not cryptography: it defeats pen-and-paper analysis
+// so a player without Literate can't read the letter, not someone with the
+// source. Output is statistically flat (a XOR keystream, no spaces or word
+// shapes) rather than a plain substitution cipher, which would leak word
+// lengths and letter frequencies.
 
 // 32 bytes, fixed for the life of the game. Changing it makes every message
 // ever sent undecodable, so don't.

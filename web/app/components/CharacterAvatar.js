@@ -1,22 +1,15 @@
 import Tooltip from "./Tooltip";
 
-// The little face that goes next to a character's name wherever a GM scans a
-// list of them: the player desk rail and roster, the adjudication queue, the
-// dev panel, a conversation header. The web-only twin of GmAvatar (that one
-// is a Discord identity; this one is the in-game one), served by
-// /api/avatar/[characterId] — see PORTRAITS.md.
+// The little face next to a character's name wherever a GM scans a list of
+// them, served by /api/avatar/[characterId] — see PORTRAITS.md.
 //
-// `version` should be the character's updatedAt.getTime(). The avatar route
+// `version` should be the character's updatedAt.getTime(): the avatar route
 // answers with an immutable Cache-Control, so a stale version keeps a GM
 // looking at a face from before the last rename or portrait change.
 //
-// `catatonic` overlays a small muted dot — the AFK marker, in the same quiet
-// register as `.desk-dot`. Callers pass it where their query already knows;
-// leaving it off just means no badge, never a wrong one.
-//
 // A plain <img>, not next/image: the route serves arbitrary uploaded bytes at
 // an unknown intrinsic size, which next/image would refuse without explicit
-// dimensions, and there is nothing worth optimizing at this size.
+// dimensions.
 
 function CatatonicDot({ size }) {
   const dot = Math.max(7, Math.round(size * 0.4));

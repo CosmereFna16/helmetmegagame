@@ -1,24 +1,16 @@
 // Shared template -> db/lib/desireGates.js projection. A DesireTemplate row
 // stores requiresAnyRoleSlugs/requiresNotRoleSlugs as slug arrays (Role rows
-// get pruned by db:sync-roles, so an FK would block that — same reasoning as
-// Document.roleSlugs); the evaluator wants `{ slug, name }` objects so a
-// locked reason can name the role without touching the DB itself.
+// get pruned by db:sync-roles, so an FK would block that); the evaluator
+// wants `{ slug, name }` objects so a locked reason can name the role.
 //
-// Every caller that resolves a template for evaluateDesireCatalog MUST go
-// through this, not re-derive it inline: dropping an unresolvable slug (e.g.
-// a role renamed or pruned out from under a live desire) would collapse that
-// gate's array to empty, and db/lib/desireGates.js treats an empty
-// anyRoles/notRoles list as NO constraint — silently opening a role-gated
-// Desire to everyone, or un-locking a forbidden pairing. So an unresolved
-// slug is kept as `{ slug, name: slug }` instead of being filtered out: the
-// gate still fails closed (nobody's role slug will match a slug that isn't a
-// real Role's slug), just with a less pretty name in the reason string.
+// Every caller MUST go through this, not re-derive it inline: an unresolved
+// slug is kept as `{ slug, name: slug }` rather than filtered out, because
+// db/lib/desireGates.js treats an empty anyRoles/notRoles list as NO
+// constraint — dropping the slug would silently open a role-gated Desire.
 //
-// This function is pure and takes NO prisma handle — it used to run its own
-// role.findMany PER TEMPLATE, which meant an N+1 across all 216 templates on
-// every /character load and every Dev Panel load. Every caller now hoists a
-// single `role.findMany({ select: { slug: true, name: true } })` up front and
-// passes the resulting slug -> role Map in.
+// Pure, takes no prisma handle: every caller hoists a single
+// `role.findMany({ select: { slug: true, name: true } })` and passes the
+// resulting slug -> role Map in, to avoid an N+1 per template.
 export function projectDesireTemplateForGates(roleBySlug, template) {
   const resolveRole = (slug) => roleBySlug.get(slug) ?? { slug, name: slug };
 

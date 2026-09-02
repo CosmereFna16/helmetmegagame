@@ -1,15 +1,10 @@
-// Tag writes shared by both faces of the game.
-//
-// `dropCharacterTag` used to live in web/lib/requestEffects.js, which is ESM
-// and therefore unreachable from the CommonJS bot. The GM `/heal` command
-// needs it, so it moved here and requestEffects.js re-exports it — the same
-// treatment web/lib/healRequests.js already gives
-// @lifeweb/db/lib/medicalVision, and for the same reason: two
-// implementations of a tag write would eventually disagree.
+// Tag writes shared by both faces of the game — the bot's GM `/heal` command
+// and every web/lib/requestEffects.js caller both go through these (which
+// re-exports them), so a tag write is never implemented twice.
 //
 // Every function here takes a transaction client (`tx`) as its first
 // parameter rather than reaching for the singleton, so a caller can compose
-// it into a larger transaction. That is the db/lib/dm.js convention.
+// it into a larger transaction — the db/lib/dm.js convention.
 const { expiryFrom } = require("./turnFormat");
 
 // Adds `quantity` of a tag, creating the row or incrementing an existing
@@ -17,11 +12,6 @@ const { expiryFrom } = require("./turnFormat");
 // caller that forgot to check `tag.stackable` can't mint a phantom stack.
 // `options.stackable` is the catalog flag and nothing else — no caller, GM
 // surface included, may pass true for a tag the catalog says doesn't stack.
-//
-// Moved down from web/lib/requestEffects.js (which re-exports it) for the
-// same reason dropCharacterTag was: the staged-push pass in
-// db/lib/stagedPush.js grants tags at turn end, and two implementations of a
-// tag write would eventually disagree.
 async function addToStack(tx, characterId, tagId, quantity, options = {}) {
   const { source = "GM_GRANT", expiresTurn = null, stackable = false } = options;
   const n = stackable ? Math.max(1, Math.trunc(quantity ?? 1)) : 1;
@@ -65,10 +55,6 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
 // treated-wound aftermath). Slugs rather than ids because that is what the
 // catalog carries, specifically so a slug may REPEAT: listing one twice is
 // the only way to ask for two of something.
-//
-// Moved down from web/lib/requestEffects.js (which re-exports it) for the
-// same reason addToStack and dropCharacterTag were: db/lib/tagOps.js fires
-// the treated-wound aftermath on a GM removal, and db/ cannot import web/.
 //
 // Returns the snapshot Undo needs — one entry per distinct slug, with
 // `added` being what was ACTUALLY put on the sheet. That is 0 for a

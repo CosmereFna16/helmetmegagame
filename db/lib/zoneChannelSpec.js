@@ -1,38 +1,16 @@
 // The complete intended Discord layout for one Zone — the single description
-// both first-time provisioning and the every-run reconcile build from, so the
-// two can never disagree (the same role locationChannelSpec played before the
-// zone rework, and the one thing in that file that never went wrong).
+// both first-time provisioning and the every-run reconcile build from, so
+// the two can never disagree.
 //
-// SURFACE zone: a category named after the zone, holding
-//   #summary  text, 5-minute slowmode — abstracted, big-picture play
-//   #public   forum — moment-to-moment roleplay in topics; players cannot
-//             create posts (the bot does, via the Create-a-Topic button)
-//   #private  text — no top-level messages, no player-created threads; the
-//             bot spawns private threads from the Create button
-// CAVE_GROUP: the category only ("Caves").
-// CAVE_LEVEL: a forum named after the level plus a "{level}-private" text
-//   channel, both parented to the group's category, with the same rules as a
-//   surface #public / #private. The private channel carries the level's slug
-//   in its name because all three levels share one category — three channels
-//   all named "private" would be indistinguishable in the sidebar. No
-//   #summary.
+// Every target states its own privacy in full — nothing is inherited from
+// the category, because Discord's category "sync" is a one-time copy at
+// creation that drifts independently afterwards.
 //
-// ACCESS: the zone's own "Zone: {Name}" role carries the allow; @everyone
-// carries the deny. Every target states its own privacy in full — nothing is
-// inherited from the category, because Discord "sync" is a copy at creation
-// that drifts independently afterwards (the lesson the per-Location spec
-// learned the hard way; see its history in git if you're tempted to slim
-// this down).
-//
-// The VIEW_CHANNEL half of the @everyone deny is the entire mechanism that
-// makes a zone private. Every other overwrite here is an allow layered back
-// on top of it.
-//
-// Forum post creation is governed by SEND_MESSAGES on a forum channel —
-// denying it on @everyone while allowing SEND_MESSAGES_IN_THREADS is what
-// makes posts bot-only while keeping the talk inside them open.
-// CREATE_PUBLIC_THREADS/CREATE_PRIVATE_THREADS are denied alongside as
-// belt-and-braces.
+// The @everyone VIEW_CHANNEL deny is the entire mechanism that makes a zone
+// private; every other overwrite here is an allow layered on top of it. On a
+// forum channel, post creation is gated by SEND_MESSAGES, not by a thread
+// permission — deny it on @everyone while allowing SEND_MESSAGES_IN_THREADS
+// to make posts bot-only while keeping the talk inside them open.
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { cursedOverwrite } = require("./cursedAccess");
 const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");

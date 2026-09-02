@@ -56,15 +56,9 @@ import {
 } from "../(app)/character/requestActions";
 
 // Every player action on the character sheet, in one place: the mode state,
-// the menus each mode draws from, and one RequestDialog per mode.
-//
-// This used to be TagRequestButtons.js, which owned both the dialogs AND the
-// row of buttons that opened them, and handed its opener up to TagsPanel
-// through an onReady callback so a chip click could drive Consume. That
-// stopped working the moment the buttons became ActionGrid.js inside
-// StatusPanel — a SIBLING above TagsPanel, not a child of it. So the state
-// moved up here and both consumers read it off context, the same shape
-// ConfirmProvider already uses for the same reason.
+// the menus each mode draws from, and one RequestDialog per mode. Both
+// ActionGrid.js and TagsPanel.js read it off context, the same shape
+// ConfirmProvider uses, since they are siblings rather than parent/child.
 //
 // The provider renders no chrome of its own. It is mounted once per sheet
 // (CharacterSheet.js, self mode only) and everything visible lives in
@@ -176,10 +170,9 @@ function TagPicker({
         </div>
       )}
 
-      {/* Was 16rem, which showed three rows of a catalog this size. The pane
-          scrolls itself rather than growing the dialog, so the reason field
-          and the Confirm button stay reachable however long Items gets —
-          the same treatment PointBuy.js gives its own catalog. */}
+      {/* The pane scrolls itself rather than growing the dialog, so the
+          reason field and the Confirm button stay reachable however long
+          Items gets — the same treatment PointBuy.js gives its own catalog. */}
       <div
         className="flex flex-col gap-2 overflow-y-auto pr-1"
         style={{ maxHeight: "60vh" }}

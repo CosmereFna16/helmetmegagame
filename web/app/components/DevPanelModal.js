@@ -6,27 +6,15 @@ import Modal from "@/app/components/Modal";
 import DevPanel from "@/app/(app)/gm/dev/characters/[characterId]/DevPanel";
 import { getDevPanelData } from "./devPanelActions";
 
-// The full Dev Character Panel, mounted as a modal over a desk (the
-// adjudication desk's Workspace.js, the player desk's RosterTable.js and
-// ConversationPane.js) instead of the standalone /gm/dev/characters/[id]
-// page, so a GM never leaves the desk or loses its state. Shared here rather
-// than living under one desk, since more than one desk mounts it.
+// The full Dev Character Panel, mounted as a modal over a desk (adjudication,
+// player roster, conversation pane) instead of the standalone
+// /gm/dev/characters/[id] page, so a GM never leaves the desk. Shared here
+// since multiple desks mount it. DevPanel owns the Modal shell when
+// frame="modal", since its dirty-state guard controls closing.
 //
-// The data assembly is identical to the page's — web/lib/devPanelData.js —
-// fetched here through this component's own server action
-// (devPanelActions.js) rather than the page's RSC. DevPanel itself owns the
-// Modal shell when `frame="modal"`, because the dirty (staged-edit) state
-// lives inside it and closing has to route through the same guard
-// Apply/Cancel use.
-// Opening the panel is a click on a small icon button, and the DTO takes long
-// enough that the modal visibly sits on "Loading the panel…". So the fetch is
-// allowed to start BEFORE the modal mounts: DevCharacterButton calls
-// prefetchDevPanel on pointerdown, and the mount below picks up the promise
-// already in flight instead of firing its own.
-//
-// Module-level on purpose — it has to outlive the modal, which doesn't exist
-// yet when the prefetch starts. Entries are keyed by character and expire, so
-// a stale panel is never shown for a sheet someone edited in between.
+// prefetchDevPanel starts the fetch on pointerdown, before the modal exists,
+// so opening doesn't wait on load; module-level map, keyed by character, TTL
+// below.
 const PREFETCH_TTL_MS = 20_000;
 const prefetched = new Map();
 

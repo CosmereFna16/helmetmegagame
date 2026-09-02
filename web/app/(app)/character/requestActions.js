@@ -204,12 +204,10 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
     note: reason,
   };
 
-  // Ordered by (kind, id), not by which side is the sender. Two simultaneous
-  // transfers between the same pair in opposite directions used to take their
-  // row locks in opposite orders — A then B for one, B then A for the other —
-  // which is a textbook Postgres deadlock, resolved by the server killing one
-  // of them and surfacing it to that player as a generic failure. A total
-  // order over the participants means both transactions queue instead.
+  // Ordered by (kind, id), not by which side is the sender: two simultaneous
+  // transfers between the same pair in opposite directions must take their row
+  // locks in the same order, or Postgres deadlocks and kills one of them. A
+  // total order over the participants means both transactions queue instead.
   //
   // The ledger still records the real direction. applyTransfer (db/lib/
   // resourceTransfer.js) does the sorting, the ordered legs, and the
@@ -451,10 +449,7 @@ async function addTagRequestImpl({
       source: "EVENT",
       // A timed tag has to arrive already stamped or it never expires:
       // resolveNeeds()'s sweep matches on expiresTurn and nothing backfills
-      // it. This used to pass a hard null with openTurn already in scope,
-      // which is why a Paralyzed could sit on a sheet forever while its
-      // tooltip promised "Lasts 1 turn". Same stamp createCharacter and the
-      // Hunger pass apply.
+      // it. Same stamp createCharacter and the Hunger pass apply.
       expiresTurn: await expiryForGrant(tx, tag, openTurn, {
         characterId: character.id,
         where: "addTagRequest",
@@ -697,9 +692,9 @@ async function transferTagRequestImpl({
   // expiry, and read `tradeable` off the catalog side.
   let source;
   if (isLoot) {
-    // A corpse in the same zone. Folded into the WHERE clause the same way
-    // the recipient check used to be, so a corpse that gets moved (a Revive
-    // between page load and submit) fails closed and nothing is written.
+    // A corpse in the same zone. Folded into the WHERE clause, so a corpse
+    // that gets moved (a Revive between page load and submit) fails closed
+    // and nothing is written.
     const corpse = await prisma.character.findFirst({
       where: { id: toCharacterId ?? "", status: "DEAD", buriedAt: null, zoneId: character.zoneId },
       select: {
@@ -895,10 +890,9 @@ async function healCharacterRequestImpl({
 
   const payer = await resolveParty(payerKey);
   if (!payer) throw new UserError("Unknown payer.");
-  // A person has to be in the zone; a Silo has to be in reach. A Silo used to
-  // pay from anywhere, which became a laundering hole the moment transfers
-  // grew a reach gate — bill a distant Silo for a cure and the ⬢ has moved
-  // across the map without anyone carrying it.
+  // A person has to be in the zone; a Silo has to be in reach — otherwise a
+  // distant Silo could pay for a cure and the ⬢ would move across the map
+  // without anyone carrying it.
   if (payer.kind === "character") {
     const present = await prisma.character.count({
       where: { id: payer.id, status: "ALIVE", zoneId: character.zoneId },
@@ -997,10 +991,9 @@ async function healCharacterRequestImpl({
 // TRANSFER_RESOURCES pair, since both come off the same helpless body in the
 // same act.
 //
-// Folding corpses in here is what let CorpseLootPanel.js go. The older
-// `TRANSFER_TAG`/`TRANSFER_RESOURCES` LOOT direction still exists and still
-// works — Request rows filed under it before this change have to keep undoing
-// correctly — but nothing files one any more.
+// The older `TRANSFER_TAG`/`TRANSFER_RESOURCES` LOOT direction still exists
+// so Request rows filed under it keep undoing correctly, but nothing files
+// one any more.
 async function lootCharacterRequestImpl({
   targetCharacterId,
   tagPicks: rawTagPicks,
@@ -1160,9 +1153,7 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetZoneId, reaso
   // request type: it is the same act with the same validation and the same
   // Undo, minus the Discord swap a dead character has no roles for.
   //
-  // Neither does anyone helpless. This used to key on `bound` alone, which
-  // made a Catatonic or Dying character the one kind of body you could rob
-  // but not carry. It now uses the same INCAPACITATING_SLUGS set as
+  // Neither does anyone helpless. Uses the same INCAPACITATING_SLUGS set as
   // LOOT_CHARACTER and HARM_CHARACTER, so "can't stop you" means one thing
   // across all three.
   const isCorpse = target.status === "DEAD";
@@ -1373,10 +1364,7 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
 // is a Gambit and a GM adjudicates it; this is the aftermath, not the fight.
 //
 // **It kills.** Ticking "Finish them" ends the target's game on submit, the
-// same posture FEED_PERSON now takes (REQUESTS.md §5a). It used to raise a ☠
-// in the Requests tab and wait for a GM's Kill button, which left a character
-// everyone at the table had watched die still walking until the queue was
-// worked.
+// same posture FEED_PERSON now takes (REQUESTS.md §5a).
 //
 // What makes that safe is the gate above, not the delay: the target has to be
 // helpless ALREADY (INCAPACITATING_SLUGS) and Dying or Bound specifically
@@ -1515,13 +1503,10 @@ async function harmCharacterRequestImpl({
 
 // --- Desires ----------------------------------------------------------
 
-// ONE action, because there is only one thing a player does to a Desire now:
-// claim it. The 2026-09-02 rework deleted setting and cancelling — a Desire is
-// no longer a contract you sign in advance and settle later, it is a
-// retroactive claim on something your character already did. So the old
-// setDesire (not a request, nothing granted yet) and fulfillDesireRequest
-// (a request, points move) collapse into this: pick a Desire, say how you did
-// it, get the points, and a GM reviews it afterwards like every other request.
+// ONE action, because there is only one thing a player does to a Desire:
+// claim it — a retroactive claim on something your character already did,
+// not a contract signed in advance. Pick a Desire, say how you did it, get
+// the points, and a GM reviews it afterwards like every other request.
 //
 // The anti-loop rule (DESIRES.md §8) does more work than it used to as a
 // result, and it is GM-adjudicated from the reason field — there is no gate

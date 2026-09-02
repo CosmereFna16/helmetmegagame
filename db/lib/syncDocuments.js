@@ -1,38 +1,23 @@
-// docs/documents.yaml -> DB, called by db/scripts/sync/sync-documents.js (manual
-// `npm run db:sync-documents`) and wipeGameData's "Restart Game" flow
-// (web/app/(app)/gm/dev/actions.js), alongside the location/tag/role syncs.
+// docs/documents.yaml -> DB. Called by `npm run db:sync-documents` and the
+// "Restart Game" wipe, alongside the location/tag/role syncs.
 //
-// docs/documents.yaml is the sole master for the Document catalog and `key`
-// is the stable match key — the same thing docs/roles.yaml's `doc_elements`
-// lists point at. Unlike syncTags (upsert-only), this sync is **destructive**
-// in the syncLocations sense: a document whose key is no longer in the YAML
-// has its row deleted. There is no player state on a Document — it's pure
-// reference content — so there's nothing to preserve and a stale row would
-// keep showing up in players' folders.
+// `key` is the stable match key (docs/roles.yaml's `doc_elements` points at
+// it). This sync is DESTRUCTIVE: a document whose key is no longer in the
+// YAML is deleted, since a Document carries no player state to preserve.
 //
-// Assignment fields are validated against the DB rather than the YAML, since
-// tags/roles/factions are themselves synced from their own masters. An
-// unknown reference throws rather than half-applying, the same contract
-// syncRoles uses for starting_tags — with one carve-out noted at
-// resolveAssignment() below.
+// Assignment fields are validated against the DB, not the YAML — an unknown
+// reference throws rather than half-applying.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
-// "leader" / "treasurer" are read against Character.isLeader/isTreasurer.
-// "gamemaster" is not a property of any Character at all — it resolves
-// against the Discord GM role at request time (web/lib/discordGuild.js#isGm),
-// which is the same check that gates every /gm page. A GM has no character to
-// hang the flag on, so the documents page asks Discord instead.
-// /documents synthesizes two cards that are not rows: the reader's role
-// charter (key "role") and the pinned Player Handbook (key "handbook", read
-// from docs/handbook.md — see web/lib/handbook.js), so ?doc=role and
-// ?doc=handbook link to them. A real document taking either key would
-// collide with it in the grid and make the deep link ambiguous, so the sync
-// refuses both rather than letting the clash show up as a duplicate-React-key
-// warning months later.
+// /documents synthesizes two cards that aren't real rows — the role charter
+// ("role") and the pinned Player Handbook ("handbook") — so the sync refuses
+// both keys rather than let a real document collide with them.
 const RESERVED_KEYS = new Set(["role", "handbook"]);
 
+// "gamemaster" has no Character property; it resolves against the Discord GM
+// role at request time instead (web/lib/discordGuild.js#isGm).
 const FLAGS = ["leader", "treasurer", "gamemaster"];
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
@@ -49,14 +34,10 @@ function loadDoc() {
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
-// documents.yaml's `tags:` list predates this sync and conflates three
-// things: real Tag names, the Leader/Treasurer booleans on Character (which
-// are not tags — see docs/systemdocs/TAGS.md §6), and free-text placeholders
-// like "any of the medical tags" left in as authoring notes. Rather than
-// force the YAML to be rewritten, each entry is routed to whichever bucket
-// it actually belongs in, and anything that matches nothing is reported to
-// the caller instead of throwing — a placeholder is a note to a human, not a
-// broken reference.
+// documents.yaml's `tags:` list conflates real Tag names, the Leader/
+// Treasurer booleans (not tags — TAGS.md §6), and free-text placeholder
+// notes. Each entry routes to whichever bucket it belongs in; anything
+// unmatched is reported to the caller instead of thrown.
 function resolveAssignment(entry, catalogs) {
   const { tagNames, tagSlugByName, roleSlugs, factionSlugs } = catalogs;
   const out = { tagSlugs: [], roleSlugs: [], factionSlugs: [], flags: [] };

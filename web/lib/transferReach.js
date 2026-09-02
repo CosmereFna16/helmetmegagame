@@ -5,25 +5,10 @@
 // from anywhere on the map; that is not the same as being able to put ⬢ into
 // it. Both gates apply, independently.
 //
-// Two grains, but now both resolve to the same rule:
-//
-//   person -> person   same presence zone. A handoff is a face-to-face act,
-//                      and it matches the co-presence gate HEAL_CHARACTER
-//                      already enforces (REQUESTS.md §5c).
-//   party  -> Silo     the faction's own silo seat zone. Full stop.
-//
-// The officer clause — an actor's zone counting if a Leader or Treasurer of
-// the faction was standing there too — has been REMOVED. It let an officer
-// who rode out to meet a payer keep the Silo reachable from anywhere the
-// officer happened to be, which is exactly backwards during a siege: a
-// besieged faction should not be payable by sending an officer to go collect
-// from outside the walls. Treasury access is now tied to physically holding
-// the seat zone, with no mobile extension of it.
-//
-// Lives in web/lib rather than db/lib because there is no bot surface for
-// moving ⬢ at all — every path is web (COMMANDS.md lists no /give, /pay or
-// /transfer). If a bot command ever appears, promote this to db/lib with the
-// prisma-as-first-parameter convention factionPermissions.js uses.
+// person -> person is a same-zone handoff (REQUESTS.md §5c's co-presence
+// gate); party -> Silo requires standing in the faction's own silo seat
+// zone, full stop — no officer standing elsewhere extends it, or a besieged
+// faction could be paid by an officer collecting from outside the walls.
 import { prisma, seatZoneIdFor } from "@lifeweb/db";
 
 // A character who hasn't been placed yet can't reach anything. Being nowhere

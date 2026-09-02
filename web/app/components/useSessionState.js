@@ -2,25 +2,17 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// A small sessionStorage-backed value, one key at a time, modeled directly on
-// usePins.js's localStorage pattern: read through useSyncExternalStore so
-// SSR/hydration stays safe (react-hooks/set-state-in-effect is an error in
-// this repo — the mandated way to read browser storage is this hook, never
-// an effect + setState), JSON-encoded, try/catch around every storage access
-// (private window / blocked site data).
+// A small sessionStorage-backed value, one key at a time, modeled on
+// usePins.js's localStorage pattern: read through useSyncExternalStore
+// (the mandated way to read browser storage — react-hooks/set-state-in-effect
+// is an error in this repo), JSON-encoded, try/catch around every access.
 //
-// sessionStorage rather than localStorage, deliberately: this is per-tab VIEW
-// state (a filter, a lens, a toggle) — it should die with the tab, not
-// follow a GM to their next session. It DOES survive a same-tab reload,
-// which is the point: every deploy hard-reloads the adjudication desk
-// (build-id change -> failed RSC fetch -> full navigation), and this repo
-// deploys several times a day.
+// sessionStorage rather than localStorage: this is per-tab VIEW state (a
+// filter, a lens, a toggle) that should die with the tab, but still survive
+// a same-tab reload — which every deploy triggers on the adjudication desk.
 //
-// Unlike usePins there is no single fixed key — any number of independent
-// values can live under their own key, each with its own subscriber set, all
-// sharing one small module-level cache keyed by that string. Two components
-// asking for the SAME key share the same live value automatically, exactly
-// like two usePins() callers already share "gm-pins".
+// Any number of independent values can live under their own key; two
+// components asking for the SAME key share the same live value.
 
 const listeners = new Map(); // key -> Set<callback>
 const cache = new Map(); // key -> { raw, value }

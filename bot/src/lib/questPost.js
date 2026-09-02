@@ -1,34 +1,13 @@
-// Quest posts: a GM's hand-made forum post, re-authored as the bot.
+// Quest posts: a GM's hand-made forum post, re-authored as the bot, run
+// BEFORE the proxy gate in messageCreate.js.
 //
-// A GM hangs a quest hook by pressing Discord's own New Post button in a
-// location forum — not the Create-a-Topic flow, which is a player surface and
-// files everything through a modal. Two things are wrong with what Discord
-// leaves behind, and this module fixes both in one pass:
-//
-//   1. The post is authored by the GM's REAL account, which is exactly the
-//      player/character separation the proxy pipeline exists to protect. And
-//      if that GM also has a living character, the ordinary proxy path would
-//      try to repost the starter message — deleting a forum post's starter
-//      message destroys the whole post. So this runs BEFORE the proxy gate in
-//      messageCreate.js.
-//   2. It carries no PlayerThread row, so the Dawn wipe adopts it at
-//      persistent: false and deletes it, thread and all, on the second Dawn.
-//
-// The conversion: delete the post, immediately re-create it verbatim as
-// Bascinet, tagged Quest, starter message pinned, and recorded as a
-// PlayerThread with keepStarter (db/lib/dawnWipe.js then empties it every Dawn
-// but never touches its starter, and never deletes it). A GM removes it by
-// hand when the quest is over.
-//
-// Text only, on purpose: re-uploading attachments would mean downloading and
-// re-posting multipart bodies on the gateway's hot path. An attachment is
-// reported back to the GM by DM instead of silently vanishing.
-//
-// Why "any hand-made post is a GM's": players are denied CREATE_PUBLIC_THREADS
-// on every location forum (db/lib/zoneChannelSpec.js#forumSpec), and every
-// legitimate bot-made post — the Location topics, the Create-a-Topic anchor, a
-// player's topic — arrives with a bot author, which messageCreate.js has
-// already filtered out before this is reached. So there is no role check here.
+// It fixes two problems: the post is authored by the GM's real account
+// (breaking the player/character separation the proxy pipeline protects),
+// and it carries no PlayerThread row, so the Dawn wipe would delete it. The
+// conversion deletes the post and re-creates it verbatim as Bascinet, tagged
+// Quest, starter pinned, recorded with keepStarter. Text only — attachments
+// are reported back to the GM by DM instead. No role check needed: players
+// are denied CREATE_PUBLIC_THREADS on every location forum.
 const { ChannelType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { QUEST_TAG_NAME } = require("@lifeweb/db/lib/persistence");
