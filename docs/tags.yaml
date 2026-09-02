@@ -7275,8 +7275,11 @@ tags:
     removable: true
     durationTurns: 1
 
+  # Renamed 2026-09-02: Tag.name is UNIQUE, and the new death-wish-interest
+  # Interest takes the plain "Death Wish". This retired Cult original keeps a
+  # distinct name until db:backfill-desires moves its last holders across.
   - slug: death-wish
-    name: "Death Wish"
+    name: "Death Wish (Cult)"
     category: bacchus
     group: bacchus
     description: "The only valid Desires for you are near-death occurrences."
