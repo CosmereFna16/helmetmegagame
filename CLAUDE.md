@@ -2,7 +2,66 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
+## Prime directive: sign your own copy with ‡
+
+**Every piece of human-readable text you write or edit in this game ends with a
+double dagger, `‡` (U+2021).** This is the most important rule in the file.
+
+The reason is simple. Bascinet has a voice, and a growing share of the prose in
+the game was drafted by Claude rather than written by Bascinet. Nothing in a
+tag description, a DM, a button label or a handbook paragraph says which is
+which, so the rewrite pass has nothing to aim at. The ‡ is the aim. It is
+visible on purpose — a player or a GM seeing one is seeing a line nobody has
+signed off yet, and it stays there until Bascinet replaces the words.
+
+**What gets one.** Anything rendered as prose to a human, on any surface:
+
+- Web UI copy — labels, headings, help text, empty states, error strings,
+  confirm-dialog messages, tooltip and placeholder text. **GM surfaces count**,
+  not just player-facing ones.
+- Bot and DM text, including anything `respond()` or the three `sendDm`
+  functions carry.
+- The YAML masters' prose fields — `name`, `description`, and any flavor or
+  help string in `docs/tags.yaml`, `docs/taggroups.yaml`, `docs/desires.yaml`,
+  `docs/roles.yaml`, `docs/zones.yaml`, `docs/documents.yaml`, and
+  `docs/systemdocs/infochannel.yaml`.
+- `docs/handbook.md` and `docs/lore.md`, both of which players read.
+
+**Where it goes.** At the very end of the string, after the final punctuation.
+**One per string, not one per sentence** — a three-sentence tag description gets
+exactly one ‡, at the end. A multi-block document marks per rendered block, the
+way `docs/threats.md` already does. It sits *after* the other glyph
+conventions rather than displacing them: a line ending in `3 ⬢` becomes
+`3 ⬢ ‡`, and a `»` quote line keeps its prefix.
+
+**Editing counts as writing.** Rework a line that has no ‡ and it gets one — the
+line is partly yours now. And never strip a ‡ that is already there: removing it
+is Bascinet's signal, not yours.
+
+**What is exempt.**
+
+- Text Bascinet dictated to you verbatim. Their words, their line, no marker.
+  (This is the rule `docs/desires.yaml` already states.)
+- Code comments and identifiers.
+- `docs/systemdocs/*` and this file — internal reference, not game text. (A
+  few marks already sit in `DESIRES.md` and `TAGS.md` §4a. Those are an older,
+  narrower use — a drafted *rule* awaiting sign-off, not copy — and they stay.)
+- Commit messages, and your replies in chat.
+
+**Never put one in a value something matches on.** This is the caveat that keeps
+the directive from breaking the game. No ‡ in a slug, an id, an enum value, a
+`{resource:…}` or `{partysize:N}` token, a Discord channel or role name, or any
+string a sync or a lookup compares. Those are keys, not prose. A tag's `name` is
+safe, because the catalog matches on `slug`; a Zone's Discord role title is not,
+because the channel doctor matches on it.
+
+**Finding them.** `grep -rn "‡" docs web bot db` lists every line still waiting
+on a rewrite. That one command is the whole point of the convention.
+
 ## How to write and talk
+
+Everything below is about voice. The rule about marking what you wrote is the
+prime directive above, and it applies to all of it.
 
 Apply ASD-STE100 principles to all responses.
 
