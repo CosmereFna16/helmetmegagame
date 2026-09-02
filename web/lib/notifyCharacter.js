@@ -5,18 +5,11 @@ import { sendDm } from "@/lib/discordGuild";
 // Fired from after(), post-commit: a DM must never hold up the action that
 // triggered it, and a failed DM must never undo what already happened.
 //
-// Deliberately unattributed. Every caller writes what CHANGED, never who did
-// it — a bind or a looting only lands on a helpless target, and naming the
-// actor would tell the victim something the fiction doesn't. See
-// REQUESTS.md for the rule this enforces.
+// Deliberately unattributed — callers write what CHANGED, never who did it,
+// since naming the actor would tell a helpless victim something the fiction
+// doesn't (REQUESTS.md). Exception: a Bird's letter is signed (BIRD.md).
 //
-// ONE EXCEPTION, and it proves the rule: a Bird's letter is signed. Every other
-// caller here describes something done TO a helpless person, where the identity
-// is the thing being withheld. A letter nobody can attribute is not a letter —
-// the whole act is choosing to tell someone who you are. See BIRD.md.
-//
-// No-ops on a character with no discordUserId (shouldn't happen for a live
-// party, but callers pass whatever resolveParty/findFirst gave them).
+// No-ops on a character with no discordUserId.
 export function notifyCharacter(character, text, opts = {}) {
   if (!character?.discordUserId) return;
   after(() =>

@@ -22,10 +22,9 @@ import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels"
 // listed, even at a count of zero, so "Open" doesn't disappear from Status
 // just because nothing is open right now. Zone stays derived from the loaded
 // rows in every filterDefs list below, since which zones exist is not a
-// fixed thing. WAITING_FOR_OPPONENTS and IN_PROGRESS are both dropped: the
-// first is legacy (nothing writes it), and the second is no longer a status
-// value the mapper can produce at all — a lock is presence now, never a
-// status (moveRows.js#moveStatusLabel) — though both stay in
+// fixed thing. WAITING_FOR_OPPONENTS and IN_PROGRESS are dropped: neither is
+// a status the mapper can produce — a lock is presence now, never a status
+// (moveRows.js#moveStatusLabel) — though both stay in
 // MOVE_REVIEW_LABELS/MOVE_REVIEW_TONES for old stored rows (web/lib/moves.js).
 const MOVE_KIND_OPTIONS = ["Routine", "Gambit", "Travel"];
 const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
@@ -34,15 +33,12 @@ const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
 
 // Still-open work floats to the top of the rail; Solved (bookkept, nothing
 // left to push) and Passed (already resolved) sink toward the bottom. Ties
-// within a rank fall back to recency — see queueOrder below. No "In
-// Progress" entry any more: a locked-but-solved row now ranks as Solved,
-// which is the honest state — it sinks like any other solved row even while
-// someone's looking at it.
+// within a rank fall back to recency — see queueOrder below. A locked-but-
+// solved row ranks as Solved, the honest state — it sinks like any other
+// solved row even while someone's looking at it.
 const MOVE_STATUS_RANK = { Open: 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
 // Same trick for the Caving lens: an unresolved TROUBLE row ("Needs
-// attention") floats to the top, Resolved sinks — see rankedMoves below and
-// D25 (QueueRail.js's default filter used to hide everything but "Needs
-// attention" instead; the fix is ranking, not hiding).
+// attention") floats to the top, Resolved sinks — see rankedMoves below.
 const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
 const REQUEST_TYPE_OPTIONS = [...new Set(Object.values(REQUEST_TYPE_LABELS))];
 const REQUEST_STATUS_OPTIONS = Object.values(REQUEST_STATUS_LABELS);
@@ -102,9 +98,9 @@ const requestSearchMap = (r) => ({
 const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
 // One sessionStorage key for every CLICK-frequency bit of rail VIEW state —
-// a reload restores it (deploys used to hard-reload this desk constantly;
-// the version-aware poll in Workspace.js has since tamed that, but a reload
-// still has to come back lossless). Workspace.js reads the same key for
+// a reload restores it, and must come back lossless (the version-aware poll
+// in Workspace.js keeps reloads rare, but not impossible). Workspace.js reads
+// the same key for
 // `lens`, sharing this one store the same way two usePins() callers already
 // share "gm-pins".
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
@@ -121,9 +117,8 @@ export const RAIL_STORAGE_DEFAULT = {
 // subscribes to (useSessionState.js#readSession/#writeSession): search text
 // per lens and the queue's scroll position per lens. Writing it can't wake
 // Workspace or this component, which is what makes persisting it affordable
-// — the old comment here ruled search-text persistence out precisely because
-// controlled mode meant a subscribed storage round-trip per keystroke. The
-// writes are debounced besides, with a pagehide flush for the tail.
+// — a subscribed store would mean a round-trip per keystroke. The writes are
+// debounced besides, with a pagehide flush for the tail.
 const VIEW_STORAGE_KEY = "gm-turns-view";
 const VIEW_STORAGE_DEFAULT = { query: {}, scroll: {} };
 
@@ -147,9 +142,9 @@ const getFalse = () => false;
 
 // The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE (die 1)
 // row is ever "Needs attention"; QUIET and FIND are stamped resolved at
-// creation. Every roll shows by default (D25) — unresolved TROUBLE just
-// ranks first, the same way rankedMoves ranks Open above Solved/Passed —
-// rather than defaulting the Status filter to hide QUIET/FIND outright.
+// creation. Every roll shows by default — unresolved TROUBLE just ranks
+// first, the same way rankedMoves ranks Open above Solved/Passed — rather
+// than defaulting the Status filter to hide QUIET/FIND outright.
 const CAVING_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
@@ -416,8 +411,8 @@ export default function QueueRail({
     [historyMoves],
   );
 
-  // D25: an unresolved TROUBLE row floats to the top of the Caving lens
-  // instead of being the only thing shown by default.
+  // An unresolved TROUBLE row floats to the top of the Caving lens rather
+  // than being the only thing shown by default.
   const rankedCavingRolls = useMemo(
     () =>
       (cavingRolls ?? []).map((r) => ({
@@ -582,8 +577,8 @@ export default function QueueRail({
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
   // The keyboard cursor is tracked by ROW ID, not position — a Move going
   // Open → Solved re-sorts to the bottom of the rail (MOVE_STATUS_RANK), and
-  // an index-based cursor used to stay pinned to whatever row happened to
-  // land in its old slot instead of following the row it was actually on.
+  // an index-based cursor would stay pinned to whatever row lands in its old
+  // slot instead of following the row it was actually on.
   const [kbdCursorId, setKbdCursorId] = useState(null);
   const railRef = useRef(null);
   const coarse = useIsCoarsePointer();
@@ -598,12 +593,11 @@ export default function QueueRail({
   const scrollWriteTimer = useRef(0);
   const pendingScroll = useRef(null); // { lens, top }
   // Flush-not-discard: the debounce timer is shared across lenses, and the
-  // restore below assigns scrollTop programmatically — which fires a scroll
-  // event of its own. Discarding the pending write on every event (a plain
-  // clearTimeout debounce) let a lens flip inside the 200ms window eat the
-  // departing lens's position: scroll Moves, press `r`, the restore's
-  // scrollTop=0 event lands under the Requests lens and killed the Moves
-  // write. So a pending write for a DIFFERENT lens flushes instead of dying.
+  // restore below assigns scrollTop programmatically, firing a scroll event
+  // of its own. A plain clearTimeout debounce would let a lens flip inside
+  // the 200ms window overwrite the departing lens's pending write with the
+  // new lens's scrollTop=0 — so a pending write for a DIFFERENT lens flushes
+  // instead of being discarded.
   const flushScroll = useCallback(() => {
     clearTimeout(scrollWriteTimer.current);
     const pending = pendingScroll.current;

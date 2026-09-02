@@ -52,12 +52,10 @@ module.exports = {
     if (!message.inGuild()) {
       const attachmentNames = message.attachments.size > 0 ? [...message.attachments.values()].map((a) => a.name) : null;
       const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
-      // Every inbound DM is mail for the GMs now. The one flow that used to
-      // put non-mail here — the ✏️ edit collector, which asked the player to
-      // type the replacement text into this same DM — is a button and a modal
-      // instead (bot/src/lib/editModal.js), so nothing a player types for a
-      // mechanic travels as a DM message any more. The read side still filters
-      // the old source: "prompt_reply" rows; see web/lib/dmThread.js.
+      // Every inbound DM is mail for the GMs now. Mechanic edits go through a
+      // button and a modal (bot/src/lib/editModal.js), so nothing a player
+      // types for a mechanic travels as a DM message; web/lib/dmThread.js
+      // still filters "prompt_reply" rows out of the read side.
       await prisma.directMessage
         .create({
           data: {
@@ -74,14 +72,9 @@ module.exports = {
     }
 
     // #turns is the console channel: the Travel/Move/Speak buttons live on an
-    // anchor message there (bot/src/lib/turnsConsole.js) and everything a
-    // player types is simply removed. It no longer files a Move — that is a
-    // modal now, so nothing a player writes ever sits in a channel waiting to
-    // be deleted, and no typing indicator fires under their real account.
-    // The report channel is the same kind of surface: one anchor with an Open
-    // Ticket button (bot/src/lib/reportChannel.js), everything typed under it
-    // removed. A ticket thread reports itself as message.channel, so this only
-    // ever matches the channel proper.
+    // anchor message there (bot/src/lib/turnsConsole.js), so everything a
+    // player types is simply removed. The report channel is the same kind of
+    // surface (bot/src/lib/reportChannel.js's Open Ticket button).
     const channelName = message.channel.name?.toLowerCase();
     if (channelName === "turns" || message.channel.id === REPORT_CHANNEL_ID) {
       await message.delete().catch(() => {});
@@ -192,20 +185,16 @@ async function touchThreadActivity(threadId) {
   if (updated.count > 0 && turnNumber !== null) activityWritten.set(threadId, turnNumber);
 }
 
-// Two independent things a character-role mention does, both of which the bot
-// has to perform itself once the roles are assigned to nobody (see the
-// identity/access split): notify the player, and — in a private thread — let
-// them in, which Discord used to do for free by auto-adding a mentioned role's
-// members.
+// Two independent things a character-role mention does: notify the player,
+// and — in a private thread — let them in. Discord won't auto-add a mentioned
+// role's members once the role is assigned to nobody, so the bot does both.
 async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   const context = resolveChannelContext(channel);
   const mentioned = await resolveMentionedCharacters(mentionedRoleIds);
 
-  // Every gate on this path used to reject in total silence, and the proxy
-  // suppresses the role ping itself (allowedMentions parse: ["users"]), so a
-  // swallowed mention looks exactly like a delivered one — the chip renders
-  // either way. One line per ping makes the whole thing diagnosable from the
-  // Railway logs.
+  // The proxy suppresses the role ping itself (allowedMentions parse:
+  // ["users"]), so a swallowed mention looks exactly like a delivered one.
+  // One line per ping makes it diagnosable from the Railway logs.
   console.log(
     `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
       `zone=${context.zoneId ?? "none"} kind=${context.channelKind ?? "location"}`,
@@ -232,8 +221,8 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   const link = messageLink(message.guildId, channel.id, proxied.id);
   const privateThread = isPrivateThread(channel);
 
-  // Collected rather than sent one-per-target: a message naming five people
-  // who are all somewhere else used to DM the author five separate times.
+  // Collected rather than sent one-per-target, so the author gets one DM
+  // instead of one per absent person named.
   const notHere = [];
 
   for (const target of relayed) {

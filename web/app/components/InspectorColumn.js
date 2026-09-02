@@ -28,18 +28,10 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 // last clicked anywhere in the workspace, with a pin row so the characters an
 // arbitration keeps returning to stay one click away.
 //
-// It lives in components/ rather than under /gm/turns because BOTH desks
-// mount it now: /gm/turns from Workspace.js, /gm/players from InspectorHost.js
-// (which is where the player desk's old DossierColumn went). The tab list is
-// the same five on both; anything desk-specific arrives through
-// `tabPreludes` — a section rendered ABOVE a base tab's own body, not a tab of
-// its own.
-//
-// Fetches are on-demand server actions cached in the Workspace-owned Map
-// (`${characterId}:${tab}`) for the life of the page view — an inspector is
-// a reference surface, and stale-by-minutes is fine. The refresh affordance
-// is switching tabs off and back... or the page-level refresh any staging
-// action already does.
+// Both /gm/turns (Workspace.js) and /gm/players (InspectorHost.js) mount it;
+// desk-specific sections arrive through `tabPreludes` rather than a tab of
+// their own. Fetches are on-demand server actions cached in the
+// Workspace-owned Map for the life of the page view.
 
 const BASE_TABS = ["Sheet", "Tags", "Moves", "Archive", "DMs"];
 
@@ -395,9 +387,8 @@ function ArchiveView({ data, onOpenContext, characterId, cacheKey, setCache }) {
 
 // A thin wrapper over the shared DmThread — the same component the
 // /gm/messages inbox uses (compact, for the Inspector's narrower column).
-// The fetch/send/cache plumbing is still this file's job (Workspace owns the
-// cache), but the thread rendering and the reply form are no longer a
-// bespoke second implementation.
+// The fetch/send/cache plumbing is this file's job (Workspace owns the
+// cache); DmThread owns the rendering and the reply form.
 function DmsView({ data, characterId, cacheKey, setCache }) {
   const [draft, setDraft] = useState("");
   const draftOver = draft.length > GM_MESSAGE_MAX_LENGTH;
@@ -485,12 +476,8 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
 const SEARCH_RESULT_LIMIT = 8;
 
 // The "look someone up without leaving the desk" box, sitting above the pin
-// row. Filters the roster page.js already ships to the client (no fetch) with
-// scoreMatch — the one shared fuzzy-search implementation
-// (web/lib/fuzzySearch.js) — over name, role, faction, Discord username and
-// zone, so "innkeeper", a faction name, or a Discord handle all find someone.
-// Picking a result just calls onInspect, the same path a name click anywhere
-// else in the workspace takes; pinning stays the existing Pin/Unpin button.
+// row. Filters the roster page.js already ships to the client with scoreMatch
+// (web/lib/fuzzySearch.js) over name, role, faction, username and zone.
 function InspectorSearch({ roster, onInspect }) {
   const [query, setQuery] = useState("");
 
@@ -571,10 +558,8 @@ export default function InspectorColumn({
   onOpenDev,
   // Desk-specific sections rendered ABOVE a base tab's own body:
   // { [tabKey]: (ctx) => node }, ctx being { inspected, currentTurnNumber,
-  // refresh }. A prelude owns its own fetching and its own freshness, and
-  // never takes a slot in the shared per-(character, tab) cache — because the
-  // only thing a desk wants above a tab is the part that changes. The player
-  // desk's Canon sits above Moves that way: this turn over past turns.
+  // refresh }. A prelude owns its own fetching and never takes a slot in the
+  // shared per-(character, tab) cache.
   tabPreludes = {},
   // Buttons that belong beside the pins (the player desk's "Message pinned").
   pinsActions = null,

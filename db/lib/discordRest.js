@@ -44,16 +44,9 @@ const MAX_RETRY_AFTER_MS = 30_000;
 const invalidTimestamps = [];
 let breakerOpenUntil = 0;
 
-// The counters above are module-level JS, and that was the hole: the breaker's
-// stated purpose is to stop a crash-restart loop, and a restart zeroes them.
-// Cloudflare's count is keyed on the egress IP and does not reset, so the one
-// scenario this was written for was the one it could never catch. The health
-// line at bot startup could only ever print 0/1000.
-//
-// So the state is mirrored onto GameConfig. Deliberately NOT read per request:
-// that would put a database round trip in front of every Discord call. Loaded
-// once when the process first touches this module, and written only on the
-// error path.
+// Persisted to GameConfig, since Cloudflare's count is keyed on the egress IP
+// and a process restart would otherwise zero the local counters. Deliberately
+// NOT read per request — loaded once, written only on the error path.
 //
 // `attach` is called by db/index.js, which owns the prisma singleton — this
 // file is required BY it and cannot require it back (see the header).
@@ -171,20 +164,12 @@ function getInvalidResponseStats() {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Per-bucket rate-limit bookkeeping, and a request counter for the Dawn wipe's
-// SystemReport.
-//
-// The wrapper used to sleep the moment ANY response came back with
-// `X-RateLimit-Remaining: 0`, right where it stood. That is correct but
-// wasteful in a sequential sweep like db/lib/dawnWipe.js, which constantly
-// alternates between unrelated routes: exhausting one zone's message-delete
-// bucket stalled the next zone's channel fetch, which shares nothing with it.
-//
-// So the reset is *recorded* against the bucket instead, and paid at the start
-// of the next request that actually uses that bucket. Discord names the bucket
-// in `X-RateLimit-Bucket`, but only in the response — so the mapping is learned
-// per route and remembered. An unlearned route pays nothing up front, exactly
-// like the very first request does today; if the guess is wrong the ordinary
-// 429 retry below is still the safety net.
+// SystemReport. The rate-limit reset is recorded against the bucket and paid
+// at the start of the next request using that bucket, instead of sleeping
+// immediately — so exhausting one route's bucket doesn't stall an unrelated
+// route in a sequential sweep. Discord names the bucket only in the response
+// (`X-RateLimit-Bucket`), so the mapping is learned per route; an unlearned
+// route pays nothing up front, and the ordinary 429 retry is the safety net.
 const bucketByRoute = new Map();
 const resetAtByBucket = new Map();
 
@@ -228,13 +213,9 @@ async function meteredSleep(ms) {
 }
 
 // Every failure this wrapper throws carries the HTTP status and Discord's own
-// JSON error code, because callers need to tell one failure from another and
-// the message text cannot do it. postAsCharacter below is the worked example:
-// it used to match `err.message.includes("webhook")` to spot a deleted
-// webhook, and every error on that path contains the word — a 429, a 500,
-// even the breaker's own refusal, whose path is `/webhooks/...`. So a
-// rate-limited post was read as a dead webhook and retried instantly into the
-// same exhausted bucket.
+// JSON error code — callers must tell failures apart by code, never by
+// matching message text, which can match unrelated failures (see
+// postAsCharacterChunk's UNKNOWN_WEBHOOK check).
 function discordError(message, { status = null, discordCode = null } = {}) {
   const err = new Error(message);
   err.status = status;
@@ -254,9 +235,6 @@ function discordError(message, { status = null, discordCode = null } = {}) {
 //   formData      a factory returning a FormData, for the multipart uploads a
 //                 JSON body can never carry. It is a factory, not a value,
 //                 because a consumed request body may not re-send on a retry.
-//
-// Both used to be bare fetches, and both were therefore invisible to the
-// circuit breaker while making exactly the calls it exists to count.
 async function discordRequest(
   path,
   { method = "GET", body, allow404 = false, auth = true, formData = null } = {},
@@ -364,12 +342,6 @@ async function discordRequest(
 // `payload_json` part holding the normal message object plus one `files[n]`
 // part per file; `attachments[].id` is the *part index*, not a snowflake, and
 // must line up with the `files[n]` suffix or Discord drops the file silently.
-//
-// This used to run its own retry loop, which is how the single largest request
-// the bot makes — the weather banner, once per turn advance — ended up with no
-// breaker check, no invalid-response counting, and an *uncapped* retry_after
-// sleep that could park a turn advance for ten minutes where discordRequest
-// would have failed fast at thirty seconds.
 async function postAttachment(channelId, filePath, content = "", components = undefined) {
   const fs = require("node:fs");
   const path = require("node:path");
@@ -426,19 +398,11 @@ async function patchChannel(channelId, payload) {
 }
 
 // Opens (or returns the existing) DM channel with a user, and remembers it.
-//
-// The comment here used to say that Discord treats this as idempotent and so
-// there was nothing to cache — which confuses the response being identical
-// with the request being free. It is a real POST: a round trip, its own
-// rate-limit bucket, and a tick on the Cloudflare counter if it 429s. The
-// channel id, meanwhile, is stable for the lifetime of the guild, which makes
-// it the most cacheable value in this file.
-//
-// It cost roughly 390 redundant calls a turn. advanceTurn's side effects walk
-// three separate DM loops — Default Move summaries, tag progression, hunger —
-// and a player who slept through a turn is usually in all three, so the same
-// channel was opened from scratch three times over. The webhookCache below
-// carries a comment about learning this exact lesson the hard way.
+// This is a real POST — its own round trip, rate-limit bucket, and a tick on
+// the Cloudflare counter if it 429s — even though Discord's response looks
+// idempotent; the channel id is stable for the guild's lifetime, so caching
+// it is safe and worth doing (advanceTurn's DM loops otherwise reopen it
+// repeatedly per player per turn).
 //
 // The logged wrapper that actually sends is db/lib/dm.js#sendDm, which lives
 // elsewhere because it needs prisma (see this file's header).
@@ -501,22 +465,11 @@ async function postDmOnce(discordUserId, content, components = undefined) {
 }
 
 // The DM equivalent of postMessageBatched: opens the channel (cached) and
-// sends `text` across as many messages as it takes.
-//
-// Both REST sendDm twins go through this, because neither had ANY length
-// handling. A GM's Move result or broadcast over 2000 characters was rejected
-// by Discord, the error was swallowed by the caller's .catch, and the GM saw
-// the Move go green with the player never told. The `» ` prefix made it
-// worse by adding two characters after the last place anyone was counting.
-//
-// The prefix is applied by the caller BEFORE chunking, so it lands on the
-// first chunk and the continuations run on bare — which is what the `»` rule
-// in CLAUDE.md means anyway. Chunking after prefixing also means the chunker
-// needs no special allowance for it.
-// `components` — a button row, for the handful of DMs that carry one (the
-// Bird's Reply button is the first). It rides on the LAST chunk only: a button
-// belongs under the end of what it answers, and Discord would otherwise render
-// one row per chunk, each of them live.
+// sends `text` across as many messages as it takes. Both REST sendDm twins
+// go through this so a message over 2000 chars is never silently dropped.
+// The caller applies the `»` prefix BEFORE chunking, so it lands only on the
+// first chunk. `components` (a button row) rides on the LAST chunk only —
+// otherwise Discord renders one live row per chunk.
 async function postDmBatched(discordUserId, text, components = undefined) {
   const chunks = chunkMessage(text);
   if (chunks.length === 0) chunks.push(text);
@@ -676,20 +629,11 @@ function messageTimestamp(messageId) {
 }
 
 // Bulk-delete requires 2-100 ids and rejects the WHOLE batch if any one of
-// them is over 14 days old; a 1-element array errors, so that case falls back
-// to a single delete instead.
-//
-// The age rule used to be assumed away — "always true here, Dawn cycles every
-// ~12h". That holds only while the wipe has actually been running, and
-// GameConfig.messageWipeEnabled defaults to false: a guild that plays for two
-// weeks and then turns it on hits the floor on its very first run, and every
-// batch containing one old message is rejected whole. The failure is
-// self-worsening, because the longer it is broken the more certainly it stays
-// broken.
-//
-// So the ids are split by age: the young ones bulk-delete as before, and a
-// bounded number of old ones go one at a time. Anything past the cap is
-// reported rather than silently skipped.
+// them is over 14 days old (a 1-element array errors too, so that falls back
+// to a single delete). So ids are split by age: young ones bulk-delete
+// together, and a bounded number of old ones go one at a time — a batch with
+// even one old message would otherwise be rejected whole. Anything past the
+// cap is reported rather than silently skipped.
 async function bulkDeleteMessages(channelId, messageIds) {
   const cutoff = Date.now() - BULK_DELETE_MAX_AGE_MS;
   const young = [];
@@ -727,10 +671,9 @@ async function bulkDeleteMessages(channelId, messageIds) {
 }
 
 // Empties a forum post / thread but keeps it alive. The starter message's id
-// IS the thread id, and deleting it destroys the whole post — so it is the one
-// message always skipped. Everything else goes through bulkDeleteMessages,
-// which is 1 request per 100 rather than the per-message loop this replaces:
-// on a busy Location topic that was the single largest cost in the Dawn wipe.
+// IS the thread id, and deleting it destroys the whole post — so it is the
+// one message always skipped. Everything else goes through
+// bulkDeleteMessages, 1 request per 100 rather than per-message.
 async function clearThreadExceptStarter(threadId, { before } = {}) {
   const messages = await fetchAllMessages(threadId, { before });
   const ids = messages.filter((m) => m.id !== threadId).map((m) => m.id);
@@ -739,12 +682,9 @@ async function clearThreadExceptStarter(threadId, { before } = {}) {
 }
 
 // There's no per-channel "active threads" REST endpoint — only a
-// guild-wide one — so this filters client-side by parent_id.
-//
-// Which makes the naive call pattern quietly expensive: the Dawn wipe asks
-// once for each Location's forum AND once for its private channel, so 15
-// locations pulled the entire guild's thread list 30 times over. `snapshot`
-// lets a caller fetch it once and pass it down; see db/lib/dawnWipe.js.
+// guild-wide one — so this filters client-side by parent_id. Calling it
+// once per channel is expensive at scale; `snapshot` lets a caller fetch
+// once and pass it down. See db/lib/dawnWipe.js.
 async function fetchActiveThreads() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const { threads } = await discordRequest(`/guilds/${guildId}/threads/active`);
@@ -818,12 +758,9 @@ const UNKNOWN_WEBHOOK = 10015;
 // there isn't one" rule, so a channel never ends up with two.
 //
 // Cached per channel for the process lifetime, mirroring the gateway twin's
-// webhookCache in bot/src/lib/proxy.js. The comment here used to claim this
-// ran "once per turn at most" and therefore needed no cache; that was wrong.
-// postAsCharacter calls it, and db/index.js calls postAsCharacter in a loop
-// over every Default Move summary — so a turn with ~100 defaults spent ~100
-// redundant GETs on the same handful of location channels, each one a tick
-// against that channel's webhook bucket.
+// webhookCache in bot/src/lib/proxy.js — postAsCharacter is called in a loop
+// over every Default Move summary, so an uncached lookup here would repeat a
+// GET per character per turn.
 //
 // A webhook the cache knows about but Discord no longer has is the one stale
 // case; executeWebhook throws on it, so the entry is dropped and rebuilt.
@@ -854,15 +791,11 @@ async function fetchOrCreateChannelWebhook(channelId) {
   return { id: created.id, token: created.token };
 }
 
-// `auth: false` because the webhook token in the URL *is* the credential, and
-// sending a bot Authorization header alongside it makes Discord authorize the
-// request as the bot instead, which it may reject outright.
-//
-// That header rule is the only thing special about this call, and it used to
-// be the justification for a bare fetch — which meant the one path driven in a
-// loop over the whole roster had no 429 handling at all. Webhook execution is
-// bucketed at roughly 5 per 5 seconds per channel, so on a busy turn a 429
-// here is the expected steady state, not an exotic case.
+// `auth: false` because the webhook token in the URL *is* the credential —
+// sending a bot Authorization header alongside it makes Discord authorize
+// the request as the bot instead, which it may reject outright. Webhook
+// execution is bucketed at roughly 5 per 5 seconds per channel, so on a busy
+// turn a 429 here is the expected steady state, not an exotic case.
 async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
   return discordRequest(`/webhooks/${id}/${token}?wait=true`, {
     method: "POST",
@@ -882,11 +815,8 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // REST equivalent of a tupper proxy, for anything composed by the game itself
 // rather than by a player typing in a channel.
 //
-// Chunked, because the biggest caller is the Default Move summary loop in
-// db/index.js and that text is PLAYER-authored (DefaultEffortPanel's summary
-// message). It went to the webhook whole, so a long one was rejected outright
-// and the narration for that character simply never appeared.
-//
+// Chunked, since the biggest caller (the Default Move summary loop in
+// db/index.js) posts PLAYER-authored text that can exceed 2000 chars.
 // Returns the FIRST message, which is what the archive row anchors to.
 async function postAsCharacter(channelId, character, content) {
   const chunks = chunkMessage(String(content ?? ""));
@@ -905,13 +835,9 @@ async function postAsCharacterChunk(channelId, character, content) {
     return await postAsCharacterOnce(channelId, content, character);
   } catch (err) {
     // The cached webhook may have been deleted in Discord since we stored it.
-    // Forget it and rebuild once before giving up, so one hand-deleted webhook
-    // doesn't silently kill every summary post for that channel until restart.
-    //
-    // Keyed on the error CODE, never on its text. Matching the word "webhook"
-    // in the message matched every failure on this path — including a 429,
-    // whose correct answer is to back off, not to immediately spend two more
-    // requests rebuilding a webhook that was never broken.
+    // Forget it and rebuild once before giving up. Keyed on the error CODE,
+    // never message text — matching "webhook" in the text would also match a
+    // 429, whose correct answer is to back off, not rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
       return postAsCharacterOnce(channelId, content, character);
@@ -1021,10 +947,9 @@ async function putChannelOverwrite(channelId, targetId, { allow = "0", deny = "0
 }
 
 // Removes a single permission overwrite, so the target falls back to whatever
-// it inherits from the category. The counterpart to putChannelOverwrite, and
-// the only way to undo an overwrite that shouldn't be there — a PUT can create
-// or replace a named target but never delete one, which left the location sync
-// structurally unable to repair a channel someone had opened up by hand.
+// it inherits from the category. The counterpart to putChannelOverwrite — a
+// PUT can create or replace a named target but never delete one, so this is
+// the only way to undo an overwrite that shouldn't be there.
 //
 // allow404 because "there is no overwrite for this target" is the state the
 // caller wanted; a concurrent removal is success, not an error.

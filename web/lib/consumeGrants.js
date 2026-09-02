@@ -1,34 +1,11 @@
-// What a consumable actually turns into for a given character.
+// What a consumable turns into for a character: consumesInto lists targets,
+// consumesIntoUnless blocks one if the character holds a blocking slug,
+// consumesIntoDurations overrides a grant's expiry, consumesIntoOneOf picks
+// between alternatives at one position, consumesIntoResources grants flat ⬢.
 //
-// Tag.consumesInto lists every possible target; Tag.consumesIntoUnless carries
-// the conditions, as { "<target slug>": ["<blocking slug>", ...] } — a target
-// is granted only if the character holds none of its blocking tags. No tag
-// sets this today (Fine Meal was the only one, and its condition went with the
-// Mood system), but the mechanism is general and the resolver still honours it.
-//
-// Tag.consumesIntoDurations is the other sidecar, { "<target slug>": N }: the
-// granted tag expires in N turns instead of its own defaultDurationTurns. Raw
-// Cave Fungus and refined Bliss both leave you High, for 2 turns and 3
-// respectively — one status, two lifetimes, decided by what you took.
-//
-// Tag.consumesIntoOneOf is a third sidecar, added for the Caves Update's
-// Skinned Cave Rat: a parallel array to consumesInto, same length and order,
-// where each entry is either null (that position is a plain grant) or a list
-// of two-or-more slugs to pick between with even odds — the corresponding
-// consumesInto[i] holds the first alternative only as a display fallback for
-// any older caller that ignores this field.
-//
-// Tag.consumesIntoResources is the Resources half, added for the same
-// update's Purse and Supply Kit — a flat amount of ⬢ granted alongside (or
-// instead of) any tag.
-//
-// Deliberately pure — no Prisma, no server imports — because the server action
-// and the client-side "Becomes:" previews must agree. A preview that promised
-// something the grant then withheld would be a lie the player only discovers
-// after spending the item. The one exception is the oneOf roll itself, which
-// is why callers that need a STABLE preview (rather than committing to an
-// outcome) should read consumesIntoOneOf directly and render "A or B" rather
-// than calling this function twice and risking two different answers.
+// Deliberately pure (no Prisma) so previews match real grants. A caller
+// needing a stable preview must read consumesIntoOneOf directly, not call
+// this twice — a second call can roll a different outcome.
 
 // `heldSlugs` may be a Set or any iterable of slugs. Returns the granted
 // slugs (oneOf entries already resolved to one pick), the ones a condition

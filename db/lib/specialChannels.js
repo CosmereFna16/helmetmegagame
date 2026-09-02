@@ -1,41 +1,11 @@
 // The registry of SPECIAL CHANNELS — standing channels outside the zone
-// system (#watch, #intercom today; more will come). One entry here fully
-// describes a channel: provisioning, static role grants, the per-character
-// access rule, wipe behavior, ghost visibility and tupper routing all derive
-// from it. Adding a future special channel is one entry in this array plus
-// one GameConfig id column — nothing else to touch.
+// system (#watch, #intercom, #mindlink). Each entry fully describes a
+// channel: provisioning, static role grants, per-character access, wipe
+// behavior, ghost visibility and tupper routing all derive from it. Adding a
+// channel is one entry here plus one GameConfig id column.
 //
-// Rules stay CODE, deliberately: a special channel's access condition is real
-// logic over tags and zones, and a YAML mini-language would only be a worse
-// programming language. What the registry buys is that the logic lives in one
-// self-contained object instead of being smeared across a provisioning
-// script, two access-sync twins and the wipe.
-//
-// Entry shape:
-//   slug              stable key, also the channel's Discord name
-//   configKey         GameConfig column holding the channel id
-//   categoryConfigKey GameConfig column holding the shared category's id
-//   topic             the channel topic, re-asserted every sync
-//   tupper            true = the proxy pipeline treats it like a roleplay
-//                     channel (bot/src/lib/channels.js and
-//                     web/lib/discordGuild.js build their sets from this)
-//   wipe              "clear" = the Dawn wipe bulk-deletes its messages;
-//                     "skip" = never touched
-//   ghostsMaySee      whether the Cursed seat gets its read-only overwrite
-//   roleViewZones     zone SLUGS whose "Zone: X" role gets a ViewChannel
-//                     allow — a static, role-based floor under the
-//                     per-member rule. Re-applied every sync.
-//   slowmode          optional rate_limit_per_user in seconds, re-asserted
-//                     every sync alongside the topic. Omit for none.
-//   member(ctx)       per-character rule → { view, send } | null. null means
-//                     no overwrite at all (falls back to @everyone's deny —
-//                     or to a roleViewZones grant the character's zone role
-//                     carries). Evaluated by computeNarrowcastAccess and
-//                     applied as a MEMBER overwrite by the two
-//                     syncCharacterNarrowcastAccess twins.
-//
-// ctx is built by buildNarrowcastContext below:
-//   { zoneSlug, seatZoneSlug, tagSlugs }
+// Access rules stay CODE: they're real logic over tags and zones, not data a
+// YAML mini-language could express cleanly.
 
 const { FORTRESS_SLUG } = require("./constants");
 
@@ -65,15 +35,11 @@ const SPECIAL_CHANNELS = [
     tupper: true,
     wipe: "clear",
     ghostsMaySee: true,
-    // Audible by everyone with a character, wherever they stand — except the
-    // Windlands, where the hurricane winds drown the PA out. Granting view to
-    // the zone ROLES (rather than a per-member overwrite each) is also what
-    // retired the ~100-overwrite ceiling this channel used to be drifting
-    // toward.
+    // Audible by everyone with a character, wherever they stand, except the
+    // Windlands. Grant view to the zone ROLES rather than a per-member
+    // overwrite each, to stay under Discord's per-channel overwrite cap.
     roleViewZones: ["town", "fortress", "caverns", "railroad", "aberrant-pits"],
-    // Speaking needs the Intercom tag and boots on Fortress ground. The old
-    // rule said "standing in the Keep"; the Keep is prose now, so the
-    // Fortress zone is the gate.
+    // Speaking needs the Intercom tag and standing in the Fortress zone.
     member: (ctx) => {
       if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === FORTRESS_SLUG) {
         return { view: true, send: true };

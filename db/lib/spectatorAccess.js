@@ -1,23 +1,12 @@
-// The spectator role — a standing observer seat.
-// Read-only visibility into every Location channel and both narrowcast
-// channels, with no way to contribute anything anywhere.
+// The spectator role — a standing observer seat. Read-only visibility into
+// every Location channel and both narrowcast channels, applied once at
+// provisioning (not swapped per-Move like a character's personal role,
+// since a spectator sees everywhere at once).
 //
-// Unlike a character's personal role, this is ONE static role that never
-// moves: it is applied once when a channel is provisioned and otherwise only
-// by the backfill script. It is deliberately not part of the per-Move access
-// sync (bot/src/lib/location.js#swapLocationAccess and its REST twin), which
-// exists to move a single character between categories — a spectator sees
-// everywhere at once, so there is nothing to swap.
-//
-// On a Location the overwrite goes on the CATEGORY, so all three channels
-// inherit it, the same mechanism per-character access uses.
-//
-// The deny list is wider than just SendMessages on purpose. ViewChannel
-// without SendMessages still leaves a forum channel postable and a thread
-// writable, and Location `-private` channels allow CreatePrivateThreads for
-// @everyone — which a spectator would otherwise inherit. Denying the thread
-// bits explicitly closes all three, which is what "read-only, no private
-// threads" has to mean.
+// The deny list is wider than SendMessages: ViewChannel alone still leaves
+// a forum channel postable and a thread writable, and Location `-private`
+// channels grant @everyone CreatePrivateThreads — denying the thread perms
+// explicitly is what "read-only, no private threads" requires.
 const { putChannelOverwrite } = require("./discordRest");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
 

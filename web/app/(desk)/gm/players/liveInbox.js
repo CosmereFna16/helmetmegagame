@@ -2,26 +2,15 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// The live inbox's client store — what LiveInboxPoller.js fills, and what the
-// rail and the conversation pane read. A module-level store read through
-// useSyncExternalStore, the same shape as useDeskVersion.js and usePins.js,
-// rather than a provider: the store is the shared state, so nothing has to be
-// wrapped and nothing syncs props into state through an effect.
+// The live inbox's client store — what LiveInboxPoller.js fills, and what
+// the rail and conversation pane read. Module-level state read through
+// useSyncExternalStore, so nothing needs a provider.
 //
-// Two things live here:
-//   patches — per conversation, the rail fields that moved (last message time
-//             and direction, preview, unread count, handled/muted/claim), each
-//             stamped with the DB clock it was read at. The rail lays a patch
-//             over its server row only when the patch is newer than the row
-//             (mergeRailRows) — a revalidated layout carries a newer stamp,
-//             so stale patches simply stop applying. Nothing prunes them in
-//             an effect.
-//   feeds   — per conversation, the message rows that arrived since the page
-//             was seeded. The pane unions them with its own page during
-//             render (ConversationPane.js).
+// patches: per conversation, rail fields that moved, stamped with the DB
+// clock read time; the rail applies a patch (mergeRailRows) only when newer
+// than its row. feeds: per conversation, message rows arrived since load.
 //
-// Every rebuild makes a new Map/array: useSyncExternalStore notifies on
-// reference change, and react-hooks/immutability is an error here.
+// Every rebuild makes a new Map/array — react-hooks/immutability is an error.
 
 const EMPTY_PATCHES = new Map();
 const EMPTY_FEED = Object.freeze([]);

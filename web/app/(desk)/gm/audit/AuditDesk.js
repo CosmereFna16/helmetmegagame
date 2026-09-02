@@ -12,21 +12,12 @@ import { exportAudit } from "./exportActions";
 
 // The audit desk's client shell.
 //
-// Two different kinds of state, held two different ways on purpose:
-//
-//   FILTERS live in the URL. The log is unbounded, so filtering has to happen
-//   in Postgres, and a view worth having is a view worth pasting at another
-//   GM. Every control writes through `set` below, which rewrites the query
-//   string inside a transition and lets the server re-render.
-//
-//   SELECTION is local. The page already shipped every row on screen, so
-//   picking one is a lookup, not a fetch — the URL is updated with
-//   history.replaceState so the permalink stays right without re-running the
-//   RSC tree. Same trick as the adjudication desk's Workspace.
-//
-// Presentation state (relative vs absolute time, whether the live tail is
-// running) is local and deliberately not in the URL: it is how one person
-// likes to read, not what they are looking at.
+// FILTERS live in the URL — the log is unbounded, so filtering happens in
+// Postgres, and a URL is a view worth pasting to another GM. SELECTION is
+// local: the page already shipped every row, so picking one is a lookup, and
+// the URL is patched with history.replaceState to keep the permalink right
+// without re-running the RSC tree. Presentation state (time format, live
+// tail) stays local — it's how one person reads, not what they're looking at.
 
 const REFRESH_MS = 20_000;
 

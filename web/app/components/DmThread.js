@@ -13,21 +13,8 @@ import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib
 // than a support inbox: flat rows, one header (avatar, name, time) per run of
 // messages from the same person, day dividers, a NEW line where the unread
 // ones start, and a scroll that follows the conversation only when you're
-// already at the bottom.
-//
-// Props:
-//   messages        — DirectMessage DTOs (id, direction, content, createdAt,
-//                     authorDiscordUserId, source, meta). createdAt may be a
-//                     Date (server-rendered) or an ISO string (live feed).
-//   gmProfiles      — web/lib/gmProfiles.js#getGmProfiles() result
-//   onLoadOlder     — fetch the previous page; omit to hide the affordance
-//   hasMore         — whether an older page exists
-//   compact         — tighter padding for the inspector's narrow column
-//   character       — { id, name, avatarVersion } of the conversation's own
-//                     character, for the inbound rows' avatar and name
-//   newSinceMs      — this GM's read cursor when the thread opened; the NEW
-//                     line goes above the first inbound row after it
-//   myDiscordUserId — the viewing GM, so their own send always scrolls
+// already at the bottom. `messages` are DirectMessage DTOs; `createdAt` may
+// be a Date (server-rendered) or an ISO string (live feed).
 
 // Quiet source labels for the GM-authored rows that still need a "what kind
 // of GM message is this" hint next to the name.
@@ -49,9 +36,8 @@ function isEmbed(m) {
 
 // Bot/effect notifications — resource grants, dev-panel summaries, Move
 // unlocks. They render as centred system lines, and runs of three or more
-// collapse. Pure UI plumbing (source: "system_notice", the historical
-// "prompt_reply") never reaches this component at all:
-// @/lib/dmThread#withoutDmNoise excludes it at the query.
+// collapse. Pure UI plumbing (source: "system_notice", "prompt_reply") never
+// reaches this component: @/lib/dmThread#withoutDmNoise excludes it at the query.
 function isEffect(m) {
   return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
 }

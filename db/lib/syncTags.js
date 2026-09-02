@@ -1,29 +1,11 @@
 // docs/tags.yaml + docs/taggroups.yaml -> DB, called by db/scripts/sync/sync-tags.js
 // (manual `npm run db:sync-tags`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js) — see docs/systemdocs/TAGS.md.
-// Those two files are the sole creation path for TagGroup/Tag rows; this
-// function is upsert-only and never deletes anything, so removing an entry
-// from either YAML just leaves its existing DB row untouched (same contract
-// as syncLocations.js).
-//
-// Six passes, since tags/groups can reference each other by slug before
-// every row necessarily exists yet:
-//   1. Upsert every TagGroup's scalar fields (slug/name/category/color).
-//   2. Upsert every Tag's scalar fields + groupId (groups exist from pass 1).
-//   3. Resolve each Tag's parentTag/requiredTag slug references now that
-//      every Tag row exists.
-//   4. Resolve each TagGroup's requiredTag slug reference.
-//   5. Resolve each Tag's requirement.skills slug list (requirementSkills,
-//      a many-to-many self-relation) now that every Tag row exists — same
-//      reason this can't happen in pass 2, alongside pass 3/4.
-//   6. Resolve each Tag's conflictsWith slug list (self-referential m2m),
-//      symmetrized so a caller only ever has to check one side.
-// Each pass only writes when something actually changed, same
-// needsUpdate-style diff check as syncLocationsFromYaml.
-//
-// desireLocks (Tag.desires.locks in the YAML) is validated and written as a
-// plain scalar in pass 2 — it needs no cross-tag resolution, just the
-// desire-family vocabulary from db/lib/desireFamilies.js.
+// Upsert-only and never deletes: removing an entry from either YAML leaves
+// its existing DB row untouched. Six passes, since tags/groups reference
+// each other by slug and some rows (parentTag, requiredTag, requirement
+// skills, conflictsWith) can only resolve once every Tag row exists. Each
+// pass only writes when something actually changed.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -48,14 +30,13 @@ const VISIBILITY_BY_YAML = new Map([
 
 // A consumesInto entry is a bare slug ("ate-meal"), an object carrying a
 // condition and/or an expiry override ({ slug: "night-vision", unlessTags:
-// ["blind"] }, { slug: "high", durationTurns: 3 }), or — added for the Caves
-// Update's Skinned Cave Rat — an even random pick between alternatives
-// ({ oneOf: ["ate-meal", "vomiting"] }), the same shape expiresInto already
-// uses. Every shape normalises to the same quad here so validation and the
-// write path only ever handle one of them. A oneOf entry's "slug" is its
-// first alternative — a display fallback for anything that still reads
-// consumesInto directly; the real pick lives in oneOf and is rolled by
-// web/lib/consumeGrants.js.
+// ["blind"] }, { slug: "high", durationTurns: 3 }), or an even random pick
+// between alternatives ({ oneOf: ["ate-meal", "vomiting"] }), the same shape
+// expiresInto already uses. Every shape normalises to the same quad here so
+// validation and the write path only ever handle one of them. A oneOf
+// entry's "slug" is its first alternative — a display fallback for anything
+// that still reads consumesInto directly; the real pick lives in oneOf and
+// is rolled by web/lib/consumeGrants.js.
 function normalizeConsumesInto(entries) {
   return (entries ?? []).map((entry) => {
     if (typeof entry === "string") {
@@ -106,9 +87,9 @@ function consumesIntoScalars(entries) {
   };
 }
 
-// normalizeExpiresInto and its three rules moved to db/lib/tagShapes.js when
-// the GM tag form grew an expiry-chain picker of its own — one rule set, two
-// authoring surfaces, so the form can't accept a shape this sync rejects.
+// normalizeExpiresInto and its three rules live in db/lib/tagShapes.js —
+// one rule set shared by this sync and the GM tag form's expiry picker, so
+// the form can't accept a shape this sync rejects.
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
