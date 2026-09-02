@@ -14,14 +14,10 @@ const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
 const { GHOST_LINE, claimGhostWhisper } = require("@lifeweb/db/lib/ghostWhisper");
 
-// Discord's embed limits. An embed that breaches either is rejected whole, and
-// on the inspect path that meant no DM, no channel fallback, both errors
-// swallowed, and the 🔍 left sitting on the message doing nothing. A
-// tag-heavy character — the Demoness with a pile of new tags, i.e. exactly who
-// gets inspected — reached the field cap easily.
-//
-// The dossier branch below had this trim inline and the inspect branch had a
-// comment reminding itself to and then didn't; now there is one of them.
+// Discord's embed limits. An embed that breaches either is rejected whole —
+// no DM, no channel fallback, and the 🔍 left sitting on the message doing
+// nothing. A tag-heavy character reaches the field cap easily, so every
+// field and description below is trimmed with fitField/fitDescription.
 const EMBED_FIELD_LIMIT = 1024;
 const EMBED_DESCRIPTION_LIMIT = 4096;
 
@@ -126,11 +122,10 @@ async function handleStarReaction(reaction, proxy, user) {
 // and concealment ignored (a GM sees through it, though the alias is noted so
 // they know the room did not).
 //
-// There is deliberately NO channel fallback when the DM bounces; doing that
-// here would hand the room every tag and the Desire. The 🔍 inspect
-// branch below used to have one, and it leaked exactly that into a public
-// channel whenever the reactor had DMs closed. Both now log and drop instead.
-// If a future embed in this file needs a fallback, it is not this kind.
+// There is deliberately NO channel fallback when the DM bounces; posting one
+// in the channel would hand the room every tag and the Desire. Both this and
+// the 🔍 inspect branch below log and drop instead. If a future embed in
+// this file needs a fallback, it is not this kind.
 async function handleDossierReaction(reaction, proxy, user) {
   const [character, openTurn] = await Promise.all([
     prisma.character.findUnique({
@@ -298,14 +293,11 @@ module.exports = {
   async execute(reaction, user) {
     if (user.bot) return;
 
-    // Everything below the fetch used to sit above it, which meant every
-    // reaction on any message in the guild cost two REST calls before the
-    // handler decided it didn't care about it. Partials.Message/Reaction are
-    // enabled, so after every deploy that is *every* reaction in the guild.
-    //
     // The gateway payload already carries the emoji, the message id and the
-    // guild id, so all three gates below are free — only a reaction that has
-    // actually reached a handler pays for the fetch.
+    // guild id, so all three gates below are free. Only a reaction that
+    // passes them pays for the fetch — with Partials.Message/Reaction
+    // enabled, every reaction in the guild would otherwise cost two REST
+    // calls before the handler even decided it cared.
     const emojiName = reaction.emoji?.name;
 
     // Move DMs are handled entirely by select menus/buttons now (see
@@ -482,19 +474,14 @@ module.exports = {
           });
           if (!concealedChar) return;
 
-          // seenByBystander IS the gate now, and the two buckets below only
-          // sort what it let through. It used to be the other way round by
-          // accident: the filter here asked "visible?", and an item that was
-          // visible but not equipped then landed in neither bucket — not an
-          // ailment, not worn — and fell on the floor. Right outcome for a
-          // stowed dagger, reached for no reason, and wrong for the greatsword
-          // across somebody's back, which a stranger can obviously see.
+          // seenByBystander IS the gate, and the two buckets below only sort
+          // what it let through — an item must pass it to land in either
+          // bucket, so nothing visible-but-unequipped falls through the
+          // cracks.
           const seen = concealedChar.tags.filter((ct) => seenByBystander(ct.tag, ct));
-          // Health is its own category now, so it IS the ailment set and the
-          // category is the right thing to test — this used to have to reach for
-          // the status-health group slug to avoid dragging Hungry and the other
-          // Status tags in with it. Note the capital: Tag.category stores the display name, not
-          // the YAML slug (syncTags.js).
+          // Health is its own category, so it IS the ailment set. Note the
+          // capital: Tag.category stores the display name, not the YAML slug
+          // (syncTags.js).
           const ailments = seen
             .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
             .map((ct) => ct.tag.name);

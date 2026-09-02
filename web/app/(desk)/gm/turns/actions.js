@@ -29,25 +29,14 @@ import {
   tagsByIdFor,
 } from "@/lib/moveRows";
 
-// The server half of the adjudication workspace. Everything here follows the
-// staged-arbitration rule: nothing a GM does on the desk touches a player's
-// sheet or DMs — Solve is bookkeeping, and the staged rows this file writes
-// are applied and delivered by the turn-end push (db/lib/stagedPush.js).
-// The exceptions are the ones that must act now by nature: Reject (unlock),
-// the FEED_PERSON kill, and Request review, which has always been apply-first.
-//
-// None of these actions revalidatePath the turns route any more. Every call
-// site — the desk's own components, and InspectorColumn's quick-edits on
-// either desk — follows a success with refresh() (useRefresh.js), and
-// router.refresh() already refetches the current route uncached (the root
-// layout is force-dynamic; staleTimes.dynamic is the default 0). Keeping the
-// revalidatePath too made every mutation render page.js TWICE: once into the
-// action's own response, once for the refresh. If an action here ever grows
-// a caller that does NOT refresh() after it, that caller is the bug — or the
-// revalidatePath comes back for that action alone. Cross-page actions that
-// touch this desk's data (depot, store, dev panel, player desk…) still carry
-// their revalidatePath(TURNS_PATH), correctly: no desk refresh runs after
-// those.
+// The server half of the adjudication workspace. Nothing a GM does here
+// touches a player's sheet or DMs — staged rows are applied and delivered
+// only by the turn-end push (db/lib/stagedPush.js). Exceptions that must act
+// now: Reject (unlock), the FEED_PERSON kill, and Request review.
+// These actions don't revalidatePath the turns route — callers use
+// refresh() (useRefresh.js) instead. Actions that touch OTHER pages' data
+// (depot, store, dev panel, player desk) still carry their own
+// revalidatePath.
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -397,18 +386,11 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
 }
 
 // A staged party-to-party transfer — a character or a faction Silo on either
-// end, applied by the same turn-end push as every other staged row (see
-// db/lib/stagedPush.js). Its own action rather than another
-// createStagedEffectsImpl payload shape: a transfer is 1:1 by nature (no
-// multi-target batch), and the balance check has to run against LIVE
-// balances at stage time so the composer can say "that's more than they
-// have" before the GM commits to it — createStagedEffectsImpl's resources
-// field never reads a balance at all, because a mint/burn can't overdraw.
-//
-// targetCharacterId files the row under: the character end, if exactly one
-// end is a character; the RECIPIENT, if both ends are (they're the one who
-// gets staged-diff visibility and the eventual DM); null if neither is —
-// the Silo -> Silo case, which has no per-character home in the tray.
+// end, applied by the same turn-end push as every other staged row. It's a
+// separate action because the balance check must run against LIVE balances
+// at stage time, unlike createStagedEffectsImpl's mint/burn resources field.
+// targetCharacterId files the row under: the character end if exactly one
+// end is a character; the RECIPIENT if both are; null for Silo -> Silo.
 async function createStagedTransferImpl({
   fromKey,
   toKey,
@@ -593,9 +575,8 @@ async function lockHolderName(discordUserId) {
   return members.find((m) => m.id === discordUserId)?.username ?? "Another GM";
 }
 
-// See the old gm/turns/actions.js for the history of this claim being one
-// conditional write. The three OR arms are the whole rule: nobody holds it, I
-// already hold it, or whoever held it let the 90s TTL lapse.
+// One conditional write. The three OR arms are the whole rule: nobody holds
+// it, I already hold it, or whoever held it let the 90s TTL lapse.
 async function claimMoveLockImpl({ actionId }) {
   const session = await requireGm();
 
@@ -646,9 +627,8 @@ async function releaseMoveLockImpl({ actionId }) {
 
 // Kind is the interesting edit: a Gambit always carries a fresh roll and a
 // Routine never carries one, so switching either way rewrites the dice rather
-// than leaving a stale number behind. The resource-delta editor is gone —
-// under staged arbitration a GM who disagrees with the declared numbers
-// stages a counter-effect instead of rewriting the player's.
+// than leaving a stale number behind. A GM who disagrees with the declared
+// numbers stages a counter-effect instead of rewriting the player's.
 function normalizeEdits(action, edits, characterTags, hungerStreak) {
   const data = {};
 
@@ -689,18 +669,13 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
 
-  // The conditional writes below are the same discipline the old panel had —
-  // the check and the transition are one statement — even though a double
-  // Solve no longer pays anyone twice. It still stops two GMs from silently
-  // overwriting each other's verdicts.
+  // The check and the transition are one statement, stopping two GMs from
+  // silently overwriting each other's verdicts.
   const result = await prisma.$transaction(async (tx) => {
     // Every branch below RENEWS the lock rather than clearing it — save,
-    // solve and unsolve all leave the desk open on this same Move, and used
-    // to null the lock out from under the GM still sitting on it. The
-    // heartbeat (useMoveLock.js) would then fail its next 30s beat against a
-    // row it no longer holds, and the desk greyed out mid-edit with "Your
-    // hold on this Move expired." Release still happens the normal ways —
-    // unmount, the pagehide beacon, or the TTL lapsing (moveEconomy.js).
+    // solve and unsolve all leave the desk open on this same Move. Release
+    // still happens the normal ways: unmount, the pagehide beacon, or the
+    // TTL lapsing (moveEconomy.js).
     const renewedLock = { lockedByDiscordUserId: session.discordUserId, lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS) };
 
     if (mode === "unsolve") {
@@ -721,13 +696,9 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
 
     if (mode === "save") {
       // No status claim, no forced OPEN — Save just keeps the edits and
-      // leaves the status exactly where it was, solved or not. The guard
-      // that used to sit here protected nothing (Solve is bookkeeping;
-      // nothing pays until the push) and was the direct cause of last
-      // night's incident: a GM whose own live lock masked the desk's status
-      // as "In Progress" got "That Move is solved — reopen it before
-      // editing." on a row they had already solved, with no Reopen button
-      // on screen because the desk thought it was still open.
+      // leaves the status exactly where it was, solved or not. Solve is
+      // bookkeeping; nothing pays until the push, so a status guard here
+      // would protect nothing.
       await tx.action.update({
         where: { id: actionId },
         data: { ...data, ...renewedLock },
@@ -737,17 +708,15 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
 
     // Solve — staging complete. Nothing applies here; the declared numbers
     // and every staged row land together at the push. Still a conditional
-    // claim: it stops two GMs racing from a stale view, a rare thing now
-    // that the desk's own status display can no longer lie to the GM
-    // sitting on it.
+    // claim: it stops two GMs racing from a stale view.
     const claimed = await tx.action.updateMany({
       where: { id: actionId ?? "", moveReviewStatus: { not: "SOLVED" } },
       data: { moveReviewStatus: "SOLVED" },
     });
     if (!claimed.count) {
       // Named the actual condition rather than a generic "Another GM" —
-      // the stale-view race can just as easily be the same GM's own earlier
-      // click landing twice.
+      // the race can just as easily be the same GM's own earlier click
+      // landing twice.
       const fresh = await tx.action.findUnique({ where: { id: actionId } });
       if (fresh?.reviewedByDiscordUserId === session.discordUserId) {
         throw new UserError("You already solved this Move — it's marked and will push.");
@@ -779,14 +748,10 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
   return result;
 }
 
-// The Caving lens' one verdict: "Mark resolved" on a TROUBLE roll, once the
-// GM has narrated it and staged whatever effects the encounter needs. Unlike
-// resolveMoveImpl there is no "unsolve" — a resolved Caving roll can simply
-// be reopened by clearing gmNotes' worth from the desk if a GM changes their
-// mind, so this stays a one-way stamp rather than a state machine. QUIET and
-// FIND rows are already resolvedAt at creation and never reach this action
-// from the UI (the desk only offers the button on an unresolved row), but it
-// is harmless — and idempotent — if one ever does.
+// The Caving lens' one verdict: "Mark resolved" on a TROUBLE roll. Unlike
+// resolveMoveImpl there is no "unsolve" — this is a one-way stamp, not a
+// state machine. Idempotent, in case a QUIET/FIND row (already resolved at
+// creation) ever reaches it.
 async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
   const session = await requireGm();
   const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
@@ -816,9 +781,8 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
 
 // "Reject" on the desk. Deletes the Action outright — the turn-economy checks
 // all look for ANY Action on the open turn, so only a deletion actually frees
-// the player to act again. Pre-push there is nothing to claw back
-// (appliedEffects is null until the push claims it); staged rows linked to
-// the Move detach via SetNull and surface in the tray as unattached.
+// the player to act again. Staged rows linked to the Move detach via SetNull
+// and surface in the tray as unattached.
 async function rejectMoveImpl({ actionId, reason: rawReason }) {
   const session = await requireGm();
   const reason = requireReason(rawReason);
@@ -950,12 +914,10 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   return result;
 }
 
-// Both types that name a kill now perform it themselves, on submit
-// (REQUESTS.md §5a). This is the fallback for the rows where that claim
-// didn't land — the target was already dead when the request was filed, or
-// the row predates the change — and it runs the same death path as the
-// character editor. The `effect.killed` guard below is what keeps it from
-// double-killing a request that already did its job.
+// Fallback kill path for a request naming a kill that hasn't claimed one yet
+// (REQUESTS.md §5a) — runs the same death path as the character editor. The
+// `effect.killed` guard below keeps it from double-killing a request that
+// already did its job.
 async function killRequestTargetImpl({ requestId }) {
   const session = await requireGm();
 
@@ -1096,10 +1058,9 @@ async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
   };
 }
 
-// getDmThreadImpl/sendInspectorDmImpl used to live here. The Inspector's DMs
-// tab now uses web/app/(app)/gm/messages/actions.js#getDmThreadPage and
-// #sendGmDm directly — the same functions the /gm/messages inbox uses — so
-// there's one DM fetch/send path instead of two.
+// The Inspector's DMs tab uses web/app/(app)/gm/messages/actions.js
+// #getDmThreadPage and #sendGmDm directly — the same functions the
+// /gm/messages inbox uses — so there's one DM fetch/send path.
 
 const CONTEXT_SLICE = 30;
 

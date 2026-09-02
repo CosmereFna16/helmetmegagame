@@ -1,35 +1,12 @@
-// Who can see #turns.
-//
-// #turns holds the rolling console — the turn announcement, the weather
-// banner and the Travel/Move/Speak buttons. It is the one channel every
-// player needs, and for a long time it was the only channel in the game whose
-// visibility no code managed: bot/src/lib/turnsConsole.js wrote a single
-// `@everyone: SendMessages false` overwrite and nothing else, so who could
-// SEE it was whatever had been clicked by hand in Discord. A player finished
-// character creation and still saw nothing until a GM added a per-member
-// override, one player at a time — and that override then outlived the
-// character.
-//
-// The gate is the zone role, the same trick #intercom uses
-// (db/lib/specialChannels.js, `roleViewZones`). Every living character holds
-// exactly one "Zone: X" role from the moment createCharacter runs, and travel
-// only ever swaps it — so "has a character" and "holds some zone role" are
-// the same set. @everyone is denied the view; every zone role is allowed it.
-// The channel appears the moment a character exists, with no new role and no
-// manual step.
-//
-// SendMessages stays denied to @everyone, so the channel is still bot-only.
-// The console's buttons are components, not messages, so they keep working.
-//
-// Three seats sit alongside the zone roles: the GM role, the spectator seat
-// (db/lib/spectatorAccess.js) and the ghost seat (db/lib/cursedAccess.js),
-// each reusing the helper that already exists for it.
-//
-// Applied from three places, all idempotent:
-//   * bot/src/lib/turnsConsole.js#ensureTurnsConsole — every bot ready
-//   * db/lib/syncZones.js — after the zone-role pass, since a recreated role
-//     has a new id and the old grant would point at a dead one
-//   * db/lib/channelDoctor.js, full scope — drift reporting and repair
+// Who can see #turns — the rolling console (turn announcement, weather
+// banner, Travel/Move/Speak buttons) every player needs. The gate is the
+// zone role, the same trick #intercom uses (db/lib/specialChannels.js,
+// `roleViewZones`): every living character holds exactly one "Zone: X" role,
+// so @everyone is denied the view and every zone role is allowed it.
+// SendMessages stays denied to @everyone — the buttons are components, not
+// messages. Applied, idempotently, from bot/src/lib/turnsConsole.js on every
+// bot ready, from db/lib/syncZones.js after the zone-role pass, and from
+// db/lib/channelDoctor.js for drift reporting and repair.
 const {
   getGuildChannels,
   getGuildRoles,
@@ -51,11 +28,10 @@ const EVERYONE_DENY = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES
 const GM_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES;
 
 // The canonical exact-name match. There is only ever meant to be one #turns,
-// and nothing in the repo creates it. This used to be copy-pasted into
-// bot/src/lib/turnsConsole.js and db/lib/turnAnnouncement.js with a comment in
-// each asking that they stay in sync; both require it from here now. It works
-// on a raw REST channel and on a discord.js gateway channel alike, since
-// ChannelType.GuildText is 0.
+// and nothing in the repo creates it — bot/src/lib/turnsConsole.js and
+// db/lib/turnAnnouncement.js both require it from here rather than keeping
+// their own copy. It works on a raw REST channel and on a discord.js gateway
+// channel alike, since ChannelType.GuildText is 0.
 function isTurnsChannel(channel) {
   return channel?.type === CHANNEL_TYPE_TEXT && channel.name?.toLowerCase() === "turns";
 }

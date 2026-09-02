@@ -6,19 +6,10 @@
 // Unlike syncTagsFromYaml (upsert-only, never deletes/hides anything), this
 // sync SOFT-RETIRES: a slug present in the DB but absent from the file gets
 // `retired: true` (hidden from every picker, existing instances keep
-// running), and a slug that comes back gets it cleared. A DesireTemplate is
-// pure catalog with a cheap hide, not held state like a Tag — see
-// engineering-plan.md §3c.
+// running), and a slug that comes back gets it cleared.
 //
-// Four passes:
-//   0. Parse + validate everything up front, no writes. Every unknown
-//      reference throws before pass 1 touches the DB.
-//   1. Upsert each DesireTemplate's scalars by slug, diffing arrays via
-//      JSON.stringify (syncTags pass-2 idiom).
-//   2. Resolve requiresAnyTags/requiresNotTags with `set:` — the
-//      requirementSkills pattern from syncTags pass 5.
-//   3. Soft retire: DB slug absent from the file -> retired: true; present
-//      -> cleared.
+// Four passes: 0. parse + validate everything up front, no writes; 1. upsert
+// scalars by slug; 2. resolve the tag/role requirement links; 3. soft retire.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");

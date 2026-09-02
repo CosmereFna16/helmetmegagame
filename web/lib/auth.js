@@ -2,26 +2,16 @@ import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
 import { NextRequest } from "next/server";
 
-// Behind Railway's proxy Next.js builds `request.url` from the container's own
-// listener — https://localhost:8080 — and ignores the Host header, even though
-// Railway forwards the real host correctly. That matters because the
-// /api/auth/* route handler derives the OAuth redirect_uri from the request
-// URL (next-auth/lib/env.js#reqWithEnvURL), so Discord would be handed
-// https://localhost:8080/api/auth/callback/discord and reject it, taking
-// sign-in down on every domain at once. Rebuild the origin from the forwarded
-// headers before Auth.js ever sees the request.
-//
-// The `signIn()`/`signOut()` server actions take a different path
-// (@auth/core createActionURL, which already reads x-forwarded-host) and need
-// no help — only the route handler is wrong.
-//
-// An origin taken from a client-controllable header is an open-redirect vector
-// in an OAuth flow, so hosts are allowlisted rather than trusted. Anything
-// unrecognised falls back to the canonical origin, which reproduces the old
-// AUTH_URL-pinned behaviour rather than a broken one. Adding a domain means
-// adding it here *and* registering `<host>/api/auth/callback/discord` in the
-// Discord Developer Portal. Hardcoded for the same reason as
-// `db/lib/roleIds.js` — a hostname is not a secret and there is one deployment.
+// Behind Railway's proxy, Next.js builds `request.url` from the container's
+// own listener and ignores the Host header, so the /api/auth/* route handler
+// would hand Discord a bad OAuth redirect_uri and break sign-in on every
+// domain. Rebuild the origin from the forwarded headers before Auth.js sees
+// the request. `signIn()`/`signOut()` already read x-forwarded-host and need
+// no help. An origin taken from a client-controllable header is an
+// open-redirect vector in an OAuth flow, so hosts are allowlisted rather
+// than trusted — anything unrecognised falls back to the canonical origin.
+// Adding a domain means adding it here AND registering its callback URL in
+// the Discord Developer Portal.
 const CANONICAL_ORIGIN = "https://ravenheart.quest";
 
 const ALLOWED_HOSTS = new Set([

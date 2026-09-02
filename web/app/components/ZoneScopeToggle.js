@@ -1,21 +1,11 @@
 "use client";
 
-// The GM's seats, plus All, for a GM who holds any.
-//
-// Holds no state of its own on purpose. The Zone <select> in FilterBar and
-// this toggle are two faces of one value — `filters.zone` — so a second
-// useState here would let them disagree the moment someone used the select
-// instead. Pressed state is derived, and the page-1 reset rides in for free
-// on the shared setFilters.
-//
-// `filters.zone` stays a single zone NAME, which is what useTableState's
-// filterDefs match on. A GM seated in two zones therefore gets one button per
-// seat rather than a combined "Mine" — [Town] [Caves] [All] — which is also
-// the honest control: there is no one zone that is theirs. A GM with a single
-// seat sees exactly the old Mine / All pair.
-//
-// Renders nothing for the master and for an unassigned GM, which is how every
-// zone feature degrades to today's behaviour when the list comes back empty.
+// The GM's seats, plus All, for a GM who holds any. Holds no state of its
+// own — the Zone <select> in FilterBar and this toggle are two faces of one
+// value, `filters.zone`, so a second useState here would let them disagree.
+// `filters.zone` stays a single zone NAME: a GM seated in two zones gets one
+// button per seat rather than a combined "Mine", since there is no one zone
+// that is theirs. Renders nothing for the master or an unassigned GM.
 export default function ZoneScopeToggle({ myZoneNames, filters, setFilters }) {
   const seats = myZoneNames ?? [];
   if (seats.length === 0) return null;

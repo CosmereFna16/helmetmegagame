@@ -10,9 +10,7 @@ import { toDocumentPreviewText } from "@/lib/documentPreview";
 // The root layout calls these un-awaited and streams the promises into the
 // client providers, so the data rides the initial response instead of
 // costing four client round trips after hydration — and doesn't block first
-// paint either. Formerly the /api/tags, /api/production-rates,
-// /api/party-sizes and /api/documents routes; the visibility rules moved
-// here unchanged.
+// paint either.
 
 // The tag list is NOT the whole catalog. A tag whose group carries a
 // requiredTag sits in a hidden category (Demoness, Bacchus — see

@@ -705,9 +705,9 @@ async function revokeDesireGmImpl({ characterId, desireId }) {
       where: { id: desireId, characterId, status: { not: "CANCELLED" } },
       data: { status: "CANCELLED", endedTurnNumber: null },
     });
-    // Guarded the same way the player-facing fulfil used to be: two Revokes
-    // fired together would both pass the read above, and only the one that
-    // actually flipped the row may take the points back.
+    // Guarded against a race: two Revokes fired together would both pass the
+    // read above, and only the one that actually flipped the row may take
+    // the points back.
     if (count === 0) throw new UserError("That desire was already revoked.");
     if (desire.status === "FULFILLED") {
       await tx.character.update({

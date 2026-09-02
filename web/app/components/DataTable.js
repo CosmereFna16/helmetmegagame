@@ -6,19 +6,10 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 
 // The shared filter/search/sort/paginate engine behind every list surface in
 // the app — the adjudication tables, the player roster, the DM conversation
-// list, the notes board.
-//
-// This started as gm/turns/tableUtils.js, serving those two tables alone,
-// while /gm/players, /gm/messages and /notes each hand-rolled the same
-// filter-select + useMemo pass slightly differently and none of them capped
-// their height. Pagination is the one thing that wasn't here: /gm/turns
-// rendered up to 500 rows into a 70vh box, which is what made it feel janky
-// next to /gm/audit.
-//
-// Posture is client-side throughout: these pages already hold their whole set
-// in memory, so filtering and paging are a plain pass rather than a round
-// trip. /gm/audit is the deliberate exception — it pages server-side over the
-// URL, and shares only the <Pager> below.
+// list, the notes board. Posture is client-side throughout: these pages
+// already hold their whole set in memory, so filtering and paging are a
+// plain pass rather than a round trip. /gm/audit is the deliberate exception
+// — it pages server-side over the URL, and shares only the <Pager> below.
 
 const DEFAULT_PAGE_SIZE = 50;
 

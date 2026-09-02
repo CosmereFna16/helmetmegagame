@@ -1,24 +1,12 @@
 // The OOC report channel — one anchor post with an Open Ticket button, and a
-// private thread per report.
-//
-// Hardcoded id rather than an env var, for the roleIds.js reason: Bascinet is
-// a single-guild game, there is exactly one correct value, and a channel id is
-// not a secret. It also can't be half-configured — an unset env var here would
-// leave the bot silently deleting nothing and posting nowhere.
-//
-// Access is re-asserted on every bot ready (bot/src/lib/reportChannel.js), the
-// same posture as #turns (turnsChannelAccess.js): @everyone can't see it, the
-// Player role can, GMs can also manage the threads. Nobody is granted or
-// denied SEND_MESSAGES on the channel itself — Gunboat asked that everyone
-// keep send, and the bot deletes whatever lands there
-// (bot/src/events/messageCreate.js), GMs included, so the channel stays one
-// post tall without a lock. Thread posting is its own bit,
-// SEND_MESSAGES_IN_THREADS, and the ticket thread is where the actual report
-// gets written.
-//
-// The two custom ids are routed by exact equality in
+// private thread per report. Hardcoded id rather than an env var, for the
+// roleIds.js reason: one guild, one correct value, not a secret. Access is
+// re-asserted on every bot ready (bot/src/lib/reportChannel.js): @everyone
+// can't see it, Player can, GMs can also manage threads. Nobody is denied
+// SEND_MESSAGES on the channel itself — the bot deletes whatever lands
+// there, GMs included, so it stays one post tall without a lock. The two
+// custom ids are routed by exact equality in
 // bot/src/events/interactionCreate.js — change one here and there together.
-// Raw component JSON rather than builders, same reason as turnsConsoleRow.js.
 const { putChannelOverwrite } = require("./discordRest");
 const { PLAYER_ROLE_ID } = require("./roleIds");
 

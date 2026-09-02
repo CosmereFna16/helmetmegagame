@@ -2,35 +2,12 @@
 
 import { useEffect, useId, useRef } from "react";
 
-// The one modal shell. Every dialog in the app used to hand-roll this: eleven
-// copies of the overlay/panel pair, each repeating the same
-// onClick={(e) => e.stopPropagation()}, and between them ONE that bound Escape
-// (RequestDialog), ONE that set role="dialog" (DocumentsBoard), and none that
-// trapped focus. ConfirmProvider — the dialog behind all 15 useConfirm() call
-// sites — was not the one with Escape, so Escape did nothing on almost every
-// dialog a player or GM could open.
-//
-// Width is a named size rather than an inline maxWidth. There were six values
-// in play (the CSS default plus 24/34/36/40/46rem), which is the same drift
-// PageShell's narrow/default/wide already solved for pages.
-//
-// `panelClassName` exists for exactly one caller: the documents sheet is
-// deliberately wider and more generously set than .modal-panel, because it is
-// a page of prose rather than a dialog. It still wants the Escape, the focus
-// trap and the focus restore, so it swaps the panel class rather than
-// re-implementing the shell.
-//
-// `actions` is the slot for anything belonging beside the title — the Dev
-// Panel jump button on the adjudication dialogs — mirroring PageHeader's own
-// actions slot rather than inventing a second convention.
-//
-// `onClose` is called for the backdrop, Escape and the close button alike, so
-// a caller that must not close mid-flight (a pending server action) simply
-// passes a no-op or guards inside it — the same shape RequestDialog already
-// used for its `busy` check.
-// Mount order is nesting order; DOM order is NOT — ConfirmProvider mounts
-// once in the root layout, so its overlay can sit anywhere in the tree
-// relative to whatever dialog it's confirming over. A module-level stack of
+// The one modal shell every dialog in the app uses — backdrop, Escape,
+// focus trap and focus restore all live here once. `panelClassName` lets a
+// caller (the documents sheet) widen the panel without losing those.
+// `onClose` fires for the backdrop, Escape and the close button alike; a
+// caller that must not close mid-flight passes a no-op or guards inside it.
+// Mount order is nesting order; DOM order is NOT — a module-level stack of
 // mount tokens is the only reliable way to know which open Modal is topmost.
 const openModals = [];
 
@@ -50,10 +27,9 @@ export default function Modal({
   // there. A drag-select of text that starts inside the panel and ends past
   // its edge (dragging out of a textarea, say) fires a `click` whose target
   // is the nearest common ancestor of the mousedown/mouseup targets — the
-  // overlay itself — even though the panel's own stopPropagation() ran. That
-  // used to close the dialog and drop whatever was mid-edit. Requiring the
-  // press to have started on the backdrop fixes it without changing any
-  // legitimate backdrop-click dismissal.
+  // overlay itself — even though the panel's own stopPropagation() ran, so
+  // the press must have started on the backdrop too before it counts as a
+  // dismissal.
   const pressedBackdrop = useRef(false);
   const autoId = useId();
   const headingId = labelledBy ?? `modal-title-${autoId}`;

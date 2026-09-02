@@ -36,9 +36,9 @@ import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
 // is locked by the role and so could never be applied while Identity ran
 // first.
 const STEPS = ["Role", "Tags", "Identity", "Antagonists", "Confirm"];
-// Derived rather than written out: the footer's "is this the last step?" test
-// used to be a hardcoded index, which is exactly what goes stale the moment a
-// step is inserted in the middle.
+// Derived rather than written out: a hardcoded index for the footer's
+// "is this the last step?" test would go stale the moment a step is
+// inserted in the middle.
 const LAST_STEP = STEPS.length - 1;
 
 function StepBar({ step }) {
@@ -63,10 +63,9 @@ function StepBar({ step }) {
 
 function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // `cap` crosses from the server as null for an uncapped role (Infinity
-  // doesn't survive serialization — see page.js). `taken >= cap` used to
-  // compare against that null directly, and JS coerces null to 0, so every
-  // uncapped role rendered its count in the "full" colour. Uncapped is
-  // never full.
+  // doesn't survive serialization — see page.js). Comparing `taken >= cap`
+  // against a raw null would coerce to 0 and read every uncapped role as
+  // full, so the null check must stay explicit. Uncapped is never full.
   const full = cap !== null && taken >= cap;
   return (
     <button
@@ -257,11 +256,10 @@ export default function CreateCharacterWizard({
   // word (see normalizeEarnedHonorific).
   const effectiveHonorific = earned.includes(honorific) ? honorific : "";
 
-  // Reads the chosen gender, so a woman gets a woman's name whether or not she
-  // is titled — it used to read the title, so an untitled character or a
-  // Captain always drew from both pools. A locked last name is left untouched
-  // rather than rolled and discarded (db/lib/nameCorpus.js), and NEUTRAL draws
-  // from both, which is the honest answer rather than a fallback.
+  // Reads the chosen gender, so a woman gets a woman's name whether or not
+  // she is titled. A locked last name is left untouched rather than rolled
+  // and discarded (db/lib/nameCorpus.js), and NEUTRAL draws from both, which
+  // is the honest answer rather than a fallback.
   function rollName() {
     const rolled = randomCharacterName({ gender: effectiveGender || "NEUTRAL", lastNameLocked });
     setFirstName(rolled.firstName);
@@ -309,14 +307,12 @@ export default function CreateCharacterWizard({
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
-    // A successful create redirects, so anything RETURNED here is an error —
-    // and anything THROWN here used to be nothing at all. createCharacter
-    // rethrows whatever it doesn't recognise, and there are several throw
-    // sites after the transaction commits (the audit row, the archive event),
-    // plus the pool contention 130 people creating at once will produce on
-    // launch day. The await was bare, so the rejection went nowhere,
-    // setPending(false) never ran, and the button sat on "Creating…" and
-    // disabled forever — with the character quite possibly already made.
+    // A successful create redirects, so anything RETURNED here is an error.
+    // createCharacter rethrows whatever it doesn't recognise, from several
+    // throw sites after the transaction commits (the audit row, the archive
+    // event) plus pool contention on launch day, so the call must be
+    // try/caught — an unhandled rejection would strand the button on
+    // "Creating…" forever.
     try {
       const result = await createCharacter(fd);
       if (result?.error) setError(result.error);

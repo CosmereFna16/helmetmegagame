@@ -1,19 +1,12 @@
 // Discord side effects for a staged force-move (the desk's "Relocate to" —
-// see docs/systemdocs/ADJUDICATION.md). Called AFTER the push transaction has
-// already committed Character.zoneId, never from inside it — see
+// see docs/systemdocs/ADJUDICATION.md). Called AFTER the push transaction
+// has already committed Character.zoneId, never from inside it — see
 // db/lib/stagedPush.js's comment on why nothing here touches Discord.
-//
-// Takes `prisma` as a parameter, the db/lib/dm.js convention: requiring
-// db/index.js back from inside db/lib/ would resolve to a partial exports
-// object, since db/index.js itself requires files out of this directory.
-// Deliberately NOT on the @lifeweb/db barrel for the same reason dm.js isn't
-// — a second export with a colliding shape would make it easy to grab the
-// wrong one. Require it by path: require("@lifeweb/db/lib/zoneMove").
-//
-// Every REST call here is .catch-logged, never thrown. This runs as one leg
-// of the turn-end push's side-effect thunk (db/index.js#runSideEffects), and
-// the channel doctor's post-turn pass (config.autoReconcileEnabled) is the
-// safety net for anything a call here missed — not this function.
+// Deliberately NOT on the @lifeweb/db barrel, same reasoning as db/lib/dm.js
+// — require it by path: require("@lifeweb/db/lib/zoneMove").
+// Every REST call here is .catch-logged, never thrown; the channel doctor's
+// post-turn pass (config.autoReconcileEnabled) is the safety net for
+// anything a call here missed.
 const { addMemberRole, removeMemberRole, putChannelOverwrite, deleteChannelOverwrite } = require("./discordRest");
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");

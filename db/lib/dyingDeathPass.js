@@ -1,35 +1,12 @@
-// The Dying death pass — the second of the engine's two auto-kills, and the
-// one that retired the oldest rule in the turn engine.
-//
-// Every terminal chain in the catalog lands on `dying` (tagExpiryPass.js) and
-// so does the hunger streak cap (hungerPass.js). Dying used to be permanent
-// and a GM decided how it ended, which meant a character could sit on death's
-// door for a week because nobody got round to the Kill button. Now it carries
-// a one-turn clock like any other timed tag, and this pass is what the clock
-// runs down to.
-//
-// THE CLOCK IS `CharacterTag.expiresTurn`, the same column every other timed
-// tag uses, stamped from the catalog's `durationTurns: 1` by whichever path
-// granted it. Two consequences worth stating out loud:
-//
-//   - This pass must run BEFORE resolveNeeds()'s blind expiry sweep. The
-//     sweep deletes exactly the rows whose clock is due, so after it there is
-//     nothing left to read and nobody dies.
-//   - A row with a NULL clock is not killed. It is stamped for the NEXT close
-//     and its holder warned. That covers the grants that predate this pass and
-//     any GM hand-grant made before the game had a duration to copy — nobody
-//     is killed by a clock they were never shown.
-//
-// Slotted after stagedPush and tagExpiry deliberately: a GM's staged "remove
-// Dying" and a medic's cure both land earlier in the same close, so a
-// treatment that arrived in time always beats the axe.
-//
-// Same discipline as every pass: DB writes only, one summary audit row
-// (written by db/index.js), Discord work — access revoke, role delete,
-// Cursed grant, DMs, the #leave alert — returned as `deaths` and `warnings`
-// for the side-effect thunk.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// The Dying death pass — the second of the engine's two auto-kills. Every
+// terminal chain in the catalog lands on `dying` (tagExpiryPass.js); this
+// pass runs down `CharacterTag.expiresTurn` on that tag and kills whoever
+// it's reached. It MUST run before resolveNeeds()'s blind expiry sweep,
+// which deletes exactly the rows whose clock is due — after it there is
+// nothing left to read. A NULL clock is stamped for the next close and its
+// holder warned, never killed outright. Slotted after stagedPush and
+// tagExpiry so a same-close cure or staged removal beats the axe. Discord
+// work is returned as `deaths`/`warnings` for the side-effect thunk.
 const { DYING_SLUG } = require("./constants");
 const { applyDeathToRow } = require("./characterDeath");
 

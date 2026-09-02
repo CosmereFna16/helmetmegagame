@@ -2,34 +2,16 @@ const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 
-// The database half of a zone change, shared by both faces of the game:
-// bot/src/lib/zoneTravel.js#performMove (gateway) and
-// web/app/(app)/map/travelActions.js#travelTo (REST). It validates the hop,
-// writes the character's new zone and the auto-resolved Move that spends the
-// turn — since the zone rework EVERY hop costs the Move; free same-zone
-// travel went with the per-Location channels.
-//
-// It deliberately performs **no Discord side effects**, the same split
-// advanceTurn()/runSideEffects() uses: the bot has a gateway client and the
-// web app only has REST, so each caller runs its own twin of
-// swapZoneRole/syncCharacterNarrowcastAccess/applyPendingInvites afterwards.
-// `oldZone` comes back on the result precisely so they can.
-//
-// Arriving at a CAVE_LEVEL zone also rolls the Caving Die (the "on arrival"
-// trigger — see db/lib/cavingPass.js and docs/systemdocs/CAVING.md). Same
-// no-Discord discipline: the roll is written here, and `cavingDm` comes back
-// on the result for the caller to send. The turn-start pass fires the other
-// trigger every subsequent turn; @@unique([characterId, turnId]) on
-// CavingRoll is what keeps the two from double-rolling a character who
-// arrives and then the same turn closes under them.
-//
-// Legality: targetZone must be a presence zone (never the Caves group row)
-// and a direct neighbour of where the character stands (Zone.connectsTo,
-// mastered by docs/zones.yaml's zoneConnections). The adjacency gate is
-// skipped entirely when the character has no zone yet, so a first-ever
-// placement can go anywhere.
-//
-// Returns { ok: true, oldZone } or { ok: false, reason }.
+// The database half of a zone change, shared by bot/src/lib/zoneTravel.js
+// #performMove (gateway) and web/app/(app)/map/travelActions.js#travelTo
+// (REST). It validates the hop and writes the character's new zone plus the
+// auto-resolved Move that spends the turn — every hop costs a Move, except a
+// character's first-ever placement, which is free. It performs **no Discord
+// side effects**; each caller runs its own role/access sync afterward using
+// `oldZone` from the result. Arriving at a CAVE_LEVEL also rolls the Caving
+// Die (db/lib/cavingPass.js); `cavingDm` comes back for the caller to send.
+// Legality: targetZone must be a presence zone and a direct neighbour
+// (Zone.connectsTo), unless the character has no zone yet.
 async function performTravel(prisma, character, targetZone) {
   if (targetZone.kind === "CAVE_GROUP") {
     return { ok: false, reason: "That isn't a place you can stand." };
@@ -60,13 +42,11 @@ async function performTravel(prisma, character, targetZone) {
   }
 
   // One transaction, and the Action is written BEFORE the character moves.
-  //
-  // Two submissions at once — the #turns Travel button and the web map, or
-  // two map clicks — used to both pass the acted-check and both move, while
-  // @@unique([characterId, turnId]) let only one Action through: the player
-  // ended up two hops away having spent one Move. Filing first makes the
-  // unique constraint the gate: the loser's create raises P2002, which aborts
-  // the transaction, and the move it would have made is rolled back with it.
+  // Two submissions at once (the #turns Travel button and the web map, or
+  // two map clicks) must not both move the character while
+  // @@unique([characterId, turnId]) lets only one Action through. Filing
+  // first makes the unique constraint the gate: the loser's create raises
+  // P2002, which aborts the transaction and rolls back the move with it.
   try {
     await prisma.$transaction(async (tx) => {
       if (!free) {
