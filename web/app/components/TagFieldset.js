@@ -6,26 +6,17 @@ import Select from "@/app/components/Select";
 import InfoIcon from "@/app/components/InfoIcon";
 import { filterTagsByQuery } from "@/lib/characterCreation";
 
-// The one tag form body, shared by both doors a GM authors a tag through:
-// the quick CustomTagDialog (create + assign, reached from the Dev Panel's
-// Tags tab and the adjudication desk) and TagCatalog.js's edit dialog. One
-// component means the two field sets can't drift apart.
+// The one tag form body, shared by CustomTagDialog and TagCatalog.js's edit
+// dialog, so the two field sets can't drift apart. Renders no modal or submit
+// button: a controlled body over `values` + a `set(key, value)` setter.
 //
-// Renders no modal and no submit button: a controlled body over `values` plus
-// a `set(key, value)` setter, so each door keeps its own chrome.
-//
-// The field set stops where docs/tags.yaml's authority starts. parentTagId,
-// requiredTagId, exclusive, depotPrice and the consumesInto family stay out —
-// they wire tags to each other, which is catalog structure that belongs in a
-// reviewed, version-controlled file (see the note on scalarsFrom in
-// gm/dev/tags/actions.js). The two chains — expiresInto and removesInto —
-// are the deliberate exception: an untreated wound getting worse (and a
-// treated one leaving its aftermath) is the whole point of a homebrew
-// injury, and both point at existing tags rather than restructuring them.
+// Stops where docs/tags.yaml's authority starts — parentTagId, requiredTagId,
+// exclusive, depotPrice and consumesInto stay out of this form. expiresInto
+// and removesInto are the exception, since they wire an injury to its own
+// progression rather than restructuring the catalog.
 
-// Tag.inspectVisibility — the one tag setting that is not a boolean, since a
-// stowed dagger and a drawn one are different things to look at. WORN needs
-// the tag to be equippable; the server re-checks it (actions.js#scalarsFrom).
+// Tag.inspectVisibility. WORN needs the tag to be equippable; the server
+// re-checks it (actions.js#scalarsFrom).
 const VISIBILITY_OPTIONS = [
   ["HIDDEN", "Never"],
   ["ALWAYS", "Always"],
@@ -37,9 +28,6 @@ const BEHAVIOUR_FIELDS = [
   ["equippable", "Equippable (takes a slot)"],
   ["consumable", "Consumable"],
   ["removable", "Player can drop it"],
-  // Spelled out because it is easy to leave unchecked and then wonder why a
-  // custom sword can't be handed over — it defaults off, and for an Item or an
-  // Asset that is almost never what the GM meant.
   ["tradeable", "Tradeable (can be handed over, or looted off a body)"],
 ];
 
@@ -48,9 +36,8 @@ const ECONOMY_FLAGS = [
   ["purchasableAfterStart", "Still purchasable mid-game"],
 ];
 
-// Every key the server's scalarsFrom reads, plus the two it handles specially
-// (expiresInto's JSON and requirementSkills' relation). A door spreads this
-// under an existing tag to edit one, or uses it as-is to create.
+// Every key the server's scalarsFrom reads. A door spreads this under an
+// existing tag to edit one, or uses it as-is to create.
 export const BLANK_TAG = {
   name: "",
   description: "",
@@ -77,18 +64,10 @@ export const BLANK_TAG = {
   skillTagIds: [],
 };
 
-// A tag row from any door's DTO, as form values.
-//
-// Every key is picked rather than spread, so the row's identity columns (id,
-// slug, custom, held, the joined group) can't ride along into the server
-// action's payload — the doors send `values` straight through, and a stray
-// `slug` there would read as an attempt to set one, which is exactly what
-// customSlug() exists to prevent.
-//
-// Two fields need shaping. expiresInto is stored as its normalized
-// [{ oneOf: [...] }] JSON and used in that exact shape here, so nothing
-// converts on the way in or out. requirementSkills is a Prisma relation that
-// the form carries as a flat id list.
+// A tag row from any door's DTO, as form values. Keys are picked rather than
+// spread, so identity columns (id, slug, custom, held) can't ride along into
+// the server action's payload. requirementSkills (a Prisma relation) is
+// flattened to an id list here.
 export function tagToFormValues(tag) {
   const values = { ...BLANK_TAG };
   for (const key of Object.keys(BLANK_TAG)) {
@@ -105,11 +84,8 @@ export function tagToFormValues(tag) {
   };
 }
 
-// A search box over a scrollable checklist — the same shape CustomTagDialog's
-// "Assign to" picker already uses for characters. `field` picks what a
-// selection stores: expiresInto rows address tags by slug (the stored JSON
-// holds slugs, and syncTags validates them as such), the cure ladder by id
-// (it is a Prisma relation).
+// A search box over a scrollable checklist. `field` picks what a selection
+// stores: expiresInto rows address tags by slug, the cure ladder by id.
 function TagPicker({ tags, selected, onToggle, field, emptyLabel }) {
   const [query, setQuery] = useState("");
   const matches = useMemo(() => filterTagsByQuery(tags, query), [tags, query]);
@@ -157,30 +133,24 @@ export default function TagFieldset({
   categories = [],
   groups = null,
   tags = [],
-  // The edit door opens Advanced, since a GM there came specifically to change
-  // a field. The quick door leaves it closed — most invented tags are simple.
+  // Edit door opens Advanced by default; the quick door leaves it closed.
   advancedOpen = false,
-  // The tag being edited, so it can't list itself as its own expiry outcome or
-  // its own cure skill. Null when creating.
+  // The tag being edited, so it can't list itself as its own outcome. Null
+  // when creating.
   selfId = null,
 }) {
   const equippable = Boolean(values.equippable);
   const hasDuration = String(values.defaultDurationTurns ?? "").trim() !== "";
-  // The expiry chain addresses tags by slug, and several doors trim their tag
-  // rows to what their own list renders. A door whose rows have no slug drops
-  // the picker rather than offering one whose selections would never match —
-  // the same posture the Group field already takes when `groups` is omitted.
+  // A door whose tag rows carry no slug drops the picker rather than offer
+  // selections that would never match.
   const canPickSlugs = tags.some((t) => t.slug);
-  // A tag can't turn into itself: the sweep deletes the expired row one
-  // statement after the pass grants the replacement, so it would vanish. The
-  // same rule syncTags.js enforces on the YAML.
+  // A tag can't turn into itself (same rule syncTags.js enforces on the YAML).
   const otherTags = useMemo(
     () => (selfId ? tags.filter((t) => t.id !== selfId) : tags),
     [tags, selfId],
   );
 
-  // Both chains (expiresInto, removesInto) share one row shape and these
-  // helpers — `field` picks which list a row edit lands on.
+  // `field` picks which chain (expiresInto/removesInto) a row edit lands on.
   function setRow(field, index, slugs) {
     set(
       field,
@@ -193,9 +163,7 @@ export default function TagFieldset({
     setRow(field, index, current.includes(slug) ? current.filter((s) => s !== slug) : [...current, slug]);
   }
 
-  // The outcome rows + "+ Outcome" button one chain renders — shared by the
-  // expiry chain and the removal chain, which differ only in their gate and
-  // caption.
+  // Outcome rows + "+ Outcome" button, shared by both chains.
   function chainRows(field) {
     return (
       <>
@@ -242,7 +210,6 @@ export default function TagFieldset({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ---- Basics: what a GM inventing a tag on the spot actually fills in. */}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="field">
           <span className="field-label">
@@ -303,8 +270,6 @@ export default function TagFieldset({
         </p>
       )}
 
-      {/* ---- Everything else, folded away. The same <details> disclosure
-              TagCatalogBrowser's rows use for descriptions. */}
       <details open={advancedOpen}>
         <summary className="cursor-pointer text-sm text-muted">
           Advanced — behavior, lifespan, economy, curing
@@ -323,9 +288,6 @@ export default function TagFieldset({
                   {label}
                 </CheckField>
               ))}
-              {/* Concealing is a property of something worn, so it means
-                  nothing without equippable — the same pairing syncTags.js
-                  enforces on the YAML, and the server re-checks it. */}
               <CheckField
                 checked={Boolean(values.concealsIdentity)}
                 disabled={!equippable}
@@ -427,9 +389,6 @@ export default function TagFieldset({
           </section>
 
           <section className="flex flex-col gap-1.5">
-            {/* One set of fields covers whichever direction the tag makes
-                sense in — crafting only cares about gaining it, an affliction
-                only about shedding it — which is why the label names both. */}
             <span className="field-label flex items-center gap-1.5">
               Requirement — to gain it, or to cure it
               <InfoIcon text="Mostly an adjudication reference, with one exception that makes it worth filling in: the Heal request enforces the ⬢ and the skills when removing a Status tag. Turns and Gambit stay reference-only." />

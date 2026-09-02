@@ -1,12 +1,11 @@
 // Moves ⬢ between two parties (see db/lib/parties.js) atomically, never
 // minting or burning a balance from nowhere. Shared by the turn-end push and
-// every GM transfer surface, same primitive as TRANSFER_RESOURCES.
+// every GM transfer surface.
 //
 // Prisma runs READ COMMITTED, so the balance check must be the write itself
 // (a conditional updateMany matching only while the balance still covers the
-// amount) rather than a separate read-then-decrement, or two concurrent
-// requests can both pass and both subtract. Every caller runs inside a
-// $transaction, so a throw here rolls back everything else in it.
+// amount), not a separate read-then-decrement, or two concurrent requests can
+// both pass and both subtract. Every caller runs inside a $transaction.
 class InsufficientResourcesError extends Error {
   constructor(party, amount) {
     super(`${party?.name ?? "That party"} no longer has ${amount} ⬢.`);
@@ -38,22 +37,13 @@ async function moveParty(tx, party, delta) {
   throw new InsufficientResourcesError(party, amount);
 }
 
-// The ONE place that knows the shape of a SiloTransaction row. `ledger` carries
-// the actor/turn/note fields every row needs (actorDiscordUserId,
-// actorCharacterId?, actorName, turnNumber?, turnPhase?, note?), plus two
-// optional fields for a quiet GM adjustment:
-//
-//   hidden: true          — the real row is written HIDDEN, so it renders on GM
-//                           surfaces only and never on /faction.
-//   cover: { actorName, toName?, note? }
-//                         — additionally write a display-only COVER row with
-//                           the SAME signed amount, which is what the faction's
-//                           Leader/Treasurer sees instead. Equal amounts are
-//                           what keep their visible column summing to the real
-//                           Silo total; only the who and the why are fiction.
-//
-// A cover with no hidden row would be a straightforward lie about the balance,
-// so `cover` is ignored unless `hidden` is set.
+// The one place that knows the shape of a SiloTransaction row. `ledger`
+// carries the actor/turn/note fields every row needs, plus two optional
+// fields for a quiet GM adjustment: `hidden: true` writes the real row as
+// GM-only (never shown on /faction); `cover: { actorName, toName?, note? }`
+// additionally writes a display-only COVER row with the same signed amount,
+// so the Leader/Treasurer's visible total still sums correctly. `cover` is
+// ignored unless `hidden` is set.
 async function writeSiloRows(tx, { factionId, amount, toCharacterId = null, toName = null, ledger }) {
   const { hidden = false, cover = null, ...base } = ledger ?? {};
 
@@ -74,8 +64,6 @@ async function writeSiloRows(tx, { factionId, amount, toCharacterId = null, toNa
     data: {
       factionId,
       amount,
-      // The fiction never names the real counterparty: a blank "Shown to"
-      // renders as "-", the same as an ordinary deposit.
       toCharacterId: null,
       toName: cover.toName || null,
       actorDiscordUserId: base.actorDiscordUserId,
@@ -93,11 +81,8 @@ async function writeSiloRows(tx, { factionId, amount, toCharacterId = null, toNa
 }
 
 // Moves `amount` from `from` to `to`, writing Silo rows for each end that's a
-// faction. See writeSiloRows for what `ledger` carries.
-//
-// Legs are sorted by (kind, id), not by which side is the sender: a total
-// order over the participants keeps two simultaneous transfers between the
-// same pair from taking their row locks in opposite orders, which deadlocks.
+// faction. Legs are sorted by (kind, id), not by sender, so a total order
+// over participants avoids a lock-order deadlock between concurrent transfers.
 async function applyTransfer(tx, { from, to, amount, ledger }) {
   const legs = [
     [from, -amount],

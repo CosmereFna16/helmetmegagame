@@ -1,17 +1,14 @@
 // The destructive half of the tag sync (`npm run db:prune-tags`) — the only
-// tag operation in this repo that deletes anything. syncTagsFromYaml is
-// upsert-only, so this is the deliberate counterpart.
+// tag operation in this repo that deletes anything.
 //
-// DRY-RUN BY DEFAULT. A tag deletes only when EVERY check below passes;
-// anything that fails even one is reported with its reason and skipped —
-// never cascaded, never forced.
+// DRY-RUN BY DEFAULT. A tag deletes only when EVERY check below passes; any
+// failure is reported with its reason and skipped, never forced.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
-// docsPath() is null only when docs/ cannot be found at all, which for a YAML
-// master is fatal — a sync with no master would read as "everything was
-// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+// Fatal if docs/ can't be found — a missing master would read as "everything
+// deleted" and prune the lot. See db/lib/repoPaths.js.
 function requireDocsPath(...segments) {
   const p = docsPath(...segments);
   if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
@@ -24,14 +21,11 @@ function yamlSlugs() {
   return new Set((doc?.tags ?? []).map((t) => t.slug));
 }
 
-// Every reason a Tag row must survive, gathered in one pass so the report can
-// name all of them at once.
+// Every reason a Tag row must survive, gathered in one pass.
 //
-// The Role check compares against tag NAMES, not slugs: Role.startingTagSlugs
-// is misnamed and actually stores names (see `startingTagNames` in
-// db/lib/syncRoles.js). Document.tagSlugs really does store slugs.
-// expiresInto is a Json array whose entries are either a bare slug or
-// { oneOf: ["slug", "slug"] } for a random pick between them.
+// Role.startingTagSlugs is misnamed and actually stores names (see
+// `startingTagNames` in syncRoles.js). Document.tagSlugs stores real slugs.
+// expiresInto entries are a bare slug or { oneOf: [slug, slug] }.
 function expiresIntoSlugs(entries) {
   if (!Array.isArray(entries)) return [];
   return entries.flatMap((e) => (typeof e === "string" ? [e] : (e?.oneOf ?? [])));
@@ -47,11 +41,8 @@ async function collectReferences(prisma) {
       prisma.tag.findMany({ select: { requirementSkills: { select: { id: true } } } }),
       prisma.role.findMany({ select: { startingTagSlugs: true } }),
       prisma.document.findMany({ select: { tagSlugs: true } }),
-      // conflictsWith is written in BOTH directions by db:sync-tags (SYNC.md
-      // pass 6), so reading conflictsWith alone already sees every edge —
-      // but this runs against the live DB, not the YAML, and a GM-authored
-      // custom tag's conflictsWith is never guaranteed symmetric. Read both
-      // relations so an asymmetric edge still blocks the delete.
+      // A GM-authored tag's conflictsWith isn't guaranteed symmetric, so both
+      // relation directions are read here.
       prisma.tag.findMany({
         select: {
           conflictsWith: { select: { id: true } },
@@ -90,7 +81,6 @@ async function collectReferences(prisma) {
     skillOf: new Set(skills.flatMap((t) => t.requirementSkills.map((s) => s.id))),
     roleStartingNames: new Set(roles.flatMap((r) => r.startingTagSlugs)),
     documentSlugs: new Set(documents.flatMap((d) => d.tagSlugs)),
-    // Union of both relation directions — see the comment on the query above.
     conflictIds: new Set(
       conflicts.flatMap((t) => [...t.conflictsWith.map((c) => c.id), ...t.conflictedBy.map((c) => c.id)]),
     ),
@@ -100,22 +90,10 @@ async function collectReferences(prisma) {
         ...d.requiresNotTags.map((t) => t.id),
       ]),
     ),
-    // Every slug any tag names, in any of the four ways one tag can point at
-    // another by slug rather than by foreign key:
-    //
-    //   consumesInto          the targets a consumed tag grants
-    //   consumesIntoUnless    { target: [blocking slugs] } — the BLOCKING
-    //                         slugs count too, or pruning one silently turns
-    //                         a conditional grant unconditional. No tag uses
-    //                         this today, but the guard stays for the next
-    //                         one that does.
-    //   consumesIntoDurations { target: turns } — a per-grant duration override
-    //   expiresInto           the on-the-clock progression, entries being a
-    //                         bare slug or { oneOf: [slug, slug] }; pruning a
-    //                         link here breaks the untreated-wound chain
-    //
-    // None of these is a real relation, so nothing in the database stops the
-    // delete — this set is the only thing that does.
+    // Every slug any tag names by slug rather than FK: consumesInto,
+    // consumesIntoUnless (targets and blocking slugs), consumesIntoDurations,
+    // and expiresInto. None of these is a real DB relation, so this set is
+    // the only thing that stops the delete.
     consumeTargets: new Set(
       consumers.flatMap((t) => [
         ...t.consumesInto,
@@ -134,8 +112,6 @@ function blockersFor(tag, refs) {
   if (held > 0) blockers.push(held === 1 ? "1 character holds it" : `${held} characters hold it`);
   if (refs.parentOf.has(tag.id)) blockers.push("another tag upgrades from it (parentTag)");
   if (refs.requiredBy.has(tag.id)) blockers.push("another tag requires it (requiredTag)");
-  // The group gate is the hidden-category mechanism (TagGroup.requiredTag).
-  // Deleting one would silently open a whole hidden category to everyone.
   if (refs.gates.has(tag.id)) blockers.push("it gates a TagGroup (hidden category)");
   if (refs.skillOf.has(tag.id)) blockers.push("a tag's cure/craft requirement names it as a skill");
   if (refs.consumeTargets.has(tag.slug)) blockers.push("another tag names it by slug");
@@ -159,8 +135,7 @@ async function pruneTagsFromYaml(prisma, { apply = false } = {}) {
 
   for (const tag of tags) {
     if (inYaml.has(tag.slug)) continue; // still declared; not a prune candidate
-    // A GM's homebrew is not orphaned just because docs/tags.yaml never
-    // mentioned it. It is the one kind of row that lives only in the DB.
+    // A GM's homebrew lives only in the DB and is never orphaned.
     if (tag.custom) {
       skipped.push({ tag, reasons: ["GM-created (custom)"] });
       continue;
@@ -172,8 +147,7 @@ async function pruneTagsFromYaml(prisma, { apply = false } = {}) {
 
   let deleted = 0;
   if (apply && deletable.length) {
-    // One statement — every row here is provably unreferenced, so there is
-    // no ordering problem and nothing to cascade.
+    // Every row here is provably unreferenced — nothing to cascade.
     const result = await prisma.tag.deleteMany({ where: { id: { in: deletable.map((t) => t.id) } } });
     deleted = result.count;
   }

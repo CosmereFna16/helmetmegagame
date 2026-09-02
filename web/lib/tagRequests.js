@@ -1,59 +1,31 @@
 // Which tags a player may pick in each of the three tag-request menus.
-// Sibling of purchasableTags() in characterCreation.js, kept separate because
-// none of these menus involve a budget, the tier chain, or point costs — they
-// route through the Requests system instead (docs/systemdocs/REQUESTS.md §3).
+// See docs/systemdocs/REQUESTS.md §3.
 
 import { holdsRequirement } from "./characterCreation";
 
-// `Tag.tradeable` is what decides whether a tag can change hands — both handing
-// it over and lifting it off a body. One flag covers both directions on
-// purpose: prying the Bishop's Mitre off the Bishop's corpse and being handed
-// it are the same permission here; if they ever need to differ, that is a
-// second field and a migration. See TAGS.md §5.
-//
-// db/lib/syncTags.js REQUIRES an explicit tradeable on every items/assets tag,
-// so a new item can't quietly default to false and become unmovable.
+// `Tag.tradeable` covers both handing a tag over and lifting it off a body.
 export function isTradeable(tag) {
   return Boolean(tag?.tradeable);
 }
 
-// Add Tag is the CRAFTING door, and nothing else: `craftable` is the whole
-// test. A stackable tag stays on offer once held — cooking a fifth meal is the
-// whole point — while an ordinary one drops off the menu as before. The two
-// economies stay cleanly split: /store spends Tag Points against catalog
-// prices, Add Tag spends turns and ⬢ against a recipe. See REQUESTS.md §3,
-// TAGS.md §3b.
+// Add Tag is the CRAFTING door: `craftable` is the whole test. A stackable
+// tag stays on offer once held; an ordinary one drops off the menu.
 export function addableTags(tags, heldTagIds = []) {
   const held = new Set(heldTagIds);
   return tags.filter((tag) => tag.craftable && (tag.stackable || !held.has(tag.id)));
 }
 
-// The Add Tag menu's real gate. Two checks, and only two:
-//
-//   - The GROUP gate, unconditional — the hidden-category mechanism (Demoness,
-//     Bacchus; TAGS.md §3a). A Bacchus craftable is invisible to anyone
-//     outside the cult, exactly as it is everywhere else.
-//   - `craftable`, full stop. The recipe's skills are deliberately NOT
-//     enforced — Add Tag is the honor-system door (the help text says so:
-//     spend the ⬢ and the turns yourself, a GM reviews the pushed request),
-//     and it also covers taking gear the fiction already puts in a
-//     character's hands (a clan armoury), which no skill check can see. The
-//     picker's "To make: …" line still shows what the recipe expects.
-//
-// A craftable's own requiredTag isn't checked either — that's a combat/use
-// gate, not a workshop gate. A smith with no combat skill can forge weapons
-// to sell.
-//
-// Character creation and /store deliberately do NOT use this — they keep
-// calling requirementSatisfied() in characterCreation.js, because buying a
-// Longbow with points should still require Ranged (Basic).
+// The Add Tag menu's gate: the group's hidden-category check, plus
+// `craftable`. Recipe skills are deliberately not enforced here — it's an
+// honor-system door, reviewed by a GM on the pushed request. Character
+// creation and /store use requirementSatisfied() instead, not this.
 export function addRequirementSatisfied(tag, tagsById, heldTagIds) {
   if (!holdsRequirement(tag.group?.requiredTagId, tagsById, heldTagIds)) return false;
   return Boolean(tag.craftable);
 }
 
-// Both of these carry the held count onto the tag they return, so the menus
-// can cap a quantity field at what the character actually has.
+// Carries the held count onto the returned tag, so the menu can cap a
+// quantity field at what the character actually has.
 export function removableTags(characterTags = []) {
   return characterTags
     .filter((ct) => ct.tag?.removable)
@@ -66,35 +38,21 @@ export function transferableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
-// What the character can use up. Consuming always takes exactly one unit, so
-// unlike Remove/Transfer the held count here is only ever shown, never a cap.
+// Consuming always takes exactly one unit, so the held count here is shown,
+// never a cap.
 export function consumableTags(characterTags = []) {
   return characterTags
     .filter((ct) => ct.tag?.consumable)
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
-// The tags that unlock Fast Travel. Their catalog text — "Once per day, you
-// may enter an adjacent zone without spending a turn, but you'll be easily
-// visible" (docs/tags.yaml) — is exactly what FAST_TRAVEL implements. It lives
-// here rather than in requestActions.js because that file is "use server" and
-// can export nothing but async functions, and both the page's gate and the
-// server action's re-derivation have to read the same set or they will drift.
-//
-// The Steam Automobile is the only one of these that isn't a horse: it is
-// imported, not bred, but it moves a person one zone over exactly the same
-// way, so it rides the same request rather than getting one of its own. Its
-// description carries the same caveats, the caves included. See
-// docs/systemdocs/DEPOT.md §3.
+// The tags that unlock Fast Travel. Lives here (not requestActions.js, which
+// is "use server") so the page's gate and the server action's re-derivation
+// read the same set. See DEPOT.md §3.
 export const FAST_TRAVEL_SLUGS = new Set(["horse", "horse-windlander", "steam-automobile"]);
 
-// How many people (the rider included) a Fast Travel can carry, from the tags
-// the rider holds. The Steam Automobile is inherently a 6-seat vehicle and
-// does not need Cart — holding both still caps at 6, it does not stack
-// further. A horse (or Wild Horse) alone seats 2; Cart upgrades that pair to
-// 6. Holding Cart with no vehicle tag grants nothing on its own — per its own
-// catalog text, it upgrades a horse, it isn't one, so this returns 0 exactly
-// like the caller having no FAST_TRAVEL_SLUGS tag at all.
+// Seats a Fast Travel can carry, rider included. Steam Automobile is a fixed
+// 6 and doesn't stack with Cart. A horse alone seats 2; Cart upgrades to 6.
 export function fastTravelCapacity(heldSlugs) {
   if (heldSlugs.has("steam-automobile")) return 6;
   const hasHorse = heldSlugs.has("horse") || heldSlugs.has("horse-windlander");
