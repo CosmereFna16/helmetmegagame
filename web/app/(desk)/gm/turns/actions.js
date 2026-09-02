@@ -29,14 +29,9 @@ import {
   tagsByIdFor,
 } from "@/lib/moveRows";
 
-// The server half of the adjudication workspace. Nothing a GM does here
-// touches a player's sheet or DMs — staged rows are applied and delivered
-// only by the turn-end push (db/lib/stagedPush.js). Exceptions that must act
-// now: Reject (unlock), the FEED_PERSON kill, and Request review.
-// These actions don't revalidatePath the turns route — callers use
-// refresh() (useRefresh.js) instead. Actions that touch OTHER pages' data
-// (depot, store, dev panel, player desk) still carry their own
-// revalidatePath.
+// Server actions for the adjudication workspace (/gm/turns). Staged rows
+// apply and deliver only at the turn-end push (db/lib/stagedPush.js);
+// exceptions that act now: Reject, the FEED_PERSON kill, Request review.
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -45,13 +40,9 @@ async function requireGm() {
   return session;
 }
 
-// A staged row is fat-finger-guarded, not player-clamped: GM-staged payouts
-// are the sanctioned way past the player-side ±20, so this bound only exists
-// to catch a slipped keystroke.
+// Fat-finger guard, not a player clamp — GM-staged payouts sanction past the
+// player-side ±20.
 const MAX_STAGED_RESOURCES = 500;
-
-// Same fat-finger guard, over tag points instead of ⬢. Negatives are a
-// sanctioned use (see web/lib/characterWrite.js) so the cap is symmetric.
 const MAX_STAGED_TAG_POINTS = 100;
 
 async function requireOpenTurn() {
@@ -60,10 +51,8 @@ async function requireOpenTurn() {
   return openTurn;
 }
 
-// The turn-boundary race, handled honestly rather than locked away: a row
-// created in the seconds around the cron can land on a turn the push already
-// swept. Re-read after the insert and retarget to the new open turn; anything
-// that still slips through is caught by the tray's missed-push banner.
+// Turn-boundary race: a row created around the cron can land on a turn the
+// push already swept. Re-read and retarget to the new open turn.
 async function retargetIfTurnClosed(model, ids, turnId) {
   const still = await prisma.turn.findFirst({ where: { id: turnId, status: "OPEN" } });
   if (still) return;
@@ -71,10 +60,6 @@ async function retargetIfTurnClosed(model, ids, turnId) {
   if (!fresh) return;
   await model.updateMany({ where: { id: { in: ids } }, data: { turnId: fresh.id } });
 }
-
-// ---------------------------------------------------------------------------
-// Staged messages
-// ---------------------------------------------------------------------------
 
 function normalizeMessageContent(raw) {
   const content = raw?.toString().trim() ?? "";
@@ -106,8 +91,6 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
     data: {
       turnId: openTurn.id,
       moveId: moveId || null,
-      // Same SetNull-detach reasoning as moveId — a GM staging narration
-      // against a Caving Die roll of 1 (see docs/systemdocs/CAVING.md).
       cavingRollId: cavingRollId || null,
       kind,
       content: text,
@@ -146,8 +129,7 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
   if (existing.kind === "PUBLIC" && !zoneId) throw new UserError("Pick a zone.");
 
   await prisma.$transaction(async (tx) => {
-    // Conditional on sentAt so an edit racing the push loses cleanly rather
-    // than rewriting a message that was already delivered as something else.
+    // Conditional on sentAt: an edit racing the push loses cleanly.
     const claimed = await tx.stagedMessage.updateMany({
       where: { id: existing.id, sentAt: null },
       data: {
@@ -194,11 +176,8 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
 }
 
 // Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
-// the recipients db/lib/stagedPush.js recorded as failed (same shape it
-// wrote: [{ characterId, name, error }]); PUBLIC re-posts to the summary
-// channel (its failure record is [{ error }], no per-recipient list). Clears
-// deliveryFailures on a clean resend, matching the push's own "no failures"
-// convention (Prisma.DbNull, not JS null — see db/index.js's runSideEffects).
+// the failed recipients; PUBLIC re-posts to the summary channel. A clean
+// resend clears deliveryFailures with Prisma.DbNull, not JS null.
 async function resendStagedMessageImpl({ stagedMessageId }) {
   const session = await requireGm();
   const existing = await prisma.stagedMessage.findUnique({
@@ -236,9 +215,7 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     const channelId = existing.zone?.discordSummaryChannelId;
     if (!channelId) throw new UserError("That zone has no summary channel configured.");
     try {
-      // Batched like the push's own loop. A body over 2000 characters
-      // re-posts as several messages; if the original push failed partway,
-      // the chunks that did land are posted again (ADJUDICATION.md §1).
+      // Batched like the push's own loop (ADJUDICATION.md §1).
       await postMessageBatched(channelId, existing.content);
       resent += 1;
     } catch (err) {
@@ -262,14 +239,8 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
   return { resent, stillFailing };
 }
 
-// ---------------------------------------------------------------------------
-// Staged effects
-// ---------------------------------------------------------------------------
-
 // The composer stages presence ops only (add/remove). Patch and equip belong
-// to the Dev Panel's full editor — a turn-end adjudication is about
-// inflicting and removing, and keeping the shape small keeps validation and
-// the push honest about what can appear in a payload.
+// to the Dev Panel's full editor.
 function normalizeStagedOps(tagOps) {
   const ops = Array.isArray(tagOps) ? tagOps : [];
   return ops.map((op) => {
@@ -304,11 +275,9 @@ function normalizeStagedTagPoints(raw) {
   return n;
 }
 
-// The composer's "Relocate to" select. Raw relocation, same semantics as the
-// Dev Panel's zone edit and Bulk Move — no Action row, no Move cost, no
-// adjacency check (deliberately not performTravel). Mirrors the zone check
-// in web/lib/characterWrite.js: a presence zone only, never the Caves group
-// row nobody actually stands in.
+// The composer's "Relocate to" select. Raw relocation — no Action row, Move
+// cost, or adjacency check (deliberately not performTravel). A presence zone
+// only, never the Caves group row.
 async function normalizeStagedZone(raw) {
   const zoneId = raw?.toString().trim() || null;
   if (!zoneId) return null;
@@ -326,14 +295,10 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   const delta = normalizeStagedResources(resources);
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
-  // One zone for the whole batch — the composer only offers one select for
-  // however many targets are picked.
   const zone = await normalizeStagedZone(zoneId);
   if (!delta && !points && !ops.length && !zone) throw new UserError("Stage a resource, tag-point, tag change, or zone change.");
 
-  // Validated NOW against the catalog, with the same engine the push runs, so
-  // the composer and the turn can't disagree. Presence ops don't read the
-  // holder, so one validation covers every target.
+  // Validated now with the same engine the push runs, so they can't disagree.
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
     try {
@@ -385,12 +350,9 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   return { count: created.length, batchId };
 }
 
-// A staged party-to-party transfer — a character or a faction Silo on either
-// end, applied by the same turn-end push as every other staged row. It's a
-// separate action because the balance check must run against LIVE balances
-// at stage time, unlike createStagedEffectsImpl's mint/burn resources field.
-// targetCharacterId files the row under: the character end if exactly one
-// end is a character; the RECIPIENT if both are; null for Silo -> Silo.
+// A staged party-to-party transfer (character or faction Silo on either end).
+// Separate from createStagedEffectsImpl because the balance check runs
+// against live balances at stage time, not a mint/burn delta.
 async function createStagedTransferImpl({
   fromKey,
   toKey,
@@ -417,9 +379,7 @@ async function createStagedTransferImpl({
 
   const openTurn = await requireOpenTurn();
   const targetCharacterId = to.kind === "character" ? to.id : from.kind === "character" ? from.id : null;
-  // The quiet fields ride along in the payload rather than being resolved at
-  // push time — same "never re-derive from live state" rule the rest of the
-  // transfer snapshot follows, so what a GM staged is what a GM gets.
+  // Snapshotted into the payload, never re-derived at push time.
   const { hidden, cover } = normalizeQuiet({ quiet, coverActorName, coverToName, coverNote });
   const payload = {
     transfer: {
@@ -476,8 +436,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
     }
   }
 
-  // Editing detaches the row from its batch: the batch was one identical
-  // payload over N targets, and this row no longer matches its siblings.
+  // Editing detaches the row from its batch — it no longer matches siblings.
   const claimed = await prisma.stagedEffect.updateMany({
     where: { id: existing.id, appliedAt: null },
     data: {
@@ -532,9 +491,7 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
   return { count: 1 };
 }
 
-// The missed-push banner's verb: staged rows a resolved turn's push never got
-// to (a crash, a validation skip that was then edited) move onto the open
-// turn so the next push carries them.
+// Moves staged rows a resolved turn's push never got to onto the open turn.
 async function retargetMissedStagingImpl({ effectIds = [], messageIds = [] }) {
   const session = await requireGm();
   const openTurn = await requireOpenTurn();
@@ -565,18 +522,13 @@ async function retargetMissedStagingImpl({ effectIds = [], messageIds = [] }) {
   return { effects: effects.count, messages: messages.count };
 }
 
-// ---------------------------------------------------------------------------
-// Moves — Solve is bookkeeping now
-// ---------------------------------------------------------------------------
-
 async function lockHolderName(discordUserId) {
   if (!discordUserId) return "Another GM";
   const members = await listGuildMembers().catch(() => []);
   return members.find((m) => m.id === discordUserId)?.username ?? "Another GM";
 }
 
-// One conditional write. The three OR arms are the whole rule: nobody holds
-// it, I already hold it, or whoever held it let the 90s TTL lapse.
+// One conditional write: nobody holds it, I already hold it, or the TTL lapsed.
 async function claimMoveLockImpl({ actionId }) {
   const session = await requireGm();
 
@@ -625,10 +577,8 @@ async function releaseMoveLockImpl({ actionId }) {
   return {};
 }
 
-// Kind is the interesting edit: a Gambit always carries a fresh roll and a
-// Routine never carries one, so switching either way rewrites the dice rather
-// than leaving a stale number behind. A GM who disagrees with the declared
-// numbers stages a counter-effect instead of rewriting the player's.
+// A Gambit always carries a fresh roll, a Routine never does, so switching
+// kind rewrites the dice rather than leaving a stale number.
 function normalizeEdits(action, edits, characterTags, hungerStreak) {
   const data = {};
 
@@ -639,10 +589,8 @@ function normalizeEdits(action, edits, characterTags, hungerStreak) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's CURRENT tags — a status that lapsed between
-      // submission and adjudication shouldn't haunt a roll made today. Same
-      // for hungerStreak: it's read fresh, not off whatever was true when the
-      // player submitted.
+      // Rolled from the character's current tags/hungerStreak, not whatever
+      // was true when the player submitted.
       data.diceRoll = rollDie();
       data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak });
     }
@@ -652,10 +600,8 @@ function normalizeEdits(action, edits, characterTags, hungerStreak) {
   return data;
 }
 
-// mode "save"    -> keep the edits, leave the Move open
-// mode "solve"   -> keep the edits, mark SOLVED (staging complete — nothing
-//                   applies until the push)
-// mode "unsolve" -> back to OPEN (nothing to revert pre-push)
+// mode: "save" keeps edits and leaves it open; "solve" marks SOLVED (nothing
+// applies until the push); "unsolve" goes back to OPEN.
 async function resolveMoveImpl({ actionId, mode, edits = {} }) {
   const session = await requireGm();
   if (!["save", "solve", "unsolve"].includes(mode)) throw new UserError("Unknown mode.");
@@ -669,13 +615,11 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
 
-  // The check and the transition are one statement, stopping two GMs from
-  // silently overwriting each other's verdicts.
+  // Check and transition in one statement, stopping two GMs from silently
+  // overwriting each other's verdicts.
   const result = await prisma.$transaction(async (tx) => {
-    // Every branch below RENEWS the lock rather than clearing it — save,
-    // solve and unsolve all leave the desk open on this same Move. Release
-    // still happens the normal ways: unmount, the pagehide beacon, or the
-    // TTL lapsing (moveEconomy.js).
+    // Every branch renews the lock rather than clearing it — release happens
+    // separately (unmount, pagehide beacon, or TTL lapse in moveEconomy.js).
     const renewedLock = { lockedByDiscordUserId: session.discordUserId, lockExpiresAt: new Date(Date.now() + MOVE_LOCK_TTL_MS) };
 
     if (mode === "unsolve") {
@@ -695,10 +639,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     const data = normalizeEdits(action, edits, action.character.tags, action.character.hungerStreak);
 
     if (mode === "save") {
-      // No status claim, no forced OPEN — Save just keeps the edits and
-      // leaves the status exactly where it was, solved or not. Solve is
-      // bookkeeping; nothing pays until the push, so a status guard here
-      // would protect nothing.
+      // Save keeps the edits and leaves status wherever it was.
       await tx.action.update({
         where: { id: actionId },
         data: { ...data, ...renewedLock },
@@ -706,17 +647,13 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: action.moveReviewStatus, note: "Saved." };
     }
 
-    // Solve — staging complete. Nothing applies here; the declared numbers
-    // and every staged row land together at the push. Still a conditional
-    // claim: it stops two GMs racing from a stale view.
+    // Solve: nothing applies now, it lands at the push. Conditional claim
+    // stops two GMs racing from a stale view.
     const claimed = await tx.action.updateMany({
       where: { id: actionId ?? "", moveReviewStatus: { not: "SOLVED" } },
       data: { moveReviewStatus: "SOLVED" },
     });
     if (!claimed.count) {
-      // Named the actual condition rather than a generic "Another GM" —
-      // the race can just as easily be the same GM's own earlier click
-      // landing twice.
       const fresh = await tx.action.findUnique({ where: { id: actionId } });
       if (fresh?.reviewedByDiscordUserId === session.discordUserId) {
         throw new UserError("You already solved this Move — it's marked and will push.");
@@ -748,10 +685,8 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
   return result;
 }
 
-// The Caving lens' one verdict: "Mark resolved" on a TROUBLE roll. Unlike
-// resolveMoveImpl there is no "unsolve" — this is a one-way stamp, not a
-// state machine. Idempotent, in case a QUIET/FIND row (already resolved at
-// creation) ever reaches it.
+// "Mark resolved" on a TROUBLE roll — a one-way stamp, no unsolve. Idempotent
+// for a QUIET/FIND row (already resolved at creation).
 async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
   const session = await requireGm();
   const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
@@ -779,10 +714,9 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
   return { status: "RESOLVED" };
 }
 
-// "Reject" on the desk. Deletes the Action outright — the turn-economy checks
-// all look for ANY Action on the open turn, so only a deletion actually frees
-// the player to act again. Staged rows linked to the Move detach via SetNull
-// and surface in the tray as unattached.
+// "Reject" on the desk. Deletes the Action outright, since the turn-economy
+// checks look for any Action on the open turn — only deletion frees the
+// player to act again. Staged rows detach via SetNull.
 async function rejectMoveImpl({ actionId, reason: rawReason }) {
   const session = await requireGm();
   const reason = requireReason(rawReason);
@@ -811,16 +745,13 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     });
   });
 
-  // The one DM the desk sends directly, because it must arrive NOW: a freed
-  // turn the player doesn't know about is a wasted day.
+  // Sent directly, not deferred to the push — a freed turn the player
+  // doesn't know about is a wasted day.
   let deliveryFailed = false;
   try {
     await sendDm(
       action.character.discordUserId,
       `Your Move was returned to you — you can act again this turn.\n${reason}`,
-      // source/actionType stay "move_unlock"/"move_rejected" — stored data,
-      // not UI text; renaming them would orphan every old audit row and DM
-      // log entry under a value nothing writes any more.
       { authorDiscordUserId: session.discordUserId, source: "move_unlock" },
     );
   } catch (err) {
@@ -831,10 +762,6 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
   revalidatePath("/character");
   return { description: action.description, deliveryFailed };
 }
-
-// ---------------------------------------------------------------------------
-// Requests — semantics unchanged from the old tab (apply-first, edit/undo)
-// ---------------------------------------------------------------------------
 
 async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   const session = await requireGm();
@@ -860,8 +787,7 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
     let changed = false;
 
     if (mode === "undo") {
-      // Idempotent on status: undoing an already-undone request must not
-      // reverse the reversal, which would silently re-apply the effect.
+      // Idempotent: undoing an already-undone request must not re-apply it.
       if (request.status === "UNDONE") {
         note = "Already undone — no changes made.";
       } else {
@@ -878,9 +804,7 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
       } else {
         note = "Marked reviewed.";
       }
-      // gmNotes alone is not an edit — a clean Confirm keeps the status the
-      // player earned (PASSED, or a prior real EDITED) and just stamps
-      // reviewedAt/reviewedByDiscordUserId below.
+      // gmNotes alone is not an edit — a clean Confirm keeps the earned status.
       status = changed ? "EDITED" : request.status;
     }
 
@@ -914,17 +838,13 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   return result;
 }
 
-// Fallback kill path for a request naming a kill that hasn't claimed one yet
-// (REQUESTS.md §5a) — runs the same death path as the character editor. The
-// `effect.killed` guard below keeps it from double-killing a request that
-// already did its job.
+// Fallback kill path for a request naming a kill not yet claimed (REQUESTS.md
+// §5a); `effect.killed` guards against double-killing.
 async function killRequestTargetImpl({ requestId }) {
   const session = await requireGm();
 
   const request = await prisma.request.findUnique({ where: { id: requestId } });
   if (!request) throw new UserError("Request not found.");
-  // The two types that name someone to kill: feeding a person to the Lifeweb,
-  // and finishing off someone already helpless.
   const namesAKill =
     request.type === "FEED_PERSON" ||
     (request.type === "HARM_CHARACTER" && request.effect?.lethal);
@@ -965,10 +885,6 @@ async function killRequestTargetImpl({ requestId }) {
   return { targetName: target.name };
 }
 
-// ---------------------------------------------------------------------------
-// Inspector fetchers — read-only DTOs for the right-hand column
-// ---------------------------------------------------------------------------
-
 async function getCharacterInspectorImpl({ characterId }) {
   await requireGm();
   const character = await prisma.character.findUnique({
@@ -997,8 +913,6 @@ async function getCharacterInspectorImpl({ characterId }) {
     factionId: character.faction?.id ?? null,
     factionName: character.faction?.name ?? null,
     isLeader: character.isLeader,
-    // Presence zone only — same key name and same reasoning as the queue
-    // page's moves DTO.
     locationLabel: character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
@@ -1017,10 +931,8 @@ async function getCharacterInspectorImpl({ characterId }) {
 
 const ARCHIVE_SLICE = 30;
 
-// Keyset-paged, same shape as getDmThreadPage: newest-first cursor, then
-// reversed to reading order. The first call (from useInspectorData) passes
-// only { characterId } and gets the tail; ArchiveView's "Load older" bumps
-// beforeMs/beforeId back through history a page at a time.
+// Keyset-paged, same shape as getDmThreadPage: newest-first cursor, reversed
+// to reading order. ArchiveView's "Load older" bumps beforeMs/beforeId back.
 async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
   await requireGm();
   const where = { characterId: characterId ?? "" };
@@ -1037,8 +949,8 @@ async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
     take: ARCHIVE_SLICE + 1,
   });
   const hasMore = rows.length > ARCHIVE_SLICE;
-  // Newest-last, the way a transcript reads. Wrapped in an object because
-  // guarded() spreads the payload — a bare array would come back as indices.
+  // Wrapped in an object: guarded() spreads the payload, so a bare array
+  // would come back as indices.
   return {
     entries: rows
       .slice(0, ARCHIVE_SLICE)
@@ -1059,26 +971,19 @@ async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
 }
 
 // The Inspector's DMs tab uses web/app/(app)/gm/messages/actions.js
-// #getDmThreadPage and #sendGmDm directly — the same functions the
-// /gm/messages inbox uses — so there's one DM fetch/send path.
+// #getDmThreadPage and #sendGmDm directly, the same path /gm/messages uses.
 
 const CONTEXT_SLICE = 30;
 
 // The scene around one archived line: ~30 messages before/after in the same
-// Discord channel/thread, so a GM clicking an old transcript row doesn't have
-// to reconstruct context from turn number and zone alone.
+// Discord channel/thread.
 async function getArchiveContextImpl({ archiveEntryId }) {
   await requireGm();
   const anchor = await prisma.archiveEntry.findUnique({ where: { id: archiveEntryId ?? "" } });
   if (!anchor) throw new UserError("That transcript row is gone.");
 
-  // Two ways to identify "the same channel": the snapshot column where it
-  // exists, and the legacy zoneId/channelKind/threadName triple for rows
-  // written before the backfill. Both prongs stay live because history is
-  // mixed — a null in the legacy triple intentionally matches IS NULL. Rows
-  // older than the zone rework carry a Location id in zoneId and "plain" as
-  // their channelKind; they still group with each other, which is all this
-  // needs.
+  // Two ways to identify "the same channel": the snapshot column, and the
+  // legacy zoneId/channelKind/threadName triple for pre-backfill rows.
   const identity = [];
   if (anchor.discordChannelId) identity.push({ discordChannelId: anchor.discordChannelId });
   if (anchor.zoneId != null || anchor.channelKind != null) {
@@ -1111,12 +1016,10 @@ async function getArchiveContextImpl({ archiveEntryId }) {
     }),
   ]);
 
-  // Server-only env — this is why the URL is built here, never client-side.
+  // Server-only env, so the URL is built here, never client-side.
   const guildId = process.env.DISCORD_GUILD_ID || null;
   const channelLabel =
     [anchor.zoneName, anchor.threadName].filter(Boolean).join(" · ") || anchor.channelKind || "unknown channel";
-  // Event rows and legacy thread rows can't link; Dawn-wiped messages make
-  // old links dead anyway — the popup itself is the durable value.
   const jumpUrl =
     guildId && anchor.discordChannelId && anchor.discordMessageId
       ? `https://discord.com/channels/${guildId}/${anchor.discordChannelId}/${anchor.discordMessageId}`
@@ -1134,15 +1037,9 @@ async function getArchiveContextImpl({ archiveEntryId }) {
   return { anchorId: anchor.id, channelLabel, jumpUrl, entries };
 }
 
-// ---------------------------------------------------------------------------
-// Move history — the two read-only past-turn fetchers
-// ---------------------------------------------------------------------------
-
-// The History lens, one resolved turn at a time. Loaded on demand rather than
-// with the page: the open turn's desk must not pay for history nobody is
-// looking at, and the 45s router.refresh() must not re-send it. Every row goes
-// through the same mappers page.js uses (web/lib/moveRows.js), because
-// StagedItems reads these DTOs field by field.
+// The History lens, one resolved turn at a time, loaded on demand so the
+// open turn's desk and its 45s router.refresh() never pay for it. Uses the
+// same mappers as page.js (web/lib/moveRows.js).
 async function getMoveHistoryImpl({ turnId }) {
   await requireGm();
   const id = turnId?.toString().trim() ?? "";
@@ -1154,10 +1051,7 @@ async function getMoveHistoryImpl({ turnId }) {
 
   const [actions, cavingRolls, members, presenceZones, openTurn] = await Promise.all([
     prisma.action.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: MOVE_INCLUDE }),
-    // The History lens's Caving twin — every roll on that resolved turn, mapped
-    // by the same cavingRollRow the open turn's rows use (docs/systemdocs/CAVING.md).
     prisma.cavingRoll.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: CAVING_ROLL_INCLUDE }),
-    // TTL-cached, so calling it from an action costs about nothing.
     listGuildMembers(),
     prisma.zone.findMany({ where: { kind: { not: "CAVE_GROUP" } }, select: { id: true, name: true } }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } }),
@@ -1165,8 +1059,7 @@ async function getMoveHistoryImpl({ turnId }) {
 
   const moveIds = actions.map((a) => a.id);
   const cavingIds = cavingRolls.map((c) => c.id);
-  // Staged rows on this turn attach to EITHER a Move or a Caving roll, so the
-  // history desk needs both — the same OR the Caving lens's staged rows follow.
+  // Staged rows attach to either a Move or a Caving roll.
   const [stagedEffects, stagedMessages] =
     moveIds.length || cavingIds.length
       ? await Promise.all([
@@ -1189,8 +1082,6 @@ async function getMoveHistoryImpl({ turnId }) {
 
   return {
     moves: actions.map((a) => moveRow(a, { usernameById, now })),
-    // Past-turn AFK badge isn't worth a second query — an empty set reads the
-    // same as "nobody's marked catatonic on this row" (see the plan).
     cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
     effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, presenceZoneNameById, openTurn })),
     messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn })),
@@ -1198,10 +1089,9 @@ async function getMoveHistoryImpl({ turnId }) {
   };
 }
 
-// The inspector's Moves tab: one character, across turns. PAST turns only —
-// the player desk's Canon tab already owns this turn, so the two don't
-// overlap. Newest first, capped, with each Move's own sent private messages
-// so a GM can see what the player was actually told.
+// The inspector's Moves tab: one character, past turns only (the player
+// desk's Canon tab owns the open one). Newest first, capped, with each
+// Move's sent private messages.
 const MOVE_HISTORY_LIMIT = 40;
 const MOVE_HISTORY_PREVIEW_CHARS = 140;
 
@@ -1211,9 +1101,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
   if (!id) throw new UserError("No character specified.");
 
   const actions = await prisma.action.findMany({
-    // Confirmed Moves only, the same test the desk queue applies — a
-    // PENDING_TYPE row is a draft the player abandoned in the Discord
-    // dropdowns, not something that happened.
+    // Confirmed only — a PENDING_TYPE row is an abandoned draft.
     where: {
       characterId: id,
       status: { in: ["CONFIRMED", "ADJUDICATED"] },
@@ -1235,8 +1123,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
     },
   });
 
-  // Wrapped in an object because guarded() spreads the payload — a bare array
-  // would come back as indices. Same trap getArchiveSliceImpl documents.
+  // See getArchiveSliceImpl: guarded() spreads the payload.
   return {
     rows: actions.map((a) => ({
       id: a.id,
@@ -1247,8 +1134,6 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
       declaredLabel: declaredLabel(a),
       paidLabel: paidLabel(a.appliedEffects),
       description: a.description ?? "",
-      // A preview, like the sent messages below — the full canon is one
-      // click away on the history desk.
       resultMessage: truncateHistoryText(a.resultMessage),
       messages: a.stagedMessages.map((m) => ({
         id: m.id,
@@ -1266,9 +1151,7 @@ function truncateHistoryText(text) {
     : clean;
 }
 
-// The composer's held-tags panel: lean rows for one character, keyed by tag,
-// so a GM can stage a remove without re-typing the name into the catalog
-// search.
+// The composer's held-tags panel: lean rows for one character, keyed by tag.
 async function getHeldTagsImpl({ characterId }) {
   await requireGm();
   const rows = await prisma.characterTag.findMany({
@@ -1278,8 +1161,6 @@ async function getHeldTagsImpl({ characterId }) {
   });
   return { tags: rows.map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })) };
 }
-
-// ---------------------------------------------------------------------------
 
 export async function createStagedMessage(input) {
   return guarded(() => createStagedMessageImpl(input));
