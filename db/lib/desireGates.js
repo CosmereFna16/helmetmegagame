@@ -189,9 +189,19 @@ function lockedReasonForTemplate(template, pairs) {
 }
 
 // Per-slot occupancy + cooldown. A slot is locked (cooling down) while
-// openTurnNumber <= max(endedTurnNumber) over that slot's ended rows —
-// i.e. available again strictly the turn AFTER the highest ended turn in
-// that slot, whether the row ended by cancel or by fulfil.
+// openTurnNumber <= max(endedTurnNumber) + 1 over that slot's ended rows —
+// i.e. there is a whole EMPTY TURN between ending one Desire and setting the
+// next, whether the row ended by cancel or by fulfil. End it on turn N and
+// the slot is shut for the rest of N, shut again for all of N+1, and open on
+// N+2. The extra turn is deliberate (2026-09-02): one turn of lockout meant a
+// player could end a Desire late in a turn and refill first thing next turn,
+// which is barely a cooldown at all.
+//
+// Note this is one TURN, not one day — Turn.number increments twice a day
+// (DAWN then DUSK), so the added lockout is 12 hours.
+//
+// `lockedUntilTurn` is literally the turn the slot reopens, because that is
+// what the UI renders. Keep it that way.
 function slotStates({ history, openTurnNumber, desireSlots }) {
   const hist = history || [];
   const slots = [];
@@ -202,8 +212,8 @@ function slotStates({ history, openTurnNumber, desireSlots }) {
     let lockedUntilTurn = null;
     if (endedRows.length > 0) {
       const maxEnded = Math.max(...endedRows.map((h) => h.endedTurnNumber));
-      if (openTurnNumber <= maxEnded) {
-        lockedUntilTurn = maxEnded + 1;
+      if (openTurnNumber <= maxEnded + 1) {
+        lockedUntilTurn = maxEnded + 2;
       }
     }
     slots.push({ slotIndex, active, lockedUntilTurn });

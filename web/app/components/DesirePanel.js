@@ -36,7 +36,7 @@ function pointsHelp(desireSlots) {
         A Desire&apos;s tier is both its Tag Point award and its own cooldown: fulfilling a tier 3
         Desire is worth 3 points and can&apos;t be taken again for 3 turns.‡
       </p>
-      <p>Cancelling or fulfilling a Desire locks that slot until the next turn.‡</p>
+      <p>Cancelling or fulfilling a Desire shuts that slot for the rest of the turn and all of the next one. It opens again the turn after that.</p>
       <p>A tier 7 Desire can only ever be fulfilled once.‡</p>
     </>
   );
@@ -68,7 +68,8 @@ export default function DesirePanel({
     setError(null);
     const ok = await confirm({
       title: "Cancel this Desire?",
-      message: "You won't be able to set another in this slot until next turn, and no points are awarded.",
+      message:
+        "That slot stays shut for the rest of this turn and all of the next one, and no points are awarded.",
       confirmLabel: "Cancel Desire",
       cancelLabel: "Keep it",
     });
@@ -143,7 +144,7 @@ export default function DesirePanel({
                     </div>
                   </>
                 ) : slot.lockedUntilTurn != null ? (
-                  <EmptyState>Available next turn</EmptyState>
+                  <EmptyState>{`Opens on turn ${slot.lockedUntilTurn}`}</EmptyState>
                 ) : (
                   <button type="button" className="btn self-start" onClick={() => setCatalogSlot(slotIndex)}>
                     Choose a Desire

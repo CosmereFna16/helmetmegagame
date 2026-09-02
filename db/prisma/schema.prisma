@@ -2144,7 +2144,7 @@ model DesireTemplate {
   // Defaults true for tier 7 in the sync; an explicit YAML value wins.
   onceEver Boolean @default(false)
   // Per-entry override of the tier-derived cooldown (used by
-  // sit-in-bliss = 2). Null means "use tier".
+  // charitable-act-devoted = 3, use-a-censer = 5). Null means "use tier".
   cooldownTurns Int?
   // Real relations, not slug arrays, so db:prune-tags can see the reference
   // and refuse to delete a Tag a live desire depends on.

@@ -285,8 +285,9 @@ tags:
     name: Nobility
     category: general
     group: general-personality
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake {tag:disappointed}. No Desire worth 1 point is open to you, and nothing standard to your lifestyle counts. (A Glutton's appetite overrules a noble's standards.) ‡"
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake up {tag:disappointed}. You can't take 1 point Desires, or any Desire related to something below your station."
     pointCost: -2
+    requiredTag: courtier
     purchasable: false
     purchasableAfterStart: false
     removable: false
@@ -375,14 +376,14 @@ tags:
     name: Vain
     category: general
     group: general-addictions
-    description: "You are inwardly inconsolable if anyone outshines you. Only Desires about being admired are open to you, unless one is worth 5 points or more. ‡"
+    description: "You are inwardly inconsolable if anyone outshines you. Only Desires about being admired are open to you, unless one is worth 5 points or more."
     pointCost: -5
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, ascetic]
+    conflictsWith: [depressed]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -394,14 +395,14 @@ tags:
     name: Glutton
     category: general
     group: general-addictions
-    description: "You eat like a man being chased. Only Desires about food are open to you, at any price. ‡"
+    description: "Just one more sweet... Only Desires about food are open to you."
     pointCost: -6
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, ascetic]
+    conflictsWith: [depressed]
     desires:
       locks:
         - all: true
@@ -418,7 +419,7 @@ tags:
     name: Mad Doctor
     category: general
     group: general-personality
-    description: "The body is a machine with the panel left off. You would very much like to look inside. ‡"
+    description: "Unlocks Desires about modifying the body."
     pointCost: 5
     requiredTag: medical-basic
     purchasable: true
@@ -428,7 +429,7 @@ tags:
     name: Esoteric
     category: general
     group: general-personality
-    description: "You have read the wrong books and you want the rest of them. ‡"
+    description: "What could be worthwhile except the Truth? Unlocks Desires about esotericism."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -437,7 +438,7 @@ tags:
     name: Adventurer
     category: general
     group: general-personality
-    description: "There is a whole ruined world out there and you have seen almost none of it. ‡"
+    description: "Unlocks Desires about adventuring."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -446,7 +447,7 @@ tags:
     name: Cruel
     category: general
     group: general-personality
-    description: "Other people's pain is interesting to you. You have stopped pretending otherwise. ‡"
+    description: "It's a call, a need. Unlocks Desires about cruelty."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -455,8 +456,8 @@ tags:
     name: Charitable
     category: general
     group: general-personality
-    description: "You give things away and it doesn't hurt. People find this suspicious. ‡"
-    pointCost: 2
+    description: "Unlocks Desires about charity."
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -467,7 +468,7 @@ tags:
     name: "Death Wish"
     category: general
     group: general-personality
-    description: "You want to see how close you can get. Closer than that. ‡"
+    description: "You want to see how close you can get. Closer than that."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -476,7 +477,7 @@ tags:
     name: Schemer
     category: general
     group: general-personality
-    description: "You would rather arrange a thing than do it. ‡"
+    description: "Unlocks Desires about scheming."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -622,7 +623,7 @@ tags:
     name: Depressed
     category: general
     group: general-personality
-    description: "Nothing is worth wanting. No Desire is open to you until somebody fixes this. ‡"
+    description: "Nothing is worth wanting. Locks all Desires. Can be cured by a Chaplain."
     pointCost: -8
     purchasable: true
     # Curable + maximally valuable would be a point farm otherwise (R-1).
@@ -636,14 +637,14 @@ tags:
     name: Alcoholic
     category: general
     group: general-addictions
-    description: "Drink comes first and there is no second. Only drinking Desires are open to you, unless one is worth 5 points or more. ‡"
+    description: "Drink comes first and there is no second. Locks all Desires except drinking ones, unless one is worth 5 points or more."
     pointCost: -3
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, ascetic, prudish]
+    conflictsWith: [depressed, prudish]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -732,20 +733,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-
-  - slug: ascetic
-    name: Ascetic
-    category: general
-    group: general-personality
-    description: "You want nothing, and you trained hard to want it. The only Desire open to you is to sit in bliss. ‡"
-    pointCost: -6
-    purchasable: true
-    purchasableAfterStart: false
-    removable: false
-    desires:
-      locks:
-        - all: true
-          exceptFamilies: [ascetic]
 
   - slug: game-master
     name: Game Master
@@ -957,7 +944,7 @@ tags:
     name: Craven
     category: general
     group: general-personality
-    description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. No Desire that takes courage is open to you. ‡"
+    description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. Locks all courage-related Desires. If you act bravely, a GM may bonk you."
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -1001,8 +988,8 @@ tags:
     name: Kleptomaniac
     category: general
     group: general-personality
-    description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Money you came by honestly means nothing: no Desire about wealth is open to you—only the thieving ones. ‡"
-    pointCost: -2
+    description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Locks Desires about wealth, but unlocks Desires about thievery."
+    pointCost: 0
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -1040,7 +1027,7 @@ tags:
     name: Superstitious
     category: general
     group: general-personality
-    description: "You see bad omens everywhere. You're not rational. You are, occasionally, right. ‡"
+    description: "You see bad omens everywhere. You're not rational. You are, occasionally, right. Unlocks Desires about superstition."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1087,17 +1074,17 @@ tags:
   # Slug kept deliberately (see this file's header) — it now covers what
   # coca-habit used to (that tag is retired below, folded in at par).
   - slug: poppy-habit
-    name: "Drug Habit ‡"
+    name: "Drug Habit"
     category: general
     group: general-addictions
-    description: "You need the poppy and its cousins. It stops the sweating. Only Desires about drugs are open to you, unless one is worth 5 points or more. ‡"
+    description: "You need the poppy and its cousins. It stops the sweating. Locks all Desires except drug-related ones, unless one is worth 5 points or more."
     pointCost: -4
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, ascetic, prudish]
+    conflictsWith: [depressed, prudish]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -1128,8 +1115,8 @@ tags:
     name: Pacifist
     category: general
     group: general-personality
-    description: "You will never, ever attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you, but God smiles upon you. No violent Desire is open to you. ‡"
-    pointCost: -2
+    description: "You will never attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you. Locks all violent Desires, but unlocks a few of its own."
+    pointCost: 0
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -1145,7 +1132,7 @@ tags:
     name: Eunuch
     category: general
     group: general-personality
-    description: "Cut, whether you agreed to it or not. Romance is not a road open to you, and everyone who matters knows it. \u2021"
+    description: "Cut, whether you agreed to it or not. Locks all Desires about romance."
     pointCost: -1
     purchasable: true
     purchasableAfterStart: false
@@ -1225,14 +1212,14 @@ tags:
     name: "Gambler"
     category: general
     group: general-addictions
-    description: "Just one more card. Just one more spin. Just one more roll. Just one more…! Only Desires about play and wagers are open to you, unless one is worth 5 points or more. ‡"
+    description: "Just one more card. Just one more spin. Just one more roll. Just one more…! Locks all Desires except ones about play and wagers, unless one is worth 5 points or more."
     pointCost: -5
     exclusive: true
     purchasable: true
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, ascetic, prudish]
+    conflictsWith: [depressed, prudish]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -1253,7 +1240,7 @@ tags:
     name: Devoted Follower
     category: general
     group: general-personality
-    description: "You wouldn't dare raise a hand against one of your own. You're incapable of betraying your starting faction, even if it would be in your best interest. No Desire about betrayal, scheming, or another faction's success is open to you (your own faction's successes still count). Must be part of a faction, and not a mercenary, migrant, or bum. ‡"
+    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming. Must be part of a faction."
     pointCost: -2
     visible: false
     purchasable: true
@@ -1283,8 +1270,8 @@ tags:
     name: Prudish
     category: general
     group: general-personality
-    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. No Desire about any of the four is open to you. ‡"
-    pointCost: -3
+    description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four."
+    pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1435,7 +1422,7 @@ tags:
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
+    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. Unlocks some Desires about zealotry."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1702,25 +1689,6 @@ tags:
     # (general-restrictions), which absorbs it and honorbound at par.
     purchasable: false
     purchasableAfterStart: false
-
-  # NEW (2026-08-31, Desires rework) — absorbs blood-debt (-7) and
-  # honorbound (-2) into one Restriction, priced per the Restriction ladder
-  # rather than the sum of the two.
-  - slug: blood-feud
-    name: Blood Feud
-    category: general
-    group: general-personality
-    description: "They killed one of yours. Nothing your clan wins matters until that is paid for: no Desire about your own side's success is open to you, only Desires about theirs ending. ‡"
-    pointCost: -2
-    requiredTag: windlander
-    purchasable: true
-    purchasableAfterStart: false
-    removable: false
-    desires:
-      locks:
-        - families: [faction-success]
-
-  # --- Skills ---------------------------------------------------------------
 
   - slug: sign-language
     name: Sign Language
@@ -7444,7 +7412,7 @@ tags:
     name: "Rite: Overwhelm"
     category: bacchus
     group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious} or {tag:ascetic}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -7654,7 +7622,7 @@ tags:
     name: "Rite: Judgement"
     category: bacchus
     group: bacchus-bountiful
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious} or {tag:ascetic}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true

@@ -1580,7 +1580,9 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
     const slots = slotStates({ history, openTurnNumber, desireSlots });
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
-      throw new UserError("That slot is on cooldown — it opens up again next turn.");
+      throw new UserError(
+        `That slot is on cooldown — it opens up again on turn ${slot.lockedUntilTurn}.`,
+      );
     }
   }
 

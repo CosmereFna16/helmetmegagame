@@ -143,7 +143,7 @@ At this point there are a few recommended next steps:
 - Write your Appearance, a brief description of your character that others will see when examining you.
 - Create your public character portrait.
 - Review your role [Documents](https://ravenheart.quest/documents).
-- Pick your first Desires from the catalog — your character's current goals. ‡
+- Select Desires from the catalog — your character's current goals.
 - Enter a Default Move, an activity that your character performs whenever you don't submit a specific Move during a turn.
 
 ## Playing A Turn
@@ -427,7 +427,7 @@ In the header:
 - **Spend Tag Points:** Opens the Tag Store to spend unused points.
 - **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
 
-**Desires:** Your character's current goals. You have a set number of Desire slots, each holding one Desire at a time — pick from the catalog, not free text. Once a Desire ends (fulfilled or cancelled), that slot locks until the next turn, and that specific Desire goes on its own cooldown before it can be picked again. Some Desires need a tag, role, or family of tags you hold or don't hold; the ⓘ explains the details. ‡  
+**Desires:** Your character's current goals. Once a Desire ends (fulfilled or cancelled), that slot stays shut for the rest of that turn and all of the next one, and that specific Desire goes on its own cooldown before it can be picked again.  
 **Fulfill** one when you have achieved it, or **Cancel** it.
 
 **Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.

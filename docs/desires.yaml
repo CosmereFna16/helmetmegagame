@@ -154,8 +154,8 @@ desires:
     families: [social]
 
   - slug: win-a-compliment
-    name: Win a compliment ‡
-    tier: 4
+    name: Win a compliment
+    tier: 3
     families: [vanity, social]
 
   - slug: drink-alcohol
@@ -174,7 +174,7 @@ desires:
     families: [drugs]
 
   - slug: try-a-new-drug
-    name: Try a kind of drug you never have ‡
+    name: Try a kind of drug you never have
     tier: 2
     families: [drugs]
 
@@ -229,7 +229,7 @@ desires:
     families: [gambling]
 
   - slug: get-a-hug
-    name: Get a hug ‡
+    name: Get a hug
     tier: 1
     families: [social]
 
@@ -341,8 +341,9 @@ desires:
       notTags: [charitable]
 
   - slug: charitable-act-devoted
-    name: Perform a charitable act ‡
-    tier: 3
+    name: Perform a charitable act
+    tier: 2
+    cooldownTurns: 3
     families: [charity]
     requires:
       anyTags: [charitable]
@@ -363,8 +364,9 @@ desires:
     families: [social]
 
   - slug: use-a-censer
-    name: Use a censer ‡
+    name: Use a censer
     tier: 1
+    cooldownTurns: 5
     families: [faith]
 
   - slug: discover-undercroft-secret
@@ -385,7 +387,7 @@ desires:
   # Collision ruling (Task 11): was tier 2, T: glutton. Ungated now — glutton
   # keeps access through its own food carve-out, no separate gated entry.
   - slug: eat-sweets
-    name: Eat {tag:sweets} ‡
+    name: Eat {tag:sweets}
     tier: 1
     families: [food]
 
@@ -436,13 +438,13 @@ desires:
       anyTags: [animal-friend]
 
   - slug: meet-theb-etter
-    name: Meet Theb Etter ‡
+    name: Meet Theb Etter
     tier: 7
     families: [faith, adventure]
     # F-13: the proper noun "Theb Etter" is unverified against any other doc
     # — carried through as the planner wrote it.
     requires:
-      anyTags: [ascetic, existentialist]
+      anyTags: [existentialist]
 
   - slug: praised-footwork
     name: Be complimented on your footwork
@@ -565,7 +567,7 @@ desires:
       anyTags: [artist]
 
   - slug: sign-language-talk
-    name: Hold a whole conversation in sign ‡
+    name: Hold a whole conversation in sign
     tier: 1
     families: [social, craft]
     requires:
@@ -579,7 +581,7 @@ desires:
       anyTags: [iron-constitution]
 
   - slug: receive-a-title
-    name: Receive a title from the Baron ‡
+    name: Receive a title from the Baron
     tier: 3
     families: [status]
     requires:
@@ -613,34 +615,6 @@ desires:
     requires:
       anyTags: [mortus]
       anyRoles: [mortus, chaplain]
-
-  - slug: kill-opposite-clan
-    name: Kill someone from the opposite clan
-    tier: 3
-    families: [feud]
-    requires:
-      anyTags: [blood-feud]
-
-  - slug: bastards-favor
-    name: Win the Bastard's exclusive favor for your clan
-    tier: 2
-    families: [feud]
-    requires:
-      anyTags: [blood-feud]
-
-  - slug: humiliate-opposing-clan
-    name: Humiliate the opposing clan
-    tier: 2
-    families: [feud]
-    requires:
-      anyTags: [blood-feud]
-
-  - slug: kill-enemy-lieutenant
-    name: Kill the enemy Lieutenant
-    tier: 4
-    families: [feud, violence]
-    requires:
-      anyTags: [blood-feud]
 
   - slug: hit-with-a-whip
     name: Hit someone with a whip
@@ -681,16 +655,15 @@ desires:
   # T: mortus AND R: mortus. feed-the-lifeweb (tier 3) is unchanged and stays
   # what it already is: feeding a living person to the Web.
   - slug: feed-the-lifeweb-blood
-    name: Feed the Lifeweb
+    name: "Offer your own blood to the Lifeweb"
     tier: 1
     families: [mortality]
     requires:
       anyTags: [mortus]
       anyRoles: [mortus]
-    description: "The routine offering of your own blood to the Web — not a person. ‡"
 
   - slug: feed-web-beautiful
-    name: Feed someone with the {tag:pretty} or {tag:beautiful} trait to the Web ‡
+    name: Feed someone with the {tag:pretty} or {tag:beautiful} trait to the Web
     tier: 4
     families: [mortality, cruelty]
     requires:
@@ -698,7 +671,7 @@ desires:
       anyRoles: [mortus]
 
   - slug: feed-web-willing
-    name: Feed a live, willing participant to the Web ‡
+    name: Feed a live, willing participant to the Web
     tier: 4
     families: [mortality]
     requires:
@@ -706,7 +679,7 @@ desires:
       anyRoles: [mortus]
 
   - slug: feed-web-noble
-    name: Feed a noble to the Web ‡
+    name: Feed a noble to the Web
     tier: 5
     families: [mortality, cruelty]
     requires:
@@ -751,23 +724,11 @@ desires:
       anyRoles: [inquisitor, practicus, preacher]
 
   - slug: get-a-house-bum
-    name: Get a house ‡
+    name: Get a house
     tier: 4
     families: [wealth]
     requires:
       anyRoles: [bum]
-    oncePerLife: true
-
-  - slug: bum-custom
-    name: A Desire of your own ‡
-    tier: 3
-    families: []
-    requires:
-      anyRoles: [bum]
-    # The Bum writes their own Desire with the GM at approval, who sets
-    # 1-5 (F-10) — the GM free-text path (setDesireGm), not this catalog
-    # entry's own description.
-    description: "A Desire the Bum writes with the GM, who sets its worth 1-5 at approval. ‡"
     oncePerLife: true
 
   - slug: sell-stolen-jewelry
@@ -813,7 +774,7 @@ desires:
       anyRoles: [esculap, serpent]
 
   - slug: be-crowned-baron-bum
-    name: Be crowned Baron ‡
+    name: Be crowned Baron
     tier: 7
     families: [status]
     requires:
@@ -912,7 +873,7 @@ desires:
       anyRoles: [incarn]
 
   - slug: cup-of-tea
-    name: Enjoy a cup of {tag:tea} ‡
+    name: Enjoy a cup of {tag:tea}
     tier: 2
     families: [food]
     requires:
@@ -968,29 +929,30 @@ desires:
       anyRoles: [baron, captain]
 
   - slug: save-the-barons-life
-    name: Save the Baron's life ‡
+    name: Save the Baron's life
     tier: 5
     families: [bravery, duty]
     requires:
       anyRoles: [hand]
 
   - slug: become-regent
-    name: Become regent in the interregnum ‡
-    tier: 7
+    name: Become regent in the interregnum
+    tier: 5
+    oncePerLife: true
     families: [status]
     requires:
       anyRoles: [hand]
 
   - slug: amass-200
-    name: Amass a stockpile of 200 ⬢ ‡
+    name: Amass a stockpile of 200 ⬢
     tier: 5
     families: [wealth]
     requires:
       anyRoles: [meister, headman, brigand-leader, innkeeper]
 
   - slug: song-in-battle
-    name: Perform a song in the middle of a battle ‡
-    tier: 5
+    name: Perform a song in the middle of a battle
+    tier: 2
     families: [craft, bravery]
     requires:
       anyRoles: [minstrel]
@@ -1056,7 +1018,7 @@ desires:
       anyRoles: [diplomat]
 
   - slug: save-a-life-medical
-    name: Save a life ‡
+    name: Save a life
     tier: 1
     families: [medical, charity]
     requires:
@@ -1148,8 +1110,8 @@ desires:
 
   # User wrote "3/4" for this one — 3 chosen, flagged.
   - slug: pusher-client-addicted
-    name: Get a client addicted to drugs ‡
-    tier: 3
+    name: Get a client addicted to drugs
+    tier: 2
     families: [drugs, cruelty, scheming]
     requires:
       anyRoles: [pusher]
@@ -1198,7 +1160,7 @@ desires:
 
   # User gave no tier for this one.
   - slug: minstrel-joke-at-baron
-    name: Make a joke at the Baron's expense ‡
+    name: Make a joke at the Baron's expense
     tier: 2
     families: [social, craft]
     requires:
@@ -1329,14 +1291,6 @@ desires:
     requires:
       anyTags: [mad-doctor]
 
-  - slug: sit-in-bliss
-    name: Sit in bliss
-    tier: 1
-    families: [ascetic]
-    requires:
-      anyTags: [ascetic]
-    cooldownTurns: 2
-
   - slug: prediction-comes-true
     name: Publicly declare a prediction that later comes true
     tier: 4
@@ -1460,32 +1414,33 @@ desires:
   # === 4e. ‡ drafted fill-ins ===============================================
   # Corrupt (T: corrupt, R: watchman/sheriff)
   - slug: look-the-other-way
-    name: Look the other way for a friend ‡
-    tier: 2
+    name: Look the other way for a friend
+    tier: 1
     families: [duty, theft]
     requires:
       anyTags: [corrupt]
       anyRoles: [watchman, sheriff]
 
   - slug: sell-a-watch-secret
-    name: Sell something the Watch told you in confidence ‡
-    tier: 3
+    name: "Sell Watch information or equipment"
+    tier: 1
     families: [betrayal, theft]
     requires:
       anyTags: [corrupt]
       anyRoles: [watchman, sheriff]
 
   - slug: shake-down-a-merchant
-    name: Shake down someone with more to lose than you ‡
-    tier: 3
+    name: Shake down someone with more to lose than you
+    tier: 1
     families: [theft, cruelty]
     requires:
       anyTags: [corrupt]
       anyRoles: [watchman, sheriff]
 
   - slug: pocket-60
-    name: Hold 60 ⬢ that was never yours ‡
+    name: Hold 60 ⬢ that was never yours
     tier: 4
+    oncePerLife: true
     families: [theft]
     requires:
       anyTags: [corrupt]
@@ -1493,386 +1448,240 @@ desires:
 
   # Brave (T: brave)
   - slug: stand-your-ground-alone
-    name: Stand your ground alone ‡
+    name: Stand your ground alone
     tier: 3
     families: [bravery]
     requires:
       anyTags: [brave]
 
-  - slug: walk-into-the-caves
-    name: Walk into the Caves at night on purpose ‡
-    tier: 2
-    families: [bravery, adventure]
-    requires:
-      anyTags: [brave]
-
   - slug: take-a-wound-for-someone
-    name: Take a wound that was meant for someone else ‡
-    tier: 4
+    name: Take a wound that was meant for someone else
+    tier: 2
     families: [bravery, charity]
     requires:
       anyTags: [brave]
 
   # Tactician (T: tactician)
   - slug: win-a-planned-fight
-    name: Win a fight you planned out beforehand ‡
-    tier: 3
+    name: Win a fight you planned out beforehand
+    tier: 2
     families: [violence, bravery]
     requires:
       anyTags: [tactician]
 
   - slug: lead-four-home
-    name: Lead 4 people through a fight and lose none of them ‡
+    name: "Lead at least 3 people through a fight and lose none of them"
     tier: 4
     families: [bravery, duty]
     requires:
       anyTags: [tactician]
 
-  - slug: take-ground-bloodlessly
-    name: Take a position without a fight ‡
-    tier: 4
-    families: [faction-success]
-    requires:
-      anyTags: [tactician]
-
   - slug: call-it-out-loud
-    name: Say what the enemy will do, out loud, before they do it ‡
+    name: Say what the enemy will do, out loud, before they do it
     tier: 3
     families: [social, scheming]
     requires:
       anyTags: [tactician]
 
-  # Animal Friend (T: animal-friend)
-  - slug: calm-a-dangerous-animal
-    name: Calm an animal that was about to hurt somebody ‡
-    tier: 2
-    families: [bravery, social]
-    requires:
-      anyTags: [animal-friend]
-
-  - slug: keep-an-animal-alive
-    name: Keep an animal alive through a hard turn ‡
-    tier: 2
-    families: [charity]
-    requires:
-      anyTags: [animal-friend]
-
-  # Schemer (T: schemer)
   - slug: set-two-against-each-other
-    name: Make two people distrust each other ‡
-    tier: 3
+    name: Make two people distrust each other
+    tier: 2
     families: [scheming]
     requires:
       anyTags: [schemer]
 
   - slug: let-someone-else-hang
-    name: Have someone punished for something you did ‡
-    tier: 4
+    name: Have someone punished for something you did
+    tier: 3
     families: [scheming, betrayal]
     requires:
       anyTags: [schemer]
 
   - slug: pry-out-a-secret
-    name: Get a secret out of somebody who meant to keep it ‡
+    name: Get a secret out of somebody who meant to keep it
     tier: 3
     families: [scheming, social]
     requires:
       anyTags: [schemer]
 
-  - slug: install-your-man
-    name: Put your own man in a seat you can't hold yourself ‡
-    tier: 5
-    families: [scheming, status]
-    requires:
-      anyTags: [schemer]
-
-  # === 4f. Cult of Bacchus — 20 ‡ (all T: follower-of-bacchus) =============
-  # Family cult-bacchus + one secondary each; nothing below tier 2. Replaces
-  # the retired "+5 per Desire" cult compensation (F-15) — see
-  # follower-of-bacchus's two-clause lock in docs/tags.yaml.
-  - slug: bacchus-first-cup
-    name: Pour the first cup ‡
-    tier: 2
-    families: [cult-bacchus, alcohol]
-    requires:
-      anyTags: [follower-of-bacchus]
-
   - slug: bacchus-chant
-    name: Chant the rites in the old tongue where somebody can hear ‡
+    name: Chant the rites in the old tongue where somebody can hear
     tier: 2
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-boombox
-    name: Make the whole street hear the {tag:boombox} ‡
+    name: Make the whole street hear the {tag:boombox}
     tier: 2
+    oncePerLife: true
     families: [cult-bacchus, social]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-bare-feet
-    name: Get a stranger to take off their shoes and dance ‡
+    name: Get a stranger to take off their shoes and dance
     tier: 2
     families: [cult-bacchus, social]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-first-taste
-    name: Give a first taste to somebody who has never had one ‡
+    name: Give a first taste to somebody who has never had one
     tier: 3
     families: [cult-bacchus, drugs]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-feast
-    name: Throw a feast nobody remembers the end of ‡
-    tier: 3
+    name: "Throw an amazing feast, including at least 3 lavish meals"
+    tier: 2
     families: [cult-bacchus, food]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-spend-it-all
-    name: Spend 50 ⬢ in one night on nothing that lasts ‡
-    tier: 3
+    name: Spend 50 ⬢ in one night on nothing that lasts
+    tier: 4
     families: [cult-bacchus, wealth]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-initiate-willing
-    name: Initiate somebody who wants it ‡
-    tier: 4
+    name: Initiate somebody who wants it
+    tier: 2
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-break-a-vow
-    name: Make somebody break a vow they meant ‡
+    name: "Make somebody break a vow"
     tier: 4
     families: [cult-bacchus, romance]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-noble-dance
-    name: Get somebody with {tag:nobility} to dance with you ‡
+    name: Get somebody with {tag:nobility} to dance with you
     tier: 4
     families: [cult-bacchus, vanity]
     requires:
       anyTags: [follower-of-bacchus]
 
-  - slug: bacchus-party-first
-    name: Host a party of {partysize:1} ‡
-    tier: 4
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [follower-of-bacchus]
-
   - slug: bacchus-initiate-unwilling
-    name: Initiate somebody who does not want it ‡
-    tier: 5
+    name: "Initiate somebody forcefully"
+    tier: 3
     families: [cult-bacchus, cruelty]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-ambrosia
-    name: Drink {tag:ambrosia} ‡
+    name: Drink {tag:ambrosia}
     tier: 5
     families: [cult-bacchus, drugs]
     requires:
       anyTags: [follower-of-bacchus]
 
-  - slug: bacchus-party-second
-    name: Host a party of {partysize:2} ‡
-    tier: 5
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [follower-of-bacchus]
-
-  - slug: bacchus-party-third
-    name: Host a party of {partysize:3} ‡
-    tier: 5
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [follower-of-bacchus]
-
   - slug: bacchus-defile
-    name: Hold a rite inside the Cathedral ‡
+    name: Hold a rite inside the Cathedral
     tier: 5
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [follower-of-bacchus]
-
-  - slug: bacchus-smiling-death
-    name: Watch a brother go out smiling ‡
-    tier: 5
-    families: [cult-bacchus, mortality]
-    requires:
-      anyTags: [follower-of-bacchus]
-
-  - slug: bacchus-convert-the-church
-    name: Bring somebody of the Church all the way over ‡
-    tier: 7
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
 
   - slug: bacchus-bring-the-demoness
-    name: Bring the Demoness into the fold ‡
+    name: Bring the Demoness into the fold
     tier: 7
     families: [cult-bacchus, scheming]
     requires:
       anyTags: [follower-of-bacchus]
 
-  - slug: bacchus-final-party
-    name: "The Final Party — {partysize:4}, and noble blood ‡"
-    tier: 7
-    families: [cult-bacchus, faith]
-    # DEVIATION (Task 2): the spec wants "T: follower-of-bacchus AND
-    # anyTags: cult-leader", but requires.anyTags is a single OR list, and
-    # both gates here are Tags — there is no second AND'able tag slot the
-    # way anyTags/anyRoles combine. cult-leader alone is used instead:
-    # only an actual Cultist ever holds it, so the follower-of-bacchus
-    # check is redundant in practice.
-    requires:
-      anyTags: [cult-leader]
-
-  # === 4g. Demoness — 20 ‡ (all T: demoness) ===============================
-  # Family demoness + one secondary each; ladder anchored on threats.md:40-60.
   - slug: dem-let-loose
-    name: Talk somebody into letting loose ‡
+    name: Talk somebody into letting loose
     tier: 1
     families: [demoness, social]
     requires:
       anyTags: [demoness]
 
   - slug: dem-humiliate
-    name: Humiliate somebody in front of the people whose opinion they need ‡
+    name: "Humiliate somebody"
     tier: 2
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
   - slug: dem-offered-kiss
-    name: Take a kiss that was offered ‡
-    tier: 2
+    name: Take a kiss that was offered
+    tier: 3
     families: [demoness, romance]
     requires:
       anyTags: [demoness]
 
-  - slug: dem-fulfil-a-fear
-    name: Fulfil somebody's Fear ‡
-    tier: 3
-    families: [demoness, cruelty]
-    requires:
-      anyTags: [demoness]
-
-  - slug: dem-keep-someone
-    name: Take somebody somewhere quiet and keep them ‡
-    tier: 3
-    families: [demoness, cruelty]
-    requires:
-      anyTags: [demoness]
-
   - slug: dem-thanked-for-blood
-    name: Drink from somebody who thanks you afterward ‡
+    name: "Drink somebody's blood (who you haven't yet broken)"
     tier: 3
     families: [demoness, mortality]
     requires:
       anyTags: [demoness]
 
-  - slug: dem-make-them-love-you
-    name: Make somebody love you, for good ‡
-    tier: 4
-    families: [demoness, romance]
-    requires:
-      anyTags: [demoness]
-
-  - slug: dem-break-anyone
-    name: Leave somebody {tag:broken} ‡
-    tier: 4
-    families: [demoness, cruelty]
-    requires:
-      anyTags: [demoness]
-
   - slug: dem-a-room-in-panic
-    name: Put a room into {tag:panic} without laying a hand on anyone ‡
+    name: Put a room into {tag:panic} without laying a hand on anyone
     tier: 4
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
   - slug: dem-noble-lover
-    name: Take a lover with {tag:nobility} ‡
-    tier: 4
+    name: Take a lover with {tag:nobility}
+    tier: 3
     families: [demoness, romance]
     requires:
       anyTags: [demoness]
 
-  - slug: dem-refuse-a-master
-    name: Refuse somebody who thinks he owns you, publicly ‡
-    tier: 4
-    families: [demoness, social]
-    requires:
-      anyTags: [demoness]
-
   - slug: dem-wanted-anyway
-    name: Be seen in your True Form and be wanted anyway ‡
+    name: Be seen in your True Form and be wanted anyway
     tier: 4
     families: [demoness, vanity]
     requires:
       anyTags: [demoness]
 
   - slug: dem-break-the-heir
-    name: Break the Heir ‡
+    name: Break the Heir
     tier: 5
     families: [demoness, cruelty]
     requires:
       anyTags: [demoness]
 
-  - slug: dem-three-at-once
-    name: Hold 3 {tag:broken-enslaved} at once ‡
-    tier: 5
-    families: [demoness, scheming]
-    requires:
-      anyTags: [demoness]
-
   - slug: dem-a-face-to-a-funeral
-    name: Wear a borrowed face to its owner's funeral ‡
-    tier: 5
+    name: Wear a borrowed face to its owner's funeral
+    tier: 7
     families: [demoness, scheming]
-    requires:
-      anyTags: [demoness]
-
-  - slug: dem-touch-the-cross
-    name: Touch the {tag:silver-cross} and walk away from it ‡
-    tier: 5
-    families: [demoness, bravery]
     requires:
       anyTags: [demoness]
 
   - slug: dem-a-priest-on-his-knees
-    name: Have a man of the Church on his knees for you ‡
+    name: Have a man of the Church on his knees for you
     tier: 5
     families: [demoness, faith]
     requires:
       anyTags: [demoness]
 
   - slug: dem-lovers-at-each-other
-    name: Make two people who love each other try to kill each other ‡
+    name: "Make two people who love you try to kill each other"
     tier: 5
     families: [demoness, scheming]
     requires:
       anyTags: [demoness]
 
   - slug: dem-eat-someone-whole
-    name: Eat somebody, whole ‡
+    name: Eat somebody, whole
     tier: 5
     families: [demoness, mortality]
     requires:
       anyTags: [demoness]
 
   - slug: dem-apex
-    name: Give it all up for the {tag:apex-form} ‡
+    name: Give it all up for the {tag:apex-form}
     tier: 7
     families: [demoness, mortality]
     requires:
@@ -1885,14 +1694,14 @@ desires:
   # union rule means a tag's own lock would otherwise close its own Desires.
   # Same shape as Kleptomaniac's fix (Ruling R7, DESIRES.md §3).
   - slug: break-up-a-fight
-    name: Break up a fight ‡
+    name: Break up a fight
     tier: 1
     families: [bravery, charity]
     requires:
       anyTags: [pacifist]
 
   - slug: stop-a-war
-    name: Single-handedly stop a war ‡
+    name: Single-handedly stop a war
     tier: 5
     families: [bravery, duty]
     oncePerLife: true
@@ -1901,21 +1710,21 @@ desires:
 
   # --- Role-flavoured: the Metalsmith ---------------------------------------
   - slug: craft-plate-armor
-    name: Craft {tag:plate-armor} ‡
+    name: Craft {tag:plate-armor}
     tier: 3
     families: [craft]
     requires:
       anyRoles: [metalsmith]
 
   - slug: brand-with-hot-iron
-    name: Brand somebody with a hot iron ‡
+    name: Brand somebody with a hot iron
     tier: 2
     families: [craft, cruelty]
     requires:
       anyRoles: [metalsmith]
 
   - slug: barons-commission
-    name: Complete a commission for the Baron ‡
+    name: Complete a commission for the Baron
     tier: 4
     families: [craft, status, duty]
     requires:
@@ -1923,39 +1732,21 @@ desires:
 
   # --- Role-flavoured: the Outsider -----------------------------------------
   - slug: scare-off-a-trespasser
-    name: Scare somebody away from your territory ‡
+    name: Scare somebody away from your territory
     tier: 2
     families: [duty]
     requires:
       anyRoles: [outsider]
 
   - slug: warn-the-town
-    name: Alert the town to a threat coming through the woods ‡
+    name: Alert the town to a threat coming through the woods
     tier: 2
     families: [duty]
     requires:
       anyRoles: [outsider]
 
-  - slug: climb-a-tree
-    name: Climb a tree ‡
-    tier: 1
-    families: [adventure]
-    requires:
-      anyRoles: [outsider]
-
-  # --- Role-flavoured: the Inn ----------------------------------------------
-  # The five below are acts of ownership, so they stay the Innkeeper's alone.
-  # Drinking the stock is the staff's, and the Innkeeper drinking their own
-  # supply isn't a goal — it's Tuesday.
-  - slug: redecorate-the-inn
-    name: Redecorate the inn ‡
-    tier: 1
-    families: [craft]
-    requires:
-      anyRoles: [innkeeper]
-
   - slug: renovate-the-inn
-    name: Renovate the inn ‡
+    name: "Renovate the inn with a skilled builder's help"
     tier: 3
     families: [craft, wealth]
     requires:
@@ -1964,28 +1755,28 @@ desires:
   # Filed `duty`, not `violence`, on purpose: a Pacifist innkeeper should still
   # be able to show a drunk the door.
   - slug: throw-out-a-patron
-    name: Kick a disorderly patron out of the inn ‡
+    name: Kick a disorderly patron out of the inn
     tier: 1
     families: [duty]
     requires:
       anyRoles: [innkeeper]
 
   - slug: give-a-discount
-    name: Give somebody a discount on a stay ‡
+    name: Give somebody a discount on a stay
     tier: 1
     families: [charity]
     requires:
       anyRoles: [innkeeper]
 
   - slug: host-an-event
-    name: Host an event at the inn ‡
+    name: Host an event at the inn
     tier: 2
     families: [social]
     requires:
       anyRoles: [innkeeper]
 
   - slug: drink-the-inns-stock
-    name: Get drunk off the inn's own stock ‡
+    name: Get drunk off the inn's own stock
     tier: 1
     families: [alcohol, theft]
     requires:
@@ -1994,21 +1785,21 @@ desires:
   # --- Role-flavoured: the Brigands -----------------------------------------
   # Open to the Brigand Leader too — nothing here is beneath them.
   - slug: loot-a-captive
-    name: Loot a role-specific item off a captive ‡
+    name: Loot a role-specific item off a captive
     tier: 2
     families: [theft]
     requires:
       anyRoles: [brigand, brigand-leader]
 
   - slug: get-on-a-wanted-flier
-    name: Get your name on a Wanted flier ‡
+    name: Get your name on a Wanted flier
     tier: 3
     families: [status, theft]
     requires:
       anyRoles: [brigand, brigand-leader]
 
   - slug: escape-the-watch
-    name: Be chased by the Watch or the Sheriff, and escape ‡
+    name: Be chased by the Watch or the Sheriff, and escape
     tier: 3
     families: [adventure, theft]
     requires:
@@ -2016,21 +1807,21 @@ desires:
 
   # --- Role-flavoured: the Mother -------------------------------------------
   - slug: comfort-the-bastard
-    name: Comfort the distressed Bastard ‡
+    name: Comfort the distressed Bastard
     tier: 1
     families: [social, charity]
     requires:
       anyRoles: [mother]
 
   - slug: bastard-takes-your-advice
-    name: Have the Bastard act on your advice ‡
+    name: Have the Bastard act on your advice
     tier: 2
     families: [social, scheming]
     requires:
       anyRoles: [mother]
 
   - slug: stop-a-plot-against-the-bastard
-    name: Stop a plot against the Bastard ‡
+    name: Stop a plot against the Bastard
     tier: 4
     families: [duty, scheming]
     requires:
@@ -2038,22 +1829,196 @@ desires:
 
   # --- Role-flavoured: the Migrant ------------------------------------------
   - slug: through-the-town-gates
-    name: Be let through the Town gates ‡
+    name: Be let through the Town gates
     tier: 1
     families: [status]
     requires:
       anyRoles: [migrant]
 
   - slug: a-job-in-town
-    name: Get a job in Town ‡
+    name: Get a job in Town
     tier: 2
     families: [wealth, status]
     requires:
       anyRoles: [migrant]
 
   - slug: a-job-in-the-keep
-    name: Get a job in the Keep ‡
+    name: Get a job in the Keep
     tier: 3
     families: [wealth, status]
     requires:
       anyRoles: [migrant]
+
+  # === 5. Sign-off pass (2026-09-02) ======================================
+  # Everything below arrived from the human sign-off of the ‡ draft, so none
+  # of it carries the glyph — the names are dictated, not drafted.
+
+  # The Bum's low, repeatable rung. Replaces bum-custom ("A Desire of your
+  # own"), which promised a goal written with a GM — that is the free-text
+  # setDesireGm path, not something a catalog row can do.
+  - slug: tell-a-story
+    name: "Tell a story and have someone listen"
+    tier: 1
+    families: [social]
+    requires:
+      anyRoles: [bum]
+
+  - slug: make-the-baron-laugh
+    name: "Make the Baron laugh"
+    tier: 1
+    families: [social, craft]
+    requires:
+      anyRoles: [minstrel]
+
+  # --- Demoness -----------------------------------------------------------
+  # The pass split several of these into a "someone new" / "someone already
+  # {tag:broken}" pair, priced apart: doing it to a stranger is the work,
+  # doing it again to somebody you already own is not.
+  - slug: dem-humiliate-publicly
+    name: "Humiliate somebody publicly"
+    tier: 3
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-torture
+    name: "Torture someone"
+    tier: 4
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-kiss-a-broken
+    name: "Kiss a {tag:broken} one"
+    tier: 1
+    families: [demoness, romance]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-break-a-heart
+    name: "Break someone's heart (who you haven't yet broken)"
+    tier: 4
+    families: [demoness, romance]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-break-a-brokens-heart
+    name: "Break a {tag:broken}'s heart"
+    tier: 2
+    families: [demoness, cruelty]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-refuse-publicly
+    name: "Refuse somebody publicly"
+    tier: 2
+    families: [demoness, social]
+    requires:
+      anyTags: [demoness]
+
+  - slug: dem-infidelity
+    name: "Make someone commit infidelity"
+    tier: 3
+    families: [demoness, romance, scheming]
+    requires:
+      anyTags: [demoness]
+
+  # --- Bacchus ------------------------------------------------------------
+  # EVERY entry here carries cult-bacchus. The Cultist tag locks tier 1 to
+  # cult-bacchus alone and tiers 2-5/7 to cult-bacchus plus alcohol, drugs,
+  # food and romance — so a Bacchus desire filed under cruelty or faith
+  # ALONE would be invisible to the only people who can pick it.
+  - slug: bacchus-force-feed-fish
+    name: "Force feed someone a living fish"
+    tier: 2
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-eat-fish
+    name: "Eat a living fish"
+    tier: 1
+    families: [cult-bacchus, food]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-perform-a-rite
+    name: "Perform a rite"
+    tier: 1
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-disinter-and-hang
+    name: "Disinter a body and hang it publicly"
+    tier: 2
+    families: [cult-bacchus, mortality]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-display-a-corpse
+    name: "Display a dead cave monster's body in a public area"
+    tier: 2
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-human-flesh
+    name: "Secretly feed someone a meal made out of human flesh"
+    tier: 2
+    families: [cult-bacchus, food, cruelty]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-torture-outsider
+    name: "Torture a non-cultist"
+    tier: 2
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-desecrate-a-painting
+    name: "Desecrate a painting"
+    tier: 3
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  # Tier 4, not 7: the sign-off swapped this with the cathedral. A naked
+  # blood-run is a night's scandal; burning the Cathedral is a once-ever act.
+  - slug: bacchus-blood-run
+    name: "Cover yourself in blood and run around the town, naked"
+    tier: 4
+    families: [cult-bacchus, vanity]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-make-a-lunatic
+    name: "Make someone a {tag:lunatic}"
+    tier: 4
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  # The three tier-7s below are automatically oncePerLife (the sync sets it
+  # for every tier-7 entry), so a cult gets one shot at each.
+  - slug: bacchus-funeral-party
+    name: "Turn a non-cultist's funeral into a party"
+    tier: 7
+    families: [cult-bacchus, mortality]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-burn-the-cathedral
+    name: "Burn the Cathedral down"
+    tier: 7
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]
+
+  - slug: bacchus-cross-in-the-pits
+    name: "Throw the {tag:silver-cross} into the Aberrant Pits"
+    tier: 7
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [follower-of-bacchus]

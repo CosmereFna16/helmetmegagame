@@ -37,14 +37,19 @@ pass:
   same template is unavailable again until
   `openTurnNumber >= endedTurnNumber + (cooldownTurns ?? tier)`. Exactly at
   the boundary turn it's available again, not still cooling. `cooldownTurns`
-  is a per-entry override of the tier-length default — `sit-in-bliss` in
-  `docs/desires.yaml` is the one user of it today.
+  is a per-entry override of the tier-length default — `charitable-act-devoted`
+  (3) and `use-a-censer` (5) are its users, both cheap repeatables that would
+  otherwise be pickable every turn.
 - **Per-slot lock** — once *any* Desire in a slot ends (cancel or fulfil),
-  that slot is locked until the next turn:
-  `openTurnNumber <= max(endedTurnNumber over that slot's ended rows)`
-  locks it, so it opens back up strictly the turn after. This stops a player
-  from cancel-and-immediately-refill farming a slot within the same turn,
-  independent of which template they're aiming at.
+  that slot stays shut for the rest of that turn **and all of the next one**:
+  `openTurnNumber <= max(endedTurnNumber over that slot's ended rows) + 1`
+  locks it, so a Desire ended on turn N leaves the slot shut on N and N+1 and
+  open on N+2 — a whole empty turn in between. This stops a player from
+  cancel-and-refill farming a slot, independent of which template they're
+  aiming at. The `+ 1` was added 2026-09-02: one turn of lockout meant ending a
+  Desire late in a turn and refilling first thing the next, which is barely a
+  cooldown. Note it is one TURN, not one day — `Turn.number` increments twice
+  daily, so the added lockout is 12 hours.
 - **Tier 7 — ONCE EVER.** `db:sync-desires` defaults `oncePerLife: true` for
   every tier-7 entry automatically; it's never written by hand in the YAML
   for a tier-7 row. `oncePerLife` can also be set by hand at any other tier,
@@ -164,6 +169,13 @@ earn Tag Points mid-game.** It also closes the buy-a-drawback → get-cured →
 keep-the-points loop at the door, which is where §7's clawback rule had been
 patching it from behind.
 
+**Pricing rule, from the 2026-09-02 sign-off:** a Personality tag that *locks
+and also opens* is **0**; one that only locks is negative. Pacifist (locks
+`violence`/`feud`, opens two of its own) and Kleptomaniac (locks `wealth`, opens
+thievery) are both 0. Eunuch (−1), Prudish (−2), Craven (−3) and Depressed (−8)
+only lock. `ascetic` and `blood-feud` were removed entirely in that pass, along
+with `sit-in-bliss` and the four clan-feud desires that gated on Blood Feud.
+
 ‡ The price band follows an income-based rationale: a tag is priced by how
 much of the catalog it closes against how much it opens. Depressed, closing
 everything and opening nothing, is the floor at −8. Eunuch, closing exactly
@@ -177,10 +189,10 @@ opens is narrow and what it forbids is not.
 one tag per character *per group*), a conflict isn't scoped to a group and
 isn't carved out for a `requiredTag` pair. `conflictsWith` is what survives
 the merge doing real work: every Addiction lists
-`conflictsWith: [depressed, ascetic, ...]` so a character can't stack, say,
+`conflictsWith: [depressed, prudish]` so a character can't stack, say,
 Alcoholic with Depressed (which already locks everything, making an
-Addiction's own unlock moot and confusing) or with Ascetic (a whole different
-philosophy of self-denial). Those edges are unaffected by the group merge,
+Addiction's own unlock moot and confusing) or with Prudish (which disapproves
+of the very thing). Those edges are unaffected by the group merge,
 because a conflict was never group-scoped in the first place.
 `web/lib/characterCreation.js#conflictingTag` is the enforcement predicate,
 same posture as `exclusiveConflict` — a GM grant bypasses it, like every other

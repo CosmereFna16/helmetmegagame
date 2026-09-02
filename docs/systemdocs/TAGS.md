@@ -107,7 +107,7 @@ diff check, same style as the zone sync's hash gate).
   `exclusive`'s at-most-one-per-group rule: it isn't scoped to a group and
   isn't carved out for a `requiredTag` pair, so it's the right tool for a
   conflict that crosses groups or crosses the belief/drawback line — every
-  Addiction and Restriction lists `conflictsWith: [depressed, ascetic, ...]`
+  Addiction lists `conflictsWith: [depressed, prudish]`
   so, say, Alcoholic and Depressed can't stack. Authored one-directional in
   `docs/tags.yaml` and symmetrized by `db:sync-tags` (pass 6, §2), so a
   caller only ever has to check one side; a **custom** GM tag's edge is not
