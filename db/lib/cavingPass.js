@@ -38,6 +38,7 @@
 const { drawLoot } = require("./cavingLoot");
 const { addToStack } = require("./tagWrites");
 const { rollDie } = require("./moveEffects");
+const { expiryFrom } = require("./turnFormat");
 
 // Every DM leads with the face, so a player sees their own roll and not just
 // its outcome. A QUIET (2-5) used to send nothing, which left players unsure
@@ -97,7 +98,10 @@ async function rollCaving(prisma, character, turn, zone, trigger) {
       // request in the same transaction as the roll and the grant, so a
       // roll can never exist without its loot (or vice versa).
       const { tier, slug } = drawLoot(zone.slug);
-      const tag = await tx.tag.findUnique({ where: { slug }, select: { id: true, name: true, stackable: true } });
+      const tag = await tx.tag.findUnique({
+        where: { slug },
+        select: { id: true, name: true, stackable: true, defaultDurationTurns: true },
+      });
       if (!tag) {
         // The catalog is out of sync with cavingLoot.js — refuse to grant a
         // phantom tag. Recorded as TROUBLE-shaped so it still lands on the
@@ -112,7 +116,23 @@ async function rollCaving(prisma, character, turn, zone, trigger) {
         };
       }
 
-      await addToStack(tx, character.id, tag.id, 1, { source: "EVENT", stackable: tag.stackable });
+      // `turn.number`, NOT turn.number + 1. hungerPass, tagExpiryPass,
+      // moveEffects and db/index.js's stack reroll all grant against the turn
+      // being CLOSED, so they add 1 to reach the tag's first live turn. Caving
+      // never does: runCavingPass is handed newTurn — already open — and
+      // rollCavingOnArrival looks up the OPEN turn itself and bails if there
+      // isn't one. Here `turn` IS the first live turn, so adding 1 would give
+      // every timed find an extra turn on the sheet.
+      //
+      // Nothing in cavingLoot.js's table is timed today, so this stamps null
+      // either way; it exists so the first timed tag added to that table
+      // doesn't land permanent (a null expiresTurn never matches the sweep's
+      // `lte`, which is how a tag becomes permanent by accident).
+      await addToStack(tx, character.id, tag.id, 1, {
+        source: "EVENT",
+        stackable: tag.stackable,
+        expiresTurn: expiryFrom(turn.number, tag.defaultDurationTurns),
+      });
 
       const request = await tx.request.create({
         data: {

@@ -13,7 +13,7 @@ import {
 import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
-import { expiryFor } from "@/lib/turnFormat";
+import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   syncCharacterNickname,
   ensureCharacterRole,
@@ -303,11 +303,13 @@ export async function createCharacter(formData) {
   // expires.
   const tagIdsToGrant = new Map();
   for (const tag of startingTags) {
-    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn: expiryFor(tag, openTurn) });
+    const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
+    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn });
   }
   for (const tag of selected) {
     if (!tagIdsToGrant.has(tag.id)) {
-      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn: expiryFor(tag, openTurn) });
+      const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
+      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn });
     }
     // A purchased higher tier replaces a role-granted lower tier of the same
     // chain — the plain union would seat both rungs on the new sheet. The

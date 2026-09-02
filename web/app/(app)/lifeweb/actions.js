@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma, DRAINED_SLUG, bloodValueForTags, bumpBlood, FEED_PERSON_AMOUNT } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import { expiryFor } from "@/lib/turnFormat";
+import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -33,8 +33,23 @@ export async function donateBlood(characterId) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   const { amount, tier } = bloodValueForTags(character.tags);
-  const drainedTag = openTurn ? await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } }) : null;
-  const expiresTurn = expiryFor(drainedTag, openTurn);
+  // Fetched UNCONDITIONALLY, and the mark below is no longer conditional on it.
+  // This used to read `openTurn ? await … : null`, so during a turn advance —
+  // when nothing has status OPEN, which is a window that also stays open for
+  // hours after a wedged advance — the pool got credited and the donor was
+  // never marked. An unmarked donor walks straight back through the
+  // alreadyDrained gate above, which is the exact double payout the shared
+  // transaction below exists to prevent. expiryForGrant handles the missing
+  // turn by deferring to the next one instead (db/lib/grantExpiry.js).
+  const drainedTag = await prisma.tag.findUnique({ where: { slug: DRAINED_SLUG } });
+  if (!drainedTag) {
+    console.error("Lifeweb drain: the Drained tag is missing — run npm run db:sync-tags.");
+    return;
+  }
+  const expiresTurn = await expiryForGrant(prisma, drainedTag, openTurn, {
+    characterId: character.id,
+    where: "gmDonateBlood",
+  });
 
   // Credit and mark in ONE transaction, same as the player-facing twin in
   // requestActions.js#donateBloodRequestImpl. Split apart, a throw between the
@@ -45,11 +60,9 @@ export async function donateBlood(characterId) {
   let blood;
   await prisma.$transaction(async (tx) => {
     blood = await bumpBlood(tx, amount);
-    if (drainedTag) {
-      await tx.characterTag.create({
-        data: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
-      });
-    }
+    await tx.characterTag.create({
+      data: { characterId: character.id, tagId: drainedTag.id, source: "EVENT", expiresTurn },
+    });
   });
 
   await prisma.auditLog.create({

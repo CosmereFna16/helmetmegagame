@@ -84,6 +84,14 @@ function expiryFrom(firstLiveTurnNumber, durationTurns) {
   return firstLiveTurnNumber + durationTurns - 1;
 }
 
+// THE DISPLAY/GRANT SPLIT. This one is for reading a turn you already have —
+// tooltips, chip badges, and any grant path that is certain of its turn. If you
+// are GRANTING and the turn came from `findFirst({ status: "OPEN" })`, use
+// db/lib/grantExpiry.js#expiryForGrant instead: openTurn is null for the whole
+// of a turn advance (and for hours after a wedged one), and the null this
+// returns in that case lands a permanent tag with nothing logged. That is a
+// real bug that reached production, not a hypothetical.
+//
 // The same thing for the common case: a tag granted during the open turn, so
 // the open turn is its first live one. Every mid-turn grant path must use it:
 // resolveNeeds()'s sweep matches on expiresTurn, so a row left null is

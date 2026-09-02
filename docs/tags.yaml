@@ -2310,7 +2310,7 @@ tags:
     description: "You're weakened, unable to eat enough or push yourself physically."
     pointCost: 0
     purchasable: false
-    durationTurns: 4
+    durationTurns: 3
 
   # Granted automatically by a Labor payout (db/lib/moveEffects.js), and read
   # back by the Labor gate (db/lib/laborAccess.js) — one Labor per day, i.e.

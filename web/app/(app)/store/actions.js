@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { createRequest, logRequest } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
-import { expiryFor } from "@/lib/turnFormat";
+import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   tagsById as buildTagsById,
   requirementSatisfied,
@@ -171,7 +171,10 @@ async function buyTagsImpl({ tagIds }) {
         source: "POINT_BUY",
         // A timed tag has to arrive already stamped or it never expires —
         // same stamp createCharacter and the Add Tag request apply.
-        expiresTurn: expiryFor(tag, openTurn),
+        expiresTurn: await expiryForGrant(tx, tag, openTurn, {
+          characterId: character.id,
+          where: "buyTags",
+        }),
         stackable: tag.stackable,
       });
     }

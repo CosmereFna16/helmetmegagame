@@ -18,7 +18,7 @@
 
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
-const { expiryFor } = require("./turnFormat");
+const { expiryForGrant } = require("./grantExpiry");
 
 // A validation failure a human caused and a human can fix. Web callers map
 // this onto their UserError (web/lib/characterWrite.js) so guarded() renders
@@ -49,16 +49,21 @@ function validateTagOps(ops, tagsById, held) {
   }
 }
 
-function expiresTurnFor(op, tag, openTurn) {
+async function expiresTurnFor(tx, op, tag, openTurn, characterId) {
   const mode = op.expiry?.mode ?? "default";
   if (mode === "never") return null;
   // The column is an absolute turn number, never a countdown.
   if (mode === "at") return op.expiry.turn ?? null;
-  // "default": expiryFor returns null for an untimed tag, and the correct
+  // "default": expiryForGrant returns null for an untimed tag and the correct
   // absolute turn for a timed one. Skipping it is how a GM-granted Paralyzed
   // becomes permanent — resolveNeeds()'s sweep matches on expiresTurn, so a
   // null there never expires at all.
-  return expiryFor(tag, openTurn);
+  //
+  // expiryForGrant rather than plain expiryFor because openTurn is null for
+  // the whole of a turn advance (and for hours after a wedged one), and a
+  // GM grant landing in that window used to stamp null and go permanent
+  // without a word. See db/lib/grantExpiry.js.
+  return expiryForGrant(tx, tag, openTurn, { characterId, where: "tagOps" });
 }
 
 // Applies staged tag changes inside a transaction. Order is load-bearing:
@@ -104,7 +109,7 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     await addToStack(tx, characterId, op.tagId, op.quantity ?? 1, {
       source: op.source ?? "GM_GRANT",
       stackable: tag.stackable,
-      expiresTurn: expiresTurnFor(op, tag, openTurn),
+      expiresTurn: await expiresTurnFor(tx, op, tag, openTurn, characterId),
     });
     applied.push({ op: "add", tagId: op.tagId, name: tag.name, quantity: op.quantity ?? 1 });
   }
@@ -122,7 +127,7 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     const data = {};
     if (op.quantity != null) data.quantity = tag.stackable ? op.quantity : 1;
     if (op.source) data.source = op.source;
-    if (op.expiry) data.expiresTurn = expiresTurnFor(op, tag, openTurn);
+    if (op.expiry) data.expiresTurn = await expiresTurnFor(tx, op, tag, openTurn, characterId);
     if (Object.keys(data).length) {
       await tx.characterTag.update({ where: { id: row.id }, data });
     }

@@ -109,6 +109,18 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
       // status can outlast itself depending on what produced it — Bliss
       // leaves you High a turn longer than the raw fungus does.
       const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
+      // Backstop, not a front gate. Every caller is supposed to have resolved a
+      // turn already (db/lib/grantExpiry.js#expiryForGrant defers to the next
+      // one when an advance is in flight). Getting here with a timed tag and no
+      // turn number means a caller skipped that, and the row would land with a
+      // null expiresTurn — which never matches the sweep's `lte`, i.e. the tag
+      // would be permanent and silent. Loud is better than that.
+      if (durationTurns && turnNumber == null) {
+        throw new Error(
+          `grantTagSlugs: no turn number for timed tag "${slug}" (${durationTurns} turns) — ` +
+            "the caller must resolve one via expiryForGrant, or it lands permanent.",
+        );
+      }
       const expiresTurn = expiryFrom(turnNumber, durationTurns);
       await tx.characterTag.create({
         data: {

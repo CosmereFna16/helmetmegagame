@@ -26,7 +26,8 @@ import {
   DEAD_SIMPLE_PER_TURN,
 } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
-import { expiryFor, describeTurn } from "@/lib/turnFormat";
+import { describeTurn } from "@/lib/turnFormat";
+import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { isTradeable, fastTravelCapacity, addRequirementSatisfied } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
@@ -435,7 +436,10 @@ async function addTagRequestImpl({
       // which is why a Paralyzed could sit on a sheet forever while its
       // tooltip promised "Lasts 1 turn". Same stamp createCharacter and the
       // Hunger pass apply.
-      expiresTurn: expiryFor(tag, openTurn),
+      expiresTurn: await expiryForGrant(tx, tag, openTurn, {
+        characterId: character.id,
+        where: "addTagRequest",
+      }),
       stackable: tag.stackable,
     });
     if (resourcesSpent) {
@@ -1243,7 +1247,10 @@ async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   if (target.tags.length) throw new UserError(`${target.name} is already bound.`);
 
   const openTurn = await getOpenTurn();
-  const expiresTurn = expiryFor(bound, openTurn);
+  const expiresTurn = await expiryForGrant(prisma, bound, openTurn, {
+    characterId: target.id,
+    where: "bindCharacter",
+  });
 
   await prisma.$transaction(async (tx) => {
     await addToStack(tx, target.id, bound.id, 1, {
@@ -1413,7 +1420,9 @@ async function harmCharacterRequestImpl({
   }
 
   const openTurn = await getOpenTurn();
-  const expiresTurn = tag ? expiryFor(tag, openTurn) : null;
+  const expiresTurn = tag
+    ? await expiryForGrant(prisma, tag, openTurn, { characterId: target.id, where: "harmCharacter" })
+    : null;
 
   let killed = false;
   await prisma.$transaction(async (tx) => {

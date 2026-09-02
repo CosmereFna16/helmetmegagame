@@ -7,7 +7,7 @@ import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild"
 import { UserError, guarded } from "@/lib/actionResult";
 import { addToStack, dropCharacterTag, grantTagSlugs } from "@/lib/requestEffects";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
-import { expiryFor } from "@/lib/turnFormat";
+import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 
 // The GM broadcast used to live here (sendGmMessage/deliverGmMessage). It's
 // now web/app/(app)/gm/messages/actions.js#sendGmBroadcast, consolidated
@@ -40,6 +40,16 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
       select: { number: true },
     });
 
+    // Resolved ONCE, above the loop. The tag and the turn are the same for
+    // every character, and the try/catch below is inside the loop and swallows
+    // into a bare `failed[]` count — so resolving per character would turn one
+    // shared problem into 200 unexplained failures. See db/lib/grantExpiry.js
+    // for why this is not just expiryFor.
+    const grantExpiresTurn =
+      mode === "revoke"
+        ? null
+        : await expiryForGrant(prisma, tag, openTurn, { where: "bulkTagCharacters" });
+
     const failed = [];
     let applied = 0;
     const aftermathNames = new Set();
@@ -69,13 +79,13 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
               for (const g of granted) aftermathNames.add(g.tagName);
             }
           } else {
-            // expiryFor is not optional: resolveNeeds()'s sweep matches on
+            // The stamp is not optional: resolveNeeds()'s sweep matches on
             // expiresTurn, so a timed tag granted with a null there never
-            // expires at all.
+            // expires at all. Hoisted above the loop — see the comment there.
             await addToStack(tx, characterId, tagId, 1, {
               source: "GM_GRANT",
               stackable: tag.stackable,
-              expiresTurn: expiryFor(tag, openTurn),
+              expiresTurn: grantExpiresTurn,
             });
           }
         });
