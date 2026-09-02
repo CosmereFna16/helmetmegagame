@@ -94,7 +94,7 @@ reason.
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
 | `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
-| `ADD_TAG` | Takes a Purchasable tag you hold the use-gate for, or a Craftable tag you hold the recipe skill for, optionally paying ⬢. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
+| `ADD_TAG` | Makes a Craftable tag, optionally paying ⬢. Craftable is the whole gate — the point-priced half of the menu is gone, and lives in `/store`. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c) | cost | Restores the tag and its count, takes back the aftermath it granted, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
@@ -199,19 +199,31 @@ Three notes on deliberate choices:
   unit at a time is the point of a stack. See `TAGS.md` §5b.
 - **Transfer Tag and Loot both filter on `tradeable`.** Not on `category`,
   which is what they used to do and which was wrong in both directions — it
-  let a corpse be stripped of its House and its Drone, and it ignored the
+  let a corpse be stripped of its Drone, and it ignored the
   Items that already said `tradeable: false`. One flag covers handing over and
   taking off a body alike. `web/lib/tagRequests.js#isTradeable` is the only
   reader, so the menus and the server-side re-checks can't disagree. See
   `TAGS.md` §5.
-- **Add Tag gates a craftable on nothing but its hidden-category group.**
+- **Add Tag is the crafting menu, and only that.** It used to admit a second
+  route — `purchasable && purchasableAfterStart` — so a tag could be *bought*
+  here as well as made. That was 155 tags, every one of them also priced in
+  `/store`, and Add Tag costs nothing but a written reason. It was therefore
+  strictly cheaper than paying Tag Points, and players used it that way:
+  Butcher, Horse, Stealth, Literate, Ranged (Basic), Workshop, Game Master.
+  The help text asking them not to was the tell that the option should never
+  have been on the menu. The two economies are now split at the door —
+  `/store` spends points against catalog prices, Add Tag spends turns and ⬢
+  against a recipe.
+- **What survives is the hidden-category group gate, and nothing else.**
   A Longbow's `requiredTag: ranged-basic` says who can *shoot* it; its
   `requirement.skills: [crafting]` says who can *make* it. Creation and
   `/store` enforce the former; Add Tag enforces neither — it's honor-system
   (`addRequirementSatisfied()` in `web/lib/tagRequests.js`, `TAGS.md` §3b),
   with the recipe shown as the picker's "To make: …" hint and the GM review
   as the backstop. A smith with no combat skill can forge weapons to sell; a
-  fighter can pull one from the clan armoury the fiction gives them.
+  fighter can pull one from the clan armoury the fiction gives them. The
+  group gate stays unconditional, so a Bacchus craftable is still invisible
+  outside the cult.
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
@@ -542,6 +554,22 @@ behind the gate, allowing it would turn "stopped logging in" into a dead
 character at another player's discretion. The engine already answers that case
 itself, on its own clock and its own GM-facing dial
 (`db/lib/catatonicDeathPass.js`, `TURN-ENGINE.md` §2 7b).
+
+**Harm offers wounds, not the whole Health category.** The picker used to run
+off `category: Health, custom: false`, which is all 75 rows — so a player
+standing over a Bound character could give them Exploded Chest ("a larva
+slithered out"), Appendicitis, Dying, or Hungover. But that category is the set
+the cure ladder *treats* (`TAGS.md` §5c), and most of it is downstream of an
+injury rather than an injury: `health-recovery` is the aftermath a treatment
+leaves, `health-infection` is what the engine grants when a wound goes
+untended, `health-illness` is disease, `health-minor` is mostly jokes. Two
+groups are things one person does to another — `health-wounds` and
+`health-maiming` — plus four out of `health-mind` a beating plainly causes
+(Concussed, Shell Shocked, Blind, Mute). That is `isInflictable()` in
+`web/lib/healRequests.js`, 33 rows, read by both the picker and the server
+action for the same reason `isHealable` is. **Paralyzed is deliberately not on
+it**: it is in `INCAPACITATING_SLUGS`, so inflicting it would let one player
+lock another out of their Default Move indefinitely, at will.
 
 The lethal half is also the only place besides billing someone else for a cure
 where the dialog asks twice.

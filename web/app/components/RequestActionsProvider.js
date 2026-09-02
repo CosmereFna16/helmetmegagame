@@ -319,11 +319,11 @@ function payerLabel(parties, key) {
 
 export const ACTION_HELP = {
   add:
-    "This is the crafting menu. Make something, then subtract the resources " +
-    "and spend the turns the recipe asks for yourself — it pushes " +
-    "immediately, and a GM reviews it later. It also covers picking up gear " +
-    "the fiction already puts in your hands. Anything with a point price is " +
-    "bought with the Spend Tag Points button instead. \u2021",
+    "To save the GMs time, you can add or remove tags at will, but you're " +
+    "expected to subtract the appropriate amount of resources / spend the " +
+    "amount of turns. They'll review the action later, but it'll push " +
+    "immediately. This is for crafting, taking gear, or building houses. Use " +
+    "the Spend Tag Points to point buy instead.",
   heal: "Works on others nearby too. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",
@@ -336,21 +336,16 @@ export const ACTION_HELP = {
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
   harm: "Further injure someone who is bound or incapacitated.",
   bird:
-    "Send a message to a specific person in a specific zone. You have to guess " +
-    "where they are, and a bird will not go into the Railroad or the Aberrant " +
-    "Pits. One letter a day. If they can't read, they'll get it anyway — in a " +
-    "script they can't make out.",
+    "Send a bird to someone. You have to guess their zone. If they are " +
+    "illiterate, they'll need help reading it.",
   read:
     "Decode a letter someone showed you. Paste the script and it turns back " +
     "into words. Nobody is told you read it.",
   bury:
-    "Put a body that lies where you are into the ground. It lays the soul to " +
-    "rest and lifts the curse from the player it belonged to, so they can " +
-    "roll a full character again. Type their first name — there is no list.",
+    "Write the person's name letter by letter—be precise!—or they won't be buried.",
   fasttravel:
-    "Ride to a neighbouring zone without spending your turn. Once a day, and " +
-    "everyone sees you go. A horse carries two; a Cart or a Steam Automobile " +
-    "carries six. Anyone standing where you are can come along.",
+    "Fast travel, optionally bringing someone with you. You can use a cart to " +
+    "travel with up to 6 people.",
   resources: (
     <>
       <p>Both ends have to be within reach of you.</p>

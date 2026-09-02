@@ -172,10 +172,8 @@ the pushed request's GM review is the real enforcement.
 The Add Tag picker and `addTagRequest` therefore don't call
 `requirementSatisfied`. They call
 `addRequirementSatisfied(tag, tagsById, heldTagIds)` in
-`web/lib/tagRequests.js`, two routes onto a tag, either sufficing:
+`web/lib/tagRequests.js`, which is now **one route onto a tag**:
 
-- **Buy it** — `purchasable && purchasableAfterStart`, gated on the item's
-  own `requiredTagId` exactly as before (unchanged from the purchase gate).
 - **Make it** — `craftable`, and that's the whole test. Neither the recipe's
   `requirementSkills` nor the item's own `requiredTagId` is checked. The
   picker's "To make: …" line shows what the recipe formally expects, and the
@@ -184,8 +182,18 @@ The Add Tag picker and `addTagRequest` therefore don't call
   and locked non-crafters out of the armoury play entirely; it was removed
   on purpose.)
 
-The **group gate applies to both routes, unconditionally** — same as
-everywhere else, it's the hidden-category mechanism and is never bypassed.
+There used to be a second route — **buy it**, `purchasable &&
+purchasableAfterStart`, gated on the item's own `requiredTagId`. It is gone.
+It offered 155 tags (46 Skills, 60 General, 23 Bacchus, 15 Demoness, 10
+Assets, 1 Item), every one of them also priced in `/store`, and Add Tag costs
+nothing but a written reason — so it was strictly cheaper than paying Tag
+Points for the same tag, and the request log showed players taking it that
+way. A menu whose own help text has to ask players not to abuse it is a menu
+with the wrong contents. Buying is now `/store`'s job alone.
+
+The **group gate still applies, unconditionally** — same as everywhere else,
+it's the hidden-category mechanism and is never bypassed. A Bacchus craftable
+stays invisible outside the cult.
 
 `requirementSkills` is an **OR** list, not an AND: every multi-skill recipe
 in `docs/tags.yaml` is a Dead Simple item written `[smithing, crafting]`
@@ -347,20 +355,32 @@ bought (§3). It does **not** refuse a negative effective cost: it used to,
 and that belt-and-braces line was what made the Addictions unbuyable despite
 their flag. A negative cart total is credited rather than debited (the write
 guards on `totalPoints !== 0`, not `> 0`). The drawback POINT cap (§4a) is a
-creation rule only — `/store` passes no cap at all. The **Add Tag request** is
-the other mid-game path, for crafting and resource-acquisitions:
-`addableTags()` (and `addTagRequestImpl` server-side) require
-`purchasableAfterStart` on the **purchasable branch only**, because most
-craftables are deliberately `purchasableAfterStart: false` (43 of 58 — meals,
-tonics, explosives): they are made rather than bought, and their `requirement`
-block is honor-system guidance the GM review holds players to, not a code
-gate (§3b). No drawback is craftable, so nothing slips through that seam.
+creation rule only — `/store` passes no cap at all. `/store` is therefore the
+**only** menu `purchasableAfterStart` still governs: the **Add Tag request**,
+the other mid-game path, no longer reads the flag at all. `addableTags()` (and
+`addTagRequestImpl` server-side) test `craftable` and nothing else, which is
+why most craftables being deliberately `purchasableAfterStart: false` (43 of
+58 — meals, tonics, explosives) costs them nothing. They are made rather than
+bought, and their `requirement` block is honor-system guidance the GM review
+holds players to, not a code gate (§3b). No drawback is craftable, so no
+drawback can arrive through Add Tag.
 
 The two mid-game paths deal in different currencies and coexist on purpose:
 the store spends Tag Points against catalog prices with no GM in the loop
 until review; Add Tag spends turns, skills and ⬢ against a `requirement`
-block, and the skills are now the real gate. Armor and weapons showing up
-under Add Tag is the crafting economy, not a store leak.
+block. They no longer overlap — a tag with a point price is bought, a tag with
+a recipe is made, and nothing is both. Armor and weapons showing up under Add
+Tag is the crafting economy, not a store leak.
+
+**The ten Assets are creation-only.** Horse, Wild Horse (`horse-windlander`),
+Bird, Rat, Kitty Cat, Dog, Manor, Workshop, House and Shack are
+`purchasableAfterStart: false`, so they leave `/store` as well as Add Tag —
+mid-game a horse or a house comes from a GM grant, another player, or the
+Depot, not a menu. To keep the "another player" half real, the four property
+tags (Manor, Workshop, House, Shack) are now `tradeable: true`; the six
+companions and Cart already were. Note what that costs, because `tradeable` is
+one flag covering both directions (§5): a house deed can now be lifted off a
+corpse. That is the accepted price of being able to hand one over.
 
 Full writeup of creation, roles, and the wizard: `CHARACTERS.md`.
 

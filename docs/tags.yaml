@@ -50,8 +50,11 @@
 #                     refunds resources, never Tag Points. Default false.
 #   craftable       - whether this tag represents something a player can
 #                     craft/make, vs. one that only ever arrives via role, GM
-#                     grant, or automatic game logic. Catalog data only for
-#                     now. Default false.
+#                     grant, or automatic game logic. Live, and load-bearing:
+#                     it is the WHOLE gate on the Add Tag menu
+#                     (web/lib/tagRequests.js#addableTags), re-checked
+#                     server-side by addTagRequest. Setting it true puts the
+#                     tag in every player's crafting menu. Default false.
 #   stackable       - whether a character can hold more than one at a time
 #                     (meals, ammunition, anything a crafting Move makes in a
 #                     batch). Default false. A stack is one CharacterTag row

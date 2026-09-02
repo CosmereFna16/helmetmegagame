@@ -10,8 +10,14 @@ import { holdsRequirement } from "./characterCreation";
 // (`["Items", "Assets"]`), which was the honest signal back when tradeable was
 // set on almost nothing. It no longer is: the catalog now answers per tag, and
 // the category test was actively wrong in both directions. It let a corpse be
-// stripped of its House and its Drone, and it ignored the 16 items that already
-// said `tradeable: false` — the Quickened Nerve Braid is grafted into a neck.
+// stripped of its Drone, and it ignored the 16 items that already said
+// `tradeable: false` — the Quickened Nerve Braid is grafted into a neck.
+//
+// House is no longer one of those examples. The four property tags (Manor,
+// Workshop, House, Shack) became `tradeable: true` when the ten Assets went
+// creation-only: if no menu can sell you a house any more, handing one over
+// has to work. Looting a deed off a corpse is the accepted cost of that —
+// one flag, both directions.
 //
 // One flag covers both directions on purpose. Prying the Bishop's Mitre off the
 // Bishop's corpse and being handed it are the same permission here; if they ever
