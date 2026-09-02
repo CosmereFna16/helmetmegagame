@@ -10,23 +10,10 @@ import DesireCatalog from "./DesireCatalog";
 import { useConfirm } from "./ConfirmProvider";
 import { cancelDesire, fulfillDesireRequest } from "../(app)/character/requestActions";
 
-const DESIRE_HELP = (
-  <>
-    <p>
-      You can fulfill Desires to obtain more tag points. Desires must be difficult and personal
-      to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for
-      the Peasant, one glass is enough.
-    </p>
-    <p className="text-muted">
-      Leaders can set desires according to their faction goals, but to encourage conflict and
-      roleplay, most people should have more personalized, individual goals.
-    </p>
-  </>
-);
-
-// Rewritten for the catalog rework — the old free-text 1-5 point ladder is
-// gone.
-function pointsHelp(desireSlots) {
+// The one help tooltip, on the heading. It used to be two — flavour text
+// here and the rules behind a "How this works" line — and the flavour said
+// nothing the catalog doesn't now say for itself.
+function desireHelp(desireSlots) {
   return (
     <>
       <p>
@@ -98,18 +85,13 @@ export default function DesirePanel({
     <div className="flex flex-col gap-3">
       <h3 className="field-label panel-header--with-icon">
         Desire
-        <InfoIcon text={DESIRE_HELP} />
+        <InfoIcon text={desireHelp(desireSlots)} />
       </h3>
 
       {!desiresEnabled ? (
         <p className="text-sm text-muted">Temporary disabled.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          <span className="text-xs text-muted flex items-center gap-1.5">
-            How this works
-            <InfoIcon text={pointsHelp(desireSlots)} />
-          </span>
-
           {Array.from({ length: desireSlots }, (_, slotIndex) => {
             const slot = bySlot.get(slotIndex) ?? { slotIndex, active: null, lockedUntilTurn: null };
             return (
