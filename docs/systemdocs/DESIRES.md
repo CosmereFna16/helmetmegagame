@@ -463,18 +463,18 @@ Four `GameConfig` knobs govern this system, all live-editable from
 
 ```yaml
 familyGroups:                    # picker-only: the tab bar's hue clusters
-  - key: appetite
+  appetite:
     name: Appetite
 
 families:
-  - key: alcohol
+  alcohol:
     name: Alcohol
     group: appetite               # picker-only: which familyGroups entry
     color: "#d9a545"              # picker-only: freeform hex, see the palette rule
     # comment describing what belongs here
 
 desires:
-  - slug: drink-alcohol
+  drink-alcohol:                  # the key IS the slug
     name: Drink alcohol
     tier: 1
     families: [alcohol]

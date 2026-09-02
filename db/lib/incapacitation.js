@@ -7,7 +7,7 @@
 //
 // db/lib/defaultMovePass.js skips filing a Default Move for anyone holding
 // one of these slugs — "can't act" must stay literally true of every slug here.
-const INCAPACITATING_SLUGS = new Set(["dying", "catatonic", "paralyzed", "bound"]);
+const INCAPACITATING_SLUGS = new Set(["dying", "catatonic-afk", "paralyzed", "bound"]);
 
 // The narrower set HARM_CHARACTER's lethal half uses: that half kills
 // outright with no GM confirmation (REQUESTS.md §5b), so this gate is the

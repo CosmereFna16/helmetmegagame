@@ -2,7 +2,7 @@
 // cron advance and the Dev Panel's "End turn" button behave identically.
 //
 // Flags any ALIVE character whose lastActivityTurn is stale past
-// GameConfig.catatonicTurns with the `catatonic` tag, and clears it once
+// GameConfig.catatonicTurns with the `catatonic-afk` tag, and clears it once
 // their clock moves again. catatonicSinceTurn drives
 // db/lib/catatonicDeathPass.js's auto-kill; the tag itself is removable:
 // false. Shaped for 100+ players: no network call, DMs/role updates returned

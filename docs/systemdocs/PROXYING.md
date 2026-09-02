@@ -289,7 +289,7 @@ Demoness's Seductive (`db/lib/inspectVision.js`), and closed by
 the viewer. A closed read renders `Nothing you can read.` — byte for byte what
 a subject with no active Desire produces, so a reader cannot tell "they're
 guarded" from "there's nothing there", and holding Inscrutable never
-advertises itself. Empathetic (slug `seductive`) and Mindreading buy no field
+advertises itself. Empathetic and Mindreading buy no field
 at all: both read a Desire on a Gambit after a conversation, and that is the
 GM's call, not the bot's. Being free and silent is what the Demoness tag is
 paying its extra point for.

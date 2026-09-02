@@ -40,6 +40,7 @@ const { PERSISTENT_TAG_NAME, LOCATION_TAG_NAME, QUEST_TAG_NAME } = require("./pe
 const { zoneChannelSpec, zoneRoleName } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { createTopicRow, createPrivateRow } = require("./zoneAnchorRow");
+const { entriesOf } = require("./yamlEntries");
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
@@ -77,7 +78,7 @@ function parseZonesYaml(doc) {
   const problems = [];
   const warnings = [];
 
-  for (const [index, zone] of (doc?.zones ?? []).entries()) {
+  for (const [index, zone] of entriesOf(doc?.zones, "id").entries()) {
     if (!zone?.id) {
       problems.push(`zones[${index}] has no id`);
       continue;
@@ -101,10 +102,10 @@ function parseZonesYaml(doc) {
     });
 
     if (kind === "CAVE_GROUP") {
-      if ((zone.topics ?? []).length > 0) {
+      if (entriesOf(zone.topics, "id").length > 0) {
         problems.push(`group zone "${zone.id}" carries topics — topics belong on its levels`);
       }
-      for (const [levelIndex, level] of (zone.levels ?? []).entries()) {
+      for (const [levelIndex, level] of entriesOf(zone.levels, "id").entries()) {
         if (!level?.id) {
           problems.push(`zone "${zone.id}" levels[${levelIndex}] has no id`);
           continue;
@@ -123,7 +124,7 @@ function parseZonesYaml(doc) {
         collectTopics(level, level.id, topicEntries, problems);
       }
     } else {
-      if ((zone.levels ?? []).length > 0) {
+      if (entriesOf(zone.levels, "id").length > 0) {
         problems.push(`zone "${zone.id}" carries levels but is not kind: group`);
       }
       collectTopics(zone, zone.id, topicEntries, problems);
@@ -163,7 +164,7 @@ function parseZonesYaml(doc) {
 }
 
 function collectTopics(zone, zoneSlug, topicEntries, problems) {
-  for (const [index, topic] of (zone.topics ?? []).entries()) {
+  for (const [index, topic] of entriesOf(zone.topics, "id").entries()) {
     if (!topic?.id) {
       problems.push(`zone "${zoneSlug}" topics[${index}] has no id`);
       continue;

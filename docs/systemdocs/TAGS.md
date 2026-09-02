@@ -57,6 +57,21 @@ validated up front against the YAML's own slug set, before any write, so a
 typo fails cleanly instead of half-applying.) Each pass only writes a row when something actually changed (a
 diff check, same style as the zone sync's hash gate).
 
+### A slug is its name, slugified
+
+`slug` is the name lowercased with punctuation dropped and spaces/colons
+turned into hyphens: **Death Wish (Cult)** is `death-wish-cult`, **True Form:
+Serpent** is `true-form-serpent`. `syncTags.js` throws when a tag breaks the
+rule, so renaming a tag means renaming its slug in the same pass — and then
+every reference to it, since the slug is what desires, taggroups and code
+match on. (Names themselves are never referenced that way, with two
+exceptions: `roles.yaml`'s `starting_tags` and `documents.yaml`'s `tags` both
+resolve tags **by name**.)
+
+The one carve-out is a hidden category (`demoness`, `bacchus`), where a
+generic power name would collide with a general tag: those may lead with the
+category instead, as `demoness-heal` and `demoness-seductive` do.
+
 ## 3. Two relations that look similar but aren't
 
 
@@ -69,7 +84,7 @@ diff check, same style as the zone sync's hash gate).
   replace it. Example in the catalog: `Ranged (Archer)` requires
   `Ranged (Basic)` but coexists with `Ranged (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
-  gated tag doesn't consume: `Wild Horse` (`horse-windlander`) requires
+  gated tag doesn't consume: `Wild Horse` (`wild-horse`) requires
   `Windlander`, `Manor` requires `Courtier`, `House`/`Shack` require
   `Ravenhearter`, and
   `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
@@ -214,7 +229,7 @@ than reinvent — a written thing an illiterate character cannot read should loo
 the same everywhere in the game.
 
 Two whole categories are secret: **Demoness** (behind the `demoness` tag) and
-**Bacchus** (behind `follower-of-bacchus`, displayed as "Cultist of
+**Bacchus** (behind `cultist`, displayed as "Cultist of
 Bacchus"). Each contains exactly one `TagGroup` carrying the `requiredTag`,
 which is where the whole mechanism lives — the tags inside deliberately do
 **not** repeat `requiredTag`, so the gate is written once.
@@ -259,7 +274,7 @@ Three things make a category actually hidden rather than merely empty:
 
 Where the `bacchus` category's own tags live is a further split, since the
 cult's progression isn't one group but three: `bacchus` (gated by
-`follower-of-bacchus`), `bacchus-ripening` (gated by `cult-ripening`) and
+`cultist`), `bacchus-ripening` (gated by `cult-ripening`) and
 `bacchus-bountiful` (gated by `cult-bountiful`) — one for each rung of the
 `cult-ripening` → `cult-bountiful` chain (`docs/tags.yaml`'s
 `# --- Cult ---` block; a young cult holds no rung at all). Same rule as above: none of the member tags repeat
@@ -372,7 +387,7 @@ block. They no longer overlap — a tag with a point price is bought, a tag with
 a recipe is made, and nothing is both. Armor and weapons showing up under Add
 Tag is the crafting economy, not a store leak.
 
-**The ten Assets are creation-only.** Horse, Wild Horse (`horse-windlander`),
+**The ten Assets are creation-only.** Horse, Wild Horse (`wild-horse`),
 Bird, Rat, Kitty Cat, Dog, Manor, Workshop, House and Shack are
 `purchasableAfterStart: false`, so they leave `/store` as well as Add Tag —
 mid-game a horse or a house comes from a GM grant, another player, or the
@@ -1318,11 +1333,11 @@ access-controlled: `/api/documents` ships every document's *name* but a body
 only to a reader who may open it, so a chip for a paper you have not been
 handed renders inert rather than either vanishing or leaking.
 
-`hunger`, `hungerless` and `ate-meal` are the first tags granted and consumed
+`hungry`, `hungerless` and `ate-meal` are the first tags granted and consumed
 by automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. `catatonic` is a third: `db/lib/catatonicPass.js` (gated on
+hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (gated on
 `GameConfig.catatonicEnabled`/`catatonicTurns`) and
 `db/lib/playerDeparture.js` (a guild leave, ungated — departure is a fact,
 not a dial) are its two writers, it now carries a consequence — held for

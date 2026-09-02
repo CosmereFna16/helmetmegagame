@@ -12,6 +12,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { entriesOf } = require("./yamlEntries");
 
 let cachedDoc;
 
@@ -33,7 +34,7 @@ let cachedGroups;
 function desireFamilyKeys() {
   if (cachedKeys !== undefined) return cachedKeys;
   cachedKeys = new Set();
-  for (const entry of loadDoc().families ?? []) {
+  for (const entry of entriesOf(loadDoc().families, "key")) {
     if (entry?.key) cachedKeys.add(entry.key);
   }
   return cachedKeys;
@@ -46,7 +47,7 @@ function desireFamilyKeys() {
 // that only wants the Set (the common case, validation) never carries names.
 function desireFamilies() {
   if (cachedFamilies !== undefined) return cachedFamilies;
-  cachedFamilies = (loadDoc().families ?? [])
+  cachedFamilies = entriesOf(loadDoc().families, "key")
     .filter((f) => f?.key)
     .map((f) => ({
       key: f.key,
@@ -61,7 +62,7 @@ function desireFamilies() {
 // the picker's tab bar is built from.
 function desireFamilyGroups() {
   if (cachedGroups !== undefined) return cachedGroups;
-  cachedGroups = (loadDoc().familyGroups ?? [])
+  cachedGroups = entriesOf(loadDoc().familyGroups, "key")
     .filter((g) => g?.key)
     .map((g) => ({ key: g.key, name: g.name ?? g.key }));
   return cachedGroups;

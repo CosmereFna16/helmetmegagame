@@ -191,7 +191,7 @@ enum RequestType {
   BURY_CHARACTER
   // Riding a horse one zone over without spending the Move. The only request
   // that changes a zone and files no Action; the once-a-day limit lives on
-  // Character.fastTravelTurnId. Gated on the `horse` or `horse-windlander`
+  // Character.fastTravelTurnId. Gated on the `horse` or `wild-horse`
   // tag, whose catalog text is what this implements. See REQUESTS.md §5d.
   FAST_TRAVEL
 
@@ -480,8 +480,8 @@ model GameConfig {
   catatonicEnabled Boolean @default(true)
   catatonicTurns   Int     @default(4)
 
-  // Consecutive turns holding `catatonic` before db/lib/catatonicDeathPass.js
-  // kills the character outright at turn close. This is the ONE thing in the
+  // Consecutive turns holding `catatonic-afk` before
+  // db/lib/catatonicDeathPass.js kills the character outright at turn close. This is the ONE thing in the
   // engine that ends a character without a GM (TURN-ENGINE.md §2 pass 7b), so
   // it gets its own off switch: 0 disables the death pass entirely, without a
   // deploy, while leaving the flagging pass above untouched.
@@ -1016,8 +1016,8 @@ model Character {
   // characterActivity.js carries the fix and the note.)
   lastActivityTurn Int?
 
-  // Turn number this character was flagged `catatonic` — the death countdown's
-  // clock, read only by db/lib/catatonicDeathPass.js. Written by
+  // Turn number this character was flagged `catatonic-afk` — the death
+  // countdown's clock, read only by db/lib/catatonicDeathPass.js. Written by
   // db/lib/catatonicPass.js when it grants the tag and by
   // db/lib/playerDeparture.js when the player leaves the guild; nulled when
   // the pass clears the tag and when the death pass kills them. Kept separate

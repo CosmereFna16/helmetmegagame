@@ -64,7 +64,7 @@ _Bacchus has willed you to take Ravenheart for them._
 - Bacchus has willed you to take Ravenheart for them.
 - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
 - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
-- Followers of Bacchus pick their Desires from the cult's own gated list (`follower-of-bacchus`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
+- Followers of Bacchus pick their Desires from the cult's own gated list (`cultist`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
 - Your goal is to spread the influence of Bacchus and throw parties. All cult members unlock more powerful Bacchus tags if you manage to host a party hitting each of the first three party thresholds. People do not have to be part of the Cult to count towards the party number. Anyone with Nobility (Baron, Heir, Successor, Baroness, Bastard) counts as 3 people.
 - There is a Demoness on the loose. She is an amazing asset, but she finds your ways too controlling. If you manage to bring her to the fold, she'll count as 3 people towards each party.
 - Something very special happens at the Final Party, the fourth and largest threshold, which also needs the blood of someone with the Nobility tag. This is your ultimate goal. If the Demoness is present during the party, the surprise will be even better!
@@ -81,7 +81,7 @@ _You either love Bacchus and believe in their message, or love-hate them._
 - You either love Bacchus and believe in their message, or love-hate them. Either way, you are certain you'll never leave.
 - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
 - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
-- Followers of Bacchus pick their Desires from the cult's own gated list (`follower-of-bacchus`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
+- Followers of Bacchus pick their Desires from the cult's own gated list (`cultist`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
 - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
 - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
 

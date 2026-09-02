@@ -463,7 +463,7 @@ two access twins and the wipe.
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
 | `#intercom` | **every zone role except the Windlands** — five presence zones, a static `roleViewZones` grant; the hurricane winds drown the PA out there | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
-| `#mindlink` | any **Cultist of Bacchus** (`follower-of-bacchus`) holder (per-member overwrite) | **Mindlink** tag holders only |
+| `#mindlink` | any **Cultist of Bacchus** (`cultist`) holder (per-member overwrite) | **Mindlink** tag holders only |
 
 Both tags are transferable, so possession is what matters — a bracelet handed
 to a non-Watch character still opens `#watch`.

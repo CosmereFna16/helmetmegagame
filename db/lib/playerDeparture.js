@@ -1,7 +1,7 @@
 // The one code path for "a player has left the guild" — shared by the live
 // guildMemberRemove handler and the startup reconcile
-// (bot/src/lib/leaveReconcile.js). Flags the character `catatonic` and starts
-// the death countdown (GameConfig.catatonicDeathTurns, resolved by
+// (bot/src/lib/leaveReconcile.js). Flags the character `catatonic-afk` and
+// starts the death countdown (GameConfig.catatonicDeathTurns, resolved by
 // db/lib/catatonicDeathPass.js). Rejoining and speaking in character before
 // it runs out wakes them (db/lib/catatonicPass.js).
 //

@@ -9,6 +9,10 @@
 # re-adding it (which provisions brand-new Discord objects, since a
 # removed/re-added Zone or Topic loses its old Discord IDs).
 #
+# Zones, topics and levels are maps keyed by `id` (`town:`, not `- id: town`);
+# `subLocations:` stays a sequence, since those carry only a name. See
+# docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
+#
 # A ZONE is a place a character can stand. It owns a Discord category, a
 # "Zone: {Name}" access role, and channels. A TOPIC is prose only — one
 # generated, Location-tagged forum post inside its zone's public forum. You
@@ -50,7 +54,7 @@
 
 zones:
   # --- Surface zones ---
-  - id: town
+  town:
     name: Town
     kind: surface
     sort: 1
@@ -68,7 +72,7 @@ zones:
       # Old location id "town" collides with this zone's own id (topic ids
       # and zone ids share one validation namespace) — renamed to
       # "town-square".
-      - id: town-square
+      town-square:
         name: Square
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
@@ -85,12 +89,12 @@ zones:
           - name: The Old Cock Inn
             description: >-
               The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
-      - id: fields
+      fields:
         name: Fields
         description: >-
           Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
         subLocations: []
-      - id: church
+      church:
         name: Cathedral
         description: >-
           Stained limestone erected modestly upon a tall wooded hill on the western edge of the town — still within the walls. Hundreds of candles light the ornate interior.
@@ -107,7 +111,7 @@ zones:
           - name: Scriptorium
             description: >-
               It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
-      - id: sanctuary
+      sanctuary:
         name: Sanctuary
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
@@ -124,7 +128,7 @@ zones:
           - name: Garden
             description: >-
               You can grow herbs here.
-      - id: underquarter
+      underquarter:
         name: Underquarter
         description: >-
           Squat buildings, piled into discomfort.
@@ -138,13 +142,13 @@ zones:
           - name: Bathhouse
             description: >-
               One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color — it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for a coin inserted into a slot.
-      - id: forest
+      forest:
         name: Forest
         description: >-
           Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
         subLocations: []
 
-  - id: fortress
+  fortress:
     name: Fortress
     kind: surface
     sort: 2
@@ -160,7 +164,7 @@ zones:
         - [5, 45]
       label: { x: 35.0, y: 40.2 }
     topics:
-      - id: keep
+      keep:
         name: Keep
         description: |-
           Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
@@ -196,7 +200,7 @@ zones:
           - name: Reliquary Chapel
             description: >-
               The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
-      - id: garrison
+      garrison:
         name: Garrison
         description: >-
           The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
@@ -219,7 +223,7 @@ zones:
           - name: Kennels
             description: >-
               Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
-      - id: gatehouse
+      gatehouse:
         name: Gatehouse
         description: |-
           Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
@@ -238,7 +242,7 @@ zones:
           - name: Stables
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
-      - id: undercroft
+      undercroft:
         name: Undercroft
         description: >-
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
@@ -259,7 +263,7 @@ zones:
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
 
-  - id: windlands
+  windlands:
     name: Windlands
     kind: surface
     sort: 3
@@ -273,7 +277,7 @@ zones:
         - [5, 98]
       label: { x: 52.2, y: 82.4 }
     topics:
-      - id: warcamp
+      warcamp:
         name: Warcamp
         description: >-
           An arbitrary array of tents, shields, and banners rise against the mountainside.
@@ -293,17 +297,17 @@ zones:
           - name: Mess Hall
             description: >-
               There are tables lined up to form rows with stools situated on either side. At the far end of the pavilion is a large pot, gently bubbling over some coals.
-      - id: broken-spears-camp
+      broken-spears-camp:
         name: Broken Spears Camp
         description: >-
           The Broken Spears have claimed this part of the camp as their own. Despite the signs of revelry — a hookah tent, flagons are scattered across the tables, tentholes torn in from scuffles — this is clearly a place of survivors, efficient and minimal.
         subLocations: []
-      - id: windriders-camp
+      windriders-camp:
         name: Windriders Camp
         description: >-
           The Windriders have established themselves here. Tents are placed in orderly rows with equipment in convenient locations, ready to be equipped at a moments notice. There are banners woven out of human hair.
         subLocations: []
-      - id: mountains
+      mountains:
         name: Mountains
         description: >-
           Great peaks which rise above the landscape, shielding the valley from the worst of the winds. Traversing them will not be easy — the easiest route would be around and through the river valley, into the Town.
@@ -315,7 +319,7 @@ zones:
   # zoneConnections. Its `levels:` list is what actually gets flattened by
   # the sync into three real, standable zones (caverns / railroad /
   # aberrant-pits), each shaped like a surface zone minus `kind`.
-  - id: caves
+  caves:
     name: Caves
     kind: group
     sort: 4
@@ -325,7 +329,7 @@ zones:
       polygon: []
       label: { x: 15.9, y: 74.7 }
     levels:
-      - id: caverns
+      caverns:
         name: Caverns
         sort: 1
         description: >-
@@ -338,7 +342,7 @@ zones:
             - [5, 74]
           label: { x: 13, y: 68 }
         topics:
-          - id: customs
+          customs:
             name: Customs
             description: >-
               The sentry beholds migrants and mercenaries as they talk around the fire. To the side, there's the merchant's depot; crates of a foreign design are scattered around a decayed metal frame. Light flows forth, powered by their own basic generator. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the depot's light — there is an automated small-caliber mounted on the outside wall to account for that. It's off.
@@ -348,7 +352,7 @@ zones:
       # other hop — since the zone rework there is no free walking anywhere,
       # so the levels need no special cost rule, only their place in
       # zoneConnections below.
-      - id: railroad
+      railroad:
         name: Railroad
         sort: 2
         description: "A powered train station looming over an inscrutable abyss. You could get on, but where would you go? There are openings in the subway tunnels leading into ancient, unused maintenance areas. Where the tunnels break into open air, you can indeed see the pits, deformed and warped into unnatural stone. There's reflective metal down there. Chrome? Ceramite?"
@@ -360,7 +364,7 @@ zones:
             - [3, 88]
           label: { x: 11, y: 82 }
         topics: []
-      - id: aberrant-pits
+      aberrant-pits:
         name: Aberrant Pits
         sort: 3
         description: >-

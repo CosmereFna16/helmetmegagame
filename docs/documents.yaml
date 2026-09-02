@@ -1,24 +1,26 @@
 explanation:
   tag: Anyone with this tag gets this Document.
   public: If assigned, this will appear in a player's document folder. However, using the search function, anyone can browse and find this document.
+# Documents are a map keyed by their document key (`courtier:`, not
+# `- key: courtier`) — see docs/tags.yaml's header, and db/lib/yamlEntries.js.
 documents:
-  - name: Courtier
-    key: courtier
+  courtier:
+    name: Courtier
     public: false
     tags: []
     description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
-  - name: Church
-    key: church
+  church:
+    name: Church
     public: false
     tags: []
     description: As a member of the Church, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
-  - name: Independent
-    key: independent
+  independent:
+    name: Independent
     public: false
     tags: []
     description: As an independent townsman, you aren't on anyone's payroll. The Headman isn't expected to pay you. You should therefore ply a trade so you don't starve to death.
-  - name: Ravenheart's Economy
-    key: ravenhearteconomy
+  ravenhearteconomy:
+    name: Ravenheart's Economy
     public: true
     tags: []
     description: |-
@@ -28,8 +30,8 @@ documents:
 
       So, the Fortress survives off of the town's taxes, and provides protection in turn.
       The Church survives off of the town's taxes, and provides religious services in turn.
-  - name: Diplomat
-    key: diplomat
+  diplomat:
+    name: Diplomat
     public: false
     secret: true
     tags: []
@@ -43,8 +45,8 @@ documents:
       You have one (!) gadget — an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
 
       If anything goes wrong, the General Contact Vessel *Helpless Is The Face Of Your Beauty* will teleport you on board. It'll take your message three minutes to reach them.
-  - name: Treasurer
-    key: treasurer
+  treasurer:
+    name: Treasurer
     public: true
     tags:
       - Treasurer
@@ -57,8 +59,8 @@ documents:
       **Transferring Resources**
 
       You can transfer Resources from any source to any recipient, but you have to be able to reach both ends. For a Silo, stand in that faction's Zone. For a player, stand in the same Zone as them. Being a Treasurer or Leader does not extend that reach — if you lose your Zone, the Silo is frozen.
-  - name: Medical
-    key: medical
+  medical:
+    name: Medical
     public: true
     tags:
       - Medical (Basic)
@@ -125,8 +127,8 @@ documents:
         {tag:crippled-leg}, {tag:phrygian-toxin}
 
       Tonics (see {document:alcoholdrugs}) cure some tags outright.
-  - name: Sanctuary
-    key: sanctuary
+  sanctuary:
+    name: Sanctuary
     public: true
     description: |-
       The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. As such, all medical procedures in the Sanctuary automatically fulfill the {tag:surgical-equipment} requisites.
@@ -134,13 +136,13 @@ documents:
       The Sanctuary operates independently from the Baron. Although he could try to gain control over it, it would be unprecedented and pretty pointless. So the Esculap does whatever he wants within his walls.
 
       Traditionally, in part due to the cost of medical procedures, the Esculap only treats people that can pay or people of noble blood. So try not to get hurt — you should only expect to get medical treatment if you can pay for it, unless the Esculap is feeling generous.
-  - name: Teaching Skills
-    key: teachingskills
+  teachingskills:
+    name: Teaching Skills
     public: true
     tags: []
     description: "You can teach almost any skill. The person learning has to make a Gambit, but must be in the same Zone as someone who has that skill and is willing to teach them. The tutor doesn't have to use a Move. If the student rolls a six, they gain the skill."
-  - name: Producing Resources
-    key: production
+  production:
+    name: Producing Resources
     public: true
     tags:
       - Laborer (Basic)
@@ -159,8 +161,8 @@ documents:
       | {tag:laborer-farming} | {resource:labor:farming} | Town only — elsewhere you work at Skilled rates |
 
       Nothing can be produced in the Depths.
-  - name: Combat
-    key: combat
+  combat:
+    name: Combat
     public: true
     tags: []
     description: |-
@@ -186,22 +188,22 @@ documents:
       - Reduce, but don't stop, melee damage.
       - Do nothing against needles or syringes.
       - Worn on the belt or the wrist.
-  - name: Town Starting Packet
-    key: townstarting
+  townstarting:
+    name: Town Starting Packet
     public: false
     tags: []
     description: |-
       The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to have the Silo drained.
 
       Last week, Thomas Ciobanu — a respectable tradesman — was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry — when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
-  - name: Fortress Starting Packet
-    key: fortressstarting
+  fortressstarting:
+    name: Fortress Starting Packet
     public: false
     tags: []
     description: |-
       The last tithe didn't arrive.
-  - name: Camp Starting Packet
-    key: campstarting
+  campstarting:
+    name: Camp Starting Packet
     public: false
     tags: []
     description: |-
@@ -214,8 +216,8 @@ documents:
       The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
 
       **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
-  - name: Broken Spear Clan
-    key: brokenspear
+  brokenspear:
+    name: Broken Spear Clan
     public: false
     tags: []
     description: |-
@@ -228,8 +230,8 @@ documents:
       In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
 
       Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use — or "riding the horse" — is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
-  - name: Windrider Clan
-    key: windrider
+  windrider:
+    name: Windrider Clan
     public: false
     tags: []
     description: |-
@@ -240,8 +242,8 @@ documents:
       The Bastard understands an all-out attack would be suicide. Support of the people, logistics, careful planning; these are what kept the Windriders alive while clans like the Broken Spears formed and disbanded, year by year. So your fealty was lightly given. You trust his plan will net you a home, but you will not accept a king.
 
       One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends — prioritization of Resources, independence after taking Ravenheart, or some other promise — or the Broken Spears get put down like the brushlizards they are.
-  - name: The Lifeweb
-    key: lifewebbasic
+  lifewebbasic:
+    name: The Lifeweb
     public: true
     tags: []
     description: |-
@@ -250,8 +252,8 @@ documents:
       The Lifeweb is tended by the Mortii. The Mortii are rejects, outcasts, exiles, hunchbacks, and convicts.
 
       The tower has a door leading downwards.
-  - name: Lifeweb (Mortus)
-    key: lifeweb
+  lifeweb:
+    name: Lifeweb (Mortus)
     public: false
     secret: true
     tags: []
@@ -259,8 +261,8 @@ documents:
       The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls — a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
 
       The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power. It also has a door which can be opened to reveal pistons, firing madly, witchfire green. There's a chair on a platform with complex implements. You can hook someone in, strap them down, align the machinery, cue the machine to speculate the vitrii, select the injection point, and decide whether you want some blood drawn — granting {tag:drained} and feeding the Lifeweb 20 points — or all the person's blood, feeding the Lifeweb 100 points but killing the donor.
-  - name: Respawning
-    key: respawning
+  respawning:
+    name: Respawning
     public: true
     tags:
       - Chaplain
@@ -272,8 +274,8 @@ documents:
       To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
 
       🌬️ Every 12 hours, ghosts can use this reaction to send a message in any channel, reminding people that their body has been left unburied.
-  - name: Court Structure
-    key: courtstructure
+  courtstructure:
+    name: Court Structure
     public: false
     tags: []
     description: |-
@@ -284,8 +286,8 @@ documents:
       The Captain commands the Watch.
 
       The rest of the court, the Baron's family included, live their lives.
-  - name: The Watch
-    key: watchman
+  watchman:
+    name: The Watch
     public: false
     tags: []
     description: |-
@@ -296,8 +298,8 @@ documents:
       Watchmen also carry a {tag:radio-bracelet-watch}, which connects to the Captain's {tag:radio-system-watch}.
 
       **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
-  - name: Post-Christianity
-    key: postchristianity
+  postchristianity:
+    name: Post-Christianity
     public: true
     tags: []
     description: |-
@@ -312,8 +314,8 @@ documents:
       The problem with the Heretic is just that: they crawl out from their holes, seeking to turn us against the Truth. But they cannot. Even if they were to murder and devour all of us, we would not forget God — as long as we chose not to. Nothing can take away faith, charity, and virtue, except our own malfeasance.
 
       In any case, the Afterlife is around the corner, as it always was and it always will be. Only by forgetting that could we prioritize the gratification of the moment.
-  - name: Smithing and Crafting
-    key: smithing
+  smithing:
+    name: Smithing and Crafting
     public: true
     tags:
       - Crafting
@@ -355,7 +357,7 @@ documents:
 
       **Moderate — 14 ⬢, 1 turn**
 
-      - Weapons: {tag:bardiche}, {tag:broadsword}, {tag:war-hammer}, {tag:knuckle-duster}
+      - Weapons: {tag:halberd}, {tag:broadsword}, {tag:war-hammer}, {tag:knuckle-duster}
       - Armor: {tag:mail-shirt}
 
       **High Quality — 26 ⬢, 2 turns**
@@ -373,8 +375,8 @@ documents:
       - Weapons: {tag:musketoon}, {tag:bore-pistol}
       - {tag:bomb}
 
-  - name: Caving
-    key: caving
+  caving:
+    name: Caving
     public: true
     tags: []
     description: |-
@@ -401,8 +403,8 @@ documents:
   # scale with GameConfig.playerCount (4/8/12/16 per 100, floored, minimum 1)
   # via db/lib/partySize.js, so turning the player-count dial on /gm/dev
   # retargets every goal without an edit here.
-  - name: Cult Leader
-    key: cultistleader
+  cultistleader:
+    name: Cult Leader
     public: false
     secret: true
     tags:
@@ -415,8 +417,8 @@ documents:
       There is a Demoness in the area. She hates you. If you manage to convert her, she'll lose all her powers, but you would gain 10 Tag Points.
 
       Bacchus has told you about Eternal Bliss. It is not what you expected, but it is, in a strange way, the greatest thing there is. You are very happy with your choice. Unlike other Cultists, you are far too deep in, and you can never lose your faith. They can either imprison you or kill you; they can't break you.
-  - name: Cultist
-    key: cultist
+  cultist:
+    name: Cultist
     public: false
     secret: true
     tags:
@@ -429,8 +431,8 @@ documents:
       - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose 10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
       - You can either initiate people willingly or forcibly. Either way, you must perform a ritual (1 Move, Routine) that involves (1) one of the following: alcohol or another recreational drug / music / lavish food, and (2) your cult's secret chant. To perform it forcibly, they must be immobilized. Characters with the {tag:pious} tag cannot be converted.
       - Spells can be cast instantly, while Rites usually have a turn cost.
-  - name: Bacchus
-    key: bacchuslore
+  bacchuslore:
+    name: Bacchus
     public: false
     secret: true
     tags:
@@ -452,8 +454,8 @@ documents:
       | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
       | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
 
-  - name: Conversion
-    key: conversion
+  conversion:
+    name: Conversion
     public: false
     secret: true
     tags:
@@ -476,15 +478,15 @@ documents:
       | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
 
       For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.”
-  - name: The Charon
-    key: charon
+  charon:
+    name: The Charon
     public: false
     secret: true
     tags: []
     description: |-
       The Charon is a spaceship. It'll take its passengers out into space, where an enormous passenger liner is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
-  - name: Meals & Kitchens
-    key: meals
+  meals:
+    name: Meals & Kitchens
     public: true
     tags:
       - Cooking (Basic)
@@ -495,8 +497,8 @@ documents:
 
       **Fine meals:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
       **Lavish meals:** cost 3 ⬢ per meal and one hard-to-get exotic ingredient. You can make up to 3 Lavish meals in one Routine Move.
-  - name: Alcohol & Drugs
-    key: alcoholdrugs
+  alcoholdrugs:
+    name: Alcohol & Drugs
     public: true
     tags:
       - Brewing (Basic)
@@ -554,8 +556,8 @@ documents:
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
   # never receives this text at all.
-  - name: Caving Monsters
-    key: cavingmonsters
+  cavingmonsters:
+    name: Caving Monsters
     public: false
     tags: []
     flags:
@@ -586,8 +588,8 @@ documents:
   # The Demoness threat's own brief (docs/threats.md). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.
-  - name: Demoness
-    key: demoness
+  demoness:
+    name: Demoness
     public: false
     secret: true
     tags:
@@ -607,31 +609,31 @@ documents:
   # Referenced by roles via doc_elements but not yet written. Stubs keep the
   # reference resolvable (same posture as Guard Duty above) — fill in the
   # description when the content is ready.
-  - name: The Armory
-    key: armory
+  armory:
+    name: The Armory
     public: false
     tags: []
     description: ""
-  - name: The Inn
-    key: inn
+  inn:
+    name: The Inn
     public: false
     tags: []
     description: ""
-  - name: Farming
-    key: farming
+  farming:
+    name: Farming
     public: false
     tags: []
     description: ""
-  - name: Concealing Your Identity
-    key: concealing
+  concealing:
+    name: Concealing Your Identity
     public: true
     tags: []
     description: |-
       Typing `/conceal` before your message hides your identity.
 
       You'll appear as a stranger, but people can still see (using the 🔎 reaction) any visible wounds or gear.
-  - name: The Pusher
-    key: thepusher
+  thepusher:
+    name: The Pusher
     public: true
     tags: []
     roles:

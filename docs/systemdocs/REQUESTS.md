@@ -240,7 +240,7 @@ Three notes on deliberate choices:
 
 Hunger is the Needs layer, and the only thing that modifies a Gambit die.
 
-It is a `hunger` Status tag (`docs/tags.yaml`, `durationTurns: 1`,
+It is a `hungry` Status tag (`docs/tags.yaml`, `durationTurns: 1`,
 `purchasable`/`removable` false). Its penalty is not flat — it escalates with
 `Character.hungerStreak`, a plain Int column counting consecutive turns closed
 hungry.
@@ -304,7 +304,7 @@ turn rollover is exactly when players are most active.
 
 A single fed turn only sheds **one tick**, not the whole streak — a character
 six turns deep needs six fed turns to reach 0, the same as it took six starved
-turns to get there. So the `hunger` tag no longer means "starved this turn";
+turns to get there. So the `hungry` tag no longer means "starved this turn";
 it's re-granted for as long as the streak is above 0 after eating, meaning
 "still carrying hunger damage." The floor is the same structural posture as
 the resources clamp above: `hungerStreak: { gt: 0 }` in the decrement's own
@@ -687,7 +687,7 @@ refuse a buried one — the `LOOT` direction of `TRANSFER_RESOURCES` and
 a revived character is never a live person marked buried.
 
 **Fast Travel is the only request that changes a zone and files no `Action`.**
-That is exactly what the `horse` and `horse-windlander` tags have always
+That is exactly what the `horse` and `wild-horse` tags have always
 promised in the catalog — "Once per day, you may enter an adjacent zone without
 spending a turn, but you'll be easily visible" — and nothing read either slug
 until this. No Action means no Move spent *and* no block from having already

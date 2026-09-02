@@ -12,6 +12,10 @@
 # throws mid-pass with the factions already written.
 # docs/locations.yaml follows the same rule.
 #
+# Factions and roles are maps keyed by slug (`baron:`, not `- slug: baron`);
+# `zones:` stays a sequence, since a zone here carries only a name. See
+# docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
+#
 # `slug` is the stable match key across syncs, on both factions and roles —
 # same contract as docs/locations.yaml's `id` and docs/tags.yaml's `slug`.
 # Renaming later means changing `name`, NOT `slug`; a changed slug is treated
@@ -77,11 +81,11 @@ zones:
       - >-
         To lift spirits, the Baron has offered the Successor's (or Heir's) hand in marriage. The Courtiers, suspecting each other to be traitors, rival for the betrothal.
     factions:
-      - name: The Court
-        slug: the-court
+      the-court:
+        name: The Court
         roles:
-          - name: Baron
-            slug: baron
+          baron:
+            name: Baron
             # The seat fixes the holder's gender -> Role.lockedGender.
             gender: MAN
             intro: >-
@@ -133,8 +137,8 @@ zones:
               - armory
               - ravenhearteconomy
               - charon
-          - name: Baroness
-            slug: baroness
+          baroness:
+            name: Baroness
             # The seat fixes the holder's gender -> Role.lockedGender.
             gender: WOMAN
             intro: >-
@@ -156,8 +160,8 @@ zones:
               - courtstructure
               - lifewebbasic
               - fortressstarting
-          - name: Heir
-            slug: heir
+          heir:
+            name: Heir
             # The seat fixes the holder's gender -> Role.lockedGender.
             gender: MAN
             intro: >-
@@ -181,8 +185,8 @@ zones:
               - courtstructure
               - lifewebbasic
               - fortressstarting
-          - name: Successor
-            slug: successor
+          successor:
+            name: Successor
             # The seat fixes the holder's gender -> Role.lockedGender.
             gender: WOMAN
             intro: >-
@@ -204,8 +208,8 @@ zones:
               - courtstructure
               - lifewebbasic
               - fortressstarting
-          - name: Hand
-            slug: hand
+          hand:
+            name: Hand
             intro: >-
               You're the Baron's best friend and perhaps the only man he can truly trust. If anyone can be said to shape fate, Hand, it is you.
             description:
@@ -247,8 +251,8 @@ zones:
               - armory
               - ravenhearteconomy
               - charon
-          - name: Meister
-            slug: meister
+          meister:
+            name: Meister
             intro: >-
               You are the Keep's brains, but more importantly, its circulatory system. Feel the weight of the world, Meister, you Atlas!
             description:
@@ -281,8 +285,8 @@ zones:
               - courtier
               - medical
               - ravenhearteconomy
-          - name: Courtier
-            slug: courtier
+          courtier:
+            name: Courtier
             intro: >-
               Live life indulgently or honorably — there is not much binding you except your own decisions. What freedom!
             description:
@@ -305,8 +309,8 @@ zones:
               - courtier
               - courtstructure
               - fortressstarting
-          - name: Minstrel
-            slug: minstrel
+          minstrel:
+            name: Minstrel
             intro: >-
               Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
             description:
@@ -324,8 +328,8 @@ zones:
               - courtier
               - courtstructure
               - fortressstarting
-          - name: Diplomat
-            slug: diplomat
+          diplomat:
+            name: Diplomat
             intro: >-
               Recover ancient artifacts and study Ravenheartian culture.
             description:
@@ -345,8 +349,8 @@ zones:
               - diplomat
               - courtstructure
               - fortressstarting
-          - name: Servant
-            slug: servant
+          servant:
+            name: Servant
             intro: >-
               Keep the fortress running.
             description:
@@ -366,12 +370,12 @@ zones:
               - courtier
               - courtstructure
               - fortressstarting
-      - name: The Watch
-        slug: the-watch
+      the-watch:
+        name: The Watch
         parent: The Court
         roles:
-          - name: Captain
-            slug: captain
+          captain:
+            name: Captain
             intro: >-
               Bravely lead the Watch and hold back the darkness, you goddamn hero.
             description:
@@ -414,8 +418,8 @@ zones:
               - watchman
               - armory
               - combat
-          - name: Incarn
-            slug: incarn
+          incarn:
+            name: Incarn
             intro: >-
               You are a warrior monk, the Warden, the unbound spirit of the Keep.
             description:
@@ -448,8 +452,8 @@ zones:
               - postchristianity
               - armory
               - combat
-          - name: Watchman
-            slug: watchman
+          watchman:
+            name: Watchman
             intro: >-
               Serve the Baron and salute your Captain. You are the man of the hour!
             description:
@@ -484,8 +488,8 @@ zones:
               - watchman
               - armory
               - combat
-          - name: Squire
-            slug: squire
+          squire:
+            name: Squire
             intro: >-
               Train. One day, you might become a knight.
             description:
@@ -517,11 +521,11 @@ zones:
       - >-
         Last week, Thomas Ciobanta—a respectable tradesman—went inexplicably stupid. He wandered around aimlessly, half-naked and starving. When people tried to help him, he just called them idiots. The Inquisitor tested Thomas's reaction by showing him a cross: he snarled like a dog, so the Inquisitor had him hanged.
     factions:
-      - name: The Church
-        slug: the-church
+      the-church:
+        name: The Church
         roles:
-          - name: Bishop
-            slug: bishop
+          bishop:
+            name: Bishop
             intro: >-
               In the animal world, who can choose good but Man? Even if Ravenheart falls, O Bishop, do not let the people's souls fall with it!
             description:
@@ -551,8 +555,8 @@ zones:
               - postchristianity
               - church
               - ravenhearteconomy
-          - name: Chaplain
-            slug: chaplain
+          chaplain:
+            name: Chaplain
             intro: >-
               Care for the needy, lend an ear, and kindle goodness in others.
             description:
@@ -578,8 +582,8 @@ zones:
               - townstarting
               - postchristianity
               - church
-          - name: Scholastic
-            slug: scholastic
+          scholastic:
+            name: Scholastic
             intro: >-
               You are a servant of the truth, delving to places no other man would. Contemplate, search for knowledge — occult or otherwise — and write your magnum opus.
             description:
@@ -599,11 +603,11 @@ zones:
               - townstarting
               - postchristianity
               - church
-      - name: The Sanctuary
-        slug: the-sanctuary
+      the-sanctuary:
+        name: The Sanctuary
         roles:
-          - name: Esculap
-            slug: esculap
+          esculap:
+            name: Esculap
             intro: >-
               Lead the Sanctuary. Don't accrue debt. Treat only the rich and the noble. Develop medicines, put bodies back together, or pursue the good of science. Be the Eye in the Storm — or lose yourself to curiosity.
             description:
@@ -631,8 +635,8 @@ zones:
             doc_elements:
               - townstarting
               - medical
-          - name: Serpent
-            slug: serpent
+          serpent:
+            name: Serpent
             intro: >-
               Cure illnesses, perform surgeries, and brew potions, and keep people in this world — where they're needed.
             description:
@@ -659,12 +663,12 @@ zones:
             doc_elements:
               - townstarting
               - medical
-      - name: Order of the Silver Cross
-        slug: order-of-the-silver-cross
+      order-of-the-silver-cross:
+        name: Order of the Silver Cross
         parent: The Church
         roles:
-          - name: Inquisitor
-            slug: inquisitor
+          inquisitor:
+            name: Inquisitor
             intro: >-
               It is your everlasting duty to protect your people by expunging the barony's corruption.
             description:
@@ -700,8 +704,8 @@ zones:
               - townstarting
               - postchristianity
               - church
-          - name: Practicus
-            slug: practicus
+          practicus:
+            name: Practicus
             intro: >-
               Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the Court.
             description:
@@ -735,8 +739,8 @@ zones:
               - townstarting
               - postchristianity
               - church
-          - name: Preacher
-            slug: preacher
+          preacher:
+            name: Preacher
             intro: >-
               You are the Order's face. Speak in the Town Square for all to hear.
             description:
@@ -768,11 +772,11 @@ zones:
               - townstarting
               - postchristianity
               - church
-      - name: The Town
-        slug: the-town
+      the-town:
+        name: The Town
         roles:
-          - name: Headman
-            slug: headman
+          headman:
+            name: Headman
             intro: >-
               Lead the Town. Ensure it works and pays its taxes.
             description:
@@ -806,8 +810,8 @@ zones:
               - townstarting
               - farming
               - ravenhearteconomy
-          - name: Sheriff
-            slug: sheriff
+          sheriff:
+            name: Sheriff
             intro: >-
               Keep the peace in the Town, six-shooter at your hip.
             description:
@@ -831,8 +835,8 @@ zones:
             doc_elements:
               - townstarting
               - combat
-          - name: Metalsmith
-            slug: metalsmith
+          metalsmith:
+            name: Metalsmith
             intro: >-
               Forge anything from basic tools to siege implements and legendary weapons.
             description:
@@ -860,8 +864,8 @@ zones:
               - smithing
               - combat
               - independent
-          - name: Peasant
-            slug: peasant
+          peasant:
+            name: Peasant
             intro: >-
               You're a peasant. Make a living at day, live your life at night.
             description:
@@ -885,8 +889,8 @@ zones:
               - townstarting
               - production
               - independent
-          - name: Herald
-            slug: herald
+          herald:
+            name: Herald
             intro: >-
               Tell the news, take messages, and hope either the Baron or the Headman will pay you.
             description:
@@ -907,8 +911,8 @@ zones:
             doc_elements:
               - townstarting
               - independent
-          - name: Outsider
-            slug: outsider
+          outsider:
+            name: Outsider
             intro: >-
               Nature garbs you. Live on the outskirts, free and independent.
             description:
@@ -934,8 +938,8 @@ zones:
               - production
               - medical
               - independent
-          - name: Mortus
-            slug: mortus
+          mortus:
+            name: Mortus
             intro: >-
               Bring spirits to peace and feed the Lifeweb.
             description:
@@ -964,8 +968,8 @@ zones:
               - townstarting
               - lifeweb
               - respawning
-          - name: Bum
-            slug: bum
+          bum:
+            name: Bum
             intro: >-
               You live in a shell and sleep with the dogs, but you understand life (or think you do).
             description:
@@ -983,8 +987,8 @@ zones:
               - Ugly
             doc_elements:
               - townstarting
-          - name: Pusher
-            slug: pusher
+          pusher:
+            name: Pusher
             intro: >-
               Sell drugs, run the gambling den, peddle to people's worldly desires. Hell, hire a few bums to be your goons.
             description:
@@ -1008,12 +1012,12 @@ zones:
               - townstarting
               - alcoholdrugs
               - independent
-      - name: The Inn
-        slug: the-inn
+      the-inn:
+        name: The Inn
         parent: The Town
         roles:
-          - name: Innkeeper
-            slug: innkeeper
+          innkeeper:
+            name: Innkeeper
             intro: >-
               Name and run the inn: set prices, hire and fire staff, and run an actual, living business.
             description:
@@ -1037,8 +1041,8 @@ zones:
               - alcoholdrugs
               - meals
               - inn
-          - name: Inn Staff
-            slug: inn-staff
+          inn-staff:
+            name: Inn Staff
             intro: >-
               Work the floor, the kitchen, or the cellar — whatever the Inn needs.
             description:
@@ -1058,11 +1062,11 @@ zones:
               - meals
               - inn
               - independent
-      - name: Brigands
-        slug: brigands
+      brigands:
+        name: Brigands
         roles:
-          - name: Brigand Leader
-            slug: brigand-leader
+          brigand-leader:
+            name: Brigand Leader
             intro: >-
               You raided a shipment on the way to the Fortress — well done!
             description:
@@ -1094,8 +1098,8 @@ zones:
               - Crossbow
             doc_elements:
               - concealing
-          - name: Brigand
-            slug: brigand
+          brigand:
+            name: Brigand
             intro: >-
               You raided a shipment on the way to the Fortress — well done!
             description:
@@ -1133,12 +1137,12 @@ zones:
       - >-
         There was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the Town. Food stores are running low, and there's no time to waste on old grudges.
     factions:
-      - name: The Bastard's Camp
-        slug: the-bastards-camp
+      the-bastards-camp:
+        name: The Bastard's Camp
         silo_zone: Town
         roles:
-          - name: Bastard
-            slug: bastard
+          bastard:
+            name: Bastard
             intro: >-
               You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march — it's your people's only hope.
             description:
@@ -1179,8 +1183,8 @@ zones:
               - charon
               - brokenspear
               - windrider
-          - name: Champion
-            slug: champion
+          champion:
+            name: Champion
             intro: >-
               You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
             description:
@@ -1207,8 +1211,8 @@ zones:
               - The Wind
             doc_elements:
               - campstarting
-          - name: Mother
-            slug: mother
+          mother:
+            name: Mother
             intro: >-
               Counsel and support your son.
             description:
@@ -1229,8 +1233,8 @@ zones:
               - The Wind
             doc_elements:
               - campstarting
-          - name: Follower
-            slug: follower
+          follower:
+            name: Follower
             intro: >-
               Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
             description:
@@ -1252,12 +1256,12 @@ zones:
               - The Wind
             doc_elements:
               - campstarting
-      - name: Broken Spears Clan
-        slug: broken-spears-clan
+      broken-spears-clan:
+        name: Broken Spears Clan
         parent: The Bastard's Camp
         roles:
-          - name: Lieutenant (Broken Spears Clan)
-            slug: lieutenant-broken-spears-clan
+          lieutenant-broken-spears-clan:
+            name: Lieutenant (Broken Spears Clan)
             intro: >-
               Glory for the Broken Spears!
             description:
@@ -1288,8 +1292,8 @@ zones:
             doc_elements:
               - campstarting
               - brokenspear
-          - name: Master of Parties
-            slug: master-of-parties
+          master-of-parties:
+            name: Master of Parties
             intro: >-
               Supply the Clan with tonics, sound the drums, and keep the men fighting!
             description:
@@ -1320,8 +1324,8 @@ zones:
             doc_elements:
               - campstarting
               - brokenspear
-          - name: Clansman (Broken Spears Clan)
-            slug: clansman-broken-spears-clan
+          clansman-broken-spears-clan:
+            name: Clansman (Broken Spears Clan)
             intro: >-
               A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower — the spouse or servant of one of the above.
             description:
@@ -1344,13 +1348,13 @@ zones:
             doc_elements:
               - campstarting
               - brokenspear
-      - name: Windrider Clan
-        slug: windrider-clan
+      windrider-clan:
+        name: Windrider Clan
         silo_zone: Town
         parent: The Bastard's Camp
         roles:
-          - name: Lieutenant (Windrider Clan)
-            slug: lieutenant-windrider-clan
+          lieutenant-windrider-clan:
+            name: Lieutenant (Windrider Clan)
             intro: >-
               Your ultimate task is at hand. Fulfill your destiny.
             description:
@@ -1380,8 +1384,8 @@ zones:
             doc_elements:
               - campstarting
               - windrider
-          - name: Ranger
-            slug: ranger
+          ranger:
+            name: Ranger
             intro: >-
               Track the enemy and ensure the plan comes to fruition.
             description:
@@ -1409,8 +1413,8 @@ zones:
             doc_elements:
               - campstarting
               - windrider
-          - name: Clansman (Windrider Clan)
-            slug: clansman-windrider-clan
+          clansman-windrider-clan:
+            name: Clansman (Windrider Clan)
             intro: >-
               You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower — the spouse or servant of one of the above.
             description:
@@ -1439,11 +1443,11 @@ zones:
       - >-
         The Caves: Migrants make it to the Fortress from here.
     factions:
-      - name: The Company
-        slug: the-company
+      the-company:
+        name: The Company
         roles:
-          - name: Merchant
-            slug: merchant
+          merchant:
+            name: Merchant
             intro: >-
               Make your fortune buying and selling Tags.
             description:
@@ -1470,8 +1474,8 @@ zones:
               - Merchant's License
             doc_elements:
               - townstarting
-          - name: Docker
-            slug: docker
+          docker:
+            name: Docker
             intro: >-
               Serve the Merchant and get drunk during the night.
             description:
@@ -1490,11 +1494,11 @@ zones:
             doc_elements:
               - townstarting
               - merchant
-      - name: Unaffiliated
-        slug: unaffiliated
+      unaffiliated:
+        name: Unaffiliated
         roles:
-          - name: Migrant
-            slug: migrant
+          migrant:
+            name: Migrant
             intro: >-
               Make it to the fortress.
             description:
@@ -1507,8 +1511,8 @@ zones:
             starting_zone: caverns
             starting_tags: [Pale]
             doc_elements: [caving]
-          - name: Mercenary
-            slug: mercenary
+          mercenary:
+            name: Mercenary
             intro: >-
               Sell your sword or delve into the caves for pay.
             description:

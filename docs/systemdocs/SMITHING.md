@@ -90,7 +90,7 @@ their own terms rather than a rung of this table.
 | Mace | Simple | |
 | Battle Axe | Simple | |
 | Knuckle Duster | Moderate | `visible: worn` — pocketable. Priced at 5 pt, not the tier's 7 — a pre-existing outlier, not introduced by the Combat Update. |
-| Halberd (slug `bardiche`) | Moderate | Renamed in the Combat Update; slug frozen for sync. |
+| Halberd | Moderate | Renamed from Bardiche in the Combat Update; the slug moved with it. |
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
@@ -110,7 +110,7 @@ Off the ladder — no recipe, no smithing gate:
 | Weapon | pt | Notes |
 |---|---|---|
 | Sword Cane | 7 | Sold complete. `visible: worn` — it reads as a cane until it's drawn. |
-| Neoclassic R&W10 (slug `old-45-revolver`) | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
+| Neoclassic R&W10 | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
 | Disabler | 0 | Watch-issued. |

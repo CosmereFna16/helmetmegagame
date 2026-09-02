@@ -107,7 +107,7 @@ each arrived at by getting them wrong first.
    Slotted **after** the sweep for the same reason Hunger is below: it reads
    and writes `CharacterTag` rows and must not race the sweep over the same
    table. Unlike every other pass here, it also **clears** its own tag —
-   there is no `durationTurns` on `catatonic`, so nothing sweeps it; the pass
+   there is no `durationTurns` on `catatonic-afk`, so nothing sweeps it; the pass
    grants it when a character goes stale and deletes it the moment their
    clock moves again. A character whose player **left the guild**
    (`Character.leftGuildAt`, set by `db/lib/playerDeparture.js`) reads as
@@ -119,7 +119,7 @@ each arrived at by getting them wrong first.
    resources nor the Hunger streak.
 7b. **Catatonic death pass** (`db/lib/catatonicDeathPass.js`) — the other
    automatic death, alongside 4b. A character
-   who has held `catatonic` for `GameConfig.catatonicDeathTurns` consecutive
+   who has held `catatonic-afk` for `GameConfig.catatonicDeathTurns` consecutive
    turns (default 4; **0 is the off switch**, a Dev Panel dial needing no
    deploy) dies at this close, outright: the DB half of death runs here via
    `db/lib/characterDeath.js#applyDeathToRow` (shared with
@@ -321,7 +321,7 @@ exit — taking the announcement, the console text and the button row with it.
 
 ## 5. Hunger
 
-A `hunger` Status tag in `docs/tags.yaml` (`durationTurns: 1`), stacking
+A `hungry` Status tag in `docs/tags.yaml` (`durationTurns: 1`), stacking
 additively with Mood. The penalty escalates: **−1 to the die per consecutive
 turn gone hungry**, read off `Character.hungerStreak` and floored at **−6**
 (`HUNGER_STREAK_CAP` in `db/lib/hungerPass.js`) — see `db/lib/gambitModifier.js`
@@ -350,7 +350,7 @@ last ⬢ in that window went to −1.
 
 A single fed turn only clears **one tick** of the streak, not the whole thing
 — a character six turns deep in Hunger needs six fed turns to climb back to
-0, the same way it took six starved turns to get there. The `hunger` tag
+0, the same way it took six starved turns to get there. The `hungry` tag
 itself is re-granted for as long as the streak is above 0 after eating, not
 only on a turn actually spent starving — so its meaning is "carrying hunger
 damage", not "starved this turn". A Hunger granted while closing turn N
@@ -405,7 +405,7 @@ a turn a player never files anything on.
 `db/lib/defaultMovePass.js#runDefaultMovePass` finds every `ALIVE` character
 holding one with **no `Action` at all** on the closing turn — an auto-resolved
 zone change counts as acting — and files one, unless they hold one of
-`db/lib/incapacitation.js`'s `INCAPACITATING_SLUGS` (`dying`, `catatonic`,
+`db/lib/incapacitation.js`'s `INCAPACITATING_SLUGS` (`dying`, `catatonic-afk`,
 `paralyzed`, `bound`), in which case nothing is filed for them that turn.
 
 What it files is always a **Routine**: `CONFIRMED`/`PASSED`, resources pushed

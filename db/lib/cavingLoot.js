@@ -79,7 +79,7 @@ const LOOT_TABLE = {
     "zweihander",
     "crossbow",
   ],
-  "nearly-impossible": ["energy-shield", "power-fist", "old-45-revolver", "stepstone", "dark-eye-lenses", "motorcycle"],
+  "nearly-impossible": ["energy-shield", "power-fist", "neoclassic-rw10", "stepstone", "dark-eye-lenses", "motorcycle"],
 };
 
 // Validated once at process startup against the live Tag catalog (see

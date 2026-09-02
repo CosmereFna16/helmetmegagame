@@ -15,6 +15,7 @@ const {
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
+const { entriesOf } = require("./yamlEntries");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility, a real enum rather
 // than a truthy string.
@@ -23,6 +24,24 @@ const VISIBILITY_BY_YAML = new Map([
   [false, "HIDDEN"],
   ["worn", "WORN"],
 ]);
+
+// Categories whose tags may carry their category as a slug prefix, because a
+// hidden power's name ("Heal", "Seductive") is generic enough to collide with
+// a general tag. Everywhere else the slug is exactly the slugified name.
+const HIDDEN_CATEGORIES = new Set(["demoness", "bacchus"]);
+
+// The one slug rule, applied to Tag.name. Lowercase, punctuation dropped,
+// whitespace and colons to hyphens: "Death Wish (Cult)" -> death-wish-cult,
+// "True Form: Serpent" -> true-form-serpent.
+function slugifyName(name) {
+  return String(name ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\w\s:-]/g, "")
+    .replace(/[\s:]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 // A consumesInto entry is a bare slug, an object with a condition and/or an
 // expiry override, or a random pick between alternatives ({ oneOf: [...] }).
@@ -100,9 +119,9 @@ async function syncTagsFromYaml(prisma) {
   const groupsDoc = loadGroupsDoc();
   // Category slugs map to display names — that's what the UI renders raw,
   // so the DB should never hold the lowercase slug.
-  const categoryNameBySlug = new Map((doc?.categories ?? []).map((c) => [c.slug, c.name]));
-  const groupEntries = groupsDoc?.groups ?? [];
-  const tagEntries = doc?.tags ?? [];
+  const categoryNameBySlug = new Map(entriesOf(doc?.categories, "slug").map((c) => [c.slug, c.name]));
+  const groupEntries = entriesOf(groupsDoc?.groups, "slug");
+  const tagEntries = entriesOf(doc?.tags, "slug");
 
   for (const g of groupEntries) {
     if (!categoryNameBySlug.has(g.category)) {
@@ -113,6 +132,18 @@ async function syncTagsFromYaml(prisma) {
   for (const t of tagEntries) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
+    }
+    // A slug is always its name, slugified — so anyone reading a slug in code
+    // or in a Desire's requires knows which tag it is. The only exception is a
+    // hidden category (demoness, bacchus), where a bare name like "Heal" or
+    // "Seductive" collides with a general tag and the category leads instead.
+    const wantSlug = slugifyName(t.name);
+    const prefixed = `${t.category}-${wantSlug}`;
+    const allowed = HIDDEN_CATEGORIES.has(t.category) ? [wantSlug, prefixed] : [wantSlug];
+    if (!allowed.includes(t.slug)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" is named "${t.name}", so its slug should be "${allowed.join('" or "')}" — rename the slug with the name, or fix the name`,
+      );
     }
     // concealsIdentity requires equippable — a typo guard, not a rule.
     if (t.concealsIdentity && !t.equippable) {

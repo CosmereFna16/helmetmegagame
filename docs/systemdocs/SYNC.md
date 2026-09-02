@@ -33,6 +33,20 @@ would have existed.
 
 ## 2. Where they differ, in detail
 
+### Entry format: keyed maps, not sequences
+
+Every catalog block in the masters is a **map keyed by the entry's own id** —
+`town:`, `hungerless:`, `drink-alcohol:` — not a sequence of `- id: town`. The
+reason is authoring, not parsing: an editor's outline labels a map entry with
+its key and a sequence entry with its index, so 500 tags used to read as
+"{} 0, {} 1, {} 2". A sequence with no id of its own (`subLocations:`,
+`roles.yaml`'s four `zones:`, every scalar list) stays a sequence.
+
+Each sync reads its block through `entriesOf()` in `db/lib/yamlEntries.js`,
+which accepts either shape and hands back the old array of objects with the
+key folded back in — so document order, and every sync that depends on it,
+is unchanged.
+
 ### Match keys
 
 `slug` everywhere except `Document`, which uses `key`. **Zone and
@@ -96,7 +110,7 @@ in place rather than recreated. See `CHANNELS.md` §4.
 
 ```yaml
 zones:
-  - id: town              # stable slug; the match key
+  town:                   # the key IS the stable slug the sync matches on
     name: Town            # display name, used only at first provisioning
     kind: surface         # surface | group  (a group's levels become CAVE_LEVELs)
     sort: 1
@@ -105,14 +119,14 @@ zones:
       polygon: [[50, 30], [95, 30], ...]   # % of the 4:3 plate, or [] for a group
       label: { x: 74, y: 50 }
     topics:               # → LocationTopic rows → generated forum posts
-      - id: church
+      church:
         name: Cathedral
         description: >-
-        subLocations:
+        subLocations:     # keyless, so it stays a sequence
           - name: Crypt
             description: ""
     levels:               # groups only; each becomes a standable CAVE_LEVEL zone
-      - id: caverns
+      caverns:
         ...
 
 zoneConnections:          # the whole travel graph; every hop costs the Move

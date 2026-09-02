@@ -255,7 +255,7 @@ The source can be anyone within your Zone. Yes, this means **you can take ⬢ fr
 
 ### Upkeep
 
-Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move — it happens automatically. If you don't have at least 1 ⬢ to spend, your character becomes {tag:hunger}.
+Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move — it happens automatically. If you don't have at least 1 ⬢ to spend, your character becomes {tag:hungry}.
 
 If your character has the {tag:ate-meal} tag or the {tag:hungerless} tag, you stay fed without paying the upkeep.
 

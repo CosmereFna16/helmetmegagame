@@ -13,6 +13,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { entriesOf } = require("./yamlEntries");
 
 const TIER_WHITELIST = new Set([1, 2, 3, 4, 5, 7]);
 
@@ -29,8 +30,8 @@ function loadDoc() {
 
 async function syncDesiresFromYaml(prisma) {
   const doc = loadDoc();
-  const familyEntries = doc?.families ?? [];
-  const desireEntries = doc?.desires ?? [];
+  const familyEntries = entriesOf(doc?.families, "key");
+  const desireEntries = entriesOf(doc?.desires, "slug");
 
   // --- Pass 0: parse + validate, no writes. ---------------------------
   const familyKeySet = new Set();

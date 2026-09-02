@@ -63,7 +63,7 @@ game**, which is the whole point of the seat.
 
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
-`poison-snooper` (9) and `old-45-revolver` (14). All six are
+`poison-snooper` (9) and `neoclassic-rw10` (14). All six are
 `purchasableAfterStart: false`, so there is still no mid-game second source —
 you bought one on day one or you buy one off him. The Poison Snooper is the
 deliberate addition of the six: knowing which cup is poisoned, over and over,
@@ -101,7 +101,7 @@ buying one mid-game is still a real decision.
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
-| `old-45-revolver` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
+| `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
 | `ml-23` | 182 | 80 | A 9mm pistol |
 | `motorcycle` | 209 | 92 | Caving loot he also imports |
 | `flamethrower` | 237 | 104 | Caving loot he also imports |

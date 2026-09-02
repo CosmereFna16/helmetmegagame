@@ -6,6 +6,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { entriesOf } = require("./yamlEntries");
 
 // Fatal if docs/ can't be found — a missing master would read as "everything
 // deleted" and prune the lot. See db/lib/repoPaths.js.
@@ -18,7 +19,7 @@ function requireDocsPath(...segments) {
 function yamlSlugs() {
   const yamlPath = requireDocsPath("tags.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
-  return new Set((doc?.tags ?? []).map((t) => t.slug));
+  return new Set(entriesOf(doc?.tags, "slug").map((t) => t.slug));
 }
 
 // Every reason a Tag row must survive, gathered in one pass.

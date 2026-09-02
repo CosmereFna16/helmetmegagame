@@ -49,13 +49,13 @@ export function consumableTags(characterTags = []) {
 // The tags that unlock Fast Travel. Lives here (not requestActions.js, which
 // is "use server") so the page's gate and the server action's re-derivation
 // read the same set. See DEPOT.md §3.
-export const FAST_TRAVEL_SLUGS = new Set(["horse", "horse-windlander", "steam-automobile"]);
+export const FAST_TRAVEL_SLUGS = new Set(["horse", "wild-horse", "steam-automobile"]);
 
 // Seats a Fast Travel can carry, rider included. Steam Automobile is a fixed
 // 6 and doesn't stack with Cart. A horse alone seats 2; Cart upgrades to 6.
 export function fastTravelCapacity(heldSlugs) {
   if (heldSlugs.has("steam-automobile")) return 6;
-  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("horse-windlander");
+  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("wild-horse");
   if (!hasHorse) return 0;
   return heldSlugs.has("cart") ? 6 : 2;
 }

@@ -5,6 +5,9 @@
 # which reads this file and docs/tags.yaml together — see docs/tags.yaml's
 # header and docs/systemdocs/TAGS.md.
 #
+# Entries are keyed by slug (`general-traits:`, not `- slug: general-traits`)
+# — see docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
+#
 # Per-group fields:
 #   category    - must match one of the category slugs declared in
 #                 docs/tags.yaml's `categories:` list.
@@ -35,11 +38,11 @@
 #     dawn chip backgrounds — worst case --field-bg over --surface-raised,
 #     where the tightest here measures 3.44. Check the numbers before adding.
 groups:
-  - slug: general-traits
+  general-traits:
     name: Traits
     category: general
     color: "#81a4d7"
-  - slug: general-social
+  general-social:
     name: Social
     category: general
     color: "#8479d7"
@@ -51,7 +54,7 @@ groups:
   # Wears the General blue like the rest of the category; what separates it
   # from its neighbours is tone, not hue — a muted mid slate between Traits'
   # clear steel blue and Brigands' mauve. 4.13:1 on dusk, 4.28:1 on dawn.
-  - slug: general-beliefs
+  general-beliefs:
     name: Beliefs
     category: general
     color: "#878fb7"
@@ -68,7 +71,7 @@ groups:
   # halves stopped being different kinds of thing. Addictions stayed separate
   # because "one Addiction at a time" is a real rule, and a group is where you
   # see it.
-  - slug: general-addictions
+  general-addictions:
     name: Addictions
     category: general
     color: "#6f93c9"
@@ -77,7 +80,7 @@ groups:
   # THE PALETTE requires. 4.28:1 on dusk, 4.43:1 on dawn — comfortably clear of
   # the 3:1 floor, and of general-restrictions' 3.83 which was the tightest of
   # the two it replaces.
-  - slug: general-personality
+  general-personality:
     name: Personality
     category: general
     color: "#8a90c6"
@@ -85,11 +88,11 @@ groups:
   # tag both of these held. Groups sync upsert-only and are never deleted, so
   # these rows survive empty — same as status-health below. Don't reuse either
   # slug, and don't put anything back in them.
-  - slug: general-restrictions
+  general-restrictions:
     name: Restrictions
     category: general
     color: "#7f88bd"
-  - slug: general-interests
+  general-interests:
     name: Interests
     category: general
     color: "#9db4e0"
@@ -99,19 +102,19 @@ groups:
   # player who isn't in the body never sees the group at all. Unlike Demoness
   # and Bacchus these sit in the `general` category, which stays visible
   # because general-traits and general-social are ungated.
-  - slug: general-watch
+  general-watch:
     name: The Watch
     category: general
     color: "#5e84c1"
     requiredTag: watchman
-  - slug: general-brigand
+  general-brigand:
     name: Brigands
     category: general
     color: "#8f7aad"
     requiredTag: brigand
   # Third body-membership group: the Baron's court, gated behind the free
   # `courtier` tag every court role starts with.
-  - slug: general-court
+  general-court:
     name: The Court
     category: general
     color: "#aaace4"
@@ -120,7 +123,7 @@ groups:
   # `windlander` — a purchasable Skills tag every Windlands role gets free
   # from roles.yaml, so the door stays open to anyone willing to pay for the
   # origin first, same reasoning as `the-wind`'s own comment.
-  - slug: general-windlands
+  general-windlands:
     name: The Windlands
     category: general
     color: "#b8bed3"
@@ -128,23 +131,23 @@ groups:
   # Orphaned: the Health category below took every tag that used to live
   # here. Groups sync upsert-only and are never deleted, so this row survives
   # empty — don't reuse the slug, and don't put anything back in it.
-  - slug: status-health
+  status-health:
     name: Health
     category: status
     color: "#c6af8b"
-  - slug: status-food
+  status-food:
     name: Food
     category: status
     color: "#d4ba67"
-  - slug: status-buffs
+  status-buffs:
     name: Buffs
     category: status
     color: "#e4d6aa"
-  - slug: status-debuffs
+  status-debuffs:
     name: Debuffs
     category: status
     color: "#bf9453"
-  - slug: items-food
+  items-food:
     name: Food
     category: items
     color: "#8bcace"
@@ -152,26 +155,26 @@ groups:
   # supply chain (fungus -> Bliss, grain -> Alcohol -> the Red) and the
   # tonics above it are nothing like a meal. See the Alcohol & Drugs
   # document in docs/documents.yaml.
-  - slug: items-drink
+  items-drink:
     name: Tonic
     category: items
     color: "#5ab3ce"
-  - slug: items-gear
+  items-gear:
     name: Gear
     category: items
     color: "#71a4a4"
-  - slug: items-armor
+  items-armor:
     name: Armor
     category: items
     color: "#8faab7"
   # The exotic tier: relics, grafts and machinery that don't belong to the
   # low-fantasy surface of the game. Kept apart from Gear so a player reading
   # their sheet can tell at a glance which of their possessions are ordinary.
-  - slug: items-special
+  items-special:
     name: Special
     category: items
     color: "#a9d0e5"
-  - slug: items-weapons
+  items-weapons:
     name: Weapons
     category: items
     color: "#56bdaf"
@@ -182,39 +185,39 @@ groups:
   # whole category is ONE red on purpose, split only by tone: blood red for
   # wounds, rust for rot, rose for fever, dusky mauve for the head, ash for
   # what can't be undone, pale pink for the trivial, apricot for recovery.
-  - slug: health-wounds
+  health-wounds:
     name: Wounds
     category: health
     color: "#d35e64"
-  - slug: health-infection
+  health-infection:
     name: Infection
     category: health
     color: "#b9725f"
-  - slug: health-illness
+  health-illness:
     name: Illness
     category: health
     color: "#d3838c"
-  - slug: health-maiming
+  health-maiming:
     name: Maiming
     category: health
     color: "#bea6a8"
-  - slug: health-mind
+  health-mind:
     name: Mind
     category: health
     color: "#aa7486"
-  - slug: health-minor
+  health-minor:
     name: Ailments
     category: health
     color: "#e5a9b3"
-  - slug: health-recovery
+  health-recovery:
     name: Recovery
     category: health
     color: "#d89f90"
-  - slug: assets-property
+  assets-property:
     name: Property
     category: assets
     color: "#c9c5be"
-  - slug: assets-companions
+  assets-companions:
     name: Companions
     category: assets
     color: "#a48d7c"
@@ -223,27 +226,27 @@ groups:
   # musician, lockpicking, butcher, climbing, navigating, stealth) stay
   # groupless on purpose — they don't
   # belong to any family and would just be noise in a one-tag group.
-  - slug: skills-labor
+  skills-labor:
     name: Labor
     category: skills
     color: "#bed78f"
-  - slug: skills-fighting
+  skills-fighting:
     name: Combat
     category: skills
     color: "#8fd4a8"
-  - slug: skills-crafting
+  skills-crafting:
     name: Crafting
     category: skills
     color: "#93b261"
-  - slug: skills-brewing
+  skills-brewing:
     name: Brewing
     category: skills
     color: "#6eaa78"
-  - slug: skills-cooking
+  skills-cooking:
     name: Cooking
     category: skills
     color: "#79d070"
-  - slug: skills-medical
+  skills-medical:
     name: Medical
     category: skills
     color: "#b8d5c3"
@@ -252,16 +255,16 @@ groups:
   # Bacchus categories hidden. Every tag in them is gated by the group, so the
   # tags themselves deliberately do NOT repeat `requiredTag` — the gate is
   # written once here.
-  - slug: demoness
+  demoness:
     name: Demoness
     category: demoness
     color: "#d26dad"
     requiredTag: demoness
-  - slug: bacchus
+  bacchus:
     name: Bacchus
     category: bacchus
     color: "#d4b4da"
-    requiredTag: follower-of-bacchus
+    requiredTag: cultist
   # The Cult tier ladder (Ripening -> Bountiful) plus the Cult
   # Leader seat. These are Meta tags — 0 points, never purchasable, granted by
   # a GM — but they live in a gated group rather than groupless like the rest
@@ -269,19 +272,19 @@ groups:
   # requiredTag. Groupless would ship the whole cult ladder to every signed-in
   # client, which is exactly the leak that route's header comment exists to
   # close. No `color`, so the chips stay uncoloured like the rest of Meta.
-  - slug: meta-cult
+  meta-cult:
     name: Cult
     category: meta
-    requiredTag: follower-of-bacchus
+    requiredTag: cultist
   # Empty for now: the powers a growing cult unlocks land here, gated by the
   # ladder rung that opens them. Groups sync upsert-only and are never
   # deleted, so these slugs are fixed from here on.
-  - slug: bacchus-ripening
+  bacchus-ripening:
     name: Ripening
     category: bacchus
     color: "#c292d5"
     requiredTag: cult-ripening
-  - slug: bacchus-bountiful
+  bacchus-bountiful:
     name: Bountiful
     category: bacchus
     color: "#b262cf"

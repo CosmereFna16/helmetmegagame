@@ -10,6 +10,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { entriesOf } = require("./yamlEntries");
 
 // /documents synthesizes two cards that aren't real rows — the role charter
 // ("role") and the pinned Player Handbook ("handbook") — so the sync refuses
@@ -73,7 +74,7 @@ function resolveAssignment(entry, catalogs) {
 
 async function syncDocumentsFromYaml(prisma) {
   const doc = loadDoc();
-  const entries = doc?.documents ?? [];
+  const entries = entriesOf(doc?.documents, "key");
 
   const seen = new Set();
   for (const e of entries) {

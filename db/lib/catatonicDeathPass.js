@@ -1,6 +1,6 @@
 // The Catatonic death pass — TURN-ENGINE.md §2 pass 7b, and the one place a
 // terminal chain kills without a GM's hand: a character who has held
-// `catatonic` for GameConfig.catatonicDeathTurns consecutive turns dies at
+// `catatonic-afk` for GameConfig.catatonicDeathTurns consecutive turns dies at
 // the close. The clock is Character.catatonicSinceTurn, nulled the moment
 // the tag clears, so any act of waking resets it. Must run strictly after
 // the clear pass, so a character who woke this turn can't be killed the same

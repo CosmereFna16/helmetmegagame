@@ -39,15 +39,21 @@ function walkDir(dir, out = []) {
 // --- YAML -------------------------------------------------------------------
 
 // The nearest identifying line above a scalar, so the worksheet can say which
-// tag or role it belongs to without the user opening the file.
+// tag or role it belongs to without the user opening the file. Two shapes
+// count: an explicit `slug:`/`name:` field, and the bare `hungerless:` line
+// that heads a keyed entry in the masters (db/lib/yamlEntries.js).
 function yamlLabel(lines, lineNo) {
   const keyCol = /^(\s*)/.exec(lines[lineNo - 1] || "")[1].length;
   for (let i = lineNo - 2; i >= 0; i--) {
-    const m = /^(\s*)(?:-\s+)?(slug|key|id|name):\s*(\S.*?)\s*$/.exec(lines[i]);
+    const named = /^(\s*)(?:-\s+)?(slug|key|id|name):\s*(\S.*?)\s*$/.exec(lines[i]);
+    const entry = named ? null : /^(\s*)([A-Za-z0-9][\w.-]*):\s*$/.exec(lines[i]);
+    const m = named ?? entry;
     if (!m) continue;
     const col = m[1].length;
-    if (col > keyCol) continue;
-    return m[3].replace(/^["']|["']$/g, "");
+    // A named field may sit at the same indent as the scalar (`- slug: x`);
+    // an entry key always heads the block it labels, so it must be shallower.
+    if (col > keyCol || (entry && col >= keyCol)) continue;
+    return (named ? m[3] : m[2]).replace(/^["']|["']$/g, "");
   }
   return null;
 }

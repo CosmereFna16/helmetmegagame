@@ -181,7 +181,7 @@ silently on load, instead of surviving as a pin to nothing.
 
 Everything the old table had, plus the columns a GM actually asks about
 mid-turn: **Acted this turn** and **tag count**. A **Catatonic** column sits
-beside Cursed, same shape (word or dash), computed from the `catatonic` tag
+beside Cursed, same shape (word or dash), computed from the `catatonic-afk` tag
 rows the page already loads — the same AFK state the rail avatars mark with
 a muted dot (`CharacterAvatar`'s `catatonic` prop; see `TAGS.md` §7 for
 every surface the tag reaches). Since the guild-leave rework, a Catatonic

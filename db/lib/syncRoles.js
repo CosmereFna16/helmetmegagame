@@ -13,6 +13,7 @@ const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
 const { roleWeight, factionSiloSeed } = require("./factionSilo");
 const { seatZoneIdFor } = require("./seatZone");
+const { entriesOf } = require("./yamlEntries");
 
 // Excluded from silo seeding — it stays silo-less on purpose (see
 // db/lib/factionSilo.js and the "Silos" section of CLAUDE.md's linked plan).
@@ -39,7 +40,7 @@ function parseRolesYaml(doc) {
   const roles = [];
   for (const zone of doc?.zones ?? []) {
     let factionOrder = 0;
-    for (const faction of zone?.factions ?? []) {
+    for (const faction of entriesOf(zone?.factions, "slug")) {
       if (!faction.slug) throw new Error(`docs/roles.yaml: faction "${faction.name}" has no slug`);
       const entry = {
         slug: faction.slug,
@@ -59,7 +60,7 @@ function parseRolesYaml(doc) {
       factions.push(entry);
 
       let roleOrder = 0;
-      for (const role of faction?.roles ?? []) {
+      for (const role of entriesOf(faction?.roles, "slug")) {
         if (!role.slug) throw new Error(`docs/roles.yaml: role "${role.name}" has no slug`);
         const parsedRole = {
           slug: role.slug,

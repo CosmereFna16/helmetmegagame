@@ -60,7 +60,7 @@ const SPECIAL_CHANNELS = [
     roleViewZones: [],
     member: (ctx) => {
       if (ctx.tagSlugs.has("mindlink")) return { view: true, send: true };
-      if (ctx.tagSlugs.has("follower-of-bacchus")) return { view: true, send: false };
+      if (ctx.tagSlugs.has("cultist")) return { view: true, send: false };
       return null;
     },
   },

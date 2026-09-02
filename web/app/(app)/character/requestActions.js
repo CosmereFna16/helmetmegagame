@@ -1707,7 +1707,7 @@ async function fastTravelRequestImpl({ targetZoneId, passengerIds: rawPassengerI
   const passengerClause = passengers.length
     ? `, carrying ${passengers.map((p) => p.name).join(" and ")}`
     : "";
-  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("horse-windlander");
+  const hasHorse = heldSlugs.has("horse") || heldSlugs.has("wild-horse");
   const rideClause = !hasHorse
     ? "in a steam automobile"
     : heldSlugs.has("cart")

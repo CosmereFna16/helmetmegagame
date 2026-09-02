@@ -78,7 +78,7 @@ web map, or two map clicks) end with one `P2002` that rolls the second move back
 Filing after moving is how a player once ended up two hops away having spent one
 Move.
 
-**The one exception is a horse.** The `horse` and `horse-windlander` ("Wild
+**The one exception is a horse.** The `horse` and `wild-horse` ("Wild
 Horse") tags buy a single free hop a day — one zone, no `Action` filed, and
 therefore no Move spent and no block from having already acted. It is a
 **Request** (`FAST_TRAVEL`), not a route through `performTravel`:

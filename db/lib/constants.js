@@ -1,4 +1,4 @@
-const HUNGER_SLUG = "hunger";
+const HUNGER_SLUG = "hungry";
 const HUNGERLESS_SLUG = "hungerless";
 const DYING_SLUG = "dying";
 const NOBILITY_SLUG = "nobility";
@@ -10,15 +10,15 @@ const EXHAUSTED_SLUG = "exhausted";
 const LABORER_BASIC_SLUG = "laborer-basic";
 const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
-const CATATONIC_SLUG = "catatonic";
+const CATATONIC_SLUG = "catatonic-afk";
 const DISAPPOINTED_SLUG = "disappointed";
 
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
-// Empathetic (slug `seductive`), which is deliberately NOT here; nor is
+// Empathetic (`empathetic`), which is deliberately NOT here; nor is
 // Mindreading, the Succubus Draught's grant. Both of those read a Desire on a
 // Gambit after a conversation, which no code adjudicates.
-const SEDUCTIVE_DEMONESS_SLUG = "seductive-demoness";
+const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 
 // The counter to both of the above, read off the SUBJECT rather than the
 // viewer — see db/lib/inspectVision.js.
