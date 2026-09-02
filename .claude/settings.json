@@ -3,11 +3,16 @@
     "allow": [
       "Bash(git *)",
       "Bash(railway *)",
-      "Bash(npx prisma *)",
+      "Bash(npx prisma generate*)",
+      "Bash(npx prisma migrate deploy*)",
+      "Bash(npx prisma migrate status*)",
+      "Bash(npx prisma migrate diff*)",
+      "Bash(npx prisma migrate resolve*)",
       "Bash(npm run db:*)",
-      "Bash(node db/prisma/*)",
-      "Bash(DATABASE_URL=* npx prisma *)",
-      "Bash(DATABASE_URL=* node db/prisma/*)",
+      "Bash(node db/scripts/*)",
+      "Bash(DATABASE_URL=* npx prisma migrate deploy*)",
+      "Bash(DATABASE_URL=* npx prisma migrate status*)",
+      "Bash(DATABASE_URL=* node db/scripts/*)",
       "Bash(DATABASE_URL=* npm run db*)"
     ]
   },
@@ -15,12 +20,30 @@
     "allow": [
       "$defaults",
       "Bash(railway *)",
-      "Bash(npx prisma *)",
+      "Bash(npx prisma generate*)",
+      "Bash(npx prisma migrate deploy*)",
+      "Bash(npx prisma migrate status*)",
+      "Bash(npx prisma migrate diff*)",
+      "Bash(npx prisma migrate resolve*)",
       "Bash(npm run db:*)",
-      "Bash(node db/prisma/*)",
-      "Bash(DATABASE_URL=* npx prisma *)",
-      "Bash(DATABASE_URL=* node db/prisma/*)",
+      "Bash(node db/scripts/*)",
+      "Bash(DATABASE_URL=* npx prisma migrate deploy*)",
+      "Bash(DATABASE_URL=* npx prisma migrate status*)",
+      "Bash(DATABASE_URL=* node db/scripts/*)",
       "Bash(DATABASE_URL=* npm run db*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/prisma-guard.py"
+          }
+        ]
+      }
     ]
   }
 }
