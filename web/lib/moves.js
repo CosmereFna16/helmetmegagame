@@ -1,10 +1,5 @@
 // The Move enums as prose, in the one place both surfaces can reach.
-//
-// These maps lived inside gm/turns/page.js, so the Dev Panel's Record tab —
-// the only other place that shows a Move's kind and review status — had no way
-// to reach them and rendered the raw DB enums instead: ROUTINE, SOLVED,
-// WAITING_FOR_OPPONENTS. web/lib/requests.js had already solved the same
-// problem for Requests; this is its twin.
+// web/lib/requests.js is this module's twin for Requests.
 //
 // No Prisma import here, deliberately: RecordTab is a client component, and
 // pulling the @lifeweb/db barrel in would construct a PrismaClient in the
@@ -14,7 +9,7 @@
 // in over Discord dropdowns.
 export const MOVE_PIPELINE_LABELS = {
   PENDING_TYPE: "Setting up Move",
-  // Legacy: no longer written, kept for old rows. See ActionStatus.PENDING_OPPOSED.
+  // Legacy value, never written; kept for old rows. See ActionStatus.PENDING_OPPOSED.
   PENDING_OPPOSED: "Pending confirm",
   PENDING: "Pending confirm",
 };
@@ -22,7 +17,7 @@ export const MOVE_PIPELINE_LABELS = {
 export const MOVE_REVIEW_LABELS = {
   OPEN: "Open",
   PASSED: "Passed",
-  // Legacy: no longer written, kept for old rows. See MoveReviewStatus.WAITING_FOR_OPPONENTS.
+  // Legacy value, never written; kept for old rows. See MoveReviewStatus.WAITING_FOR_OPPONENTS.
   WAITING_FOR_OPPONENTS: "Waiting for Opponents",
   IN_PROGRESS: "In Progress",
   SOLVED: "Solved",
@@ -39,8 +34,7 @@ export const AUTO_ZONE_CHANGE = "auto:zone_change";
 
 // A travel stub (db/lib/travel.js#performTravel) files a Move with no
 // moveKind — there's no Routine/Gambit to pick, it's just "walked to a
-// place" — which is why moveKindLabel used to fall through to the generic
-// "Move". gmNotes can carry more than one marker (stagedPush appends
+// place". gmNotes can carry more than one marker (stagedPush appends
 // auto:silent_close on top), so check for the substring, not equality.
 export function isTravelMove(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_ZONE_CHANGE);

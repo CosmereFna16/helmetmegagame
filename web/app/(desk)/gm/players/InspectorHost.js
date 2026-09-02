@@ -9,22 +9,14 @@ import BulkComposer from "./BulkComposer";
 import CanonTab from "./CanonTab";
 
 // The player desk's half of the shared inspector (the other is
-// /gm/turns/Workspace.js). It is mounted by layout.js, so it survives every
-// navigation inside the desk — including to the roster, where the old
-// DossierColumn simply did not exist.
+// /gm/turns/Workspace.js). Mounted by layout.js, so it survives every
+// navigation inside the desk.
 //
-// Which person it shows is DERIVED, not stored:
-//
-//   segment  — useSelectedLayoutSegment() is the [discordUserId] the child
-//              route is on, so opening a conversation points the inspector at
-//              that player without anybody having to tell it.
-//   override — the last person clicked in the inspector's own search or pin
-//              row, which is how a GM looks at somebody OTHER than the open
-//              conversation.
-//
-// The override remembers which segment it was set under and is ignored once
-// the route moves on, so navigating to another player follows the route again
-// instead of staying stuck on a stale pin. All of that is computed during
+// Which person it shows is DERIVED, not stored: `segment`
+// (useSelectedLayoutSegment(), the [discordUserId] the route is on) points
+// the inspector at whoever's conversation is open; `override` is the last
+// person clicked in the inspector's own search/pin row, and is ignored once
+// the route moves past the segment it was set under. All computed during
 // render — no effect syncing state to a prop, which is what
 // react-hooks/set-state-in-effect (an error in this repo) exists to catch.
 
@@ -84,8 +76,7 @@ export default function InspectorHost({
   // The third argument is an optional tab request — "look them up AND land on
   // that tab", the way the adjudication desk's "Past moves" button does it.
   // Token-stamped so the column can tell a fresh ask from the one it already
-  // honoured. Nothing on this desk asks yet; the wire stays because the
-  // column's contract is shared.
+  // honoured.
   const [tabRequest, setTabRequest] = useState(null); // { tab, token }
   const onInspect = useCallback(
     (characterId, name, tab) => {

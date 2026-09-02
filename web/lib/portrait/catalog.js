@@ -1,14 +1,9 @@
 // The portrait catalog: every part, every palette, and the rules for a valid
 // selection. See docs/systemdocs/PORTRAITS.md.
 //
-// This module is the ONE source of truth shared by the two renderers — the
-// browser canvas that draws the live preview (PortraitMaker.js) and the sharp
-// pipeline that renders the saved avatar (web/lib/portrait/render.js). They
-// draw the same layers, in the same order, through the same palette map, so a
+// The ONE source of truth shared by both renderers — the browser canvas
+// preview (PortraitMaker.js) and the sharp save pipeline (render.js) — so a
 // player never saves something that looks different from what they picked.
-// The two agree pixel for pixel right up to the WebP encode, which shifts a
-// channel by a unit here and there — the same lossy step the letter plaques
-// already take, and invisible at any size an avatar is shown.
 //
 // Keep it free of `node:` builtins, sharp and Prisma: it is imported by a
 // client component, and anything unbundlable here breaks the whole modal.
@@ -31,15 +26,12 @@ export const CANVAS = 256; // an integer multiple of TILE, so nearest-neighbour 
 // separate, purely aesthetic framing choice.
 export const SHIFT_X = 5;
 
-// The bust is head + jaw only — no neck, no shoulders — so drawn at 1:1 the
-// chin ends in a hard cut right on the plate's bottom edge, which reads as a
-// severed head rather than a portrait. Two things fix it together:
-// BUST_PX pushes that cut below the frame (scale up, then crop back down to
-// CANVAS, bottom-anchored — the same "a bust sits in a frame" framing as
-// SHIFT_X above, just vertical), and the FADE_* constants dissolve whatever
-// chin is still left into the plate's own darkness instead of ending in a
-// line. 320 keeps the intermediate scale (128 -> 320) an integer multiple of
-// TILE, so nearest-neighbour stays crisp through the extra step.
+// The bust is head + jaw only — no neck or shoulders — so drawn at 1:1 the
+// chin ends in a hard cut on the plate's bottom edge. BUST_PX scales up then
+// crops back down to CANVAS, bottom-anchored, to push that cut below the
+// frame; the FADE_* constants dissolve what's left into the plate's own
+// darkness. 320 keeps the intermediate scale (128 -> 320) an integer
+// multiple of TILE, so nearest-neighbour stays crisp through the extra step.
 export const BUST_PX = 320;
 
 // Where that crop window sits, as fractions of CANVAS: negative x moves the
@@ -47,21 +39,16 @@ export const BUST_PX = 320;
 // under them — both renderers import the resulting CROP_X/CROP_Y from here,
 // and that shared window is what keeps them pixel-identical.
 //
-// Both numbers are measured, not taste. Strict bottom-anchoring (the window
-// at y 64) cut the crown off 23 of the 66 hair, cranium and headwear tiles —
-// a third of the catalog wearing its plaque like a low ceiling, which is what
-// read as badly centred. Sliding the window up fixes that fast and then
-// stops paying: 0.06 takes it to 9 tiles clipped, 0.08 to 8, and everything
-// out to 0.18 only reaches 5 while steadily trading the chin for empty plate
-// above the head. So 0.08, just past the knee.
+// Both numbers are measured, not taste. Strict bottom-anchoring clips the
+// crown off a third of the hair/cranium/headwear tiles; sliding the window
+// up to 0.08 fixes most of that fast and further gains cost more chin than
+// they're worth. Don't move this without re-measuring clipped tiles.
 export const NUDGE_Y = 0.08;
 // These heads are three-quarter, not frontal: the skull's ink centres at x 150
-// in bust space while the nose centres at 204. Strict x-centring therefore put
-// the FACE well right of the plaque's middle even with the head mass square in
-// it. -0.03 lands the head mass a couple of pixels left of centre, which reads
-// centred and leaves the looking room on the side the face is turned toward.
-// It also stays clear of the left edge: the widest hair-back tile keeps a
-// 12px margin, and nothing in the catalog clips.
+// in bust space while the nose centres at 204, so strict x-centring puts the
+// face right of the plaque's middle. -0.03 lands the head mass a couple of
+// pixels left of centre, reading as centred with looking room on the turned
+// side, while keeping a 12px margin on the widest hair-back tile.
 export const NUDGE_X = -0.03;
 
 export const CROP_X = Math.round((BUST_PX - CANVAS) / 2 - NUDGE_X * CANVAS);
@@ -106,14 +93,10 @@ const BROW_HAIR_SLOT = 3;
 // gives it away as a placeholder rather than art.
 const PUPIL_SRC = ["#1e3c5a", "#3c5a78", "#5a7896"];
 
-// The seven skin ramps are lifted straight out of the artist's own
-// Colour_Examples.png: four of them (porcelain, rose, fair, tan) appear there
-// complete, and for the three deeper tones the sheet only shows five of the
-// eight slots — the missing crown and highlight slots are least-squares fitted
-// from the five it does show. On the four complete ramps that fit reproduces
-// the real values to within a few units per channel, which is why it's trusted
-// for the other three. Ordered light to dark; no names, because a swatch says
-// it better than a word and nothing here needs a label.
+// The seven skin ramps are lifted from the artist's Colour_Examples.png.
+// Four (porcelain, rose, fair, tan) appear complete; the three deeper tones'
+// missing crown/highlight slots are least-squares fitted from the five slots
+// shown, validated against the four complete ramps. Ordered light to dark.
 const SKIN_TONES = [
   { id: "porcelain", ramp: ["#f5d9c6", "#decec9", "#d3adb7", "#d8b2ab", "#9a616a", "#f3c8c2", "#edc6ad", "#fde9d5"] },
   { id: "rose", ramp: ["#f9c2ad", "#d9b7b2", "#d196a2", "#de9692", "#a76363", "#f7aea8", "#f8af93", "#ffdfda"] },

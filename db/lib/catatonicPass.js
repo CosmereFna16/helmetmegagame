@@ -1,29 +1,12 @@
 // Catatonic (AFK) upkeep, run from db/index.js#resolveNeeds() so the bot's
-// cron advance and the Dev Panel's "End turn" button behave identically —
-// same shape and reasoning as db/lib/hungerPass.js.
+// cron advance and the Dev Panel's "End turn" button behave identically.
 //
-// Any ALIVE character whose Character.lastActivityTurn is more than
-// GameConfig.catatonicTurns turns behind the turn being closed gets the
-// `catatonic` tag; any Catatonic character whose activity clock has moved
-// gets it removed. There is no durationTurns and no expiresTurn on the grant
-// — see the comment on the createMany below for why that's the deliberate
-// exception, not the Paralyzed bug TAGS.md §5 warns about.
-//
-// Nothing in THIS pass kills or hides anyone — but flagging is no longer
-// consequence-free: its sibling, db/lib/catatonicDeathPass.js (pass 7b, the
-// engine's one deliberate auto-kill), ends any character who stays flagged
-// for GameConfig.catatonicDeathTurns turns straight. This pass stamps
-// Character.catatonicSinceTurn when it grants and nulls it when it clears —
-// that column, not the tag row, is the countdown the death pass reads. The
-// tag never touches the player's own Remove Tag menu, since the catalog
-// entry ships removable: false.
-//
-// Shaped for 100+ players: one read, one bulk write pair, no network call —
-// the per-player DM and the personal-role rename (to "<name> • Catatonic" in
-// grey, and back — see db/lib/characterRoleAppearance.js) are both returned
-// as lists for advanceTurn() to apply later.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// Flags any ALIVE character whose lastActivityTurn is stale past
+// GameConfig.catatonicTurns with the `catatonic` tag, and clears it once
+// their clock moves again. catatonicSinceTurn drives
+// db/lib/catatonicDeathPass.js's auto-kill; the tag itself is removable:
+// false. Shaped for 100+ players: no network call, DMs/role updates returned
+// for advanceTurn() to apply. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
 const { formatBareName } = require("./characterName");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
@@ -90,11 +73,10 @@ async function runCatatonicPass(prisma, turn) {
     // is read as "active right now" — never as stale — so nobody is flagged
     // off a null the moment this ships.
     const lastActivityTurn = character.lastActivityTurn ?? turn.number;
-    // A departed player is stale by definition, whatever their clock says:
-    // their clock can never move again, and a NULL one reads as "active now"
-    // above — without this, the tag playerDeparture.js granted at leave time
-    // would be cleared at the very next close. guildMemberAdd nulls
-    // leftGuildAt on rejoin, and the ordinary clock takes over from there.
+    // A departed player is stale regardless of their clock, since it can
+    // never move again — without this, playerDeparture.js's grant would be
+    // cleared at the very next close. guildMemberAdd nulls leftGuildAt on
+    // rejoin, and the ordinary clock takes over from there.
     const stale = character.leftGuildAt != null || lastActivityTurn <= threshold;
     const held = character.tags.length > 0;
 
@@ -106,23 +88,18 @@ async function runCatatonicPass(prisma, turn) {
   // of step with itself.
   const [flagged] = await prisma.$transaction([
     prisma.characterTag.createMany({
-      // expiresTurn: null, unlike Hunger — this pass owns both the grant AND
-      // the clear (the toClear branch above), so there is no sweep to hand it
-      // to. Stamping a turn-count expiry here would let the expiry sweep
-      // silently drop it while the character is still stale, and then this
-      // pass's own skipDuplicates re-grant on the following turn would land
-      // fine — but the player would see the tag flicker off for a turn with
-      // nothing having changed. Permanent-until-explicitly-cleared is correct.
+      // expiresTurn: null, unlike Hunger — this pass owns both the grant and
+      // the clear itself, so there is no sweep to hand an expiry to. A
+      // turn-count expiry here would flicker the tag off for a turn even
+      // though the character is still stale.
       data: toFlag.map((character) => ({
         characterId: character.id,
         tagId: catatonicTag.id,
         source: "EVENT",
         expiresTurn: null,
       })),
-      // A character can already hold it from a previous stale turn if this
-      // pass's clear branch somehow missed them (e.g. a crash mid-transaction
-      // on a prior turn) — keep the re-grant a no-op rather than a unique
-      // constraint error.
+      // Keep a re-grant a no-op rather than a unique constraint error, in
+      // case a prior clear was missed mid-transaction.
       skipDuplicates: true,
     }),
     prisma.characterTag.deleteMany({

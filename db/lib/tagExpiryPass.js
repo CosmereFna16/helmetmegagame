@@ -1,31 +1,11 @@
 // Per-turn tag progression, run from db/index.js#resolveNeeds() so the bot's
 // cron advance and the Dev Panel's "End turn" button behave identically.
 //
-// This is the untreated-wound chain. An ordinary timed tag simply gets swept
-// away when its expiresTurn comes due; a tag carrying `Tag.expiresInto` turns
-// INTO something else first — Infected festers, Festering goes both Feverish
-// and Necrotic, Necrosis costs you a leg or an arm. Distinct from
-// consumesInto, which is the same idea driven by the player choosing to use
-// something up. This one happens on the clock whether they wanted it or not,
-// which is the entire reason a player goes looking for a doctor.
-//
-// ORDERING. This must run INSIDE resolveNeeds() immediately BEFORE the
-// non-stackable expiry sweep, because that sweep is a blind deleteMany — once
-// it has run there is nothing left to read. Nothing here deletes: the sweep
-// that follows removes exactly the rows this pass just read, by the same
-// `expiresTurn <= turn.number` predicate.
-//
-// NOTHING HERE KILLS ANYONE — but it no longer stops there either. The
-// terminal chains all land on the `dying` tag, and `dying` carries a one-turn
-// clock (docs/tags.yaml) that db/lib/dyingDeathPass.js runs down at the NEXT
-// close. So this pass still only ever grants a tag, and a character who
-// reaches the end of a chain gets a full turn on death's door — long enough
-// for a medic with the right skill to reach them — before the engine ends it.
-//
-// Shaped for 100+ players like the Hunger pass: two reads and one bulk write
-// regardless of headcount, and no network call at all — the per-player DMs are
-// returned for advanceTurn()'s runSideEffects() to send later.
-//
+// This is the untreated-wound chain: a tag carrying `Tag.expiresInto` turns
+// INTO something else instead of just being swept (Infected → Festering →
+// Feverish/Necrotic, etc). MUST run immediately BEFORE the non-stackable
+// expiry sweep — that sweep is a blind deleteMany, so it deletes the rows
+// this pass just read. Only ever grants; db/lib/dyingDeathPass.js kills.
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 
 const { expiryFrom } = require("./turnFormat");
@@ -45,13 +25,9 @@ async function runTagExpiryPass(prisma, turn) {
       tag: { select: { slug: true, name: true, expiresInto: true } },
     },
   });
-  // An object, not null: db/index.js reads null as "this pass failed, retry it
-  // next advance" and gates markDone on truthiness. Most turns have nothing
-  // expiring, so returning null here meant the pass was almost never recorded
-  // as done — invisible while needsResolvedAt was stamped unconditionally, and
-  // a permanently unfinished turn once it wasn't. Same fix as
-  // defaultMovePass.js. hungerPass.js keeps its null, because there the pass
-  // genuinely did not run and does need retrying.
+  // An object, not null: db/index.js reads null as "this pass failed, retry
+  // it next advance" and gates markDone on truthiness. hungerPass.js keeps
+  // its null, because there the pass genuinely did not run and needs retrying.
   if (expiring.length === 0) return { turnNumber: turn.number, progressed: 0, dms: [] };
 
   // Only the successors actually named, rather than the whole catalog.
@@ -97,12 +73,10 @@ async function runTagExpiryPass(prisma, turn) {
         source: "EVENT",
         // Same absolute-turn expression as the Hunger pass and
         // sweepExpiredStacks, so all three writers derive expiry identically.
-        // A successor with no catalog duration is granted permanent, which is
-        // what Missing Leg and Scarred want. Dying used to be in that list and
-        // no longer is: its `durationTurns: 1` lands here as turn.number + 1,
-        // the close db/lib/dyingDeathPass.js kills on. Nothing granted here
-        // can fire again this pass: every duration is at least 1, and both the
-        // sweep and that pass match expiresTurn <= turn.number.
+        // A successor with no catalog duration is granted permanent (Missing
+        // Leg, Scarred). Nothing granted here can fire again this pass: every
+        // duration is at least 1, and both the sweep and dyingDeathPass match
+        // expiresTurn <= turn.number.
         expiresTurn: expiryFrom(turn.number + 1, successor.defaultDurationTurns),
       });
       gained.push(successor.name);
@@ -126,9 +100,8 @@ async function runTagExpiryPass(prisma, turn) {
   // on a condition they were already most of the way through.
   await prisma.characterTag.createMany({ data: rows, skipDuplicates: true });
 
-  // Not sent here — the DMs are the one network-bound part of this, and
-  // awaiting them inside the turn advance is what used to freeze the Dev
-  // Panel's "End turn". Handed back for runSideEffects() instead.
+  // Not sent here — DMs are the one network-bound part of this, and awaiting
+  // them inside the turn advance would freeze the Dev Panel's "End turn".
   const dms = [...progressions.values()]
     .filter((p) => p.discordUserId)
     .map((p) => ({

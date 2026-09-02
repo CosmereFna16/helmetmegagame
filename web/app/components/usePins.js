@@ -3,17 +3,12 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
 // One pin list, shared by both desks. Pin someone while adjudicating and they
-// are pinned when you go talk to them.
-//
-// The two desks used to keep separate keys in separate identity spaces:
-// "desk-pins" held [{ characterId, name }] and "messages-pins" held bare
-// ["<discordUserId>"]. That is why this cannot be a rename — an entry carries
-// both ids now, and the old keys are migrated once on first read.
+// are pinned when you go talk to them. An entry carries both characterId and
+// discordUserId; the old separate per-desk keys are migrated once on first read.
 //
 // Identity is characterId when there is one, discordUserId otherwise. The
-// adjudication desk only ever knows a characterId; the player rail knows both,
-// so the two agree on anyone who has a character. A player with no character
-// pins by discordUserId and never appears on the other desk anyway.
+// adjudication desk only ever knows a characterId; the player rail knows both.
+// A player with no character pins by discordUserId.
 
 const KEY = "gm-pins";
 const LEGACY_DESK_KEY = "desk-pins";
@@ -87,9 +82,7 @@ function write(pins) {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(pins));
     // The storage event doesn't fire in the tab that wrote it — nudge the
-    // subscriber manually so the pin reflects immediately here too. (The desk
-    // used to keep a parallel useState shadow to work around this; it doesn't
-    // need one.)
+    // subscriber manually so the pin reflects immediately here too.
     window.dispatchEvent(new Event("storage"));
   } catch {
     /* private window / blocked site data */
@@ -97,15 +90,9 @@ function write(pins) {
 }
 
 // `knownIdentities`, if given, is a Set of pinIdentity() strings this caller
-// can vouch for (e.g. the live roster). Any pin whose identity falls in the
-// SAME namespace ("c:" or "u:") as an entry in that set, but isn't actually
-// in it, is dead — most often because a game wipe deleted every Character
-// row out from under a stale localStorage chip. Such pins are dropped from
-// what's returned and the prune is written back once. A pin in a namespace
-// the caller doesn't know about (e.g. a "u:" player-only pin, seen from the
-// adjudication desk which only ever knows characters) is left alone — the
-// caller can't tell a live one from a dead one, so it stays for whichever
-// desk does know.
+// can vouch for (e.g. the live roster). A pin in a namespace ("c:"/"u:") the
+// set covers, but doesn't contain, is dead and gets dropped and pruned back.
+// A pin in a namespace the caller doesn't know is left alone.
 export default function usePins({ knownIdentities } = {}) {
   const rawPins = useSyncExternalStore(subscribe, read, readServer);
 

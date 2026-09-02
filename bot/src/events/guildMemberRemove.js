@@ -2,22 +2,14 @@ const { prisma } = require("@lifeweb/db");
 const { markPlayerDeparted } = require("@lifeweb/db/lib/playerDeparture");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
 
-// A leave no longer kills the character. markPlayerDeparted flags them
+// A leave no longer kills the character: markPlayerDeparted flags them
 // Catatonic and starts the death countdown (GameConfig.catatonicDeathTurns
-// turns, resolved at turn close by db/lib/catatonicDeathPass.js); the full
-// death cleanup — access revoke, role delete, unequip, DEATH archive — runs
-// there, not here. Rejoining in time and speaking in character wakes them
-// (guildMemberAdd.js clears leftGuildAt; the catatonic pass clears the tag).
+// turns, resolved by db/lib/catatonicDeathPass.js), which runs the full
+// death cleanup. Rejoining in time and speaking in character wakes them.
 //
-// That is also why this handler no longer calls revokeAllCharacterAccess:
-// per-member overwrites are inert for a non-member, Discord already stripped
-// the zone roles with the membership, and there IS a second pass now — the
-// death pass tears everything down if they never come back. (The old
-// revoke-first-delete-second comment was written when the row was about to
-// be soft-killed and nothing would ever look at it again.)
-//
-// Leaves the bot sleeps through are caught by the startup reconcile
-// (bot/src/lib/leaveReconcile.js), which runs this same shared path.
+// This handler does not call revokeAllCharacterAccess — Discord already
+// stripped the zone roles with the membership. Leaves the bot sleeps
+// through are caught by the startup reconcile (bot/src/lib/leaveReconcile.js).
 module.exports = {
   name: "guildMemberRemove",
   async execute(member) {
@@ -29,9 +21,8 @@ module.exports = {
       username: playerName,
     });
 
-    // The GM alert. Every failure is logged loudly — this used to be a pair
-    // of bare .catch(() => {})s, which meant a deleted channel or a missing
-    // permission made departures silently invisible to the GMs.
+    // The GM alert. Every failure is logged loudly, so a deleted channel or
+    // missing permission doesn't make a departure silently invisible.
     const channel = await member.client.channels.fetch(LEAVE_ANNOUNCE_CHANNEL_ID).catch((err) => {
       console.error(`Leave alert: cannot fetch #leave (${LEAVE_ANNOUNCE_CHANNEL_ID}):`, err.message);
       return null;

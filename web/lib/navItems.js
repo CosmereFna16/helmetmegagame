@@ -3,11 +3,8 @@ import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { dmNoiseSql } from "@/lib/dmThread";
 
-// The nav rail's item list, shared by both route groups. It used to live
-// inside (app)/layout.js, which was fine while (app) was the only group that
-// drew a rail — (desk) rendered its children bare. Now that the adjudication
-// and player desks carry the rail too, one copy has to serve both, or the two
-// groups drift into different navs for the same user.
+// The nav rail's item list, shared by every route group that draws a rail —
+// one copy so they can't drift into different navs for the same user.
 
 export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
@@ -18,14 +15,10 @@ export const PLAYER_NAV = [
   { href: "/handbook", label: "Handbook", icon: "help" },
 ];
 
-// No Faction item: for a GM /faction only ever rendered the all-factions
-// overview, which is now the Factions view of the player desk's roster.
-// Players keep theirs in PLAYER_NAV above — that one is their own faction,
-// not a list.
-//
-// No Messages item either: Players and Messages used to be two screens and
-// are one desk now, so the unread badge rides Players. The roster and the
-// conversations are the same list seen through two lenses.
+// No Faction item: for a GM, that's now the Factions view of the player
+// desk's roster. Players keep theirs in PLAYER_NAV above — their own
+// faction, not a list. No Messages item either: the unread badge rides
+// Players, since the roster and the conversations are one desk now.
 //
 // `section` splits the rail into the two hats a GM wears: the "gm" group is
 // the job, the "player" group is the same five screens every player gets.
@@ -66,11 +59,9 @@ async function loadUnreadConversationCount(discordUserId) {
   // the same shape the messages layout uses per-conversation, collapsed to
   // one number for the rail badge.
   //
-  // dmNoiseSql is not optional here. This query used to have no noise
-  // predicate at all, so every ✏️-edit reply bumped the badge and rang
-  // InboxChime — ~21 a day — while the desk it points at correctly counted
-  // none. A rail that says "3 unread" over a desk showing zero is worse than
-  // no badge: it trains GMs to ignore it.
+  // dmNoiseSql is not optional here: without it, a ✏️-edit reply bumps the
+  // badge and rings InboxChime even though the desk it points at counts none.
+  // A rail that says "3 unread" over a desk showing zero trains GMs to ignore it.
   const rows = await prisma.$queryRaw`
     SELECT COUNT(DISTINCT dm."discordUserId")::int AS "count"
     FROM "DirectMessage" dm

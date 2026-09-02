@@ -15,7 +15,7 @@ export default async function PlayerDeskPersonPage({ params }) {
   if (!gm) redirect("/character");
 
   // take one more than the page size so "there is older history" is a fact
-  // rather than a guess, the same trick the old bounded query used.
+  // rather than a guess.
   const [recent, guildMembers, character, aliveCharacter, gmProfiles, claim, openTurn, readCursor] = await Promise.all([
     prisma.directMessage.findMany({
       where: withoutDmNoise({ discordUserId }),
@@ -46,16 +46,15 @@ export default async function PlayerDeskPersonPage({ params }) {
   const username = guildMembers.find((m) => m.id === discordUserId)?.username;
   // Unknown id → 404. A guild member with no character and no conversation
   // yet is not unknown — they are exactly who a GM opens this page to
-  // message first. Additive on purpose: listGuildMembers() returns [] when
-  // Discord is unreachable, and the old two-part test still holds then.
+  // message first. listGuildMembers() returns [] when Discord is
+  // unreachable, so this check must stay additive, not either/or.
   if (messages.length === 0 && !character && !username) notFound();
   const label = character?.name ?? username ?? discordUserId;
 
-  // Everything that used to be the Canon panel's payload now loads inside the
-  // inspector's Canon tab (players/actions.js#getPlayerCanon), because the
-  // inspector can be pointed at somebody who is not this conversation. All
-  // this route still needs from the open turn is whether there is a Move to
-  // link to from the conversation header.
+  // The Canon panel's payload loads inside the inspector's Canon tab
+  // (players/actions.js#getPlayerCanon), since the inspector can point at
+  // somebody who isn't this conversation. This route only needs the open
+  // turn to link to a Move from the conversation header.
   const openMove =
     aliveCharacter && openTurn
       ? await prisma.action.findUnique({

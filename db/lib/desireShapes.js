@@ -1,26 +1,12 @@
 // Shared shape helpers for Tag.desireLocks, so the two surfaces that could
-// author it enforce one rule set — same posture as db/lib/tagShapes.js for
-// expiresInto/removesInto. Today the only authoring door is docs/tags.yaml
-// through db/lib/syncTags.js (the GM custom-tag form deliberately gets no
-// editor for this column — see the schema comment on Tag.desireLocks), but
-// the split still pays off: db/lib/desireGates.js (a later task) consumes
-// the SAME normalized shape this produces.
+// author it enforce one rule set. The only authoring door is docs/tags.yaml
+// through db/lib/syncTags.js.
 //
 // Input from YAML is `desires: { locks: [ ...clauses ] }` — an ARRAY with
-// union semantics, each clause exactly one of:
-//   { all: true }
-//   { families: [...] }
-//   { tiers: [...] }
-// plus an optional `exceptFamilies: [...]`, meaningful only alongside
-// `tiers` or `all` (a `families` clause already IS the family list; excepting
-// from it would be self-contradictory, so that combination throws too).
-//
-// And an optional `slot: bottom` (2026-09-02), which narrows the clause to the
-// character's LAST Desire slot instead of all of them. That is how an Addiction
-// works now: it shuts the bottom slot to everything outside its own family and
-// leaves every other slot alone. `bottom` is the only accepted value — the
-// grammar deliberately can't name slot 0 or an arbitrary index, because the
-// rule is "your last slot", not "slot N", and desireSlots is live-editable.
+// union semantics, each clause exactly one of { all: true }, { families: [...] },
+// or { tiers: [...] }, plus an optional `exceptFamilies: [...]` (meaningful
+// only alongside `tiers` or `all`) and an optional `slot: bottom`, which
+// narrows the clause to the character's last Desire slot.
 
 const TIER_WHITELIST = new Set([1, 2, 3, 4, 5, 7]);
 const SLOT_SCOPES = new Set(["bottom"]);
@@ -51,9 +37,8 @@ function normalizeClause(clause) {
   return out;
 }
 
-// Validates an ALREADY-NORMALIZED locks array (the output of
-// normalizeDesireLocks) against the rules above. Throws, naming the tag
-// slug, on the first violation — never half-applies.
+// Validates an ALREADY-NORMALIZED locks array against the rules above.
+// Throws, naming the tag slug, on the first violation.
 //
 //   locks     the normalized array, or null
 //   slug      the tag being authored, for the error message

@@ -23,16 +23,13 @@ import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
 
 // The adjudication workspace's client shell — mission control. It owns three
-// pieces of state and nothing else:
-//
-//   selection — which Move or Request the desk shows
-//   inspector — which character the right column is looking at, plus pins
-//   preview   — whether the push-preview dialog is open
+// pieces of state: selection (which Move/Request the desk shows), inspector
+// (which character the right column looks at, plus pins), and preview
+// (whether the push-preview dialog is open).
 //
 // Everything it renders is a DTO from page.js; every mutation lives in a
 // child that calls a server action and router.refresh()es. The full-viewport
-// .desk-* layout is this page's own (DESIGN-SYSTEM.md's sanctioned
-// deviation) — tokens and shared control classes still apply.
+// .desk-* layout is this page's own sanctioned deviation (DESIGN-SYSTEM.md).
 
 const REFRESH_MS = 45_000;
 
@@ -199,17 +196,13 @@ export default function Workspace({
   // DESK_STORAGE_DEFAULT above for what lives here.
   const [desk, setDesk] = useSessionState(DESK_STORAGE_KEY, DESK_STORAGE_DEFAULT);
   // The rail's lens, persisted under the same sessionStorage key QueueRail.js
-  // reads its filters and travel toggles from (RAIL_STORAGE_KEY) — a hard
-  // reload restores whichever lens a GM was on, the same way filters do.
+  // reads its filters and travel toggles from (RAIL_STORAGE_KEY).
   const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   // A /gm/turns/history/<id> link arrives with the rail already on History,
-  // so the row the URL names is in the list behind the desk it opened — that
-  // has to win over whatever lens was persisted from an earlier session. This
-  // is a one-shot correction, not a perpetual override (the same render-time
-  // "adjust state when a prop changes" pattern StagingTray.js's revealSignal
-  // uses — never an effect, react-hooks/set-state-in-effect is an error
-  // here): once seen, a GM is free to flip lenses while this History row
-  // stays open, same as any other selection.
+  // so that has to win over whatever lens was persisted from an earlier
+  // session. A one-shot correction, not a perpetual override — set at render
+  // time (same pattern as StagingTray.js's revealSignal), never in an effect
+  // (react-hooks/set-state-in-effect is an error here).
   const [seenDeepLinkId, setSeenDeepLinkId] = useState(null);
   if (
     typeof window !== "undefined" &&
@@ -252,16 +245,12 @@ export default function Workspace({
   // replaceState is Next's documented escape hatch: it syncs the router
   // without fetching an RSC payload, so picking a row leaves the queue, every
   // DTO, the inspector cache and the tray exactly as they were. A router.push
-  // here would reload the whole desk on every click.
-  //
-  // replaceState, not pushState, so Back leaves the desk rather than walking
-  // your selection history — and so nothing has to listen for popstate.
+  // here would reload the whole desk on every click. replaceState, not
+  // pushState, so Back leaves the desk rather than walking selection history.
   const confirm = useConfirm();
-  // Picking a different rail row (click OR the keyboard's Enter) used to
-  // unmount the open desk unconditionally — MoveDesk/RequestDesk/CavingDesk
-  // are keyed by id, so their own useDirtyGuard covers Close and Escape but
-  // never a fresh `select`. isAnyDirty() is the same cross-component flag
-  // the 45s poll already reads (useDirtyGuard.js).
+  // A fresh `select` must go through the same dirty guard as Close/Escape —
+  // isAnyDirty() is the cross-component flag the 45s poll also reads
+  // (useDirtyGuard.js).
   const select = useCallback(
     async (sel) => {
       if (isAnyDirty()) {
@@ -348,10 +337,8 @@ export default function Workspace({
   //   2. A focused input/textarea/select — blur it, don't blow away the desk.
   //   3. A selected Move/Request — deselect through the desk's own dirty
   //      guard (registerEscape), so unsaved edits still prompt.
-  // With nothing selected, Escape does nothing. It used to navigate to
-  // /gm/players, which made the desk feel like a mode you were trapped in
-  // rather than a page: one stray keystroke and the whole workspace was gone.
-  // The nav rail is how you leave.
+  // With nothing selected, Escape does nothing — the nav rail is how you
+  // leave the desk, never Escape.
   // One window listener, stable deps, live state read through refs so it
   // never needs to re-bind.
   const selectedRef = useRef(null);
@@ -402,9 +389,8 @@ export default function Workspace({
   // synchronously in the effect body (react-hooks/set-state-in-effect).
   const [historyByTurn, setHistoryByTurn] = useState(() => new Map());
   // The History lens's turn — persisted (gm-turns-desk), validated against
-  // the turns that still exist, deep link wins via the one-shot above. The
-  // fallbacks are the old useState seed: the preloaded deep-link turn, else
-  // the newest resolved turn.
+  // the turns that still exist, deep link wins via the one-shot above.
+  // Falls back to the preloaded deep-link turn, else the newest resolved one.
   //
   // The dropdown's list: the OPEN turn first, then every resolved turn
   // newest-first. Labels come from page.js's one turnLabel() for both halves
@@ -440,18 +426,13 @@ export default function Workspace({
   );
   const [historyError, setHistoryError] = useState(null);
 
-  // The cache has to be invalidated when a staged row on a past turn is edited
-  // or deleted from the history desk. StagedItems only knows how to router
-  // .refresh(), which re-runs page.js and never re-runs getMoveHistory — so
-  // without this, a deleted message keeps rendering on the desk and keeps
-  // inflating the rail row's staged badge until a hard reload.
-  //
-  // page.js already ships every UNAPPLIED staged row whatever turn it is on
-  // (that is what feeds the missed-push banner), and an unapplied row is
-  // exactly what the history desk is allowed to edit or delete. So a change to
-  // that set is the signal, taken during render the same way InspectorColumn
-  // takes its tab request — not from an effect. It costs nothing on the 45s
-  // poll, which leaves the fingerprint identical.
+  // The cache has to be invalidated when a staged row on a past turn is
+  // edited or deleted from the history desk: router.refresh() re-runs page.js
+  // but never getMoveHistory, so without this a deleted message keeps
+  // rendering until a hard reload. page.js already ships every UNAPPLIED
+  // staged row regardless of turn, so a change to that set is the signal —
+  // taken during render, not from an effect, same as InspectorColumn's tab
+  // request.
   const stagedFingerprint = useMemo(
     () => fingerprintUnapplied(stagedEffects, stagedMessages),
     [stagedEffects, stagedMessages],
@@ -619,8 +600,7 @@ export default function Workspace({
 
   // The inspector's custom-tag door. It defaults to STAGING here: this desk
   // is mid-push, so a tag invented while chasing a Move belongs in the tray
-  // with everything else rather than landing live. Same catalog the effect
-  // composer's door uses; TAG_CHIP_FIELDS doesn't carry a group id, so the
+  // rather than landing live. TAG_CHIP_FIELDS carries no group id, so the
   // dialog drops its Group picker rather than offering one it can't resolve.
   const customTag = useMemo(
     () => ({
@@ -644,9 +624,8 @@ export default function Workspace({
   // Live queue refresh — the shared gated poll (visible / no modal / not
   // dirty / same build, see useGatedRefreshPoll.js). The version half is the
   // anti-yank guard: a router.refresh() against a build other than the one
-  // this page rendered from trips Next's mismatch fallback — a full browser
-  // navigation — so a deploy latches the reload chip below instead, and a
-  // switchover 5xx is just a skipped tick.
+  // this page rendered from trips Next's full-navigation mismatch fallback,
+  // so a deploy latches the reload chip below instead.
   const lastRefreshedAt = useGatedRefreshPoll(REFRESH_MS, deployVersion);
 
   // Every document load beacons the PREVIOUS page's death report (nav type,

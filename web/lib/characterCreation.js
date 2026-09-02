@@ -1,15 +1,11 @@
-// Shared rules for character creation, imported by the wizard UI, the
-// createCharacter server action, and the GM panel — so the budget a player
-// is shown, the budget the server enforces, and the budget a GM sees can
-// never disagree.
+// Shared rules for character creation: the wizard UI, the createCharacter
+// server action, and the GM panel all import this, so the budget a player is
+// shown, the budget the server enforces, and the budget a GM sees can never
+// disagree.
 //
-// Nothing here touches Discord or the DB; it's pure functions over rows the
-// caller already loaded, which is what makes it safe to run on both sides of
-// the client/server boundary.
-// Imported from the standalone module rather than the @lifeweb/db barrel:
-// this file is reached from client components (PointBuy, TagChip,
-// CreateCharacterWizard), and the barrel pulls in the Prisma client and
-// the YAML syncs (node:fs), which cannot be bundled for the browser.
+// Pure functions only — no Discord, no DB — reached from client components,
+// so this stays a standalone module rather than the @lifeweb/db barrel,
+// which pulls in Prisma and node:fs and can't be bundled for the browser.
 import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 
 // Points a cursed player forfeits on their next character. Cursed is a live
@@ -24,11 +20,8 @@ export const CURSED_POINT_PENALTY = 6;
 export const DEFAULT_MAX_DRAWBACK_TAGS = 5;
 
 // A drawback is any tag with a negative pointCost — there is no `negative`
-// flag in the schema and the sign has always been the definition (TAGS.md
-// §4a). This counts how many drawback tags are held, not the sum of what
-// they grant — a character with one -8 drawback and one with eight -1
-// drawbacks spend a different slice of the cap now, unlike the old
-// points-based maxNegativeTags.
+// flag in the schema (TAGS.md §4a). This counts drawback tags held, not the
+// sum of what they grant.
 export function negativeTagCount(tags) {
   return tags.reduce((count, t) => ((t.pointCost ?? 0) < 0 ? count + 1 : count), 0);
 }
@@ -37,20 +30,9 @@ export function negativeTagCount(tags) {
 // particular until the curse is lifted. Matched by Role.slug.
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
-// The roster held back while GameConfig.playtestModeEnabled is on. The
-// Windlands are out of scope for a short test. Nothing is removed from
-// docs/roles.yaml, so switching the flag off restores them with no sync.
-//
-// The Merchant came off this list in the Merchant Update: the seat was held
-// back because its whole economy was a prose instruction to message a GM, and
-// it now has a real one at /depot (docs/systemdocs/DEPOT.md).
-//
-// There is no "windlander" flag to match on — Role has no availability column
-// and Faction has none either. The only structural marker is the nesting in
-// roles.yaml, and the Windlands hold three separate clan factions, so this
-// matches the ZONE rather than a faction: a fourth clan added later is covered
-// for free. Zone carries no slug, so it is a name match — rename the zone in
-// roles.yaml and this list has to move with it.
+// The roster held back while GameConfig.playtestModeEnabled is on — the
+// Windlands are out of scope for a short test. Matches the Zone name rather
+// than a faction slug, since Role/Faction carry no availability flag.
 export const PLAYTEST_LOCKED_ROLE_SLUGS = [];
 export const PLAYTEST_LOCKED_ZONE_NAMES = ["Windlands"];
 
@@ -83,20 +65,10 @@ function totalCost(tags) {
 
 
 // --- Tier chains (parentTag) and prerequisites (requiredTag) ---
-//
-// A tier chain (Melee (Basic) -> (Trained) -> (Skilled) -> ...) is
-// sequential and replacing: buying a tier is meant to replace whichever
-// lower tier of the same chain you already hold/have selected, not stack
-// with it. Each tag's pointCost is the incremental cost of that one hop, so
-// the cost of buying straight into a tier is the sum of every hop up to it
-// -- letting a player jump straight to Expert for the combined cost without
-// first buying Basic/Trained/Skilled as separate purchases, which the
-// point-buy UI has no way to sequence (nothing is "owned" yet mid-wizard).
-//
-// requiredTag is a non-replacing prerequisite (Ranged (Archer) requires
-// Ranged (Basic), but coexists with whatever Ranged tier you hold).
-// Since tiers replace rather than stack, holding *any* tier of a chain
-// satisfies a requirement pointing at a lower tier in that same chain.
+// A tier chain (Melee Basic -> Trained -> Skilled) replaces its lower tier
+// rather than stacking; pointCost is per-hop, so buying straight into a
+// tier sums every hop. requiredTag is a non-replacing prerequisite, and any
+// tier of a chain satisfies a requirement pointing at a lower tier in it.
 
 // tag -> [tag, ...ancestors] via parentTagId, closest-first.
 export function chainOf(tag, tagsById) {
@@ -155,11 +127,9 @@ export function chainSiblingsToRemove(tag, tagsById, heldOrSelectedIds) {
 }
 
 // The downward mirror of chainSiblingsToRemove: held/selected ids that sit
-// ABOVE `tag` in its own chain. chainOf() only walks upward, so this walks
-// up from each held tag instead and asks whether it passes through `tag` —
-// no descendant index needed. Non-empty means acquiring `tag` would be a
-// downgrade (you already hold a higher tier), which every purchase path
-// rejects: a chain replaces upward, it never re-opens downward.
+// ABOVE `tag` in its own chain, found by walking up from each held tag since
+// chainOf() only walks upward. Non-empty means acquiring `tag` would be a
+// downgrade, which every purchase path rejects.
 export function heldHigherTiers(tag, tagsById, heldOrSelectedIds) {
   return heldOrSelectedIds.filter((id) => {
     if (id === tag.id) return false;
@@ -180,17 +150,10 @@ export function holdsRequirement(requiredTagId, tagsById, heldOrSelectedIds) {
   });
 }
 
-// Both prerequisites a tag can carry, and the only place they're combined:
-//
-//   - `tag.requiredTagId` — the per-tag gate (Ranged (Archer) needs
-//     Ranged (Basic)).
-//   - `tag.group.requiredTagId` — the whole-group gate, which is the hidden
-//     category mechanism. Every Demoness tag sits behind the Demoness tag via
-//     its group rather than repeating requiredTag six times; see
-//     docs/taggroups.yaml and docs/systemdocs/TAGS.md §3.
-//
-// Callers must select group.requiredTagId alongside requiredTagId, or a
-// hidden category silently opens for everyone.
+// Combines both prerequisites a tag can carry: `tag.requiredTagId` (the
+// per-tag gate) and `tag.group.requiredTagId` (the whole-group gate behind
+// a hidden category, TAGS.md §3) — callers must select both, or a hidden
+// category silently opens for everyone.
 export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
   return (
     holdsRequirement(tag.requiredTagId, tagsById, heldOrSelectedIds) &&
@@ -199,27 +162,11 @@ export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
 }
 
 // --- Exclusive tags (Tag.exclusive) ---
-//
-// A third relation, and the simplest of the three: a character may hold at
-// most ONE tag carrying `exclusive`. It is what makes the Beliefs a single
-// answer rather than a collection — a parentTag chain is priced cumulatively
-// and walks one direction, which is wrong for nine peers, and requiredTag is
-// a prerequisite rather than a conflict.
-//
-// The one exemption is a pair joined by requiredTag, checked in BOTH
-// directions: Fundamentalist declares `requiredTag: post-christian`, so the
-// two are one belief taken to its extreme, not two beliefs. Anything else
-// pairs off.
-//
-// Returns the CONFLICTING TAG (so callers can name it) or null. Pass the same
-// `heldOrSelectedIds` every other helper here takes; `byId` rows must carry
-// `exclusive` and `requiredTagId` — a catalog projected without them silently
-// reports no conflict, so every caller's `select` has to include both.
-//
-// Deliberately not a gate on the menu: an exclusive tag stays visible and
-// dimmed, so a player can see what the alternatives are. Enforced server-side
-// in createCharacter, buyTags and addTagRequest; a GM grant bypasses it, like
-// every other gate (TAGS.md §3).
+// A character may hold at most ONE tag carrying `exclusive` per group,
+// except a requiredTag-linked pair (e.g. Fundamentalist/post-christian),
+// checked BOTH directions. Returns the CONFLICTING TAG or null; `byId` rows
+// must carry `exclusive` and `requiredTagId`, or this silently reports none.
+// Not a menu gate — enforced server-side; a GM grant bypasses it (TAGS.md §3).
 export function exclusiveConflict(tag, heldOrSelectedIds, byId) {
   if (!tag.exclusive) return null;
   for (const id of heldOrSelectedIds) {
@@ -237,21 +184,11 @@ export function exclusiveConflict(tag, heldOrSelectedIds, byId) {
 }
 
 // --- Conflicting tags (Tag.conflictsWith) ---
-//
-// A pairwise conflict edge, authored one-directional in docs/tags.yaml (the
-// Addiction side declares `conflictsWith: [sober]`) and symmetrized by
-// db:sync-tags (SYNC.md pass 6) so both tags carry each other's id, meaning a
-// caller only ever has to check one side. Unlike `exclusive` (at most one tag
-// per group), a conflict is a named pair and isn't scoped to groupId or
-// carved out for a requiredTag pair — two Addictions can conflict, or a
-// Belief and an Addiction, exactly as tags.yaml declares.
-//
-// Returns the CONFLICTING TAG (so callers can name it) or null. `byId` rows
-// must carry `conflictsWithIds` (an array of tag ids) — a catalog projected
-// without it silently reports no conflict, so every caller's `select` has to
-// include it, same rule as exclusiveConflict above. Enforced server-side in
-// createCharacter, buyTags and addTagRequest; a GM grant bypasses it, like
-// every other gate.
+// A pairwise conflict edge, authored one-directional in docs/tags.yaml and
+// symmetrized by db:sync-tags (SYNC.md pass 6), so a caller only checks one
+// side. Unlike `exclusive`, not scoped to groupId. Returns the CONFLICTING
+// TAG or null; `byId` rows must carry `conflictsWithIds` or this silently
+// reports none. Enforced server-side; a GM grant bypasses it.
 export function conflictingTag(tag, heldOrSelectedIds, byId) {
   const conflictIds = tag.conflictsWithIds;
   if (!conflictIds?.length) return null;
@@ -263,14 +200,10 @@ export function conflictingTag(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
-// The tags a character may actually see and buy: everything whose gates they
-// satisfy. Menus must derive their category tabs from THIS, not from the raw
-// offer — a category whose every tag is locked has to have no tab at all, not
-// a tab reading "nothing available", which would advertise the secret.
-//
-// `keepIds` is what a selection UI passes for its current picks: selecting a
-// tag doesn't satisfy that tag's own requirement, so without it a tag would
-// disappear from under the cursor the moment it was ticked.
+// The tags a character may actually see and buy. Menus must derive their
+// category tabs from THIS, not the raw offer, or an all-locked category
+// would advertise the secret it's hiding. `keepIds` covers a tag just
+// selected, which wouldn't yet satisfy its own requirement.
 export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
   const keep = new Set(keepIds);
   return tags.filter(
@@ -278,36 +211,19 @@ export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
   );
 }
 
-// Total cost of a set of selected tags, chain-aware: each tag's contribution
-// is its own cumulative chain cost rather than its raw incremental
-// pointCost, since a chain tier is meant to be bought outright, not stacked
-// on top of separately-purchased lower tiers. Callers are expected to keep
-// `tags` collapsed to at most one member per chain (chainSiblingsToRemove is
-// how selection UIs enforce that) -- with that invariant, summing
-// effectiveCost per tag is exactly the "buy this tier outright" cost.
-//
-// `heldIds` is what's ALREADY owned before this purchase — role grants at
-// creation, the character's own tags in the mid-game store — so buying a
-// higher tier over a held lower tier charges only the difference. This is
-// what each row already displayed via effectiveCost; totalling any other way
-// made the receipt disagree with the shelf. Omitted, it degrades to the
-// plain cumulative sum.
+// Total cost of selected tags, chain-aware: each tag's contribution is its
+// own cumulative chain cost, not raw pointCost, since a tier is bought
+// outright. Callers must keep `tags` collapsed to one member per chain
+// (chainSiblingsToRemove enforces that). `heldIds` is what's already owned,
+// so a higher tier over a held lower one charges only the difference.
 export function effectiveTotalCost(tags, tagsById, heldIds = []) {
   return tags.reduce((sum, tag) => sum + effectiveCost(tag, tagsById, heldIds), 0);
 }
 
-// A cursed player is restricted to CURSED_ROLE_SLUGS, and a role that grants a
-// Leader seat needs the Leader Whitelist Discord role
-// (web/lib/discordGuild.js#isLeaderWhitelisted). Everyone else may take any
-// synced role. Threats aren't data at all (docs/threats.md), so they can't
-// appear here.
-//
-// `playtestLocked` is the one reason here a superadmin does NOT walk through.
-// openToPlayers and the Leader Whitelist are permission gates, so the host
-// bypasses them to roll a test character; this is a content lock on an
-// unfinished role, and bypassing it would only let the host roll the broken
-// thing. Callers compute it (isPlaytestLocked above) and default it to false,
-// so a caller that predates the switch is unaffected.
+// A cursed player is restricted to CURSED_ROLE_SLUGS; a Leader-granting role
+// needs the Leader Whitelist Discord role. `playtestLocked` is the one gate
+// a superadmin does NOT bypass — the others are permission gates the host
+// skips to test, but this is a content lock on an unfinished role.
 export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked = false }) {
   if (playtestLocked) return false;
   if (role.grantsLeader && !leaderWhitelisted) return false;
@@ -374,14 +290,9 @@ export function prerequisiteNames(tag) {
 }
 
 // Whether the tag has any prerequisite gate at all — the "unlocked by your
-// tags" filter. On an already-gate-checked list this is exactly "tags
-// something I hold unlocked", since anything unmet was filtered out earlier.
-//
-// A craftable's recipe skills count too: the Add Tag menu's craft route
-// (tagRequests.js#addRequirementSatisfied) can unlock a tag purely on
-// requirementSkills, with the tag's own requiredTag never checked — without
-// this, a gated-by-recipe-only tag (every brewing tonic) would read as
-// ungated and vanish from this filter.
+// tags" filter. A craftable's recipe skills count too (tagRequests.js
+// #addRequirementSatisfied can unlock purely on requirementSkills), or a
+// recipe-only tag like a brewing tonic would read as ungated.
 export function hasPrerequisite(tag) {
   return Boolean(
     tag.requiredTagId || tag.group?.requiredTagId || (tag.craftable && tag.requirementSkills?.length),
@@ -395,16 +306,10 @@ export function menuCategories(tags) {
 }
 
 // Sign AND colour both describe the player's point pool, never whether the
-// tag is a good or bad thing to have: a drawback grants points (Frail is
-// "+5", green), an advantage spends them (Melee (Basic) is "-7", accent).
-// The two axes used to disagree — the sign was catalog-style while the
-// colour was pool-style — which read as "Frail is worth -3 and that's good".
-//
-// Tag.pointCost itself stays signed catalog-style (Frail = -3) in the YAML,
-// the DB, and every calculation, so `remaining = budget - sum(pointCost)`
-// is untouched. This is display only. Shared by TagChip, PointBuy,
-// TagRequestButtons and the creation wizard so a tag reads the same
-// everywhere.
+// tag is good or bad: a drawback grants points (Frail "+5", green), an
+// advantage spends them (Melee "-7", accent). Tag.pointCost itself stays
+// signed catalog-style everywhere else; this is display only, shared by
+// every tag-rendering surface so a tag reads the same everywhere.
 export function formatCost(pointCost) {
   const delta = -(pointCost ?? 0);
   return delta > 0 ? `+${delta}` : String(delta);
@@ -420,18 +325,10 @@ export function costColor(pointCost) {
 export { roleCapacity };
 
 // The one definition of "this tag matches what I typed", shared by the
-// player's point-buy menu and the GM tag editor so a search behaves the same
-// on both. Pure, like everything else in this file.
-//
-// Matches across name, description and group name, because a GM hunting for
-// "the paralysis one" is as likely to remember the wording as the title.
-// Every whitespace-separated term must match somewhere (AND, not OR), so
-// "cook skill" narrows rather than widens. Diacritics are folded so "neonate"
-// finds "Néonate".
-//
-// Deliberately NOT a gate: callers must run this AFTER unlockedTags(), never
-// instead of it, or a lucky search string would reveal a tag whose
-// requirement isn't met — see the comment in PointBuy.js.
+// point-buy menu and the GM tag editor. Matches name/description/group name;
+// every whitespace-separated term must match (AND). Diacritics are folded.
+// Deliberately NOT a gate — callers must run this AFTER unlockedTags(), or a
+// search string could reveal a tag whose requirement isn't met.
 function fold(value) {
   return (value ?? "")
     .toString()

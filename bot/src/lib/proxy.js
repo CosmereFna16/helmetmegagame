@@ -8,14 +8,10 @@ const { sendDm } = require("./dm");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 // One entry per proxied message, and the ✏️/❌/⭐/🔍 reactions only work on
-// messages still in here. At 500 that cap was reachable *within a single
-// turn* at roster scale — 15 locations of active play — so a player scrolling
-// up to edit something they said an hour earlier found the reaction silently
-// inert. PROXYING.md §2 describes the bound as the bot's last restart, which
-// is the behaviour this restores.
-//
-// The entries are small (a few ids and two short strings), so 20k of them is
-// on the order of a few MB — cheap next to losing the feature mid-turn.
+// messages still in here. Needs to cover roster scale (15 locations of
+// active play) across a full turn, or a player editing something said an
+// hour ago finds the reaction silently inert — PROXYING.md §2 defines the
+// bound as the bot's last restart. Entries are small, so 20k is a few MB.
 const MAX_RECENT = 20_000;
 
 // Two caches, both keyed for the process lifetime, mirroring the REST twin in
@@ -24,12 +20,10 @@ const MAX_RECENT = 20_000;
 //   webhookCache   channelId -> { id, token }
 //   clientCache    webhookId -> WebhookClient
 //
-// The second one exists because a WebhookClient is not free: it carries its
-// own REST manager, and a brand-new one starts with *zero* knowledge of the
-// rate limits it is about to hit. Building one per message meant N
-// simultaneous messages in a busy room fired N rate-limit-blind requests into
-// a ~5-per-5s bucket. Keyed on the webhook rather than the channel so the
-// ❌/✏️ reaction handlers, which only hold an id and a token, share it too.
+// clientCache exists because a WebhookClient is not free: it carries its own
+// REST manager, and a fresh one starts rate-limit-blind against a ~5-per-5s
+// bucket. Keyed on the webhook rather than the channel so the ❌/✏️ reaction
+// handlers, which only hold an id and a token, share it too.
 const webhookCache = new Map();
 const clientCache = new Map();
 
@@ -56,9 +50,9 @@ function webhookClientFor({ id, token }) {
   return client;
 }
 
-// Un-learn a channel's webhook. Nothing did this before, so a GM deleting the
-// "Bascinet Tupper" webhook broke every proxy in that room until the next
-// restart — and each of those failures left the player's real name on screen.
+// Un-learn a channel's webhook. Without this, a GM deleting the "Bascinet
+// Tupper" webhook would break every proxy in that room until the next
+// restart — and each failure leaves the player's real name on screen.
 function forgetChannelWebhook(channelId) {
   const info = webhookCache.get(channelId);
   webhookCache.delete(channelId);
@@ -102,12 +96,10 @@ async function fetchOrCreateWebhook(channel) {
 }
 
 // Attachments are recorded as a placeholder and nothing more. Storing the CDN
-// url would be worse than useless: Discord's links now carry expiry
-// parameters, so the archive would fill with dead images. Actually preserving
-// them would mean downloading and re-hosting the bytes (the way avatars are
-// stored) — a deliberate non-goal for now, but the placeholder at least makes
-// the gap visible in the transcript instead of silent, which is what the old
-// Dawn-wipe archive did.
+// url would be worse than useless: Discord's links carry expiry parameters,
+// so the archive would fill with dead images. Actually preserving them would
+// mean downloading and re-hosting the bytes (a deliberate non-goal for now),
+// but the placeholder at least makes the gap visible in the transcript.
 function attachmentPlaceholders(message) {
   return [...(message.attachments?.values() ?? [])].map((a) =>
     a.contentType?.startsWith("image/") ? "[image]" : "[attachment]",
@@ -254,8 +246,7 @@ function proxyRefusal(message, content) {
 }
 
 // Deleting the original is what keeps a player's real account off the screen,
-// so a failure here is a real problem and never a shrug. It used to be a bare
-// .catch(() => {}).
+// so a failure here is a real problem and never a shrug.
 async function deleteOriginal(message) {
   try {
     await message.delete();
@@ -290,11 +281,8 @@ async function handBack(message, reason, text) {
 // the whole point of the file: this game's premise is that a player's account
 // and their character are separate, and a message left sitting un-proxied
 // under a real Discord name breaks that premise for everyone reading the
-// channel. It used to delete only after a successful send, so anything the
-// webhook rejected — an over-length message, an oversized attachment, a
-// sticker, a webhook a GM had deleted — stayed on screen under the player's
-// own name with nobody told. For /conceal it was worse still: the text they
-// wanted anonymous, over their real name.
+// channel — worse still for /conceal, where the leak is the exact text they
+// wanted anonymous.
 //
 // Losing a message is recoverable, and handBack recovers it. Losing the mask
 // is not.

@@ -12,33 +12,16 @@ import { createCustomTagAndAssign } from "@/app/(app)/gm/dev/tags/actions";
 
 // The one custom-tag dialog, reached from several doors across the GM
 // toolkit (`/gm/dev/tags`, the Dev Panel's Tags tab, the adjudication desk's
-// EffectComposer). Extracted from the standalone catalog page's TagDialog
-// (gm/dev/tags/TagCatalog.js) so every door shares one interface instead of
-// each growing its own copy — see docs/systemdocs/DEV-PANEL.md §8.
-//
-// Two features chosen (not asked) alongside the base spec: Clone from…
-// (prefill every field from an existing catalog tag, then edit) and, where a
-// door opts in via `allowStage`, an Apply now / Stage for turn end toggle —
-// "stage" writes a `StagedEffect` (tagOps add) against the chosen targets
-// instead of a live grant, so a GM chasing a Move can invent the tag and
-// queue it in one gesture without leaving the composer.
-//
-// `characters` is the assignment picker's source list — omit it (or pass an
-// empty array) to hide "Assign to" entirely, which is also what happens when
-// a door has nowhere sensible to source a character list from (see
-// TagEditor.js's note on the current character not yet reaching this dialog).
-// `groups` is optional too: a caller whose tag rows don't carry a group id
-// (several DTOs trim TagGroup down to name/color for display only) simply
-// omits it, and the dialog drops the Group field rather than offering a
-// picker it cannot resolve back to an id.
+// EffectComposer) — see docs/systemdocs/DEV-PANEL.md §8. Supports Clone
+// from… (prefill from an existing catalog tag) and, where a door opts in via
+// `allowStage`, Apply now / Stage for turn end. `characters` omitted (or
+// empty) hides "Assign to"; `groups` omitted drops the Group field.
 const TOOLTIP_TEXT =
   "Use this for things that would affect adjudications—not just little bracelets or something.";
 
-// The tag's own fields are TagFieldset's now, shared with /gm/dev/tags' edit
-// dialog — this door used to send five of them, so a tag invented here could
-// not expire, stack or be worn until someone walked to the catalog page and
-// edited it. What stays local is the chrome around them: Clone from…,
-// Assign to, and the Apply/Stage toggle.
+// The tag's own fields are TagFieldset's, shared with /gm/dev/tags' edit
+// dialog. What stays local is the chrome around them: Clone from…, Assign
+// to, and the Apply/Stage toggle.
 //
 // Two defaults still differ from a bare BLANK_TAG, and deliberately: a
 // homebrew tag for solving one situation is visible and droppable, not a
@@ -76,15 +59,10 @@ export default function CustomTagDialog({
     const t = tagsById.get(tagId);
     if (!t) return;
     // Every field, including the ones behind Advanced — cloning Infected to
-    // build a variant wound should carry its duration and its expiry chain,
-    // which is most of why a GM clones rather than starts blank.
-    //
-    // A clone only carries what the door's own tag rows hold: the Dev Panel's
-    // and the player desk's catalogs trim requirementSkills (and the player
-    // desk's trims most of the rest), so a clone there arrives with those
-    // boxes empty rather than wrong. tagToFormValues falls back to BLANK_TAG
-    // for anything absent, so a thin row can't write a field as blank that it
-    // simply never carried.
+    // build a variant wound should carry its duration and expiry chain. A
+    // clone only carries what the door's own tag rows hold; tagToFormValues
+    // falls back to BLANK_TAG for anything absent, so a thin row can't write
+    // a field as blank that it simply never carried.
     setValues(tagToFormValues({ ...t, groupId: t.groupId ?? t.group?.id ?? "" }));
   }
 
@@ -115,9 +93,7 @@ export default function CustomTagDialog({
       const stage = allowStage && submitMode === "stage";
       const assignCharacterIds = characters ? [...assignIds] : [];
       // `values` carries exactly the keys the server reads (TagFieldset's
-      // BLANK_TAG), so it goes through whole rather than being re-listed here
-      // — the old hand-written list is how this door fell five fields behind
-      // the catalog page's in the first place.
+      // BLANK_TAG), so it goes through whole rather than being re-listed here.
       const res = await createCustomTagAndAssign({ ...values, assignCharacterIds, stage });
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");

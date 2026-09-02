@@ -1,45 +1,11 @@
 // Dawn message wipe: called from db/index.js#advanceTurn() whenever the
 // newly-opened turn's phase is DAWN and GameConfig.messageWipeEnabled is on.
-// Per zone (cave levels included):
-//   - #summary: every message deleted.
-//   - the public forum's posts, by what each post IS:
-//       * the zone's Create-a-Topic anchor — untouched, the wipe does not
-//         reach in there at all.
-//       * a generated Location topic (LocationTopic.discordThreadId) — every
-//         message deleted EXCEPT the starter, whose id is the thread's own
-//         id; the location's prose is the post's whole value.
-//       * a Quest post (PlayerThread.keepStarter) — a GM's hand-made post,
-//         re-authored as the bot by bot/src/lib/questPost.js. Treated exactly
-//         like a Location topic here: every message deleted EXCEPT the
-//         starter. It is never deleted by this pass; a GM removes it by hand
-//         (or inactivity expiry ages it out). Its Quest tag is re-asserted,
-//         same reasoning as Persistent below.
-//       * a player topic — its PlayerThread row decides: persistent rows
-//         survive but are emptied (and get their Persistent tag re-asserted,
-//         since the DB is the truth and the tag only a mirror); the rest are
-//         deleted, row and invites included.
-//       * a post with NO row — adopted: a row is written (persistent: false)
-//         rather than the post silently destroyed, so a GM's hand-made post
-//         gets one full turn and a visible record instead of vanishing on
-//         the first wipe after it appears.
-//   - #private threads: same PlayerThread rule; there is no visible marker
-//     at all (the ⏰ name-prefix era is over). Surviving keeps the thread's
-//     member list, which is the practical point of persistence there.
-// Then every special-channel registry entry with wipe: "clear".
-//
-// Every one of those rules is bounded by a CUTOFF: the moment the turn
-// advance's side effects began. Nothing newer is touched, in any target. That
-// single rule is what stops the wipe deleting the staged adjudication and the
-// Default Move summaries that the same push posted to #summary seconds
-// earlier, and what protects a player who posts while the wipe — which takes
-// a long time — is still walking toward their zone. It needs no exemption
-// list, because a Discord snowflake already carries its own creation time.
-//
-// The transcript is recorded at send time (db/lib/archive.js), so this file
-// only deletes. Entirely sequential (no Promise.all fan-out) to avoid
-// bursting Discord's rate-limit buckets. Per-zone try/catch, so one bad room
-// costs one room. The whole run is persisted as a SystemReport row
-// (kind: DAWN_WIPE) — the Dev Panel shows it instead of guessing.
+// Per zone: clears #summary and #private, and clears the public forum per
+// each post's PlayerThread row (persistent survives emptied; unrouted posts
+// are adopted, not deleted). Every rule is bounded by a CUTOFF (the moment
+// the turn advance's side effects began), so it can't eat its own push's
+// #summary post or a message sent while the wipe is still walking there.
+// Sequential, not Promise.all, to respect Discord's rate limits.
 const { PERSISTENT_TAG_NAME, QUEST_TAG_NAME } = require("./persistence");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
@@ -214,11 +180,8 @@ async function wipePrivateChannel(prisma, zone, rowsByThreadId, activeSnapshot, 
 }
 
 // `cutoffMs` is the moment the turn advance's side effects began — see
-// db/index.js#runSideEffects. Nothing created at or after it is touched, which
-// is what keeps the wipe from eating the staged adjudication and the Default
-// Move summaries the same push just posted, and what keeps a player's message
-// safe if they send it while the (long) wipe is still walking toward their
-// zone. Defaults to "now" so a hand-run wipe still can't eat its own tail.
+// db/index.js#runSideEffects and the CUTOFF rule in the file header above.
+// Defaults to "now" so a hand-run wipe still can't eat its own tail.
 async function runDawnWipe(prisma, { cutoffMs = Date.now() } = {}) {
   const startedAt = Date.now();
   const cutoff = buildCutoff(cutoffMs);
