@@ -1,11 +1,8 @@
 // Turns-remaining formatting, for anywhere a tag's expiry is shown beside it
-// (web tooltip, Discord inspect embed). Lives here — rather than in bot/ —
-// since it pairs with formatTagRequirement.js in the same embed line, and
-// web/lib/turnFormat.js is an ESM module carrying web-only theme helpers that
-// the bot can't require.
-//
-// Deliberately duplicated by hand with web/lib/turnFormat.js's copies, same
-// convention as formatTagRequirement and buildNickname: keeping the web copy
+// (web tooltip, Discord inspect embed). Lives here rather than in bot/ since
+// it pairs with formatTagRequirement.js in the same embed line. Deliberately
+// duplicated by hand with web/lib/turnFormat.js's copies, same convention as
+// formatTagRequirement and buildNickname — keeping the web copy
 // dependency-free is what lets client components import it.
 
 // Null when either side is unknown, so a tag that never expires (or a caller
@@ -13,9 +10,8 @@
 //
 // The count is INCLUSIVE of the open turn: `expiresTurn` is the last turn the
 // tag is live for, because the sweep runs while that turn CLOSES. So a tag
-// expiring on the open turn has one turn left, not zero. Counting exclusively
-// is what made a two-turn tag read "2 left, 1 left, last turn" — three states
-// for two turns, which is what players actually complained about.
+// expiring on the open turn has one turn left, not zero — counting exclusively
+// would give a two-turn tag three states ("2 left, 1 left, last turn").
 function turnsLeft(expiresTurn, currentTurn) {
   if (expiresTurn == null || currentTurn == null) return null;
   return Math.max(0, expiresTurn - currentTurn + 1);
@@ -71,10 +67,9 @@ function tagDuration(left, defaultDurationTurns) {
 // one more. Null for a duration of 0/null (the tag never expires) so callers
 // can hand the result straight to `expiresTurn`.
 //
-// The "-1" is the whole fix for a long-standing off-by-one: the sweep matches
-// `expiresTurn <= turn.number` while CLOSING that turn, so the expiry turn is
-// itself a turn the tag is live for. Adding the raw duration gave every timed
-// tag N+1 turns on the sheet.
+// The "-1" matters: the sweep matches `expiresTurn <= turn.number` while
+// CLOSING that turn, so the expiry turn is itself a turn the tag is live for.
+// Adding the raw duration would give every timed tag N+1 turns on the sheet.
 //
 // A pass that grants at turn end must pass `turn.number + 1` — the tag's first
 // live turn is the one about to open, not the one being swept. db/index.js's
@@ -89,16 +84,13 @@ function expiryFrom(firstLiveTurnNumber, durationTurns) {
 // are GRANTING and the turn came from `findFirst({ status: "OPEN" })`, use
 // db/lib/grantExpiry.js#expiryForGrant instead: openTurn is null for the whole
 // of a turn advance (and for hours after a wedged one), and the null this
-// returns in that case lands a permanent tag with nothing logged. That is a
-// real bug that reached production, not a hypothetical.
+// returns in that case lands a permanent tag with nothing logged.
 //
 // The same thing for the common case: a tag granted during the open turn, so
 // the open turn is its first live one. Every mid-turn grant path must use it:
 // resolveNeeds()'s sweep matches on expiresTurn, so a row left null is
 // permanent no matter what durationTurns says in the YAML. Before the game
 // opens there is no turn to count from, so nothing expires.
-// Moved down from web/lib/turnFormat.js (which re-exports it) so the
-// staged-push pass can grant timed tags at turn end.
 function expiryFor(tag, openTurn) {
   if (!openTurn) return null;
   return expiryFrom(openTurn.number, tag?.defaultDurationTurns);

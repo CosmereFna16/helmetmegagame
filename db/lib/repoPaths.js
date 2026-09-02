@@ -1,33 +1,14 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-// Where docs/ actually is at runtime.
-//
-// This used to be `path.join(__dirname, "..", "..", "docs", ...)` written out
-// at each of six call sites, and that is broken under a bundler: Turbopack
-// INLINES __dirname as a literal string when it bundles a module. In the Next
-// server build db/lib's became "/ROOT/db/lib" — /ROOT is Turbopack's
-// project-root placeholder and is never remapped — so every docs/ read
-// resolved to /ROOT/docs/..., which does not exist.
-//
-// It failed silently and differently depending on the caller: the #turns
-// weather banner does fs.existsSync and treats absence as "no banner today",
-// so the image just stopped appearing; the four YAML re-syncs threw ENOENT
-// into a .catch() at their call site, so Restart Game reported success having
-// reprovisioned nothing. And it only ever affected the WEB container — the bot
-// runs unbundled, where __dirname is real, which is why the same turn advance
-// behaved differently depending on whether the cron or the Dev Panel ran it.
-//
-// serverExternalPackages does NOT fix this, though it looks like it should:
-// @lifeweb/db is a workspace symlink, so Next resolves it to a real path
-// outside node_modules and treats it as first-party source to bundle rather
-// than as an external package. Verified by setting it, rebuilding, and finding
-// all six literals still in the output.
-//
-// So the search starts from somewhere a bundler cannot rewrite. __dirname is
-// still tried first because when it IS real — the bot, and every CLI script in
-// db/prisma — it is the most direct answer and cannot pick up the wrong tree.
-// process.cwd() is the fallback that survives bundling.
+// Where docs/ actually is at runtime. A plain `path.join(__dirname, ...)`
+// breaks under Turbopack, which inlines __dirname as a literal that resolves
+// to the wrong tree in the Next server build (only in the WEB container —
+// the bot runs unbundled, where __dirname is real). serverExternalPackages
+// does NOT fix it: @lifeweb/db is a workspace symlink, so Next treats it as
+// first-party source to bundle regardless. So the search below starts from
+// somewhere a bundler cannot rewrite: __dirname first (the direct answer
+// when real), process.cwd() as the fallback that survives bundling.
 
 const MARKER = "zones.yaml"; // identifies OUR docs/, not some other one
 const MAX_UP = 6;

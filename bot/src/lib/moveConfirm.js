@@ -4,36 +4,18 @@ const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { formatLaborBonusNote } = require("@lifeweb/db/lib/laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
-// Locking in a Move, lifted out of the old DM Confirm button so the modal
-// submit path and anything later can share one implementation.
+// Locks in a Move for the modal submit path (and anything later that needs
+// the same flow). Resources land at the turn-end staged push
+// (db/lib/stagedPush.js), not here. The Gambit die is rolled and stored now
+// so the GM desk has it immediately, but withheld from the player until the
+// turn-end reveal DM (stagedPush.js's gambitRollNotices) — seeing it early
+// shouldn't color how the rest of the turn gets played.
 //
-// Nothing pays here any more. A Routine still enters the queue PASSED —
-// needing a GM only if one disagrees — but its resources, like everything
-// else a Move is worth, land at the turn-end staged push
-// (db/lib/stagedPush.js). The dice and the resource roll (the Labor
-// checkbox's tag-scaled range, resolved at submit — see
-// db/lib/laborAccess.js) both still happen NOW, but only the resource roll
-// is shown now. The Gambit die is rolled and stored here so the GM desk has
-// it from the moment of submit, but it's withheld from the player until
-// Moves lock (web/app/(app)/character/page.js, gated on moveWindow.locked) —
-// finding out how the die fell shouldn't color how the rest of the turn gets
-// played. The reveal itself is a DM sent from the turn-end staged push
-// (db/lib/stagedPush.js's gambitRollNotices).
-//
-// `action` must come in with its character, that character's tags, AND
-// hungerStreak loaded: Hunger is an ordinary Status tag, but its penalty
-// escalates with the streak (a Character column, not a tag), so the Gambit
-// modifier needs both (db/lib/gambitModifier.js).
-//
-// `laborBonus` is the Butcher +2, and `laborHalved` the Soft Hands halving,
-// that the submit path already resolved
-// (db/lib/laborAccess.js). It has to be passed in rather than read off the
-// row: the Action stores only the finished range, so nothing here could tell
-// a bonused 9-11 from a plain one. Optional — a caller with no Labor in hand
-// omits it and the line simply doesn't appear.
-//
-// Returns { updated, lines } — the resolved row, and the summary the player
-// is shown. It writes its own AuditLog row but sends nothing.
+// `action` must come in with its character, tags, AND hungerStreak loaded
+// (db/lib/gambitModifier.js needs both). `laborBonus`/`laborHalved` come
+// from the submit path (db/lib/laborAccess.js) since the Action stores only
+// the finished range. Returns { updated, lines }; writes its own AuditLog
+// row but sends nothing.
 async function confirmMove(action, actorDiscordUserId, { laborBonus = 0, laborHalved = false } = {}) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
@@ -90,9 +72,7 @@ async function confirmMove(action, actorDiscordUserId, { laborBonus = 0, laborHa
   if (diceRoll != null) {
     // No number here on purpose — see the header comment. The reveal is the DM
     // at the turn-end staged push (db/lib/stagedPush.js's gambitRollNotices),
-    // which lands beside the adjudication DMs that say what the roll did. Not
-    // at Moves lock, which this line used to promise: that is three hours
-    // early, and a roll with no outcome attached is worse than no roll.
+    // which lands beside the adjudication DMs that say what the roll did.
     lines.push("🎲 *The die is cast. You'll see how it fell when the turn ends.*");
   }
   if (rollResult) {

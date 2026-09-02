@@ -1,25 +1,12 @@
-// The audit log, in English.
+// The audit log, in English. AuditLog.actionType is a free-form string chosen
+// at each call site, and `details` is an untyped Json blob whose shape only
+// that call site knows — this module is the one place that maps each pairing
+// to meaning.
 //
-// AuditLog.actionType is a free-form string chosen at each of ~20 call sites,
-// and `details` is an untyped Json blob whose shape only that call site knows.
-// The old /gm/audit printed both raw, which is why nobody read it. This module
-// is the one place that knows what each pairing MEANS.
-//
-// Two rules govern everything below:
-//
-//   1. A renderer returns SEGMENTS, not a string. A sentence naming a
-//      character, a tag and a Resources amount wants CharacterLink, a .chip and
-//      the ⬢ glyph inline; flattening it to text would throw all three away.
-//      AuditFeed/AuditInspector own how a segment draws; this file owns what
-//      the segments are.
-//
-//   2. An unregistered actionType MUST still render. Adding one at a call site
-//      is a one-line change in a server action, and nobody is going to think of
-//      this file — so the fallback prettifies the string and derives a family
-//      from its prefix. Never blank, never a throw. That also covers the
-//      genuinely dynamic ones (`move_${mode}` in the turns desk).
-//
-// No Prisma, no server imports: AuditFeed is a client component.
+// A renderer returns SEGMENTS, not a string (AuditFeed/AuditInspector own how
+// a segment draws). An unregistered actionType MUST still render — the
+// fallback prettifies the string and derives a family from its prefix, never
+// blank, never a throw. No Prisma, no server imports: AuditFeed is a client component.
 
 
 const t = (v) => ({ k: "t", v });
@@ -100,9 +87,8 @@ const R = {
   request_donate_blood: (d) => [actor(), t("donated blood to the Lifeweb"), ...bloodTail(d)],
   request_feed_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
   request_feed_person_killed: (d) => [t("The Lifeweb took"), em(d.targetName), t("— fed by"), actor()],
-  // Legacy, kept so pre-2026-09-02 rows still render. Setting and cancelling a
-  // Desire stopped existing when claiming became retroactive (DESIRES.md §1),
-  // so nothing writes either of these any more.
+  // Kept so old rows still render — nothing writes these any more, since
+  // claiming a Desire became retroactive (DESIRES.md §1).
   desire_set: (d) => [actor(), t("set a Desire worth"), points(d.points), ...(d.text ? [t("—"), em(quote(d.text))] : [])],
   desire_cancelled: () => [actor(), t("cancelled their Desire")],
   desire_auto_cancelled: (d) => [t("A Desire of"), target(), t("was auto-cancelled"), ...(d?.desireName ? [t("—"), em(quote(d.desireName))] : [])],
@@ -159,9 +145,8 @@ const R = {
   gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name)],
   gm_custom_tag_updated: (d) => [actor(), t("edited the custom tag"), chip(d.name)],
   gm_custom_tag_deleted: (d) => [actor(), t("deleted the custom tag"), chip(d.name)],
-  // gm_desire_set is legacy for the same reason as desire_set above; a GM now
-  // AWARDS a Desire, which writes gm_desire_fulfilled, and REVOKES one, which
-  // writes gm_desire_cancelled.
+  // gm_desire_set: kept for the same reason as desire_set above; a GM now
+  // AWARDS a Desire (gm_desire_fulfilled) or REVOKES one (gm_desire_cancelled).
   gm_desire_set: (d) => [actor(), t("set a Desire for"), target(), t("worth"), points(d.points)],
   gm_desire_fulfilled: (d) => [actor(), t("awarded a Desire to"), target(), t("worth"), points(d.points)],
   gm_desire_cancelled: () => [actor(), t("revoked a Desire of"), target()],

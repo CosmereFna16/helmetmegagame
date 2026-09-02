@@ -2,21 +2,12 @@ import { prisma } from "@lifeweb/db";
 
 // The tag catalog exactly as PointBuy consumes it, shared by the creation
 // wizard's loader and /store so the two menus can never disagree about a
-// tag's shape. The projection is deliberately generous: chips show duration
-// and expiry, rows show requirement blocks, and the group's requiredTagId is
-// the hidden-category gate (docs/systemdocs/TAGS.md §3) — drop it and every
-// gated category silently opens for everyone.
-//
-// `extraTagIds` widens the query beyond purchasable tags. The store passes
-// the buyer's held tag ids: a held but unpurchasable tag (a GM-granted
-// Demoness, a crafted item) still has to reach the client's byId map, or the
-// chain walks and group gates that key off it silently stop resolving —
-// which would hide the Demoness category from the one player it exists for.
-// `includeRoleStartingTags`: the creation wizard needs every role's starting
-// tag in its catalog even when that tag is not purchasable (Pale is the
-// Migrant's and nobody else may buy it) — otherwise the granted tag is
-// missing from the client's byId, the "Your tags" list can't show it, and
-// anything gated on it (Saint's requiredTag) silently vanishes from the menu.
+// tag's shape. The group's requiredTagId is the hidden-category gate
+// (docs/systemdocs/TAGS.md §3) — drop it and every gated category silently
+// opens for everyone. `extraTagIds` widens the query beyond purchasable tags
+// (the store passes the buyer's held ids, so an unpurchasable held tag still
+// reaches the client's byId map). `includeRoleStartingTags` does the same for
+// role-locked starting tags the creation wizard needs to display.
 export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartingTags = false } = {}) {
   const or = [{ purchasable: true }];
   if (extraTagIds.length) or.push({ id: { in: extraTagIds } });

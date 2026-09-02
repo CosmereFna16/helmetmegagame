@@ -1,12 +1,9 @@
 // REST-only turn announcement, called from db/index.js#advanceTurn() — the
 // single implementation for both the bot's cron path and the web Dev
-// Panel's manual "End Turn" button (previously duplicated: a gateway
-// version in bot/src/lib/turnEngine.js, a REST version in
-// web/app/(app)/gm/dev/actions.js).
-//
-// Takes `prisma` as a parameter rather than `require("../index")`, since
-// db/index.js is the one importing this module — requiring it back would
-// be a circular require resolving to a partial (prisma-less) exports object.
+// Panel's manual "End Turn" button. Takes `prisma` as a parameter rather
+// than `require("../index")`, since db/index.js is the one importing this
+// module — requiring it back would be a circular require resolving to a
+// partial (prisma-less) exports object.
 const fs = require("node:fs");
 const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
@@ -24,18 +21,12 @@ const WEATHER_BANNER_DIR = docsPath("assets", "weather");
 
 function weatherBannerPath(turn) {
   if (!turn?.weather || !turn?.phase) return null;
-  // docsPath returns null when docs/ can't be found at all, and repoPaths.js
-  // says in so many words that the weather banner is to treat that as "no
-  // banner". It didn't: path.join(null, ...) throws one line below, BEFORE the
-  // existsSync that was supposed to be the graceful exit. That TypeError
-  // propagated out of postTurnsConsole and took the whole turn announcement
-  // with it — the DAY/PHASE header, the console text and the Travel/Move/Speak
-  // button row — over a missing image. WEATHER_BANNER_DIR is a top-level const,
-  // so once it was null it stayed null for the life of the process.
-  //
-  // It only ever bit the WEB container, where Turbopack inlines __dirname as a
-  // literal that doesn't exist, which is why the same turn advance behaved
-  // differently depending on whether the cron or the Dev Panel ran it.
+  // docsPath returns null when docs/ can't be found at all; repoPaths.js says
+  // to treat that as "no banner". Guard it here: path.join(null, ...) throws,
+  // and a TypeError here would take the whole turn announcement down with it
+  // — the DAY/PHASE header, console text, and Travel/Move/Speak buttons —
+  // over a missing image. This mainly bites the WEB container, where
+  // Turbopack inlines __dirname as a literal that doesn't exist.
   if (!WEATHER_BANNER_DIR) return null;
   const file = path.join(
     WEATHER_BANNER_DIR,
@@ -45,16 +36,8 @@ function weatherBannerPath(turn) {
 }
 
 // #turns is ONE rolling message: the turn announcement, the weather banner and
-// the player console on a single post, deleted and reposted each turn.
-//
-// It used to be three. The console was deliberately kept separate so it would
-// not "jump above and below the announcement twice a day" — but the effect of
-// leaving it still while the announcement reposted beneath it was that the
-// buttons sank further up the channel every turn until nobody could find
-// them, and a wipe of #turns left them gone entirely until the bot next
-// restarted (ensureTurnsConsole only ever ran on ready).
-//
-// One message has no ordering problem to solve. Discord renders content, then
+// the player console on a single post, deleted and reposted each turn — one
+// message has no ordering problem to solve. Discord renders content, then
 // attachments, then components, which is exactly the wanted layout:
 //
 //   DAY 4 · DUSK · Rain          <- content
@@ -94,8 +77,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config) {
   // A missing asset must cost the guild its banner, never its announcement —
   // but it must not do so SILENTLY. Both failure modes are logged and
   // distinguished: absent from disk is a deploy problem, a rejected upload is
-  // a permissions or payload problem, and until now they looked identical to
-  // each other and to success.
+  // a permissions or payload problem.
   const bannerFile = weatherBannerPath(turn);
   if (turn && !bannerFile) {
     console.error(

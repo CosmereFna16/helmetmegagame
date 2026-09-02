@@ -28,30 +28,15 @@ import HoverCard from "./HoverCard";
 import Select from "./Select";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
-// left, "Your Build" on the right (Project Zomboid's trait screen is the
-// reference). Character creation and the mid-game /store mount the SAME
-// component so the two read as one system.
+// left, "Your Build" on the right. Character creation and the mid-game
+// /store mount the SAME component so the two read as one system.
 //
-// `afterStartOnly` is the single catalog difference between them: creation
-// passes false and offers every purchasable tag, while the store passes true
-// and offers only tags still buyable once play is underway — so a pick like
-// "Secretly an Android" can be a launch-day option and never a mid-game one.
-//
-// `grantedTags` is what the buyer already owns before this purchase: the
-// role's starting tags at creation, the character's whole sheet in the
-// store. They discount chain upgrades (effectiveCost) and satisfy
-// requirements, and the build pane lists them read-only.
-//
-// `actions` is an optional node rendered at the foot of the build pane —
-// the store puts its checkout button there; the wizard needs nothing.
-//
-// `negativeCap` / `negativeHeld` are the drawback limit (TAGS.md §4a): at
-// most `negativeCap` drawback TAGS bought through this menu, with
-// `negativeHeld` already held elsewhere. It is a CHARACTER CREATION rule and
-// only creation passes it (the cap and 0 held). The store passes neither: the
-// Addictions are deliberately buyable mid-game (TAGS.md §4), so a cap the
-// store neither enforces nor moves would be a misleading readout. A null cap
-// renders nothing at all and dims nothing.
+// `afterStartOnly` distinguishes them: creation offers every purchasable
+// tag, the store only tags still buyable once play is underway.
+// `grantedTags` is what the buyer already owns going in (role's starting
+// tags, or the whole sheet in the store) — discounts chain upgrades and
+// satisfies requirements. `negativeCap`/`negativeHeld` (TAGS.md §4a) is a
+// creation-only rule; a null cap renders and dims nothing.
 
 // A name in one of the build pane's two lists, with the catalog row's own
 // detail on hover. The pane is deliberately narrow and its list scrolls, so
@@ -292,14 +277,9 @@ export default function PointBuy({
       ...chainSiblingsToRemove(tag, byId, selectedIds),
       ...heldHigherTiers(tag, byId, selectedIds),
     ]);
-    // Exclusive tags (the Beliefs) swap the same way a chain does when the
-    // conflict is another PICK — a player changing their mind about which
-    // belief to take shouldn't have to untick the old one first. A conflict
-    // with something already held/granted can't be swapped away here, so
-    // that row is dimmed and named instead (rowFor below).
-    // Named conflict pairs (Tag.conflictsWith) swap the same way when the
-    // conflict is another PICK, for the same reason exclusive tags do —
-    // a conflict with something already held/granted can't be swapped away
+    // Exclusive tags (the Beliefs) and named conflict pairs (Tag.conflictsWith)
+    // both swap the same way a chain does when the conflict is another PICK.
+    // A conflict with something already held/granted can't be swapped away
     // here, so that row is dimmed and named instead (rowFor below).
     const conflict = exclusiveConflict(tag, selectedIds, byId) ?? conflictingTag(tag, selectedIds, byId);
     if (conflict) siblings.add(conflict.id);

@@ -1,69 +1,14 @@
 // Pure Desire-catalog gate evaluator. NO prisma import, NOT in the
-// @lifeweb/db barrel — a client component will want this deep-path, same
-// reason web/lib/characterCreation.js deep-imports db/lib/roleCapacity.js
-// rather than pulling the whole package. Callers (server actions, the dev
-// panel, character/page.js) load rows with prisma and pass plain objects.
+// @lifeweb/db barrel — deep-imported directly by client components and by
+// server actions/character/page.js, which load rows with prisma and pass
+// plain objects.
 //
-// Input shapes:
-//   templates: [{ id, slug, name, tier, families, onceEver, cooldownTurns,
-//                 retired,
-//                 requiresAnyTags: [{ id, name }],   // OR-of; empty/absent = no constraint
-//                 requiresNotTags: [{ id, name }],   // NONE-of
-//                 requiresAnyRoles: [{ slug, name }],
-//                 requiresNotRoles: [{ slug, name }] }]
-//     (Tags/roles carry a name alongside id/slug so a locked reason can
-//     name them — "Requires the Dancer tag" — without this pure module
-//     ever touching the DB itself.)
-//   heldTags:  [{ id, slug, name, desireLocks }]   // desireLocks is the
-//              shape normalized by db/lib/desireShapes.js: an array of
-//              clauses, each { all } | { families } | { tiers, exceptFamilies? },
-//              any of which may carry { slot: "bottom" }.
-//   hiddenTagIds: Set<tagId>  // tag ids that gate a hidden category —
-//              computed by the caller from TagGroup.requiredTagId gating.
-//              This module has no DB, so it cannot compute this itself.
-//   history:   the character's Desire rows: [{ id, templateId, slotIndex,
-//               status, endedTurnNumber, text, points }]
-//               (status: ACTIVE|FULFILLED|CANCELLED — ACTIVE is legacy, see
-//               the schema comment on DesireStatus)
-//   roleSlug:  the character's current Role.slug, or null
-//   openTurnNumber: the currently open Turn.number
-//   desireSlots: GameConfig.desireSlots, needed to know which index is the
-//               BOTTOM slot a `slot: "bottom"` clause binds.
-//
-// Evaluation order (first match wins), exactly:
-//   1. hidden   — fails a requires.anyTags gate whose gating tag id is in
-//                 hiddenTagIds. WITHHELD from the returned payload entirely
-//                 (see below) — never rendered dimmed. Getting this wrong
-//                 leaks a hidden roster (Demoness, Bacchus).
-//   2. locked   — fails an ungated requires clause, or caught by a held
-//                 tag's UNSCOPED desireLocks union. Reason is a short human
-//                 string; for a requires-gated entry the reason must NEVER
-//                 name a hidden tag (that IS the oracle the hidden rule
-//                 forbids).
-//   3. spent    — onceEver and a FULFILLED row already exists for this
-//                 templateId, regardless of cooldown.
-//   4. cooldown — a FULFILLED row exists and
-//                 openTurnNumber < endedTurnNumber + (cooldownTurns ?? tier).
-//                 Exactly at the boundary is AVAILABLE, not cooldown.
-//   5. available.
-//
-// There used to be a sixth state, `active`, for "a row already occupies a
-// slot with this templateId". The 2026-09-02 retroactive rework removed
-// setting a Desire, so no row is ever ACTIVE and nothing can be in flight.
-//
-// SLOT-SCOPED locks are the one thing that does NOT collapse into `state`,
-// because the same template can be open in one slot and shut in another.
-// Every visible entry carries `slotLocks: [reasonOrNull per slot]`, filled
-// only from clauses carrying `slot: "bottom"`. A caller that drops `locked`
-// rows (character/page.js does) still has to consult slotLocks for the slot
-// the player is actually claiming into.
-//
-// evaluateDesireCatalog returns { visible, hidden } — `visible` is the
-// array callers should ever pay out to a UI payload (one entry per
-// non-hidden template: { template, state, reason, availableFromTurn,
-// slotLocks }), `hidden` is the parallel bookkeeping (template ids only) for
-// callers that need to know withholding happened without ever handing the
-// shape back out.
+// Evaluation order (first match wins): hidden, locked, spent, cooldown,
+// available. The hidden state must be WITHHELD from the returned payload
+// entirely, and a locked reason must never name a hidden tag — either leaks
+// a hidden roster (Demoness, Bacchus). slotLocks does not collapse into
+// `state`, because the same template can be open in one slot and shut in
+// another (a caller dropping `locked` rows still has to consult it).
 function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, history, openTurnNumber, desireSlots = 2 }) {
   const heldTagIds = new Set((heldTags || []).map((t) => t.id));
   const hidden_ = hiddenTagIds instanceof Set ? hiddenTagIds : new Set(hiddenTagIds || []);
@@ -344,8 +289,7 @@ function unlockedBy(template, { heldTagIds, roleSlug }) {
 //
 // Claim on turn N with the default lockTurns of 2 and the slot is shut for the
 // rest of N, shut through N+1 and N+2, and open on N+3. `lockTurns` is
-// GameConfig.desireSlotLockTurns, live-editable from /gm/dev; the pre-2026-09-02
-// hardcoded behaviour was lockTurns: 1.
+// GameConfig.desireSlotLockTurns, live-editable from /gm/dev.
 //
 // Note this is one TURN, not one day — Turn.number increments twice a day
 // (DAWN then DUSK), so each turn of lockout is 12 hours.

@@ -12,11 +12,9 @@ import {
 import { buyTags } from "@/app/(app)/store/actions";
 
 // The mid-game tag store's cart + checkout button; everything else is
-// PointBuy. Used to be the whole content of the /store page (StoreClient.js);
-// it now mounts as the body of a Modal opened from the Tags panel of the
+// PointBuy. Mounts as the body of a Modal opened from the Tags panel of the
 // character sheet, so a shopping trip never leaves the sheet. `onDone` closes
-// that modal after a successful purchase — the buy action itself, and the
-// server-side re-checks behind it, are untouched (web/app/(app)/store/actions.js).
+// that modal after a successful purchase (web/app/(app)/store/actions.js).
 export default function StorePanel({ tags, budget, heldTags, onDone }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
@@ -56,11 +54,10 @@ export default function StorePanel({ tags, budget, heldTags, onDone }) {
   };
 
   // No negativeCap/negativeHeld: the drawback cap is a CHARACTER CREATION
-  // rule (TAGS.md §4a) and stops existing once play starts. The store used to
-  // pass it as a read-only readout on the assumption that no drawback was ever
-  // purchasableAfterStart; the Addictions are the deliberate exception, and a
-  // cap the store neither enforces nor can move is noise on the shelf.
-  // PointBuy renders nothing at all for a null cap.
+  // rule (TAGS.md §4a) and stops existing once play starts — the Addictions
+  // are deliberately purchasableAfterStart, so a cap the store neither
+  // enforces nor can move is noise on the shelf. PointBuy renders nothing at
+  // all for a null cap.
   return (
     <PointBuy
       tags={tags}

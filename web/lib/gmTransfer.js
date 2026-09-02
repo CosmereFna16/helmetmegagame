@@ -10,27 +10,13 @@ import { notifyCharacter } from "@/lib/notifyCharacter";
 
 // The immediate GM transfer — moves ⬢ between any two parties (a character
 // or a faction Silo) right now, from the Dev Panel and from the FactionsPanel
-// Silo control. Any GM, not just a superadmin: `/gm/dev/factions`'s absolute
-// "set the Silo to N" field stays superadmin-only as the blunt correction
-// tool, but simply moving ⬢ that already exists between two parties doesn't
-// need that bar, and ordinary GMs had NO way to touch a Silo before this.
-//
-// Deliberately apply-first, like every other Dev Panel verb (kill, restore,
-// spend) — a transfer has a counterparty who usually isn't the panel's own
-// subject, so staging it into someone else's pending diff and having it
-// wait on THEIR Apply/Cancel would be incoherent. It also skips the reach
-// gate (web/lib/transferReach.js) a player transfer enforces: a GM typing
-// this in isn't standing anywhere on the map. It does NOT skip the balance
-// check — applyTransfer still refuses to overdraw either side.
-//
-// No Request row, so no one-click Undo — the same posture as the Dev Panel's
-// other verbs. The reverse transfer is the reversal.
-//
-// `quiet` and the three `cover*` fields make the move invisible to the faction's
-// own Leader/Treasurer — the adjudication case is a gambit steal, which the
-// Silo history used to announce to the victim. The AuditLog row below always
-// records the truth AND the cover story, so a quiet move is still a move a GM
-// can be held to.
+// Silo control. Any GM, not just a superadmin (the absolute "set the Silo to
+// N" field in `/gm/dev/factions` stays superadmin-only as the blunt tool).
+// Apply-first like every other Dev Panel verb — no Request row, no one-click
+// Undo, the reverse transfer is the reversal — and skips the reach gate
+// (web/lib/transferReach.js) a player transfer enforces, but not the balance
+// check. `quiet`/`cover*` hide the move from the faction's own
+// Leader/Treasurer; the AuditLog row always records the truth AND the cover.
 export async function gmTransferResources({
   fromKey,
   toKey,

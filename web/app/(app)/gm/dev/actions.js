@@ -164,15 +164,11 @@ export async function updateNextTurn(formData) {
 
 // advanceTurnInDb() composes every Discord side effect (Hunger DMs, the turn
 // announcement, and the Dawn message wipe if GameConfig.messageWipeEnabled is
-// on) but hands them back as a thunk rather than running them — REST-based, so
-// nothing gateway-specific is needed here.
+// on) but hands them back as a thunk rather than running them.
 //
-// That thunk goes to after(), never into the request. The Dawn wipe walks every
-// Location's channels sequentially and can take minutes; awaiting it here used
-// to hold the server action open for the whole time, and a pending action
-// blocks client-side navigation — so the Dev Panel appeared to freeze until you
-// hard-refreshed. Now the response carries the already-committed new turn and
-// Discord catches up behind it.
+// That thunk goes to after(), never into the request: the Dawn wipe can take
+// minutes, and a pending server action blocks client-side navigation. The
+// response carries the already-committed new turn; Discord catches up behind it.
 export async function forceAdvanceTurn() {
   const session = await requireSuperadmin();
 
@@ -214,21 +210,12 @@ export async function forceAdvanceTurn() {
 }
 
 // Matches GameConfig's schema @default values for the balance-knob fields
-// surfaced on the "Game Config" form above — deliberately excludes
-// nextWeather/nextTurnNote (handled separately, "Next Turn" section) and the
-// Discord provisioning pointer (turnsConsoleChannelId/MessageId), which
-// finishGameWipe overwrites for itself: it reposts the console right after
-// fullWipe clears #turns, so the pointer it writes is the live message.
-//
-// Leaving it set is also the safety net. If that repost fails, the stale id
-// is exactly what makes the bot repost on its next ready — ensureTurnsConsole
-// fetches the tracked message, gets null, and posts a new one. Clearing it
-// here would lose nothing and gain nothing.
-//
-// This comment used to claim the pointer "self-heals" because the next turn
-// advance reposts the message. True, but the next turn advance is half a day
-// away, and that reading is why a Restart Game left players staring at an
-// empty #turns through the whole of Day 1 / Dawn.
+// surfaced on the "Game Config" form above — excludes nextWeather/nextTurnNote
+// (handled separately) and the Discord provisioning pointer
+// (turnsConsoleChannelId/MessageId), which finishGameWipe reposts and
+// overwrites for itself right after fullWipe clears #turns. Leaving the
+// pointer set if that repost fails is the safety net: a stale id is what
+// makes ensureTurnsConsole post a fresh message on the bot's next ready.
 const DEFAULT_GAME_CONFIG = {
   lifewebBlood: 100,
   lifewebDecayPerTurn: 10,
@@ -258,40 +245,19 @@ const DEFAULT_GAME_CONFIG = {
   desiresEnabled: true,
 };
 
-// Full game restart for dev/testing: wipes every player- and turn-scoped
-// row (characters, tags-on-characters, Moves, default efforts, notes, DM
-// log, audit log, silo history, and the /archive transcript), resets
-// GameConfig's balance knobs to their schema defaults, clears every Discord
-// channel this game has actually written to (#turns, and every zone's
-// summary/public/private channel — messages, forum posts, and threads, public
-// or private), and opens a fresh Turn 1/DAWN — then reposts the #turns
-// console for it, which the channel wipe just deleted.
-//
-// The transcript is a DATABASE TABLE (ArchiveEntry), not a channel: it is
-// recorded at send time and there has been no #archive channel since
-// (CHANNELS.md §5). It is cleared by the transaction below, never by any
-// Discord pass — this comment used to say otherwise, which read as "archive:
-// handled" and is how the deleteMany came to be missing. Then re-syncs every YAML master, in dependency
-// order, so the game starts from the canonical sets:
-//   zones (docs/zones.yaml) -> special channels -> tags (docs/tags.yaml) ->
-//   roles (docs/roles.yaml)
-// Roles resolve a starting zone and validate starting_tags, so that
-// order is load-bearing, not cosmetic. The #watch/#intercom channel ids on
-// GameConfig are left untouched (same "self-heals, provisioning is one-time"
-// treatment as turnsAnnouncementChannelId) rather than reset here.
-//
-// The four syncs do NOT share one contract, which is worth knowing before
-// relying on any of them: syncZonesFromYaml is fully destructive (a
-// zone dropped from the YAML loses its Discord category, channels, role and
-// row; a topic loses its forum post), syncDocumentsFromYaml is destructive in the same
-// sense but with nothing to delete in Discord (a Document is pure reference
-// content, so a dropped key just loses its row), syncRolesFromYaml prunes
-// only rows nothing references, and syncTagsFromYaml is a pure upsert that
-// never deletes.
-// Faction silos reset to 0 and are then re-seeded by the role sync below
-// (seedSilos: true) to their computed opening balance — the same "back to
-// day one" treatment as the Turn counter, rather than carrying over stale
-// economy numbers.
+// Full game restart for dev/testing: wipes every player- and turn-scoped row
+// (characters, tags-on-characters, Moves, default efforts, notes, DM log,
+// audit log, silo history, and the /archive transcript — a DATABASE TABLE,
+// ArchiveEntry, cleared by the transaction below, not by any Discord pass),
+// resets GameConfig's balance knobs to their schema defaults, clears every
+// Discord channel this game has written to, opens a fresh Turn 1/DAWN, and
+// reposts the #turns console. Then re-syncs every YAML master in dependency
+// order (zones -> special channels -> tags -> roles), since roles resolve a
+// starting zone and validate starting_tags. The four syncs do NOT share one
+// contract: syncZonesFromYaml and syncDocumentsFromYaml are destructive,
+// syncRolesFromYaml only prunes unreferenced rows, syncTagsFromYaml never
+// deletes. Faction silos reset to 0, then the role sync (seedSilos: true)
+// re-seeds them to their computed opening balance.
 //
 // Requires typing the literal string "WIPE" in the confirm field — this is
 // the most destructive action in the Dev Panel and has no undo.
@@ -340,11 +306,9 @@ export async function wipeGameData(formData) {
       prisma.siloTransaction.deleteMany({}),
       prisma.directMessage.deleteMany({}),
       // The transcript (/archive). Carries no foreign keys — snapshot columns
-      // only, ARCHITECTURE.md §6 — so the ordering rules above do not apply to
-      // it and it sits with the other log tables. Its absence here is why a
-      // restart used to leave the whole previous game readable at /archive:
-      // it is in nobody's dependency chain, so it never came up while that
-      // ordering was being worked out.
+      // only, ARCHITECTURE.md §6 — so the ordering rules above do not apply
+      // to it, and it must be wiped explicitly or a restart leaves the whole
+      // previous game readable at /archive.
       prisma.archiveEntry.deleteMany({}),
       prisma.faction.updateMany({ data: { silo: 0 } }),
       prisma.gameConfig.update({
@@ -393,22 +357,16 @@ export async function wipeGameData(formData) {
 }
 
 // Everything the wipe does outside the database, handed to after() rather than
-// awaited — the same split forceAdvanceTurn uses, and for the same reason.
-// This walks every channel in the game twice over and then re-syncs the YAML
-// masters; awaiting it held the server action open for minutes, and a pending
-// server action blocks client-side navigation, so the panel froze.
+// awaited — the same split forceAdvanceTurn uses. This walks every channel in
+// the game twice over and re-syncs the YAML masters; a pending server action
+// blocks client-side navigation, so it must not be awaited.
 //
 // A step RUNNER, not a pile of bare .catch(() => {})s: every step is retried
 // once, every failure is collected, and the whole run lands on the
-// SystemReport row wipeGameData created — which the Dev Panel renders instead
-// of claiming success it cannot know about. This is the fix for the old
-// failure mode where a rate-limited setTurnPingRole left a player still
-// pinged with zero visibility. The last step is the channel doctor with
-// apply, which reconciles whatever the retries still missed — the structural
-// backstop, not a bigger retry count.
-//
-// If the container dies partway, the report row is left unfinished
-// (finishedAt null), which the panel shows for what it is.
+// SystemReport row wipeGameData created, so the Dev Panel never claims
+// success it cannot know about. The last step is the channel doctor with
+// apply, reconciling whatever the retries still missed. If the container
+// dies partway, the report row is left unfinished (finishedAt null).
 async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, firstTurn, reportId) {
   const steps = [];
   const failures = [];

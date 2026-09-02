@@ -12,19 +12,11 @@ import { changeNameRequest } from "../(app)/character/requestActions";
 // READ-ONLY server-rendered inputs — a name is set in the creation wizard
 // and `updateCharacterProfile` ignores the name keys outright regardless of
 // what this form posts, which (not the greying) is the actual lock. See
-// docs/systemdocs/CHARACTERS.md §1b.
-//
-// The one way a name changes after that is the "Change name" request below —
-// a Request like any other, requiring only a reason. It applies immediately
-// and a GM can Undo it from /gm/turns, wired through
-// web/lib/requestEffects.js's CHANGE_NAME entry rather than this form's own
-// submit.
-//
-// Why these fields carry no InfoIcon of their own: CharacterSheet.js already
-// puts one summary tooltip on the "Bio" heading covering name-and-age being
-// locked, so repeating it per field was one tooltip too many. `title` below
-// (the GM-granted one, in quotes) keeps its own because it explains a
-// DIFFERENT thing — how to get one, not why it's locked.
+// docs/systemdocs/CHARACTERS.md §1b. The one way a name changes after that is
+// the "Change name" request below, wired through web/lib/requestEffects.js's
+// CHANGE_NAME entry. No per-field InfoIcon: CharacterSheet.js already puts one
+// summary tooltip on the "Bio" heading; `title` keeps its own since it explains
+// a different thing (how to get one, not why it's locked).
 
 export default function BioNameFields({ character, lastNameLocked = false }) {
   const [open, setOpen] = useState(false);

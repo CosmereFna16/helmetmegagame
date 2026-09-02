@@ -533,18 +533,9 @@ export default async function CharacterPage() {
   const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
 
   // ONE roster for every action that acts on somebody standing here — Loot,
-  // Move Player, Bind, Free and Harm. They used to be (or would have been)
-  // five separate queries with five slightly different WHERE clauses, which is
-  // five chances for two menus to disagree about who is in the room.
-  //
-  // Everything is derived and trimmed here rather than in the client, so
-  // nobody else's full sheet crosses the wire — only a name, a status, the
-  // condition that makes them a valid target, and their Items/Assets.
-  //
-  // These lists reveal who is standing here and who among them is helpless.
-  // That disclosure is the feature: a player has to open a dialog to see it,
-  // and the alternative — greying the buttons out — would leak the same fact
-  // passively, to everyone, on every page load. See ActionGrid.js.
+  // Move Player, Bind, Free and Harm — so the menus can't disagree about who
+  // is in the room. Trimmed here so nobody else's full sheet crosses the
+  // wire, and a player must open a dialog to see who's helpless (ActionGrid.js).
   const zoneRoster = character.zoneId
     ? await prisma.character.findMany({
         where: {
@@ -711,22 +702,10 @@ export default async function CharacterPage() {
     ? { ...openTurn, moveWindow: moveWindow(openTurn, { autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false }) }
     : openTurn;
 
-  // A Gambit's die is rolled at submit (so the GM desk has it immediately) and
-  // never shown here. The reveal is the DM at the turn-end staged push
-  // (db/lib/stagedPush.js's gambitRollNotices), landing beside the
-  // adjudication DMs that say what the roll actually did.
-  //
-  // This used to reveal at Moves lock, which is three hours before the turn
-  // ends (MOVE_LOCK_HOURS, db/lib/turnClock.js) — so a player refreshing their
-  // sheet in that window got a bare number with no result attached to it. A
-  // roll means nothing without the outcome; showing it early is the worst of
-  // both, and players asked not to see it.
-  //
-  // Stripped server-side rather than just not rendered: currentAction crosses
-  // into a client component below, so anything left on it reaches the browser
-  // regardless. Unconditional is safe because currentAction is only ever the
-  // OPEN turn's row (findOpenTurnAction, web/lib/moveEconomy.js) and there is
-  // no player-facing move history — no past roll is being hidden.
+  // A Gambit's die is rolled at submit but never shown here — the reveal is
+  // the turn-end DM (db/lib/stagedPush.js's gambitRollNotices), alongside the
+  // adjudication that explains what the roll did. Stripped server-side
+  // because currentAction crosses into a client component below.
   const sheetAction = currentAction
     ? { ...currentAction, diceRoll: null, diceModifier: null }
     : currentAction;
