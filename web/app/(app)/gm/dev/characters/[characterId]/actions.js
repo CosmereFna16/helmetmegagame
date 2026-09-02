@@ -35,14 +35,11 @@ import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
 
-// Everything here is gated on GM membership, not superadmin: this panel is
-// reachable from every character-name link in the app and an in-game GM is
-// meant to use it. The two irreversible ones (deleting a character) are
-// stricter — see requireSuperadminSession.
+// Dev Panel microactions, gated on GM membership; delete requires superadmin
+// (see requireSuperadminSession).
 //
-// UserError rather than a bare throw, throughout. Next redacts a thrown Error
-// out of a server action into React #441 in production, so a plain throw
-// shows the GM an error code instead of a sentence (web/lib/actionResult.js).
+// Use UserError, not a bare throw: Next redacts a thrown Error from a server
+// action into React #441 in production (web/lib/actionResult.js).
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId || !gm) throw new UserError("Not authorized.");
@@ -84,13 +81,8 @@ async function audit(session, actionType, characterId, details, reason = null) {
   });
 }
 
-// Every microaction that changes something a player would otherwise only
-// discover by re-opening their sheet tells them so — a dev-panel edit is
-// still a thing that happened to their character. Called from `after()`,
-// post-commit, same posture as the Discord-sync steps above: a DM must never
-// hold up the button, and a failed one must never undo what already
-// happened. Not a Request — this is a notification, not something the
-// player responds to, so it never touches the Request lifecycle.
+// Notifies the player a microaction touched their sheet. Not a Request —
+// a one-way notification, never part of the Request lifecycle.
 function notifyCharacter(session, character, text) {
   notifyCharacterShared(character, text, {
     authorDiscordUserId: session.discordUserId,
@@ -100,15 +92,9 @@ function notifyCharacter(session, character, text) {
 
 // The one staged-apply action.
 
-// Everything the GM edited in the panel, committed together: one transaction,
-// one audit row, one repaint. Tag changes ride along in the same payload so
-// "renamed them and gave them a sword" is a single reviewable event rather
-// than two.
-//
-// `expectedUpdatedAt` is an optimistic lock. Two GMs on the same sheet is
-// rare enough not to warrant the cooperative lock Moves use, but silently
-// clobbering the other one's save is not acceptable either, so the loser is
-// told to reload.
+// Stages every core/tag edit from the panel into one transaction, one audit
+// row, one repaint. expectedUpdatedAt is an optimistic lock: a losing GM is
+// told to reload rather than silently overwritten.
 async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, tags, reason }) {
   const session = await requireGm();
   const existing = await loadCharacter(characterId);
@@ -140,10 +126,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   let appliedTags = [];
 
   await prisma.$transaction(async (tx) => {
-    // The same row lock character/equipActions.js#toggleEquip takes, for the
-    // same reason: Postgres runs at READ COMMITTED, so without it an Apply
-    // and a player's equip tap can both pass an equip-slot count that only
-    // one of them should have.
+    // Row lock: Postgres runs READ COMMITTED, so without this an Apply and a
+    // player's equip tap can both pass a stale equip-slot count.
     await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${characterId} FOR UPDATE`;
 
     const fresh = await tx.character.findUnique({
@@ -189,11 +173,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     });
   });
 
-  // Discord, after the commit and outside the request. revokeAllCharacterAccess
-  // walks every channel a character can reach, syncCharacterZoneRole is a role
-  // grant plus a revoke, and propagateDynastyLastName is two REST calls per
-  // living family member — none of that may hold the transaction, and none of
-  // it should hold the Apply button either. Same posture as forceAdvanceTurn.
+  // Discord effects run in after(), post-commit: none of these REST calls may
+  // hold the transaction or the Apply button.
   const steps = planDiscordEffects({
     existing,
     diff,
@@ -206,8 +187,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     after(async () => {
       const updated = await prisma.character.findUnique({ where: { id: characterId } });
       if (!updated) return;
-      // Strict order, sequential, each failure logged and stepped over: a
-      // failed nickname sync must not stop the channel access from moving.
+      // Sequential; a failed step is logged and must not block the rest.
       for (const step of steps) {
         try {
           if (step === "role") await ensureCharacterRole(updated);
@@ -232,10 +212,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     });
   }
 
-  // Summarise what actually changed — tags first (the part most likely to
-  // matter to a player), then the plain fields, skipping the transaction's
-  // own bookkeeping (updatedAt and the like never surface here anyway since
-  // diffCore only diffs edited fields).
   const changeLines = [];
   const tagGains = appliedTags.filter((t) => t.op === "add").map((t) => t.name ?? t.tagId);
   const tagLosses = appliedTags.filter((t) => t.op === "remove").map((t) => t.name ?? t.tagId);
@@ -254,12 +230,10 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   return { name: data.name ?? existing.name, applied: diff, tags: appliedTags, discord: steps };
 }
 
-// Microactions. Each is a verb, fires on its own, and is idempotency-checked
-// against live state rather than trusting the UI to have disabled its button.
+// Microactions: each a verb, idempotency-checked against live state.
 
-// killCharacter is the canonical death path: revoke every channel overwrite,
-// delete the personal Discord role and null the (unique) id, clear the
-// nickname, grant Cursed, write the DEATH archive entry.
+// killCharacter revokes every channel overwrite, deletes the personal
+// Discord role, clears the nickname, grants Cursed, writes DEATH.
 async function killCharacterNowImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -283,13 +257,8 @@ async function killCharacterNowImpl({ characterId, reason }) {
   return { name: character.name };
 }
 
-// The inverse, which the old editor never had: setting a corpse back to ALIVE
-// left it with no personal role, no channel access and the Cursed role still
-// on the account.
-//
-// The old zone is passed as null deliberately — killCharacter already stripped
-// every role and overwrite, so this is a pure re-grant with nothing to move
-// away from.
+// Inverse of kill: restores role, channel access, and clears Cursed. The old
+// zone is passed as null since kill already stripped every access grant.
 async function reviveCharacterImpl({ characterId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -322,8 +291,7 @@ async function reviveCharacterImpl({ characterId }) {
   return { name: character.name };
 }
 
-// Giving the turn back means deleting the Action row — there is no
-// turnsRemaining column, so nothing else frees the player (web/lib/moveEconomy.js).
+// Giving the turn back means deleting the Action row (web/lib/moveEconomy.js).
 async function restoreTurnImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -353,9 +321,7 @@ async function restoreTurnImpl({ characterId, reason }) {
     });
   });
 
-  // Always DM'd, not optional — a freed turn they don't know about is a
-  // wasted day. Plain notification, not a Request: nothing here rides the
-  // request lifecycle.
+  // Always DM'd — a freed turn they don't know about is a wasted day.
   notifyCharacter(
     session,
     character,
@@ -367,10 +333,8 @@ async function restoreTurnImpl({ characterId, reason }) {
   return { description: action.description };
 }
 
-// The mirror image: file a stub Move so the economy sees them as having acted.
-// Shaped like db/lib/defaultMovePass.js's auto-filed Move — a PASSED Routine
-// with an identifiable marker — and worth nothing, so Restore-turn has nothing
-// to claw back.
+// Files a stub Move so the economy sees them as having acted, worth nothing
+// so Restore-turn has nothing to claw back.
 async function spendTurnImpl({ characterId, description }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -405,14 +369,9 @@ async function spendTurnImpl({ characterId, description }) {
   return { actionId: created.id };
 }
 
-// Immediate, not staged — see web/lib/gmTransfer.js's own comment for why.
-// Generic party-to-party: fromKey/toKey are each "character:<id>" or
-// "faction:<id>", same shape TransferComposer stages on the adjudication
-// desk. This panel just preselects one end (usually this character), it
-// doesn't restrict which pairings are legal — gmTransferResources/
-// resolveParty already reject a malformed or unknown key, so there's nothing
-// to re-validate here. Without the player-side reach gate (a GM isn't
-// standing anywhere) but with the same balance check every transfer gets.
+// Generic party-to-party transfer; gmTransferResources/resolveParty reject a
+// malformed or unknown key. Same balance check as a player transfer, minus
+// the player-side reach gate.
 async function transferResourcesImpl({ fromKey, toKey, amount, reason, quiet, coverActorName, coverToName, coverNote }) {
   const result = await gmTransferResources({
     fromKey,
@@ -434,10 +393,8 @@ async function transferResourcesImpl({ fromKey, toKey, amount, reason, quiet, co
   return result;
 }
 
-// One recipient, so sendDm directly. sendGmBroadcast in gm/messages/actions.js
-// exists for the sequential 100-recipient fan-out and would be the wrong shape
-// here.
-// sendDm writes the DirectMessage log row and applies the » prefix itself.
+// One recipient, so sendDm directly (sendGmBroadcast handles the fan-out
+// case). sendDm logs the DirectMessage row and applies the » prefix.
 async function messageCharacterImpl({ characterId, message }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -458,9 +415,8 @@ async function messageCharacterImpl({ characterId, message }) {
   return {};
 }
 
-// Pure repair: re-push everything Discord should already be showing. No DB
-// writes of its own. Refused for a corpse — re-syncing a dead character is
-// exactly the bug the death branch exists to avoid.
+// Pure repair: re-pushes what Discord should already be showing. Refused for
+// a corpse.
 async function resyncDiscordImpl({ characterId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -485,10 +441,8 @@ async function resyncDiscordImpl({ characterId }) {
   return { name: character.name };
 }
 
-// A raw relocation like Bulk Move's, not travel: no Move cost, no Action
-// filed, no adjacency check. Immediate rather than staged — it touches only
-// zoneId, so it can't race the staged form's own zone field, same posture as
-// Kill/Revive owning `status`.
+// A raw relocation like Bulk Move's: no Move cost, no Action, no adjacency
+// check. Immediate, not staged, since it only touches zoneId.
 async function teleportCharacterImpl({ characterId, zoneId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -526,11 +480,8 @@ async function teleportCharacterImpl({ characterId, zoneId }) {
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);
     }
-    // A GM dropping someone into the Depths rolls the Caving Die exactly like
-    // walking in does — see docs/systemdocs/CAVING.md. Null on any zone that
-    // isn't a cave level, or if they'd already rolled this turn. Sent plainly
-    // rather than through notifyCharacter(): the die is the game speaking,
-    // not the GM, so it carries no gm_dev attribution.
+    // Rolls the Caving Die on arrival like walking in does (CAVING.md). Sent
+    // plainly, not via notifyCharacter — the die speaks, not the GM.
     const cavingDm = await rollCavingOnArrival(prisma, updated, zone);
     if (cavingDm) {
       await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
@@ -543,9 +494,8 @@ async function teleportCharacterImpl({ characterId, zoneId }) {
   return { zoneName: zone?.name ?? null };
 }
 
-// The irreversible one. Discord cleanup runs FIRST and inline, while the row
-// still names the overwrites and the personal role id; the database half is
-// the shared deleteCharacterRow, which also detaches the audit trail rather
+// Irreversible. Discord cleanup runs first while the row still has the
+// overwrites and role id; deleteCharacterRow detaches the audit trail rather
 // than deleting it.
 async function deleteCharacterImpl({ characterId, confirmName }) {
   const session = await requireSuperadminSession();
@@ -555,8 +505,7 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
     throw new UserError(`Type "${character.name}" exactly to confirm.`);
   }
 
-  // Audited before the delete, with the FK detached, because targetCharacterId
-  // is about to stop resolving.
+  // Audited before the delete — targetCharacterId is about to stop resolving.
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
@@ -598,23 +547,9 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   return { name: character.name };
 }
 
-// A GM awards a Desire the same way a player claims one: retroactively, into
-// a slot, paid out on the spot. There is no "set it and settle later" any
-// more (DESIRES.md §1), so the old setDesireGm/endDesireGm pair collapses into
-// award/revoke.
-//
-// Two branches, chosen by which fields the caller sends:
-//   - Catalog: { characterId, slotIndex, slug } — gates are BYPASSED. A GM
-//     grant ignores requires/held-tag locks/cooldowns/onceEver entirely, and
-//     a RETIRED template is still selectable — none of that is re-checked
-//     here, unlike the player path in requestActions.js.
-//   - Free-text: { characterId, slotIndex, text, points } — templateId stays
-//     null, and points may run 1..7 (a GM may exceed the player-facing 1-5
-//     ladder; see docs/desires.yaml's own tier ceiling).
-//
-// Bypassing the gate does NOT bypass the bookkeeping: the row is stamped
-// ended, so it starts the normal per-slot and per-desire cooldown clocks. What
-// a GM grant skips is who may claim a Desire, not what claiming one costs.
+// GM awards a Desire like a player claim, but gates are bypassed entirely
+// (catalog: {slotIndex,slug}; free-text: {slotIndex,text,points}, 1-7).
+// Bookkeeping still runs, so normal cooldowns start.
 async function awardDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, text, points }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -687,11 +622,8 @@ async function awardDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, t
   return { desireId: desire.id };
 }
 
-// Take an awarded Desire back — the Dev Panel twin of undoing a FULFILL_DESIRE
-// request (web/lib/requestEffects.js). Clearing endedTurnNumber is what frees
-// the slot: only an ended row that CARRIES a turn number locks one
-// (db/lib/desireGates.js#slotStates). Points come back off even if that drives
-// the balance negative, same rule as the request Undo.
+// Dev Panel twin of undoing a FULFILL_DESIRE request. Clearing
+// endedTurnNumber frees the slot; points reverse even if it goes negative.
 async function revokeDesireGmImpl({ characterId, desireId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);

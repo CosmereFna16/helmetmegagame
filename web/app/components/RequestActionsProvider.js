@@ -55,14 +55,10 @@ import {
   birdMessageRequest,
 } from "../(app)/character/requestActions";
 
-// Every player action on the character sheet, in one place: the mode state,
-// the menus each mode draws from, and one RequestDialog per mode. Both
-// ActionGrid.js and TagsPanel.js read it off context, the same shape
-// ConfirmProvider uses, since they are siblings rather than parent/child.
-//
-// The provider renders no chrome of its own. It is mounted once per sheet
-// (CharacterSheet.js, self mode only) and everything visible lives in
-// ActionGrid.js or in the dialogs below.
+// Every player action on the character sheet: mode state, the menus each
+// mode draws from, and one RequestDialog per mode. Renders no chrome of its
+// own — mounted once per sheet (CharacterSheet.js, self mode only), read
+// off context by ActionGrid.js and TagsPanel.js.
 
 const RequestActionsContext = createContext(null);
 
@@ -70,18 +66,9 @@ export function useRequestActions() {
   return useContext(RequestActionsContext);
 }
 
-// --- shared field bits ----------------------------------------------------
-
-// The tag menu. Add Tag reuses the category-tab + selectable row layout from
-// PointBuy.js, but not PointBuy itself: there's no budget, no tier-chain math
-// and no point total here, so sharing the component would mean threading "no
-// economy" flags through all of it. Search and the tall pane ARE shared —
-// filterTagsByQuery is the same matcher, so the two menus find the same
-// things for the same words.
-//
-// `byId`/`heldIds` are only meaningful for the Add menu, where a tag has to
-// clear its prerequisites before it can be asked for. The other menus list
-// what somebody already holds, so they pass nothing and every tag is offered.
+// The tag menu. Add Tag reuses PointBuy's category-tab layout without
+// PointBuy's budget/tier-chain math. `byId`/`heldIds` (Add menu only) gate
+// prerequisites; the other menus just list what's already held.
 function TagPicker({
   tags,
   selectedId,
@@ -92,22 +79,14 @@ function TagPicker({
 }) {
   const [query, setQuery] = useState("");
 
-  // The Add menu (the only caller passing byId) sorts chain-aware, so
-  // Fighting's rungs read in tier order instead of scattering
-  // alphabetically; the held-tag menus keep the flat cost-then-name sort.
+  // The Add menu (byId set) sorts chain-aware so tier rungs read in order;
+  // held-tag menus keep flat cost-then-name sort.
   const offered = useMemo(
     () => (byId ? sortForMode(tags, "group", byId) : sortTagsForMenu(tags)),
     [tags, byId],
   );
-  // Same rule as PointBuy: gate first, derive the tabs from what survived. A
-  // hidden category (Demoness, Bacchus) must have no tab at all rather than
-  // an empty one, which would advertise that there's something there.
-  //
-  // This is the ADD gate, not requirementSatisfied()/unlockedTags() — the Add
-  // Tag menu is honor-system, so a craftable shows for everyone regardless of
-  // its recipe skills or its requiredTag (that's a combat/use gate, not a
-  // workshop gate). What survives here is really the hidden-category filter.
-  // See tagRequests.js#addRequirementSatisfied.
+  // Gate first, derive tabs from what survives — a hidden category gets no
+  // tab at all. Add-gate only (honor-system); not requirementSatisfied().
   const unlocked = useMemo(
     () =>
       byId
@@ -115,8 +94,7 @@ function TagPicker({
         : offered,
     [offered, byId, heldIds],
   );
-  // "Unlocked by your tags", same as PointBuy's checkbox: everything shown
-  // already passed the gates, so gated-and-shown means gated-and-met.
+  // "Unlocked by your tags": everything shown already passed the gates.
   const [requiresOnly, setRequiresOnly] = useState(false);
   const gated = useMemo(
     () => (byId && requiresOnly ? unlocked.filter(hasPrerequisite) : unlocked),
@@ -258,9 +236,8 @@ function TagPicker({
   );
 }
 
-// Only rendered for a stackable tag, so the ordinary case keeps the exact
-// dialog it had. `max` is what the character holds for Remove/Transfer, and
-// an open-ended cap for Add.
+// Only rendered for a stackable tag. `max` is held quantity for
+// Remove/Transfer, open-ended for Add.
 function QuantityField({ value, onChange, max, label }) {
   return (
     <label className="field" style={{ width: "10rem" }}>
@@ -291,15 +268,13 @@ function ResourceCostField({ value, onChange, max }) {
   );
 }
 
-// A "nobody here qualifies" line, used by every action whose targets are other
-// people. It is never used to HIDE the action — see ActionGrid.js on why a
-// greyed-out button would itself be the leak.
+// "Nobody qualifies" line — never used to hide the action itself; see
+// ActionGrid.js on why a greyed button would be its own leak.
 function NobodyHere({ children }) {
   return <p className="text-sm text-muted">{children}</p>;
 }
 
-// "Paid for by" shows a name, but the dropdown speaks in keys — this maps
-// back for the confirm prompt.
+// Maps a "kind:id" party key back to a name for the confirm prompt.
 function payerLabel(parties, key) {
   const [kind, id] = (key ?? "").split(":");
   const pool = kind === "faction" ? parties?.factions : parties?.characters;
@@ -307,8 +282,6 @@ function payerLabel(parties, key) {
   if (!match) return "They";
   return kind === "faction" ? `${match.name}'s Silo` : match.name;
 }
-
-// --- copy -----------------------------------------------------------------
 
 export const ACTION_HELP = {
   add:
@@ -369,9 +342,8 @@ const TITLES = {
   bird: "Send Bird",
 };
 
-// Why a given person is lootable, for the target list. The living cases are
-// the INCAPACITATING_SLUGS set (db/lib/incapacitation.js) turned into prose by
-// the server; a corpse says so plainly.
+// Why a person is lootable: living cases come from INCAPACITATING_SLUGS
+// (db/lib/incapacitation.js); a corpse says so plainly.
 function targetNote(t) {
   if (t.status === "DEAD") return "Dead";
   return t.condition ?? "Helpless";
@@ -379,10 +351,8 @@ function targetNote(t) {
 
 export default function RequestActionsProvider({
   children,
-  // False on someone else's sheet. The hooks below still run — they have to,
-  // unconditionally — but no context and no dialog are handed down, so
-  // TagsPanel's `useRequestActions()?.open` comes back null and its chips stay
-  // the read-only hover tooltips they are for a viewer.
+  // False on someone else's sheet — hooks still run unconditionally, but no
+  // context/dialog is handed down, so TagsPanel's chips stay read-only.
   enabled = true,
   selfId,
   selfName,
@@ -394,8 +364,7 @@ export default function RequestActionsProvider({
   canHeal = false,
   healTargets = [],
   healParties = null,
-  // Everyone in this zone worth acting on. Built once in character/page.js so
-  // the four target menus below can't disagree about who is standing here.
+  // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
   moveTargets = [],
   moveZones = [],
@@ -405,8 +374,7 @@ export default function RequestActionsProvider({
   canFastTravel = false,
   fastTravelSeats = 0,
   fastTravelTargets = [],
-  // The Bird. `birdTargets` is EVERY character, alive or dead, on purpose —
-  // see the dialog below.
+  // The Bird. birdTargets is EVERY character, alive or dead, on purpose.
   hasBird = false,
   isLiterate = false,
   birdSentToday = false,
@@ -424,17 +392,16 @@ export default function RequestActionsProvider({
   const [fromKey, setFromKey] = useState("");
   const [toKey, setToKey] = useState("");
   const [amount, setAmount] = useState("1");
-  // tagId -> quantity string, for the multi-take Loot dialog. Always replaced
-  // wholesale, never mutated (react-hooks/immutability is an error here).
+  // tagId -> quantity, for Loot. Always replaced wholesale, never mutated
+  // (react-hooks/immutability is an error here).
   const [picks, setPicks] = useState({});
   const [zoneId, setZoneId] = useState("");
-  // Fast Travel passengers. A Set, same shape BulkComposer.js uses for its
-  // multi-character selection — the first of its kind in the player-facing
-  // app, so it borrows the GM desk's own pattern rather than inventing one.
+  // Fast Travel passengers, a Set — same shape BulkComposer.js uses for
+  // multi-character selection.
   const [passengerIds, setPassengerIds] = useState(() => new Set());
   const [lethal, setLethal] = useState(false);
-  // Bury is the only request that types its target instead of picking it —
-  // a dropdown here would be a list of the dead. See REQUESTS.md §5d.
+  // Bury types its target instead of picking it — a dropdown would be a
+  // list of the dead (REQUESTS.md §5d).
   const [buryName, setBuryName] = useState("");
   const [birdBody, setBirdBody] = useState("");
   const [birdQuery, setBirdQuery] = useState("");
@@ -446,10 +413,8 @@ export default function RequestActionsProvider({
     () => characterTags.map((ct) => ct.tagId),
     [characterTags],
   );
-  // The catalog is purchasable-or-craftable only, so the tags that OPEN a
-  // gate — Demoness, Cultist of Bacchus — aren't in it. Fold the character's
-  // own held tags in, or a chain walk from a held gate tag dead-ends and the
-  // category stays shut for the one person meant to see it.
+  // The catalog excludes gate-opening tags (Demoness, Bacchus). Fold in
+  // held tags too, or a chain walk from a held gate tag dead-ends.
   const gateById = useMemo(
     () =>
       buildTagsById([
@@ -458,9 +423,8 @@ export default function RequestActionsProvider({
       ]),
     [catalog, characterTags],
   );
-  // heldHigherTiers hides the rungs BELOW a held chain tier — a chain
-  // replaces upward and never re-opens downward. addTagRequest rejects the
-  // same thing server-side.
+  // heldHigherTiers hides rungs below a held chain tier — addTagRequest
+  // rejects the same thing server-side.
   const addable = useMemo(
     () =>
       addableTags(catalog, heldIds).filter(
@@ -481,9 +445,8 @@ export default function RequestActionsProvider({
     [characterTags],
   );
 
-  // Heal's menus are per-patient rather than per-tag, so they sit outside the
-  // `chosen` pool below — an affliction row is a summary the server built, not
-  // a Tag from the catalog.
+  // Heal's menus are per-patient, not per-tag, so they sit outside `chosen`
+  // — an affliction row is server-built, not a catalog Tag.
   const patient = useMemo(
     () => healTargets.find((t) => t.id === patientId) ?? null,
     [healTargets, patientId],
@@ -496,16 +459,14 @@ export default function RequestActionsProvider({
     () => lootTargets.find((t) => t.id === targetId) ?? null,
     [lootTargets, targetId],
   );
-  // Bind and Free share one co-located roster and split it on who is already
-  // tied up, so the two menus can never disagree about the same person.
+  // Bind and Free share one roster, split on who is already tied up.
   const bindable = useMemo(
     () => bindTargets.filter((t) => (mode === "bind" ? !t.bound : t.bound)),
     [bindTargets, mode],
   );
 
   const chosen = useMemo(() => {
-    // heal's tagId is an affliction on someone else's sheet, and harm's is a
-    // catalog injury — neither is a tag this character holds, so both opt out.
+    // heal/harm's tagId isn't a tag this character holds, so both opt out.
     const pool =
       mode === "add"
         ? addable
@@ -518,28 +479,17 @@ export default function RequestActionsProvider({
               : transferable;
     return pool.find((t) => t.id === tagId) ?? null;
   }, [mode, tagId, addable, removable, transferable, consumable]);
-  // Consume never asks how many — it always takes one — so it opts out of the
-  // quantity field even for a stackable tag.
+  // Consume always takes one, so it opts out of the quantity field.
   const stacking = Boolean(chosen?.stackable) && mode !== "consume";
   const heldCount = mode === "add" ? undefined : (chosen?.quantity ?? 1);
 
-  // Slug -> name for the "Becomes:" line. Tag.consumesInto carries slugs (a
-  // repeat is how a bundle grants two of something), and the app-wide tag
-  // catalog is the same source RichText's {tag:slug} references read. It
-  // arrives via fetch, so fall back to the raw slug while that's in flight.
-  //
-  // A consumesIntoOneOf position (Skinned Cave Rat -> Ate Meal or Vomiting) is
-  // NOT resolved through resolveConsumeGrants here — that rolls a real pick,
-  // and calling it on every render would make the preview commit to (and
-  // re-roll) an outcome nobody chose yet. It's rendered as "A or B" instead,
-  // off the raw sidecar, so the preview stays honest.
+  // Slug -> name for "Becomes:". A consumesIntoOneOf position isn't resolved
+  // via resolveConsumeGrants here (that rolls a real pick); rendered as
+  // "A or B" off the raw sidecar instead, so the preview stays honest.
   const { tagsBySlug } = useTags();
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
 
-  // The Bird's recipient list, narrowed by what the player typed. This is a
-  // text filter, not a liveness filter — the dead stay in it, so it discloses
-  // nothing the unfiltered dropdown didn't. The current pick is always kept,
-  // or a query typed after choosing someone would silently clear the Select.
+  // Bird recipients filtered by typed text — dead stay in it; current pick kept.
   const birdChoices = useMemo(() => {
     const q = birdQuery.trim();
     if (!q) return birdTargets;
@@ -564,16 +514,12 @@ export default function RequestActionsProvider({
     setQuantity("1");
   }
 
-  // The number of passengers a seat count allows, rider excluded. A 0-seat
-  // fastTravelSeats (no vehicle at all) floors at 0 rather than -1 — the
-  // fasttravel dialog is unreachable without a seat anyway (canFastTravel
-  // gates the button), but this keeps the math honest if it's ever reached.
+  // Passenger cap, rider excluded; floors at 0 for a seatless vehicle
+  // (unreachable in practice since canFastTravel gates the button).
   const passengerCap = Math.max(0, fastTravelSeats - 1);
 
-  // Fast Travel's passenger picker. Capped client-side at what the rider's
-  // vehicle actually seats — the server re-derives the same cap and is the
-  // real enforcement, same as every other greyed-button/capped-menu pair in
-  // this file.
+  // Capped client-side at the rider's vehicle seats; the server re-derives
+  // the same cap as the real enforcement.
   function togglePassenger(id) {
     setPassengerIds((prev) => {
       const next = new Set(prev);
@@ -596,8 +542,7 @@ export default function RequestActionsProvider({
     setPicks((prev) => ({ ...prev, [id]: value }));
   }
 
-  // `presetTagId` is what lets clicking a chip on the character sheet open
-  // this dialog already pointed at that tag (see TagsPanel.js).
+  // `presetTagId` lets a sheet-chip click open this dialog pre-selected.
   const open = useCallback(
     (next, presetTagId = null) => {
       setMode(next);
@@ -623,10 +568,8 @@ export default function RequestActionsProvider({
     [selfId],
   );
 
-  // Spending someone else's ⬢ is the sharp edge in Heal, and Harm's lethal
-  // branch is the sharp edge everywhere else — so those two, and only those
-  // two, ask twice. The confirm is awaited OUTSIDE startTransition: inside it
-  // the dialog never renders and the button hangs on "Working...".
+  // Heal-someone-else and Harm's lethal branch ask twice. Confirm is
+  // awaited OUTSIDE startTransition, or the dialog never renders.
   async function submit(reason) {
     if (mode === "heal" && payerKey !== `character:${selfId}`) {
       const payerName = payerLabel(healParties, payerKey);
@@ -773,8 +716,7 @@ export default function RequestActionsProvider({
     }
   })();
 
-  // What the grid needs to grey a button out. ONLY facts about this
-  // character's own sheet appear here — see ActionGrid.js.
+  // What the grid needs to grey a button out — this character's sheet only.
   const pools = useMemo(
     () => ({
       canAdd: addable.length > 0,
@@ -783,9 +725,8 @@ export default function RequestActionsProvider({
       canConsume: consumable.length > 0,
       canHeal,
       canFastTravel,
-      // `show` keys, read by ActionGrid to decide whether the icon exists at
-      // all; `canSendBirdToday` is an ordinary `gate` on top of it, so the
-      // button is there but dead once the day's letter has gone.
+      // `show` gates whether ActionGrid renders the icon; canSendBirdToday
+      // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
       isLiterate,
       canSendBirdToday: !birdSentToday,
@@ -831,8 +772,7 @@ export default function RequestActionsProvider({
             busy={pending}
             error={error}
             canSubmit={canSubmit}
-            // The letter itself is what a GM reads, so Bird asks for no
-            // separate justification. See RequestDialog.js.
+            // The letter is what a GM reads, so Bird asks for no reason.
             reasonRequired={mode !== "bird"}
             onCancel={() => !pending && setMode(null)}
             onConfirm={submit}
@@ -860,10 +800,9 @@ export default function RequestActionsProvider({
                       s.slug === "crafting" ||
                       (s.slug ?? "").startsWith("smithing"),
                   ) && (
-                    // Mirrors web/lib/requests.js#isDeadSimple's DEAD_SIMPLE_SKILL_SLUGS
-                    // (server-enforced); that module can't be imported here without
-                    // dragging Prisma in, and matching on slug rather than the
-                    // display name keeps this from silently drifting from it.
+                    // Mirrors web/lib/requests.js#isDeadSimple's slug list
+                    // (server-enforced) — matched by slug so this can't
+                    // silently drift, without importing Prisma here.
                     <p className="text-sm text-muted">
                       Dead Simple recipes: up to 4 items per turn, counted
                       across your requests.

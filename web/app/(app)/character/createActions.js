@@ -53,48 +53,34 @@ import {
   GENDERS,
 } from "@/lib/characterName";
 
-// Creates a character from the wizard's final Confirm step.
+// Creates a character from the wizard's Confirm step. Everything posted is
+// re-derived and re-checked — a server action is a public endpoint.
 //
-// Everything the client sent is re-derived and re-checked here — a server
-// action is a public HTTP endpoint, so the wizard's own gating is UX only,
-// not enforcement.
-//
-// The seat-cap recheck closes a genuine race: Prisma runs at READ COMMITTED,
-// so two concurrent transactions can both read the same pre-insert count and
-// both commit. The `FOR UPDATE` row lock on the Role below is what actually
-// serializes the two attempts.
+// The seat-cap recheck closes a real race (Prisma READ COMMITTED); the
+// `FOR UPDATE` row lock on Role is what actually serializes it.
 export async function createCharacter(formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   const discordUserId = session.discordUserId;
 
   const part = (key, limit) => formData.get(key)?.toString().trim().slice(0, limit) || null;
-  // `title` is deliberately absent: it is GM-granted, set only from
-  // /gm/dev/characters/[characterId]. Not reading it here is the lock.
-  //
-  // The honorific is only READ here. Whether this character has earned it
-  // depends on their role and their tags, neither of which is resolved yet —
-  // so the gate runs further down, once both are known.
+  // `title` is GM-granted only — not read here. `honorific` is read but
+  // gated further down, once role and tags are both known.
   const rawHonorific = formData.get("honorific");
-  // Unlike the title, gender needs no deferred gate — it is a closed enum, so
-  // the allowlist IS the boundary and junk lands as NEUTRAL. A locked seat
-  // overwrites it once the role is known, below.
+  // gender is a closed enum — junk lands as NEUTRAL. A locked seat
+  // overwrites it once the role is known.
   const postedGender = formData.get("gender")?.toString();
   const gender = GENDERS.includes(postedGender) ? postedGender : "NEUTRAL";
   const firstName = part("firstName", NAME_LIMITS.firstName);
-  // Not const: a Baroness/Heir/Successor wears the Baron's last name rather
-  // than one they typed, so this is overwritten once the role is known below.
+  // Not const: a locked-seat role overwrites this once known, below.
   let lastName = part("lastName", NAME_LIMITS.lastName);
-  // Optional at creation — a player who skips it sets it later from
-  // /character, where it locks on that first save instead.
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
   const roleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
-  // Consent data — which secretly assigned antagonist seats this player is open
-  // to. The checkboxes are UX; the normalizer's allowlist is the boundary that
-  // keeps junk slugs out of the column, same as normalizeHonorific above.
+  // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
+  // is the boundary that keeps junk slugs out of the column.
   const antagonistOptIns = normalizeAntagonistSlugs(formData.getAll("antagonistOptIns"));
 
   if (!firstName) return { error: "Your character needs a first name." };
@@ -109,8 +95,7 @@ export async function createCharacter(formData) {
   }
 
   const [role, config, member, openTurn] = await Promise.all([
-    // The zone comes along for the playtest lock below — it matches the
-    // Windlands by zone, since no column marks a role as a Windlander one.
+    // Zone comes along for the playtest lock below (no Windlander column).
     prisma.role.findUnique({
       where: { id: roleId },
       include: { faction: { include: { zone: true } }, startingZone: true },
@@ -121,14 +106,8 @@ export async function createCharacter(formData) {
   ]);
   if (!role) return { error: "That role no longer exists." };
 
-  // The launch gate, checked before any of the point-buy work below so a
-  // closed game costs nothing to bounce. Both halves have to hold: the game
-  // has to be open, and this member has to be on the list. A server action
-  // is a public endpoint, so this check is the real enforcement boundary.
-  //
-  // A superadmin walks through both halves — host/developer access (one
-  // hardcoded Discord ID, see web/lib/superadmin.js), not a game permission,
-  // so the host can roll a test character before the doors open.
+  // Launch gate: game must be open AND this member approved — the real
+  // enforcement boundary, not the wizard's UI. Superadmin bypasses both.
   const bypass = isSuperadmin(discordUserId);
   if (!bypass && !config?.openToPlayers) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
@@ -137,9 +116,8 @@ export async function createCharacter(formData) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
-  // Held back for a playtest from /gm/dev. Deliberately outside the `bypass`
-  // above: the host is locked out too, because the point is that the role
-  // isn't finished, not that it's reserved (see characterCreation.js).
+  // Playtest lock from /gm/dev, outside `bypass` on purpose — the host is
+  // locked out too (characterCreation.js).
   const playtestLocked =
     config?.playtestModeEnabled === true &&
     isPlaytestLocked({ role, zoneName: role.faction?.zone?.name });
@@ -147,10 +125,8 @@ export async function createCharacter(formData) {
     return { error: "That role is closed for this playtest." };
   }
 
-  // Split from the isRoleSelectable call below so each rejection gets its own
-  // message — the shared predicate can only say "no", not why.
-  // A GM can turn the whitelist requirement off game-wide from /gm/dev.
-  // `=== false` rather than a falsy check: no config row leaves it enforced.
+  // Split so each rejection gets its own message. `=== false` rather than
+  // falsy: no config row leaves the whitelist enforced.
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
   if (role.grantsLeader && !leaderWhitelisted) {
@@ -162,15 +138,11 @@ export async function createCharacter(formData) {
     return { error: `While cursed you may only return as ${CURSED_ROLE_SLUGS.join(" or ")}.` };
   }
 
-  // The Baroness, Heir and Successor are the Baron's family: their last name
-  // is his, never one they typed — not reading what the form posted is the
-  // lock, same as `title` above. Null when no Baron is alive yet; he
-  // propagates his name to them the moment he rolls up (see below).
+  // Dynasty seats wear the Baron's last name, never what was typed — not
+  // reading the form is the lock. Null until a Baron exists.
   if (isDynastyMember(role.slug)) lastName = await dynastyLastName();
 
-  // The same four seats fix the holder's gender as they hand down the
-  // surname: the Baron is a man and the Successor is his daughter. Taking
-  // the seat's value over the posted one is the lock.
+  // Dynasty seats also fix gender — taking the seat's value is the lock.
   const effectiveGender = role.lockedGender ?? gender;
 
   // Selected tags must actually be buyable — a hand-posted request could
@@ -178,9 +150,8 @@ export async function createCharacter(formData) {
   const selected = tagIds.length
     ? await prisma.tag.findMany({
         where: { id: { in: tagIds }, purchasable: true },
-        // The group's requiredTagId is the hidden-category gate that
-        // requirementSatisfied() checks below — without it a hand-posted
-        // request could buy straight into the Demoness category.
+        // requiredTagId is the hidden-category gate requirementSatisfied()
+        // checks below.
         include: { group: { select: { requiredTagId: true } } },
       })
     : [];
@@ -188,15 +159,12 @@ export async function createCharacter(formData) {
     return { error: "One of those tags isn't available for purchase." };
   }
 
-  // Role tags come from the catalog by name (roles.yaml authors them as
-  // display names, and db:sync-roles has already validated every one).
+  // Role tags come from the catalog by name (roles.yaml, validated by db:sync-roles).
   const startingTags = role.startingTagSlugs.length
     ? await prisma.tag.findMany({ where: { name: { in: role.startingTagSlugs } } })
     : [];
 
-  // Now both halves of "what did they earn" exist, so the title can be
-  // gated. A word this character has no claim to lands as null rather than
-  // failing the create — a hand-posted request just goes untitled.
+  // A word this character has no claim to lands as null, not a failed create.
   const honorific = normalizeEarnedHonorific(rawHonorific, {
     tagSlugs: [...selected, ...startingTags].map((t) => t.slug),
     roleSlug: role.slug,
@@ -207,9 +175,8 @@ export async function createCharacter(formData) {
   // The full catalog, not just what's selected/granted, so a chain walk
   // (parentTagId) never dead-ends on an ancestor the client didn't send.
   const allTags = await prisma.tag.findMany({
-    // `name` and `exclusive` ride along for the exclusivity check below —
-    // exclusiveConflict() reads both off the conflicting row. conflictsWith
-    // is what conflictingTag() reads for the same check.
+    // name/exclusive ride along for the exclusivity check; conflictsWith is
+    // what conflictingTag() reads.
     select: {
       id: true,
       name: true,
@@ -226,10 +193,8 @@ export async function createCharacter(formData) {
   );
   const grantedIds = startingTags.map((t) => t.id);
 
-  // A hand-posted request could submit two tiers of the same chain at once
-  // (the UI never lets that happen — selecting one auto-drops the other),
-  // or buy in below a tier the role already grants (a chain replaces upward,
-  // it never re-opens downward).
+  // Guards against a hand-posted request submitting two chain tiers at
+  // once, or buying below a tier the role already grants.
   for (const tag of selected) {
     if (chainSiblingsToRemove(tag, byId, tagIds).length > 0) {
       return { error: "You can only hold one tier of the same skill chain." };
@@ -239,9 +204,8 @@ export async function createCharacter(formData) {
     }
   }
 
-  // Prerequisites: requiredTag — and the group gate behind a hidden category
-  // — must be satisfied by something granted or selected alongside it (any
-  // tier of that tag's own chain counts).
+  // Prerequisites: requiredTag, plus the hidden-category group gate, must
+  // be satisfied by something granted or selected.
   const heldOrSelectedIds = [...grantedIds, ...tagIds];
   for (const tag of selected) {
     if (!requirementSatisfied(tag, byId, heldOrSelectedIds)) {
@@ -249,10 +213,8 @@ export async function createCharacter(formData) {
     }
   }
 
-  // One exclusive tag per character (the Beliefs). Checked against the role's
-  // starting tags too, not just the cart: several roles grant a belief for
-  // free, and picking a second one on top is exactly what this rules out.
-  // `selected` carries the full row, so tag.exclusive is present here.
+  // One exclusive Belief per character — checked against role-granted
+  // starting tags too, not just the cart.
   for (const tag of selected) {
     const conflict = exclusiveConflict(tag, heldOrSelectedIds, byId);
     if (conflict) {
@@ -260,10 +222,8 @@ export async function createCharacter(formData) {
     }
   }
 
-  // Named conflict pairs (Tag.conflictsWith — Sober vs. every Addiction).
-  // `selected` doesn't select the conflictsWith relation, so this reads the
-  // full catalog row (`byId`, which conflictingTag() also needs for the
-  // return value) rather than the bare `tag`.
+  // Named conflict pairs (Sober vs Addiction). Reads the full catalog row
+  // (byId), not the bare `tag`, since `selected` omits conflictsWith.
   for (const tag of selected) {
     const catalogTag = byId.get(tag.id) ?? tag;
     const conflict = conflictingTag(catalogTag, heldOrSelectedIds, byId);
@@ -272,10 +232,8 @@ export async function createCharacter(formData) {
     }
   }
 
-  // The drawback cap (TAGS.md §4a): a COUNT of drawback tags. Only what's
-  // bought here counts: the role's own starting tags are granted below as
-  // GM_GRANT and never pass through `selected`, so the Meister's free Frail
-  // costs nobody a slot of the cap.
+  // Drawback cap (TAGS.md §4a) counts only bought tags — role-granted
+  // starting tags never pass through `selected`.
   const maxDrawbacks = config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS;
   const drawbackCount = negativeTagCount(selected);
   if (drawbackCount > maxDrawbacks) {
@@ -285,21 +243,14 @@ export async function createCharacter(formData) {
   }
 
   const budget = computeBudget({ startingTagPoints: config?.startingTagPoints ?? 0, role, cursed });
-  // Discounted by what the role already grants, matching what every row and
-  // the build pane showed the player.
   const spent = effectiveTotalCost(selected, byId, grantedIds);
   if (spent > budget) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
   }
 
-  // Deduplicate: a player can pay for a tag the role also grants only if the
-  // menu let them, but a direct post could. Union them, and refund nothing —
-  // the budget check above already passed.
-  //
-  // A tag with a catalog duration has to arrive already stamped, or it sits
-  // on the sheet forever — resolveNeeds()' sweep only ever looks at
-  // expiresTurn, and nothing else backfills it. Before the game opens there
-  // is no turn to count from, so nothing expires.
+  // Union bought + granted tags, refunding nothing (already budget-checked).
+  // A tag with a catalog duration must arrive already stamped — nothing
+  // else backfills expiresTurn later.
   const tagIdsToGrant = new Map();
   for (const tag of startingTags) {
     const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
@@ -311,9 +262,7 @@ export async function createCharacter(formData) {
       tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn });
     }
     // A purchased higher tier replaces a role-granted lower tier of the same
-    // chain — the plain union would seat both rungs on the new sheet. The
-    // discount already happened above (effectiveTotalCost over grantedIds),
-    // so the player paid exactly the difference for exactly one rung.
+    // chain — the discount above already paid for exactly one rung.
     for (const lowerId of chainSiblingsToRemove(tag, byId, grantedIds)) {
       tagIdsToGrant.delete(lowerId);
     }
@@ -333,8 +282,7 @@ export async function createCharacter(formData) {
       if (taken + reservedByOthers >= roleCapacity(role, config?.playerCount ?? 100)) {
         throw new Error("ROLE_FULL");
       }
-      // Release the caller's own hold in the same transaction — it's spent
-      // now, either way this commits.
+      // Release the caller's own hold in the same transaction.
       await releaseRole(tx, discordUserId);
 
       const character = await tx.character.create({
@@ -377,12 +325,9 @@ export async function createCharacter(formData) {
     throw err;
   }
 
-  // Discord side effects, best-effort and strictly ordered: narrowcast access
-  // reads the zone/tags written above.
-  //
-  // Channel access is the zone's own "Zone: {Name}" role, granted here the
-  // same way travel swaps it. It has nothing to do with the character's
-  // PERSONAL role, a mentionable name token only.
+  // Discord side effects, best-effort: narrowcast reads the zone/tags just
+  // written. Channel access is the zone's own "Zone: {Name}" role, distinct
+  // from the character's personal (mentionable name-only) role.
   await ensureCharacterRole(created).catch(() => {});
   if (created.zoneId) {
     await syncCharacterZoneRole(discordUserId, null, created.zoneId).catch(() => {});
@@ -391,10 +336,8 @@ export async function createCharacter(formData) {
   await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
 
-  // A new Baron names the dynasty, so any family member already in play takes
-  // his last name — including one created back when no Baron existed and so
-  // carrying none. Best-effort: it renames other people's characters, and
-  // failing it must not cost this player the character they just made.
+  // A new Baron renames every living family member, including one created
+  // before a Baron existed. Best-effort — must not cost this create.
   if (isDynastyHead(role.slug)) {
     await propagateDynastyLastName(created.lastName).catch((err) =>
       console.error("propagateDynastyLastName failed:", err),
@@ -431,12 +374,9 @@ export async function createCharacter(formData) {
   redirect("/character");
 }
 
-// Called from the wizard on Next out of the Role step, and again on every
-// later Next, so the hold's expiry keeps sliding out while the player is
-// still working the form. A server action is a public endpoint, so this
-// re-checks the same gates createCharacter does before touching the seat —
-// the wizard already disables ineligible cards, but that's the hint, not
-// the lock.
+// Slides the reservation hold's expiry on each wizard Next. Re-checks the
+// same gates createCharacter does — the wizard's UI is a hint, not the
+// lock.
 export async function reserveRoleAction(roleId) {
   const session = await auth();
   if (!session?.discordUserId) return { error: "Sign in to hold a role." };

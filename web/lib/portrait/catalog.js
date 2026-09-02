@@ -1,80 +1,50 @@
-// The portrait catalog: every part, every palette, and the rules for a valid
-// selection. See docs/systemdocs/PORTRAITS.md.
+// The portrait catalog: parts, palettes, and valid-selection rules. See
+// docs/systemdocs/PORTRAITS.md.
 //
-// The ONE source of truth shared by both renderers — the browser canvas
-// preview (PortraitMaker.js) and the sharp save pipeline (render.js) — so a
-// player never saves something that looks different from what they picked.
-//
-// Keep it free of `node:` builtins, sharp and Prisma: it is imported by a
-// client component, and anything unbundlable here breaks the whole modal.
+// Shared by both renderers (PortraitMaker.js preview, render.js save) so a
+// saved portrait matches the picker. Keep free of node:/sharp/Prisma — a
+// client component imports this.
 
-// The art ships as sprite sheets of 128x128 tiles, six to a row, indexed
-// row-major — index 13 is row 2, column 1. That's the artist's own layout
-// (web/assets/portrait-source-notes.txt); we kept it rather than splitting
-// 220 files, because 15 requests beat 220 and the tile maths is two lines.
+// Sprite sheets: 128x128 tiles, six per row, row-major (index 13 = row 2,
+// col 1) — the artist's layout (web/assets/portrait-source-notes.txt).
 export const TILE = 128;
 const SHEET_COLS = 6;
 
-// Output size, matching AVATAR_SIZE in web/app/(app)/character/actions.js so an
-// uploaded picture and a built portrait are the same shape on disk.
+// Output size, matching AVATAR_SIZE in web/app/(app)/character/actions.js.
 export const CANVAS = 256; // an integer multiple of TILE, so nearest-neighbour stays crisp
 
-// The art is drawn left of the tile's centre — across every part in every
-// sheet the ink spans x 16..104, centre 60 rather than 64. Undo that here so
-// the bust sits centred in the plaque instead of visibly hugging its left
-// edge. That correction is about the SHEETS; NUDGE_X/NUDGE_Y below are the
-// separate, purely aesthetic framing choice.
+// The art sits left of tile centre (ink spans x 16..104, centre 60 not 64).
+// SHIFT_X corrects that so the bust reads centred in the plaque.
 export const SHIFT_X = 5;
 
-// The bust is head + jaw only — no neck or shoulders — so drawn at 1:1 the
-// chin ends in a hard cut on the plate's bottom edge. BUST_PX scales up then
-// crops back down to CANVAS, bottom-anchored, to push that cut below the
-// frame; the FADE_* constants dissolve what's left into the plate's own
-// darkness. 320 keeps the intermediate scale (128 -> 320) an integer
-// multiple of TILE, so nearest-neighbour stays crisp through the extra step.
+// The bust is head+jaw only, so at 1:1 the chin hard-cuts at the plate's
+// bottom edge. BUST_PX scales up then crops back to CANVAS, bottom-anchored,
+// to push that cut below frame; FADE_* fades the rest into shadow.
 export const BUST_PX = 320;
 
-// Where that crop window sits, as fractions of CANVAS: negative x moves the
-// head left, positive y moves it down. Change these two, never the arithmetic
-// under them — both renderers import the resulting CROP_X/CROP_Y from here,
-// and that shared window is what keeps them pixel-identical.
-//
-// Both numbers are measured, not taste. Strict bottom-anchoring clips the
-// crown off a third of the hair/cranium/headwear tiles; sliding the window
-// up to 0.08 fixes most of that fast and further gains cost more chin than
-// they're worth. Don't move this without re-measuring clipped tiles.
+// CROP_X/CROP_Y (fractions of CANVAS) are measured, not taste — 0.08 clips
+// the least of the hair/headwear crown loss. Both renderers import these;
+// don't move without re-measuring.
 export const NUDGE_Y = 0.08;
-// These heads are three-quarter, not frontal: the skull's ink centres at x 150
-// in bust space while the nose centres at 204, so strict x-centring puts the
-// face right of the plaque's middle. -0.03 lands the head mass a couple of
-// pixels left of centre, reading as centred with looking room on the turned
-// side, while keeping a 12px margin on the widest hair-back tile.
+// Heads are three-quarter, not frontal, so strict x-centring reads off-
+// centre; NUDGE_X -0.03 corrects it while keeping margin on the widest tile.
 export const NUDGE_X = -0.03;
 
 export const CROP_X = Math.round((BUST_PX - CANVAS) / 2 - NUDGE_X * CANVAS);
-// Goes negative past a NUDGE_Y of 0.25 — the window would run off the top of
-// the bust. It doesn't at 0.08, but the renderers pad for it rather than
-// clamp, so the constants above stay free to move. See render.js.
 export const CROP_Y = Math.round(BUST_PX - CANVAS - NUDGE_Y * CANVAS);
 
 export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom
-// Must match TINT / DARKEN in web/scripts/generate-letters.js — the fade is
-// meant to read as "sinking into the plate's own shadow", not a new colour.
+// Must match TINT / DARKEN in web/scripts/generate-letters.js.
 export const FADE_TINT = { r: 0x27, g: 0x44, b: 0x3e };
 export const FADE_DARKEN = 0.5;
 
 export const SHEET_DIR = "/assets/portrait";
-// The same tinted-stone plate the letter plaques are built on
-// (web/scripts/generate-letters.js), minus their inset rule — a thin white
-// frame drawn over a full-bleed head reads as a scratch, not a frame.
+// The tinted-stone plate the letter plaques use (web/scripts/generate-letters.js),
+// minus their inset rule.
 export const PLATE_SRC = `${SHEET_DIR}/plate.webp`;
 
-// Palettes
-//
-// The source art is painted in flat placeholder ramps that the original tool
-// swapped through a shader; we do the same swap in a pixel loop. Every ramp
-// below is keyed positionally, so entry N of a target ramp replaces entry N of
-// its source ramp — never by name, never by luminance.
+// Palettes — flat placeholder ramps swapped in a pixel loop; each ramp is
+// keyed positionally (entry N replaces entry N), never by name or luminance.
 
 // Skin, 8 tones. Slot 1 is the cranium (the shadowed crown, seen only when
 // bald or under thin hair) and slots 6-7 are small highlights.
@@ -83,20 +53,15 @@ const SKIN_SRC = ["#f3c99e", "#d3bea8", "#bc9485", "#ca9071", "#845e4b", "#f2b39
 // Hair, 7 tones — used by the hair, beard and (via BROW_SRC below) brow sheets.
 const HAIR_SRC = ["#6c4620", "#865c32", "#423024", "#32231d", "#a58264", "#4e4742", "#fae0c5"];
 
-// Brows are painted as one flat tone rather than a ramp, so they get the
-// darkest hair slot (index 3) and nothing else. Without this a blonde
-// character keeps near-black brows.
+// Brows are painted as one flat tone, so they get the darkest hair slot
+// (index 3) and nothing else.
 const BROW_SRC = "#312723";
 const BROW_HAIR_SLOT = 3;
 
-// Pupils, 3 tones. The source is a literal +30-per-channel ramp, which is what
-// gives it away as a placeholder rather than art.
 const PUPIL_SRC = ["#1e3c5a", "#3c5a78", "#5a7896"];
 
-// The seven skin ramps are lifted from the artist's Colour_Examples.png.
-// Four (porcelain, rose, fair, tan) appear complete; the three deeper tones'
-// missing crown/highlight slots are least-squares fitted from the five slots
-// shown, validated against the four complete ramps. Ordered light to dark.
+// Skin ramps are from the artist's Colour_Examples.png; deeper tones'
+// missing slots are least-squares fitted from the shown five. Light to dark.
 const SKIN_TONES = [
   { id: "porcelain", ramp: ["#f5d9c6", "#decec9", "#d3adb7", "#d8b2ab", "#9a616a", "#f3c8c2", "#edc6ad", "#fde9d5"] },
   { id: "rose", ramp: ["#f9c2ad", "#d9b7b2", "#d196a2", "#de9692", "#a76363", "#f7aea8", "#f8af93", "#ffdfda"] },
@@ -125,9 +90,8 @@ const HAIR_COLORS = [
   { id: "teal", label: "Teal", fantasy: true, ramp: ["#32565a", "#3a7b76", "#2c3a3f", "#1b1f22", "#63b5ae", "#374446", "#9ed9d4"] },
 ];
 
-// Eye ramps are ours rather than the artist's: their sheet demonstrates the
-// swap with magenta, cyan and red, which is exactly the register this setting
-// isn't in. Same three-slot shape (shadow, iris, catchlight).
+// Eye ramps are ours, not the artist's placeholder sheet. Same three-slot
+// shape (shadow, iris, catchlight).
 const EYE_COLORS = [
   { id: "dark-brown", label: "Dark brown", ramp: ["#2e2119", "#46301f", "#6b4a2e"] },
   { id: "brown", label: "Brown", ramp: ["#4a3220", "#6b4a2b", "#94693c"] },
@@ -141,15 +105,9 @@ const EYE_COLORS = [
   { id: "crimson", label: "Crimson", fantasy: true, ramp: ["#6b1414", "#a81c1c", "#d64a4a"] },
 ];
 
-// Layers
-//
-// Draw order, bottom to top — the artist's, verbatim, from
-// web/assets/portrait-source-notes.txt. Reordering it is not a style choice:
-// the jaw is painted over the back of the hair, and the front of the hair over
-// the brows.
-//
-// `tints` names which palettes touch a sheet, and exists purely so the browser
-// can re-tint four sheets when hair colour changes instead of all fifteen.
+// Layers — draw order bottom to top, the artist's own; not reorderable
+// (jaw over hair-back, hair-front over brows). `tints` says which palettes
+// touch a sheet, so the browser can re-tint four instead of all fifteen.
 export const LAYERS = [
   { key: "cranium", file: "cranium.png", group: null, tints: ["skin"] },
   { key: "accessoryBack", file: "accessory-back.png", group: "accessory", tints: [] },
@@ -168,17 +126,9 @@ export const LAYERS = [
   { key: "hairFront", file: "hair-front.png", group: "hair", tints: ["hair"] },
 ];
 
-// Groups — what the player actually picks.
-//
-// A group drives one or two layers at the same index: a hairstyle is a
-// HairFront tile AND the HairBack tile at the same position, and neither half
-// is a look on its own. That pairing is the artist's convention, and it's why
-// the picker has ten rows rather than fifteen.
-//
-// `fantasy` lists indices that only appear while
-// GameConfig.portraitFantasyPartsEnabled is on. Ravenheart is low fantasy and
-// human-only, so pointed ears, horns and antlers are off by default rather
-// than deleted — a GM running something stranger can flip one switch.
+// Groups — what the player picks. A group can drive two layers at once
+// (hairstyle = HairFront + HairBack at the same index). `fantasy` indices
+// only appear when GameConfig.portraitFantasyPartsEnabled is on.
 export const GROUPS = [
   { key: "face", label: "Face", count: 26, optional: false },
   { key: "eyes", label: "Eyes", count: 26, optional: false },
@@ -241,11 +191,8 @@ export function allowedColors(options, allowFantasy) {
   return allowFantasy ? options : options.filter((o) => !o.fantasy);
 }
 
-// Coerces anything at all into a selection that is safe to render. Every
-// invalid, missing, out-of-range or fantasy-while-gated value falls back to
-// DEFAULT_SELECTION's — the server action calls this on whatever the client
-// posted, and the client calls it on whatever was stored, so neither can hand
-// the renderer an index that isn't there.
+// Coerces anything into a safe-to-render selection — invalid, missing, or
+// fantasy-while-gated values fall back to DEFAULT_SELECTION.
 export function normalizeSelection(raw, { allowFantasy = false } = {}) {
   const input = raw && typeof raw === "object" ? raw : {};
   const out = {};
@@ -293,15 +240,8 @@ function packHex(hex) {
   return Number.parseInt(hex.slice(1), 16);
 }
 
-/**
- * The full source-colour -> target-colour substitution for one selection, as
- * `Map<packedSrc, [r, g, b]>`.
- *
- * The three source ramps share no colour with each other, which is what lets
- * one flat map run over every sheet: a pixel is either in the map or it is
- * paint the player doesn't get to choose (lip red, eye white, the bone of a
- * horn), and passes through untouched.
- */
+/** Source->target colour substitution for one selection (packed RGB -> [r,g,b]);
+ * unmapped pixels (lip red, eye white, horn bone) pass through untouched. */
 export function buildPalette(selection) {
   const map = new Map();
   const add = (srcRamp, dstRamp) => {
