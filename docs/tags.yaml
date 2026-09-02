@@ -3609,6 +3609,26 @@ tags:
     sellable: true
     sellablePrice: 8
 
+  # Same shape as the Graga Sac above — a monster organ that is an ingredient
+  # and nothing else: stackable, tradeable, sellable, and NOT consumable,
+  # because the brewing Move is what spends it (the GM takes it off the sheet),
+  # not the holder drinking it. Priced above a Graga Sac: a Graga is slow and
+  # easily escaped, while the Skinless travel in packs and used to be people.
+  - slug: skinless-brain
+    name: Skinless Brain
+    category: items
+    group: items-gear
+    description: "The extracted, wrinkled mass of a skinless. A miraculous organ, prized for its alchemical properties."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    sellable: true
+    sellablePrice: 10
+
   - slug: saltpeter
     name: Saltpeter
     category: items
@@ -6334,7 +6354,7 @@ tags:
     name: Dreamer's Draught
     category: items
     group: items-drink
-    description: "When you drink it before sleeping, you can ask the universe anything. Let a GM know what you're asking."
+    description: "Made with a {tag:skinless-brain}. When you drink it before sleeping, you can ask the universe anything. Let a GM know what you're asking."
     pointCost: 0
     tradeable: true
     stackable: true

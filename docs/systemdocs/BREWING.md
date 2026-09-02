@@ -56,7 +56,7 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 | `phrygian-tears` | 4 | 2 | **Gambit** | — |
 | `gunpowder-grenade` | 6 | 1 | saltpeter | — |
 | `purifier` | 6 | 1 | cave fungus | — |
-| `dreamers-draught` | 6 | 1 | **Gambit** | — |
+| `dreamers-draught` | 6 | 1 | a skinless brain, **Gambit** | — |
 | `forgiveness` | 8 | 1 | someone's tears | — |
 | `flawless-skin` | 8 | 1 | a lock of Nobility hair | `otherworldly-beauty` |
 
@@ -80,15 +80,22 @@ someone else's wound — so the GM applies the result to whoever it happened to.
 
 ## 4. Ingredients
 
-Five ingredients are real tags, so a GM can see whether the brewer holds one:
+Six ingredients are real tags, so a GM can see whether the brewer holds one:
 
 | Tag | Where it comes from |
 |---|---|
 | `cave-fungus` | foraged in the caves. 0 ⬢. Eaten raw it gives `high` (2t). |
 | `graga-sac` | cut out of a dead Graga |
+| `skinless-brain` | cut out of a dead Skinless |
 | `saltpeter` | mined in the caverns |
 | `alcohol` | brewed, one tier down |
 | `poppy` | brewed, one tier down |
+
+`skinless-brain` is the one ingredient that is also a moral problem. A Graga is
+a beast; the Skinless used to be people and, per the Caves brief, can be talked
+down. Making the second-most-expensive Skilled brew now means someone decided
+not to. That is the recipe, not an oversight — but it is worth a GM knowing it
+is there before a player finds it.
 
 The rest — a corpse, a raven's eye, a rainbow trout's heart, an Aberrant's
 heart, a willing lover's blood, a lock of Nobility hair — are prose. Nothing

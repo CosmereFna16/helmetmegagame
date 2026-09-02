@@ -548,7 +548,7 @@ documents:
       | {tag:phrygian-tears} | 4 | 2 | Gambit |
       | {tag:gunpowder-grenade} | 6 | 1 | saltpeter |
       | {tag:purifier} | 6 | 1 | cave fungus |
-      | {tag:dreamers-draught} | 6 | 1 | Gambit |
+      | {tag:dreamers-draught} | 6 | 1 | a {tag:skinless-brain}, Gambit |
       | {tag:forgiveness} | 8 | 1 | someone's tears |
       | {tag:flawless-skin} | 8 | 1 | a lock of Nobility hair |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
@@ -577,6 +577,8 @@ documents:
       **Skinless**
 
       Explorers and citizens of the caves. They travel alone or in packs, eventually returning to their communities in the **Aberrant Pits**. They rarely venture up into the Caverns. They used to be people. They can be talked down.
+
+      Killing them drops a {tag:skinless-brain}, the one ingredient in the {tag:dreamers-draught}. The Merchant can sell them. Note what that means: the Draught has a price, and the price is that somebody chose not to talk one down.
 
       **Aberrants**
 
