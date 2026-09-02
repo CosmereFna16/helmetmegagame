@@ -14,31 +14,21 @@ import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
 
-// The left rail: the work queue as a compact list rather than a table.
-// useTableState is list-generic — the same filter/search/sort engine every
-// table uses, minus the table markup.
+// The left rail: the work queue as a compact list, using useTableState (the
+// same filter/search/sort engine every table uses) minus the table markup.
 
-// Fixed vocabularies for the enum-backed dropdowns — every value always
-// listed, even at a count of zero, so "Open" doesn't disappear from Status
-// just because nothing is open right now. Zone stays derived from the loaded
-// rows in every filterDefs list below, since which zones exist is not a
-// fixed thing. WAITING_FOR_OPPONENTS and IN_PROGRESS are dropped: neither is
-// a status the mapper can produce — a lock is presence now, never a status
-// (moveRows.js#moveStatusLabel) — though both stay in
-// MOVE_REVIEW_LABELS/MOVE_REVIEW_TONES for old stored rows (web/lib/moves.js).
+// Fixed vocabularies for the enum-backed dropdowns, so a value always shows
+// even at a count of zero. WAITING_FOR_OPPONENTS/IN_PROGRESS are dropped —
+// neither is a status the mapper produces (moveRows.js#moveStatusLabel).
 const MOVE_KIND_OPTIONS = ["Routine", "Gambit", "Travel"];
 const MOVE_STATUS_OPTIONS = Object.values(MOVE_REVIEW_LABELS).filter(
   (l) => l !== "Waiting for Opponents" && l !== "In Progress",
 );
 
-// Still-open work floats to the top of the rail; Solved (bookkept, nothing
-// left to push) and Passed (already resolved) sink toward the bottom. Ties
-// within a rank fall back to recency — see queueOrder below. A locked-but-
-// solved row ranks as Solved, the honest state — it sinks like any other
-// solved row even while someone's looking at it.
+// Open work floats to the top; Solved/Passed sink. Ties fall back to
+// recency — see queueOrder below.
 const MOVE_STATUS_RANK = { Open: 0, "Waiting for Opponents": 0, Solved: 1, Passed: 2 };
-// Same trick for the Caving lens: an unresolved TROUBLE row ("Needs
-// attention") floats to the top, Resolved sinks — see rankedMoves below.
+// Same trick for the Caving lens — see rankedMoves below.
 const CAVING_STATUS_RANK = { "Needs attention": 0, Resolved: 1 };
 const REQUEST_TYPE_OPTIONS = [...new Set(Object.values(REQUEST_TYPE_LABELS))];
 const REQUEST_STATUS_OPTIONS = Object.values(REQUEST_STATUS_LABELS);
@@ -50,13 +40,8 @@ const MOVE_FILTER_DEFS = [
   { key: "kind", label: "Kind", value: (r) => r.kindLabel, options: MOVE_KIND_OPTIONS },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: MOVE_STATUS_OPTIONS },
 ];
-// scoreMatch fields (web/lib/fuzzySearch.js) — everything already on the DTO
-// ([[...selection]]/page.js), so this costs no new query. `kind` doubles as
-// "Routine"/"Gambit"/"Travel" and `status` as Open/Solved/etc, both already
-// covered by the Kind/Status dropdowns above but useful as bare search terms
-// too ("gambit open"). A Move's `tags` only carries tagIds, so tag NAME
-// search needs the catalog lookup Workspace already threads everywhere else
-// — hence the factory rather than a plain module-level function.
+// scoreMatch fields (web/lib/fuzzySearch.js). `tags` only carries tagIds, so
+// tag name search needs the catalog lookup, hence the factory.
 function makeMoveSearchMap(tagsById) {
   return (r) => ({
     name: r.characterName,
@@ -97,33 +82,25 @@ const requestSearchMap = (r) => ({
 
 const REQUEST_TONES = { Passed: "neutral", Edited: "neutral", Undone: "bad" };
 
-// One sessionStorage key for every CLICK-frequency bit of rail VIEW state —
-// a reload restores it, and must come back lossless (the version-aware poll
-// in Workspace.js keeps reloads rare, but not impossible). Workspace.js reads
-// the same key for
-// `lens`, sharing this one store the same way two usePins() callers already
-// share "gm-pins".
+// One sessionStorage key for the CLICK-frequency rail VIEW state — a reload
+// restores it. Workspace.js reads the same key for `lens`.
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
   filters: {}, // { moves, requests, caving, history, "history-caving" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
-  // Which kind the History lens is reading: past Moves or past Caving rolls.
   historyKind: "moves", // "moves" | "caving"
 };
 
-// The KEYSTROKE/SCROLL-frequency state lives apart, under a key nothing
-// subscribes to (useSessionState.js#readSession/#writeSession): search text
-// per lens and the queue's scroll position per lens. Writing it can't wake
-// Workspace or this component, which is what makes persisting it affordable
-// — a subscribed store would mean a round-trip per keystroke. The writes are
-// debounced besides, with a pagehide flush for the tail.
+// KEYSTROKE/SCROLL-frequency state lives under a key nothing subscribes to
+// (useSessionState.js#readSession/#writeSession), so writing it can't wake
+// this component. Debounced, with a pagehide flush for the tail.
 const VIEW_STORAGE_KEY = "gm-turns-view";
 const VIEW_STORAGE_DEFAULT = { query: {}, scroll: {} };
 
-// Read-merge-write so the query writer and the scroll writer can never
-// clobber each other's half of the key.
+// Read-merge-write so the query writer and the scroll writer never clobber
+// each other's half of the key.
 function mergeView(patch) {
   const current = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT) ?? VIEW_STORAGE_DEFAULT;
   writeSession(VIEW_STORAGE_KEY, {
@@ -133,18 +110,15 @@ function mergeView(patch) {
   });
 }
 
-// Hydration signal for the one-shot view restore below: false on the server
-// and during the hydration render (where storage-derived state would
-// mismatch the server HTML), true from the first client-only render on.
+// Hydration signal: false on the server and during the hydration render
+// (where storage-derived state would mismatch server HTML), true after.
 const subscribeNever = () => () => {};
 const getTrue = () => true;
 const getFalse = () => false;
 
-// The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE (die 1)
-// row is ever "Needs attention"; QUIET and FIND are stamped resolved at
-// creation. Every roll shows by default — unresolved TROUBLE just ranks
-// first, the same way rankedMoves ranks Open above Solved/Passed — rather
-// than defaulting the Status filter to hide QUIET/FIND outright.
+// The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE row is
+// ever "Needs attention"; every roll shows by default, unresolved TROUBLE
+// just ranks first.
 const CAVING_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.factionZoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
@@ -161,11 +135,8 @@ const cavingSearchMap = (r) => ({
 });
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
-// The keyboard lens flips, and what ⏎ selects in each lens. History rows are
-// Moves too, but on a pushed turn — they open the read-only MoveHistoryDesk,
-// so they carry their own selection type. The one exception is the History
-// lens pointed at the OPEN turn, which selects a live "move" instead — see
-// historyIsOpenTurn below.
+// The keyboard lens flips, and what ⏎ selects in each lens. The History
+// lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
 const LENS_FOR_KEY = { m: "moves", r: "requests", c: "caving", h: "history" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
@@ -218,8 +189,7 @@ function RailFilters({ table, filterDefs, myZoneNames, searchPlaceholder, header
 }
 
 // `type` and `lensKey` are what let the History lens reuse this: identical
-// rows, a different selection type ("history", which opens the read-only
-// desk) and a different lens to match the keyboard cursor against.
+// rows, a different selection type and keyboard lens.
 function MoveRows({
   rows,
   matchFor,
@@ -254,8 +224,6 @@ function MoveRows({
             <MatchHint match={matchFor(row)} />
           </span>
           <span className="flex items-center gap-1.5">
-            {/* Presence, not status — a GM looking at a Solved Move still
-                shows the avatar beside "Solved", which is the honest state. */}
             {row.lockedByDiscordUserId && <GmAvatar profile={gmProfiles?.[row.lockedByDiscordUserId]} size={14} />}
             <StatusPill tone={MOVE_REVIEW_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
           </span>
@@ -274,10 +242,8 @@ function MoveRows({
 function RequestRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
   return rows.map((row) => {
     const active = selected?.type === "request" && selected.id === row.id;
-    // Both types that can name a kill. They perform it themselves now, so an
-    // unkilled row here is the exception — the claim didn't land, or the row
-    // predates the change — which is exactly what deserves the urgent mark.
-    // See killRequestTargetImpl in actions.js.
+    // Both request types that can name a kill; an unkilled row here is the
+    // exception, worth the urgent mark. See killRequestTargetImpl in actions.js.
     const killPending =
       (row.type === "FEED_PERSON" || (row.type === "HARM_CHARACTER" && row.effect?.lethal)) &&
       !row.effect?.killed;
@@ -375,11 +341,8 @@ export default function QueueRail({
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
 
-  // The rail's persisted view state (filters + travel toggles; `lens` is
-  // Workspace.js's own read of the same key). Each table's filters live
-  // under their own sub-key, written back through `onFiltersChange` below —
-  // useTableState's controlled mode (DataTable.js), so there's no separate
-  // internal copy to fall out of sync with sessionStorage.
+  // The rail's persisted view state. Each table's filters live under their
+  // own sub-key via useTableState's controlled mode (DataTable.js).
   const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   const makeFiltersProps = useCallback(
     (key) => ({
@@ -389,10 +352,8 @@ export default function QueueRail({
     [rail.filters, myZoneNames, setRail],
   );
 
-  // A single numeric key so the generic engine's one-field sort can still
-  // rank by status first and recency second: status dominates (multiplied up
-  // out of recency's range) and createdAtMs is subtracted so that, within a
-  // rank, the more recent Move sorts first under the same ascending order.
+  // One numeric key so the generic engine's one-field sort ranks by status
+  // first, recency second (status multiplied out of recency's range).
   const rankedMoves = useMemo(
     () =>
       moves.map((r) => ({
@@ -411,8 +372,6 @@ export default function QueueRail({
     [historyMoves],
   );
 
-  // An unresolved TROUBLE row floats to the top of the Caving lens rather
-  // than being the only thing shown by default.
   const rankedCavingRolls = useMemo(
     () =>
       (cavingRolls ?? []).map((r) => ({
@@ -422,11 +381,8 @@ export default function QueueRail({
     [cavingRolls],
   );
 
-  // All four tables mount permanently so lens flips keep each one's
-  // filters; the rail just shows one at a time. Page size is effectively
-  // "everything" — the rail scrolls, and an open turn caps the set at the
-  // roster size. rankBySearch: true because this list has no sortable
-  // headers of its own to preserve — a query reorders by how well it hit.
+  // All four tables mount permanently so lens flips keep each one's filters.
+  // rankBySearch: true — no sortable headers to preserve, a query reorders.
   const moveTable = useTableState({
     rows: rankedMoves,
     filterDefs: moveFilterDefs,
@@ -454,8 +410,7 @@ export default function QueueRail({
     pageSize: 1000,
     ...makeFiltersProps("caving"),
   });
-  // The History lens is the Moves lens over a past turn: same defs, same
-  // search map, same ranking, its own filter state and its own travel toggle.
+  // The History lens is the Moves lens over a past turn.
   const historyTable = useTableState({
     rows: rankedHistoryMoves,
     filterDefs: moveFilterDefs,
@@ -465,9 +420,7 @@ export default function QueueRail({
     pageSize: 1000,
     ...makeFiltersProps("history"),
   });
-  // The History lens's Caving twin — the Caving lens over a past turn. Its own
-  // filter/search/scroll state (lensKey "history-caving") so it never shares
-  // with the live Caving lens.
+  // The History lens's Caving twin, with its own filter/search/scroll state.
   const rankedHistoryCavingRolls = useMemo(
     () =>
       (historyCavingRolls ?? []).map((r) => ({
@@ -486,12 +439,9 @@ export default function QueueRail({
     ...makeFiltersProps("history-caving"),
   });
 
-  // Restore the persisted search text, once, on the first post-hydration
-  // render — the same render-time one-shot Workspace.js uses for the History
-  // deep link, never an effect (react-hooks/set-state-in-effect is an error
-  // here). It can't run during hydration itself: the server rendered every
-  // search box empty, and storage-derived state in that render would
-  // mismatch the HTML being hydrated.
+  // Restores persisted search text once, on the first post-hydration render
+  // — a render-time one-shot (react-hooks/set-state-in-effect is an error
+  // here), never during hydration itself.
   const hydrated = useSyncExternalStore(subscribeNever, getTrue, getFalse);
   const [viewRestored, setViewRestored] = useState(false);
   if (hydrated && !viewRestored) {
@@ -504,10 +454,8 @@ export default function QueueRail({
     if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
   }
 
-  // Mirror the search text back out — debounced so a burst of typing is one
-  // write, with a pagehide flush so a reload mid-burst still keeps the tail.
-  // Gated on viewRestored so the first render can't overwrite the stored
-  // queries with the empty strings the tables mount with.
+  // Mirror search text back out, debounced with a pagehide flush. Gated on
+  // viewRestored so the first render can't overwrite stored queries.
   useEffect(() => {
     if (!viewRestored) return undefined;
     const write = () =>
@@ -535,10 +483,8 @@ export default function QueueRail({
     historyCavingTable.query,
   ]);
 
-  // Auto-filed travel Moves are already solved and never need a GM — hidden
-  // from the list by default so they don't pad the queue, but picking
-  // "Travel" in the Kind dropdown always overrides the hide (the dropdown's
-  // own count already reflects the real total, hide or no hide).
+  // Auto-filed travel Moves are already solved and hidden by default;
+  // picking "Travel" in the Kind dropdown overrides the hide.
   const hideTravel = rail.hideTravel ?? true;
   const setHideTravel = useCallback((v) => setRail((r) => ({ ...r, hideTravel: v })), [setRail]);
   const movesShown = useMemo(() => {
@@ -547,8 +493,6 @@ export default function QueueRail({
   }, [moveTable.visible, moveTable.filters.kind, hideTravel]);
   const hiddenTravelCount = moveTable.visible.length - movesShown.length;
 
-  // The History lens's own pair. A past turn is mostly travel and silently
-  // closed Routines, so hiding travel matters more here, not less.
   const hideHistoryTravel = rail.hideHistoryTravel ?? true;
   const setHideHistoryTravel = useCallback((v) => setRail((r) => ({ ...r, hideHistoryTravel: v })), [setRail]);
   const historyShown = useMemo(() => {
@@ -557,9 +501,8 @@ export default function QueueRail({
   }, [historyTable.visible, historyTable.filters.kind, hideHistoryTravel]);
   const hiddenHistoryTravelCount = historyTable.visible.length - historyShown.length;
 
-  // The History lens reads either past Moves or past Caving rolls, chosen by
-  // the Moves/Caving switch in its header (historyKind). Everything below
-  // branches on this one flag.
+  // The History lens reads either past Moves or past Caving rolls, chosen
+  // by its header switch (historyKind). Everything below branches on it.
   const historyIsCaving = lens === "history" && historyKind === "caving";
   const rowsForLens = useMemo(
     () => ({
@@ -571,33 +514,20 @@ export default function QueueRail({
     [movesShown, requestTable.visible, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
-  // What ⏎/click selects for a History-lens row: a live "move" on the open
-  // turn, a "caving" roll when the Caving switch is on, else a read-only
-  // "history" Move.
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
-  // The keyboard cursor is tracked by ROW ID, not position — a Move going
-  // Open → Solved re-sorts to the bottom of the rail (MOVE_STATUS_RANK), and
-  // an index-based cursor would stay pinned to whatever row lands in its old
-  // slot instead of following the row it was actually on.
+  // Tracked by ROW ID, not position — a status change re-sorts the rail, and
+  // an index-based cursor would follow the slot instead of the row.
   const [kbdCursorId, setKbdCursorId] = useState(null);
   const railRef = useRef(null);
   const coarse = useIsCoarsePointer();
 
-  // The queue's scroll position, per lens — saved (debounced) into the same
-  // unsubscribed view key the search text uses, restored once per lens
-  // activation. `.desk-queue` is the actual scroller (globals.css), one per
-  // lens branch below, so a single ref + handler covers whichever is
-  // mounted. Restoring assigns scrollTop directly — a DOM side effect, not
-  // setState.
+  // Scroll position per lens, saved (debounced) into the view key, restored
+  // once per lens activation. Restoring assigns scrollTop directly.
   const queueRef = useRef(null);
   const scrollWriteTimer = useRef(0);
   const pendingScroll = useRef(null); // { lens, top }
-  // Flush-not-discard: the debounce timer is shared across lenses, and the
-  // restore below assigns scrollTop programmatically, firing a scroll event
-  // of its own. A plain clearTimeout debounce would let a lens flip inside
-  // the 200ms window overwrite the departing lens's pending write with the
-  // new lens's scrollTop=0 — so a pending write for a DIFFERENT lens flushes
-  // instead of being discarded.
+  // Flush-not-discard: a pending write for a DIFFERENT lens flushes instead
+  // of being silently overwritten by a lens flip's scrollTop=0.
   const flushScroll = useCallback(() => {
     clearTimeout(scrollWriteTimer.current);
     const pending = pendingScroll.current;
@@ -616,9 +546,7 @@ export default function QueueRail({
     },
     [lens, flushScroll],
   );
-  // The same pagehide flush the query mirror gets — a scroll in the last
-  // 200ms before a reload would otherwise be lost (cleanups don't run on
-  // unload). Unmount flushes too, rather than just clearing.
+  // Same pagehide flush as the query mirror; unmount flushes too.
   useEffect(() => {
     window.addEventListener("pagehide", flushScroll);
     return () => {
@@ -635,36 +563,28 @@ export default function QueueRail({
     if (!el) return;
     const top = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT).scroll?.[lens ?? "moves"];
     if (typeof top === "number" && top > 0) {
-      // The History lens's rows arrive async — restoring against an empty
-      // list clamps to 0, so hold off (the visibleRows.length dep re-runs
-      // this when they land) and only then mark the lens restored.
+      // History rows arrive async — hold off restoring against an empty list.
       if (visibleRows.length === 0) return;
       el.scrollTop = top;
     } else {
-      // No remembered position for this lens — start it at the top. The
-      // browser reuses this div across lens flips (same element, same
-      // position), so without this a fresh lens inherits the previous
-      // lens's scroll offset.
+      // The scroller div is reused across lens flips, so a fresh lens must
+      // be reset explicitly or it inherits the previous scroll offset.
       el.scrollTop = 0;
     }
     restoredScrollLens.current = lens;
   }, [viewRestored, lens, visibleRows.length]);
 
-  // Re-derived every render against the CURRENT rows — if the cursor's row
-  // moved, this just finds its new position; if it's gone (filtered out,
-  // deleted), it falls back to -1 the same as before.
   const clampedKbdIndex = kbdCursorId ? visibleRows.findIndex((r) => r.id === kbdCursorId) : -1;
   const kbdId = clampedKbdIndex >= 0 ? visibleRows[clampedKbdIndex]?.id : null;
 
   useEffect(() => {
-    // No keyboard on a touch-primary device — skip wiring the listener.
     if (coarse) return undefined;
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
       const isLensKey = key === "m" || key === "r" || key === "c" || key === "h";
       if (!isNav && !isLensKey) return;
-      if (hasModifier(e)) return; // ⌘C, ⌘K, etc. — never ours to intercept
+      if (hasModifier(e)) return;
       if (document.querySelector(".modal-overlay")) return;
       if (isFieldFocused(document.activeElement)) return;
 
@@ -679,17 +599,12 @@ export default function QueueRail({
 
       if (key === "Enter") {
         const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
-        // Same rule as the rows themselves: History over the open turn selects
-        // a live `move`, the Caving switch selects a `caving` roll, else a
-        // read-only `history` row.
         const type = lens === "history" ? historySelectionType : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
         if (row) onSelect({ type, id: row.id });
         return;
       }
 
       e.preventDefault();
-      // Computed out here rather than inside the updater: React may call an
-      // updater twice, and scrolling is a side effect.
       const delta = key === "ArrowDown" || key === "j" ? 1 : -1;
       const next = Math.max(0, Math.min(rows.length - 1, clampedKbdIndex + delta));
       setKbdCursorId(rows[next].id);
@@ -735,7 +650,6 @@ export default function QueueRail({
             }
             header={
               <div className="flex flex-col gap-2">
-                {/* Moves / Caving — which record of a past turn to read back. */}
                 <div className="segmented" role="group" aria-label="History kind">
                   <button
                     type="button"
@@ -819,18 +733,9 @@ export default function QueueRail({
                   gmProfiles={gmProfiles}
                   kbdId={kbdId}
                   kbdLens={lens}
-                  // On the open turn a History row is still LIVE work, so it opens
-                  // the ordinary MoveDesk. `lensKey` stays "history" regardless, so
-                  // the keyboard cursor and this lens's own filter/search/scroll
-                  // state remain separate from the Moves lens.
-                  //
-                  // Consequence: MoveHistoryDesk never renders for an unpushed
-                  // turn. That is what keeps it honest — it shows what a Move
-                  // actually PAID (appliedEffects) and what was SENT, both of which
-                  // are empty until the push, so on an open turn it could only
-                  // contradict the declared numbers sitting next to them. It also
-                  // keeps getMoveHistory's RESOLVED guard intact instead of forcing
-                  // a hole in it.
+                  // On the open turn a History row is still LIVE, so it opens
+                  // the ordinary MoveDesk; MoveHistoryDesk never renders for
+                  // an unpushed turn.
                   type={historyIsOpenTurn ? "move" : "history"}
                   lensKey="history"
                 />
