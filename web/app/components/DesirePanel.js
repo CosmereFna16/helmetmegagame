@@ -29,15 +29,17 @@ function pointsHelp(desireSlots) {
   return (
     <>
       <p>
-        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"} — each one holds a single
-        Desire at a time.‡
+        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}.‡
       </p>
       <p>
-        A Desire&apos;s tier is both its Tag Point award and its own cooldown: fulfilling a tier 3
-        Desire is worth 3 points and can&apos;t be taken again for 3 turns.‡
+        Desires have tiers, which determine the amount of points given and, in most cases, how many
+        turns until that same Desire is available again.‡
       </p>
-      <p>Cancelling or fulfilling a Desire shuts that slot for the rest of the turn and all of the next one. It opens again the turn after that.</p>
-      <p>A tier 7 Desire can only ever be fulfilled once.‡</p>
+      <p>
+        Cancelling or fulfilling a Desire locks its slot for the rest of the turn and all of the
+        next one. It opens again after.
+      </p>
+      <p>Tier 7 Desires can only be fulfilled once per game.‡</p>
     </>
   );
 }
