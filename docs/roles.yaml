@@ -1135,6 +1135,7 @@ zones:
     factions:
       - name: The Bastard's Camp
         slug: the-bastards-camp
+        silo_zone: Town
         roles:
           - name: Bastard
             slug: bastard
@@ -1345,6 +1346,7 @@ zones:
               - brokenspear
       - name: Windrider Clan
         slug: windrider-clan
+        silo_zone: Town
         parent: The Bastard's Camp
         roles:
           - name: Lieutenant (Windrider Clan)

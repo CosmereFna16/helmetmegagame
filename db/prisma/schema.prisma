@@ -515,16 +515,24 @@ model Faction {
   // The Zone this faction belongs to, from its nesting in roles.yaml. Two
   // jobs, and the second one is game state:
   //
-  //   1. Groups the character-creation role picker (Zone -> Faction -> Role).
-  //   2. It is where the faction's SILO sits. Resources only move in or out
-  //      of a Silo if the acting character is standing in this zone. See
-  //      web/lib/transferReach.js and FACTIONS.md §3b.
+  //   1. Groups the character-creation role picker (Zone -> Faction -> Role),
+  //      and labels the faction on every ZoneChip surface.
+  //   2. It is the DEFAULT seat of the faction's SILO — where a character has
+  //      to be standing to move ⬢ in or out of it. Every reader resolves that
+  //      as `siloZoneId ?? zoneId`. See web/lib/transferReach.js and
+  //      FACTIONS.md §3b.
   //
   // A faction's MEMBERS are still not confined to it — only its Silo is.
-  // One column serving both means a faction cannot be grouped under one zone
-  // and bank in another; split this if that ever needs to differ.
   zoneId String?
-  zone   Zone?   @relation(fields: [zoneId], references: [id])
+  zone   Zone?   @relation("FactionHomeZone", fields: [zoneId], references: [id])
+
+  // Where the faction's Silo sits, when that differs from the grouping zone
+  // above — the Bastard's Camp and the Windrider Clan group as Windlands but
+  // bank in Town. Null means "same as zoneId", which is the ordinary case.
+  // Mastered by `silo_zone:` in docs/roles.yaml so a sync can't undo it, and
+  // must name a SEAT zone, never a cave level (db/lib/seatZone.js).
+  siloZoneId String?
+  siloZone   Zone?   @relation("FactionSiloZone", fields: [siloZoneId], references: [id])
 
   // Authoring order within the zone, so the picker lists factions the way
   // roles.yaml does rather than alphabetically.
@@ -632,7 +640,8 @@ model Zone {
 
   topics           LocationTopic[]
   playerThreads    PlayerThread[]
-  factions         Faction[]
+  factions         Faction[]      @relation("FactionHomeZone")
+  siloFactions     Faction[]      @relation("FactionSiloZone")
   characters       Character[]
   actions          Action[]
   defaultEfforts   DefaultEffort[]

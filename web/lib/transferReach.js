@@ -10,7 +10,7 @@
 //   person -> person   same presence zone. A handoff is a face-to-face act,
 //                      and it matches the co-presence gate HEAL_CHARACTER
 //                      already enforces (REQUESTS.md §5c).
-//   party  -> Silo     the faction's own seat zone. Full stop.
+//   party  -> Silo     the faction's own silo seat zone. Full stop.
 //
 // The officer clause — an actor's zone counting if a Leader or Treasurer of
 // the faction was standing there too — has been REMOVED. It let an officer
@@ -35,21 +35,29 @@ export function canReachCharacter(actor, target) {
 }
 
 // Zone-grain. Character.zoneId is the PRESENCE zone (a surface zone or a
-// single cave level); Faction.zoneId is the SEAT zone, which for the whole
-// cave system is the Caves group row. So this compares seat to seat —
+// single cave level); a faction's silo seat is a SEAT zone, which for the
+// whole cave system is the Caves group row. So this compares seat to seat —
 // someone standing on the Railroad is standing in the Caves faction's zone.
+//
+// `siloZoneId ?? zoneId`, because a faction can group under one zone and bank
+// in another (the Bastard's Camp and the Windrider Clan are Windlands but
+// bank in Town). Takes both a resolveParty() result — where db/lib/parties.js
+// has already collapsed the two into `zoneId` — and a bare Faction row from
+// /faction, which has not.
 export async function canReachSilo(actor, faction) {
   if (!actor?.zoneId) return false;
 
-  // The faction's own home zone — the warehouse you can walk up to. Loaded
+  const siloZoneId = faction?.siloZoneId ?? faction?.zoneId;
+
+  // The faction's own silo zone — the warehouse you can walk up to. Loaded
   // rather than taken off `actor` because callers hand us a bare character
   // row, and seatZoneId only lives on Zone.
-  if (faction?.zoneId) {
+  if (siloZoneId) {
     const actorZone = await prisma.zone.findUnique({
       where: { id: actor.zoneId },
       select: { id: true, parentZoneId: true, seatZoneId: true },
     });
-    if (faction.zoneId === seatZoneIdFor(actorZone)) return true;
+    if (siloZoneId === seatZoneIdFor(actorZone)) return true;
   }
   return false;
 }

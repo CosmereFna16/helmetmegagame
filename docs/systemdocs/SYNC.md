@@ -19,7 +19,9 @@ running the sync is the only way these rows change.
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 
 **Run order matters:** zones → tags → roles → desires → documents. Roles
-resolve a `starting_zone` by slug and a Faction's zone by name, and validate
+resolve a `starting_zone` by slug and a Faction's zone — plus its optional
+`silo_zone:` override, which must name a **seat** zone (`FACTIONS.md` §3b) —
+by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags,
@@ -53,6 +55,11 @@ wipe), which re-seeds every silo at its computed opening balance — without
 it, a wipe would leave every silo at the 0 it was zeroed to, since no
 faction row is ever *created* again after the first sync. Unaffiliated is
 excluded and stays silo-less.
+
+`Faction.siloZoneId` is the opposite case: written on **every** sync, `null`
+included. It is pure authored configuration, not game state, and writing the
+null is what makes a removed `silo_zone:` line put the Silo back on the
+faction's own zone. See `FACTIONS.md` §3b.
 
 `Faction.parentFactionId` is create-only for the same reason. The hierarchy is
 authored in `roles.yaml` (`parent:`), but once a faction row exists its parent

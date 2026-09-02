@@ -74,13 +74,32 @@ and that is not the same as being able to put anything into it.
 | Moving | Gate |
 |---|---|
 | Person → person (⬢ or a tag) | Same **Zone** — since the zone rework a zone *is* the room, so this and the Silo gate are now the same grain |
-| Either end is a **Silo** | The actor's **seat** zone equals the faction's `zoneId`. Full stop. |
+| Either end is a **Silo** | The actor's **seat** zone equals the faction's silo zone, `siloZoneId ?? zoneId`. Full stop. |
 
-`Faction.zoneId` is the silo zone, and it is a **seat** zone: presence is six
-zones, seats are four, and the whole cave system belongs to the Caves row
-(`GAMEMASTERS.md` §2a). That is why `canReachSilo` maps the actor's presence
-zone through `seatZoneIdFor` before comparing. So a Silo seated in the Caves
-is reachable from any cave level, which is the intent.
+The silo zone is a **seat** zone: presence is six zones, seats are four, and
+the whole cave system belongs to the Caves row (`GAMEMASTERS.md` §2a). That is
+why `canReachSilo` maps the actor's presence zone through `seatZoneIdFor`
+before comparing. So a Silo seated in the Caves is reachable from any cave
+level, which is the intent.
+
+**Where a faction banks is not always where it is grouped.** `Faction.zoneId`
+is the identity zone — it groups the character-creation picker and fills every
+`ZoneChip` — and it is the silo zone *by default*. `Faction.siloZoneId`
+overrides that when the two need to differ, and it is authored as `silo_zone:`
+on the faction block in `docs/roles.yaml`, so a `db:sync-roles` run writes it
+rather than undoing it. The two factions using it today are the Bastard's Camp
+and the Windrider Clan: both group as Windlands, both bank in Town. The Broken
+Spears Clan does not, so it still banks in the Windlands.
+
+Two rules on the override. It must name a **seat** zone — the sync throws
+otherwise, because a Silo on a cave level could never be reached. And a
+removed `silo_zone:` line puts the Silo back on `zoneId`, because the sync
+writes `null` when the key is absent.
+
+Readers resolve the fallback in one of two places, never at the call site.
+`db/lib/parties.js#resolveParty` collapses it into a Silo party's `zoneId` and
+`zoneName`, which covers every transfer surface and the out-of-reach message;
+`canReachSilo` does it again for the bare `Faction` rows `/faction` hands it.
 
 **The officer extension has been removed.** A Silo's reach used to also
 include any zone one of its Leaders or Treasurers happened to be standing in

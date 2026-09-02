@@ -10,7 +10,7 @@
 // AFTER syncTagsFromYaml (starting_tags are validated against the catalog).
 //
 // Passes:
-//   1. Upsert Faction by slug — name, zone, sortOrder. `silo` is computed from
+//   1. Upsert Faction by slug — name, zone, silo zone, sortOrder. `silo` is computed from
 //      the sum of its roles' weights (db/lib/factionSilo.js) and seeded on
 //      CREATE only — an existing row's silo is live game state and is never
 //      overwritten by an ordinary sync. The one deliberate exception is
@@ -42,6 +42,7 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
 const { roleWeight, factionSiloSeed } = require("./factionSilo");
+const { seatZoneIdFor } = require("./seatZone");
 
 // Excluded from silo seeding — it stays silo-less on purpose (see
 // db/lib/factionSilo.js and the "Silos" section of CLAUDE.md's linked plan).
@@ -74,6 +75,10 @@ function parseRolesYaml(doc) {
         slug: faction.slug,
         name: faction.name,
         zoneName: zone.name,
+        // Optional override for where the Silo sits, when a faction groups
+        // under one zone and banks in another. Absent for almost every
+        // faction, and absent means "the zone it's nested in".
+        siloZoneName: faction.silo_zone ?? null,
         parentSlug: faction.parent ?? null,
         sortOrder: factionOrder++,
         // Summed below as each of its roles is parsed — this is what
@@ -171,9 +176,22 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
   );
   const tagNames = new Set((await prisma.tag.findMany({ select: { name: true } })).map((t) => t.name));
 
+  const zoneByName = new Map(zones.map((z) => [z.name, z]));
   for (const f of factions) {
     if (!zoneIdByName.has(f.zoneName)) {
       throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:sync-zones first`);
+    }
+    if (f.siloZoneName) {
+      const siloZone = zoneByName.get(f.siloZoneName);
+      if (!siloZone) {
+        throw new Error(`docs/roles.yaml: faction "${f.name}" has unknown silo_zone "${f.siloZoneName}" — run db:sync-zones first`);
+      }
+      // A Silo has to sit on a SEAT zone. Seated on a cave level it would be
+      // unreachable, because canReachSilo maps the actor's presence zone up
+      // to its seat before comparing.
+      if (seatZoneIdFor(siloZone) !== siloZone.id) {
+        throw new Error(`docs/roles.yaml: faction "${f.name}" has silo_zone "${f.siloZoneName}", which is not a seat zone`);
+      }
     }
   }
   for (const r of roles) {
@@ -204,7 +222,15 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
   // been through pass 2 before, so it has no live hierarchy to protect.
   const freshFactionIds = new Set();
   for (const entry of factions) {
-    const data = { name: entry.name, zoneId: zoneIdByName.get(entry.zoneName), sortOrder: entry.sortOrder };
+    const data = {
+      name: entry.name,
+      zoneId: zoneIdByName.get(entry.zoneName),
+      // Written on every sync, null included. That's the whole point: the
+      // silo seat is authored in the YAML, so deleting a `silo_zone:` line
+      // puts the Silo back rather than leaving a stale hand edit standing.
+      siloZoneId: entry.siloZoneName ? zoneIdByName.get(entry.siloZoneName) : null,
+      sortOrder: entry.sortOrder,
+    };
     // Unaffiliated is deliberately excluded from silo seeding — it seeds 0
     // and stays silo-less, both on creation and on a --seed-silos re-run.
     const siloSeed = entry.slug === UNAFFILIATED_SLUG ? 0 : factionSiloSeed(entry.totalWeight, playerCount);

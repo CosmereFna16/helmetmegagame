@@ -31,9 +31,13 @@ async function loadFaction(factionId) {
     where: { id: factionId },
     include: {
       parentFaction: { select: { id: true, name: true } },
-      // For the zone chip in the header — and the same field the Silo's reach
-      // rules key on (see web/lib/transferReach.js).
+      // For the zone chip in the header — the faction's identity zone, which
+      // is NOT necessarily where its Silo sits.
       zone: { select: { name: true } },
+      // Where the Silo actually is, when it differs. `include` already brings
+      // the siloZoneId scalar along; this is for naming the zone in the
+      // out-of-reach line below. See web/lib/transferReach.js.
+      siloZone: { select: { name: true } },
       characters: {
         orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
         select: {
@@ -247,7 +251,7 @@ export default async function FactionPage({ searchParams }) {
     const leader = faction.characters.find((c) => c.isLeader);
 
     // Authority says who MAY see the Silo; this is whether they can right
-    // now — physically standing in its seat zone, the same reach
+    // now — physically standing in its silo seat zone, the same reach
     // TRANSFER_RESOURCES already requires to spend it. Applies to the
     // headline figure for every member, not just Leader/Treasurer: knowing
     // the faction's total from anywhere on the map is the leak this closes.
@@ -305,7 +309,7 @@ export default async function FactionPage({ searchParams }) {
               Faction Silo:{" "}
               {canSeeSilo
                 ? `${faction.silo} ⬢`
-                : `you have to be in ${faction.zone?.name ?? "its zone"} to see it.`}
+                : `you have to be in ${faction.siloZone?.name ?? faction.zone?.name ?? "its zone"} to see it.`}
             </li>
             {!viewingSubject && <li>Your Resources: {myCharacter.resources} ⬢</li>}
           </ul>

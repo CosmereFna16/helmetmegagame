@@ -51,10 +51,30 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
   if (kind === "faction") {
     const f = await prisma.faction.findUnique({
       where: { id: id ?? "" },
-      select: { id: true, name: true, silo: true, zoneId: true, zone: { select: { name: true } } },
+      select: {
+        id: true,
+        name: true,
+        silo: true,
+        zoneId: true,
+        zone: { select: { name: true } },
+        siloZoneId: true,
+        siloZone: { select: { name: true } },
+      },
     });
     if (!f || f.name === "Unaffiliated") return null;
-    return { kind, id: f.id, name: f.name, balance: f.silo, zoneId: f.zoneId, zoneName: f.zone?.name ?? null };
+    // A Silo party's zone is its SEAT, not the faction's grouping zone — a
+    // faction can group under one and bank in another (schema.prisma,
+    // FACTIONS.md §3b). Resolving it here means every transfer surface gets
+    // the right zone, and the right zone name in the rejection message,
+    // without repeating the fallback.
+    return {
+      kind,
+      id: f.id,
+      name: f.name,
+      balance: f.silo,
+      zoneId: f.siloZoneId ?? f.zoneId,
+      zoneName: (f.siloZone ?? f.zone)?.name ?? null,
+    };
   }
   return null;
 }
