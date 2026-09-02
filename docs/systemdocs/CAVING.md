@@ -85,7 +85,7 @@ surfaced to the player.
 | Die | Kind | What happens |
 |---|---|---|
 | 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* |
-| 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing stirs. The Depths are quiet this turn."* |
+| 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
 | 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
 
 Every DM leads with the face — *"Caving Die: 6 — You found something: Padded

@@ -44,7 +44,7 @@ const { expiryFrom } = require("./turnFormat");
 // its outcome. A QUIET (2-5) used to send nothing, which left players unsure
 // whether the die had rolled at all — so it now says so, briefly.
 function quietDm(die) {
-  return `Caving Die: ${die} — Nothing stirs. The Depths are quiet this turn.`;
+  return `Caving Die: ${die} — Nothing happens.`;
 }
 
 function troubleDm(die) {
