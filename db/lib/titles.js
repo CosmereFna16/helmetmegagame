@@ -1,28 +1,11 @@
 // Which title a character has earned the right to wear, and which form of it
-// they wear.
-//
-// A title used to be a free pick from a flat list, so anyone could call
-// themselves Baron. Now every word is granted by a tag the character holds or
-// the role they took — nobody is a Bishop who was not made one — and their
-// `Character.gender` decides which form of a gendered title they get. A Man
-// holding Nobility is Lord, a Woman is Lady, a Neutral character is Noble.
-// They never pick between those three; they pick between Lord and Sir.
-//
-// So an entry is one TITLE, not one word. `words` is either a plain string
-// (the title reads the same for everyone) or a map keyed by gender. Only four
-// registers are gendered — knighted, nobility, chaplain, mortus — plus the
-// Baron's seat. Everything else is one word for all: rank and profession say
-// nothing about their wearer, which is the whole reason Captain and Doctor sit
-// on the flat side of this.
-//
-// Hardcoded rather than a YAML master, for the same reason as
-// db/lib/roleIds.js: single guild, one correct value, and it can never differ
-// per environment. The slugs are validated against the synced catalogs by
-// assertTitlesResolve() below, so a typo fails the sync instead of quietly
-// making a title unearnable.
-//
-// Pure — no prisma, no I/O — so a client component can import it through
-// web/lib/characterName.js without dragging PrismaClient into the browser.
+// they wear. Every word is granted by a tag the character holds or the role
+// they took, and `Character.gender` picks the form of a gendered title
+// (Lord/Lady/Noble for Nobility). An entry is one TITLE, not one word —
+// `words` is a plain string or a map keyed by gender. Hardcoded rather than a
+// YAML master, for the same reason as db/lib/roleIds.js: single guild, one
+// correct value. Pure — no prisma, no I/O — so a client component can import
+// it through web/lib/characterName.js without dragging PrismaClient in.
 
 // Matches the Gender enum in db/prisma/schema.prisma exactly. One vocabulary
 // across the schema, the server actions and the pickers, so nothing has to map
@@ -59,9 +42,8 @@ const TITLES = Object.freeze([
   { words: "Doctor", tags: ["medical-skilled"], roles: ["esculap", "serpent"] },
   { words: "Professor", roles: ["scholastic"] },
 
-  // Trade. Master is the craft-master's word — it was a courtesy title
-  // (alongside the retired Mr./Mrs./Ms.) and is ungendered now, because
-  // mastery of a trade says nothing about who holds it.
+  // Trade. Master is the craft-master's word, ungendered — mastery of a
+  // trade says nothing about who holds it.
   { words: "Master", roles: ["metalsmith", "innkeeper", "headman"] },
 ]);
 
@@ -104,9 +86,7 @@ function earnedTitles({ tagSlugs = [], roleSlug = null, gender = "NEUTRAL" } = {
 }
 
 // Fails the sync if a title references a tag or role that isn't in the
-// catalog, or if a gendered entry is missing a form. This replaces
-// assertHonorificsCovered(), whose condition was unsatisfiable — it could
-// never fire once.
+// catalog, or if a gendered entry is missing a form.
 //
 // Called from syncRoles, which runs after syncTags (SYNC.md), so both catalogs
 // exist by then. A bad slug here is silent otherwise: the title simply becomes

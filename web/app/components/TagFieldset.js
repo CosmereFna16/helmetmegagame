@@ -8,11 +8,8 @@ import { filterTagsByQuery } from "@/lib/characterCreation";
 
 // The one tag form body, shared by both doors a GM authors a tag through:
 // the quick CustomTagDialog (create + assign, reached from the Dev Panel's
-// Tags tab and the adjudication desk) and TagCatalog.js's edit dialog. They
-// used to carry two different field sets — the quick one sent five fields and
-// the edit one sixteen — so a tag invented mid-adjudication couldn't expire,
-// stack, or be worn until the GM walked to /gm/dev/tags and edited it. One
-// component means they can't drift again.
+// Tags tab and the adjudication desk) and TagCatalog.js's edit dialog. One
+// component means the two field sets can't drift apart.
 //
 // Renders no modal and no submit button: a controlled body over `values` plus
 // a `set(key, value)` setter, so each door keeps its own chrome.

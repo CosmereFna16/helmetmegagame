@@ -6,22 +6,10 @@
 import { holdsRequirement } from "./characterCreation";
 
 // `Tag.tradeable` is what decides whether a tag can change hands — both handing
-// it over and lifting it off a body. This used to be a category test
-// (`["Items", "Assets"]`), which was the honest signal back when tradeable was
-// set on almost nothing. It no longer is: the catalog now answers per tag, and
-// the category test was actively wrong in both directions. It let a corpse be
-// stripped of its Drone, and it ignored the 16 items that already said
-// `tradeable: false` — the Quickened Nerve Braid is grafted into a neck.
-//
-// House is no longer one of those examples. The four property tags (Manor,
-// Workshop, House, Shack) became `tradeable: true` when the ten Assets went
-// creation-only: if no menu can sell you a house any more, handing one over
-// has to work. Looting a deed off a corpse is the accepted cost of that —
-// one flag, both directions.
-//
-// One flag covers both directions on purpose. Prying the Bishop's Mitre off the
-// Bishop's corpse and being handed it are the same permission here; if they ever
-// need to differ, that is a second field and a migration. See TAGS.md §5.
+// it over and lifting it off a body. One flag covers both directions on
+// purpose: prying the Bishop's Mitre off the Bishop's corpse and being handed
+// it are the same permission here; if they ever need to differ, that is a
+// second field and a migration. See TAGS.md §5.
 //
 // db/lib/syncTags.js REQUIRES an explicit tradeable on every items/assets tag,
 // so a new item can't quietly default to false and become unmovable.
@@ -31,17 +19,10 @@ export function isTradeable(tag) {
 
 // Add Tag is the CRAFTING door, and nothing else: `craftable` is the whole
 // test. A stackable tag stays on offer once held — cooking a fifth meal is the
-// whole point — while an ordinary one drops off the menu as before.
-//
-// It used to admit a second route, `purchasable && purchasableAfterStart`, so
-// a player could take a Skill or a trait here instead of paying for it. That
-// was 155 tags, every one of them also priced in /store, and Add Tag costs
-// nothing but a written reason — so it was strictly cheaper than the point
-// buy, and players used it that way (Butcher, Horse, Stealth, Literate,
-// Ranged (Basic), Workshop...). The help text asking them not to was the tell
-// that the option should not have been on the menu. The two economies are now
-// cleanly split: /store spends Tag Points against catalog prices, Add Tag
-// spends turns and ⬢ against a recipe. See REQUESTS.md §3, TAGS.md §3b.
+// whole point — while an ordinary one drops off the menu as before. The two
+// economies stay cleanly split: /store spends Tag Points against catalog
+// prices, Add Tag spends turns and ⬢ against a recipe. See REQUESTS.md §3,
+// TAGS.md §3b.
 export function addableTags(tags, heldTagIds = []) {
   const held = new Set(heldTagIds);
   return tags.filter((tag) => tag.craftable && (tag.stackable || !held.has(tag.id)));
@@ -100,11 +81,11 @@ export function consumableTags(characterTags = []) {
 // can export nothing but async functions, and both the page's gate and the
 // server action's re-derivation have to read the same set or they will drift.
 //
-// The Steam Automobile is the Merchant Update's addition and the only one of
-// these that isn't a horse: it is imported, not bred, but it moves a person
-// one zone over exactly the same way, so it rides the same request rather than
-// getting a near-identical one of its own. Its description carries the same
-// caveats, the caves included. See docs/systemdocs/DEPOT.md §3.
+// The Steam Automobile is the only one of these that isn't a horse: it is
+// imported, not bred, but it moves a person one zone over exactly the same
+// way, so it rides the same request rather than getting one of its own. Its
+// description carries the same caveats, the caves included. See
+// docs/systemdocs/DEPOT.md §3.
 export const FAST_TRAVEL_SLUGS = new Set(["horse", "horse-windlander", "steam-automobile"]);
 
 // How many people (the rider included) a Fast Travel can carry, from the tags

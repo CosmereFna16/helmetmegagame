@@ -10,31 +10,26 @@ const TYPEAHEAD_RESET_MS = 500;
 
 // The drop-in replacement for a bare <select>. Same children (<option> /
 // <optgroup>), same value/onChange/defaultValue/name/required/disabled
-// contract, so almost every call site migrates by renaming the tag. The
-// reason it exists: a native <select>'s CLOSED control is fully themeable
-// (that's what .field select / .control already did), but its OPEN popup is
-// OS-drawn chrome that `color-scheme` only partly controls — on some
-// browsers it renders light-on-light regardless of the page's theme. This
-// renders the popup itself, so every pixel follows the theme.
+// contract, so almost every call site migrates by renaming the tag. It
+// exists because a native <select>'s OPEN popup is OS-drawn chrome that
+// `color-scheme` only partly controls — on some browsers it renders
+// light-on-light regardless of the page's theme — so this renders the popup
+// itself, following the theme on every pixel.
 //
 // Controlled (value + onChange) and uncontrolled (name + defaultValue, read
-// via FormData in a server action) both work, exactly like a real <select>:
-// uncontrolled mode keeps its own state and mirrors it into a hidden input
-// so the surrounding <form> still sees it. onChange is called with a
-// {target: {value, name}} shape so `(e) => setX(e.target.value)` call sites
-// need no change at all.
+// via FormData in a server action) both work, exactly like a real <select>.
+// onChange is called with a {target: {value, name}} shape so
+// `(e) => setX(e.target.value)` call sites need no change at all.
 //
 // Multi-select has no equivalent here on purpose — gm/dev/page.js's Bulk
 // Move picker (`<select multiple size={8}>`) is an open, always-visible
-// listbox, not a popup, so the OS-popup problem this solves doesn't apply to
-// it, and it stays a native <select>.
+// listbox, not a popup, so the OS-popup problem this solves doesn't apply,
+// and it stays a native <select>.
 
 // A Fragment is transparent, the way it is to a real <select>. React.Children
-// only flattens ARRAYS — it hands a fragment back as a single child — so a call
-// site that builds its options in a helper returning <>…</> (the two ⬢-transfer
-// party pickers do) used to collapse into one bogus item whose value was the
-// fragment's children array. Nothing selectable, and nothing that could ever
-// satisfy the dialog's canSubmit.
+// only flattens ARRAYS — it hands a fragment back as a single child — so a
+// helper returning <>…</> for its options must be walked explicitly, or it
+// collapses into one bogus item with no selectable value.
 function optionsFromChildren(children) {
   const items = [];
   let lastGroup = null;
@@ -223,11 +218,10 @@ export default function Select({
     if (disabled) return;
     // A modifier combo (⌘K, ⌘C, browser back on ⌘←…) is never this control's
     // to own — let it bubble untouched. Everything else, while the trigger
-    // has focus, IS this control's: without stopPropagation the desk's own
-    // window-level shortcuts (QueueRail's j/k/arrows/m/r/c/h, Workspace's
-    // Escape) saw the same keystroke, since this trigger is a <button>, not
-    // one of the tag names those listeners allowlisted. Typing "m" in a
-    // filter dropdown used to flip the whole rail to the Moves lens.
+    // has focus, IS this control's: stopPropagation keeps it from also
+    // triggering the desk's window-level shortcuts (QueueRail's
+    // j/k/arrows/m/r/c/h, Workspace's Escape), since this trigger is a
+    // <button>, not one of the tag names those listeners allowlist.
     if (e.metaKey || e.ctrlKey) return;
     e.stopPropagation();
     if (!open) {

@@ -16,14 +16,9 @@ import BulkMessageButton from "./BulkMessageButton";
 // The player desk's server half. It owns the rail's data and nothing else:
 // the child route loads its own conversation, and router.refresh() re-runs
 // this layout so unread counts and previews stay live without a list-only
-// poll.
-//
-// This used to be two screens. /gm/messages could only list players who had
-// already sent a DM — the list came from a groupBy over DirectMessage — so
-// there was no way to START a conversation, and /gm/players was a table you
-// could not talk from. Merging them is what fixes that: the rail is the union
-// of "everyone with a conversation" and "everyone with a character", so a
-// player who has never written is one click from a reply box.
+// poll. The rail is the union of "everyone with a conversation" and
+// "everyone with a character", so a player who has never written is one
+// click from a reply box.
 //
 // The GM gate lives in (desk)/layout.js above this.
 
@@ -82,40 +77,25 @@ export default async function PlayerDeskLayout({ children }) {
   ]);
 
   // Newest message per conversation, one round trip. DISTINCT ON is
-  // Postgres-specific and has no Prisma equivalent — the alternative is a
-  // findFirst per conversation, i.e. a query fanned out per player at once.
-  // Rides @@index([discordUserId, createdAt]).
+  // Postgres-specific and has no Prisma equivalent. Rides
+  // @@index([discordUserId, createdAt]).
   //
-  // The noise predicate is the same one web/lib/dmThread.js#withoutDmNoise
-  // applies to the thread, written out as SQL because this query cannot go
-  // through Prisma. Without it the rail previewed and SORTED BY rows the
-  // conversation pane hides — an inspect embed or a reply typed into the
-  // ✏️ edit prompt would sit at the top of the inbox as if the player had
-  // just written. Null-safe on purpose: `NOT (x = y)` is NULL, not true, for
-  // every row where x is NULL, and a NULL predicate drops the row — that is
-  // exactly the trap that once emptied every thread (PR #11).
+  // The noise predicate is web/lib/dmThread.js#withoutDmNoise, written out as
+  // SQL because this query cannot go through Prisma. Keep it null-safe:
+  // `NOT (x = y)` is NULL, not true, when x is NULL, and a NULL predicate
+  // drops the row — that trap once emptied every thread.
   //
-  // Kept as two DISTINCT ON queries rather than folded into one window-function
-  // scan (two ROW_NUMBER()s over different filters in a single pass). That
-  // would save one table scan, but this is the desk's hottest path and the two
-  // predicates mean different things — one drives recency and unread state, the
-  // other only the preview snippet. A deliberate choice for clarity: they run
-  // in parallel below, so the saved scan buys no wall-clock time either.
+  // Two DISTINCT ON queries rather than one window-function scan, kept apart
+  // because the predicates mean different things — one drives recency and
+  // unread state, the other (genuineConversationSql) only the preview
+  // snippet, which additionally drops bot/effect noise (a resource grant, a
+  // dev-panel summary) that isn't a real conversational turn. The row's
+  // timestamp and "awaiting reply" status still key off ANY DM, so an
+  // automated notification bumps the relative-time chip but never buries a
+  // player's real question under it in the preview.
   //
-  // The rail's PREVIEW TEXT is the second, stricter query — genuineConversationSql
-  // additionally drops bot/effect noise (a resource grant, a dev-panel
-  // microaction summary, a Move-unlock notice) that isn't a real
-  // conversational turn. Deliberately separate from latestMessages above:
-  // the row's TIMESTAMP and its "awaiting reply" status still key off ANY
-  // DM (latestByUser), so an automated notification still bumps the
-  // relative-time chip — only the preview snippet skips past it to the last
-  // thing a person actually said. Without this split, a resource grant sent
-  // after a player's real question would show "Bot: You were given 1 ⬢." in
-  // the rail, burying the question it's supposed to surface.
-  //
-  // These four depend on nothing above them and on nothing in each other, so
-  // they go out in one batch rather than four round trips in a row. The maps
-  // are built afterwards.
+  // These four depend on nothing above them or each other, so they go out in
+  // one batch.
   const [latestMessages, genuineMessages, unreadRows, claims, clock] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
@@ -310,8 +290,7 @@ export default async function PlayerDeskLayout({ children }) {
         {children}
         {/* The third column is the shell's, not the person view's: it stays
             put across a navigation (the roster included), which is the whole
-            point of a persistent inspector. It replaced the per-person
-            DossierColumn — Canon is an extra tab on it now. */}
+            point of a persistent inspector. */}
         <InspectorHost
           rows={rows}
           stagedEffects={stagedEffects.map((e) => ({

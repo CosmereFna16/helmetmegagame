@@ -169,29 +169,19 @@ async function sweepExpiredStacks(turn) {
 
 // Applies per-turn Needs decay to the turn being closed. Shared between the
 // bot's cron-triggered advanceTurn() and the GM dashboard's manual
-// close-turn override, so both paths behave identically instead of only the
-// automated one actually resolving Needs.
+// close-turn override, so both paths behave identically.
 //
 // Returns { lifewebBlood, hungerNotices, disappointedNotices,
-// defaultMovePosts,
-// defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates,
-// catatonicDeaths, catatonicDeathWarnings }.
-// Everything after
-// the first is Discord work this function deliberately does NOT perform —
-// the Hunger pass's DM list (one notice per character who starved or whose
-// streak changed from eating: discordUserId, kind, streak, justDied), its
-// Nobility sibling (kind: warned | disappointed), the
-// Default Move pass's summary posts and DMs, the tag
-// progression pass's DMs, and the Catatonic pass's one-DM-per-newly-flagged
-// list and its personal-role renames. See advanceTurn() below for why.
+// defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms,
+// catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings }. Everything
+// after the first is Discord work this function deliberately does NOT
+// perform — see advanceTurn() below for why.
 //
-// The Caving Die is NOT one of this function's passes — it used to be, but
-// resolveNeeds() only ever runs against the turn being CLOSED, and the die is
-// meant to roll for the turn that's OPENING. Rolling it here meant an arrival
-// roll made earlier in the very turn being closed had already claimed that
-// turn's row, so the pass itself rolled nothing (see db/lib/cavingPass.js and
-// docs/systemdocs/CAVING.md §2). advanceTurn() below runs it directly against
-// the newly created turn instead.
+// The Caving Die is NOT one of this function's passes: resolveNeeds() only
+// ever runs against the turn being CLOSED, and the die must roll for the turn
+// that's OPENING (see db/lib/cavingPass.js and CAVING.md §2). advanceTurn()
+// below runs it directly against the newly created turn instead.
+//
 // Every pass this turn owes, by the name markDone records it under. The
 // needsResolvedAt stamp at the bottom is written only when `done` covers all
 // of them, which is what makes the resume machinery mean anything.
@@ -228,11 +218,9 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error(`Failed to record completed pass "${name}":`, err));
   }
 
-  // A failed pass leaves the turn advancing anyway — that has always been the
-  // trade, since a stuck turn is worse than a missed upkeep — but it no longer
-  // vanishes into stderr. The row is what makes "everyone ate free on day 12"
-  // answerable after the fact, and the pass stays unrecorded so the next
-  // advance retries it.
+  // A failed pass leaves the turn advancing anyway — a stuck turn is worse
+  // than a missed upkeep — but it's logged rather than vanishing into stderr,
+  // and stays unrecorded so the next advance retries it.
   async function passFailed(name, err) {
     console.error(`${name} pass failed:`, err);
     await prisma.auditLog
@@ -249,12 +237,11 @@ async function resolveNeeds(turn, config) {
       .catch((logErr) => console.error("Failed to log turn_pass_failed — this failure now has no record:", logErr));
   }
 
-  // Default Moves file FIRST, before anything else here: a Default Move can
-  // pay resources in, and the Hunger pass below charges them out, so income
-  // has to land before upkeep is taken or a player whose default earns them
-  // a meal still goes hungry. It also has to happen while the turn is still
-  // the one being closed — it files a real Action against it. Same summary-
-  // audit-row shape as the Hunger pass, for the same reason.
+  // Default Moves file FIRST: a Default Move can pay resources in, and the
+  // Hunger pass below charges them out, so income has to land before upkeep
+  // or a player whose default earns them a meal still goes hungry. It also
+  // has to run while the turn is still the one being closed — it files a
+  // real Action against it.
   let defaults = null;
   if (!done.has("defaultMoves")) {
     defaults = await runDefaultMovePass(prisma, turn).catch(async (err) => {
@@ -276,8 +263,8 @@ async function resolveNeeds(turn, config) {
   }
 
   // The staged-arbitration push — everything the GMs queued this turn, plus
-  // every confirmed Move's own declared payout (nothing pays at confirm any
-  // more, see db/lib/stagedPush.js). Its slot here is load-bearing three ways:
+  // every confirmed Move's own declared payout (see db/lib/stagedPush.js).
+  // Its slot here is load-bearing three ways:
   //   - AFTER defaultMoves: that pass stamps appliedEffects on the Actions it
   //     files, so this one correctly skips them, and its income is already
   //     positioned before upkeep.
@@ -360,10 +347,9 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Tag expiry audit log failed:", err));
   }
 
-  // Dying death — the engine's second auto-kill, and the reason the comment
-  // above no longer says the terminal chains "wait for a GM". Dying carries a
-  // one-turn clock now (docs/tags.yaml), and this is what the clock runs down
-  // to. Its slot is load-bearing on both sides: AFTER stagedPush and tagExpiry
+  // Dying death — the engine's second auto-kill. Dying carries a one-turn
+  // clock (docs/tags.yaml), and this is what the clock runs down to. Its slot
+  // is load-bearing on both sides: AFTER stagedPush and tagExpiry
   // so a staged cure or a medic's heal landing this same close always beats
   // the axe, and BEFORE the sweep below, which would otherwise delete the very
   // rows that are the evidence. Own resolvedPasses marker for the same reason
@@ -545,18 +531,13 @@ async function resolveNeeds(turn, config) {
   }
 
   // Every pass accounted for. A turn carrying this is one no resume will
-  // reopen — WHICH IS WHY IT IS NOW CONDITIONAL.
-  //
-  // This used to be stamped unconditionally, directly under that sentence,
-  // reached identically whether zero passes threw or four did. needsResolvedAt
-  // is the sole selector for the resume query in advanceTurn(), so a hunger
-  // pass that failed at 04:00 was written off as resolved and never retried:
-  // everyone ate free that day, permanently, while passFailed's comment
-  // promised the opposite. The turn_pass_failed audit row was the only trace.
+  // reopen — must stay conditional on every pass in TURN_PASSES having run,
+  // since needsResolvedAt is the sole selector for advanceTurn()'s resume
+  // query. Stamping it unconditionally means a failed pass is written off as
+  // resolved and never retried.
   //
   // The turn still advances either way — a stuck turn is worse than a missed
-  // upkeep, and that trade hasn't changed. What changes is that the missed
-  // upkeep now gets picked up by the next advance instead of being forgotten.
+  // upkeep — but the missed upkeep now gets picked up by the next advance.
   const outstanding = TURN_PASSES.filter((name) => !done.has(name));
   if (outstanding.length === 0) {
     await prisma.turn
@@ -606,17 +587,16 @@ async function getConfig() {
 // one, alternating DAWN/DUSK. Shared by the bot's cron-triggered advance and
 // any GM-triggered "End Turn" action so both apply identical turn logic.
 //
-// This still composes every Discord side effect (the Hunger DMs, the turn
+// This composes every Discord side effect (the Hunger DMs, the turn
 // announcement, and the Dawn message wipe if enabled — all REST-based, see
-// db/lib/turnAnnouncement.js and db/lib/dawnWipe.js), but it no longer *runs*
+// db/lib/turnAnnouncement.js and db/lib/dawnWipe.js), but does not *run*
 // them: they're returned as a single `runSideEffects()` thunk and the caller
-// decides when. That's the fix for the Dev Panel lockup — the wipe walks every
-// location, thread and message page sequentially and can take minutes, and
-// awaiting it inside a server action froze the whole web app behind a pending
-// request. The bot's cron awaits the thunk inline (it's a background process,
-// the wait is harmless); the web action runs it via next/server's after(), so
-// the response is flushed first. Everything inside is still best-effort:
-// individually caught, logged, never thrown.
+// decides when. The wipe walks every location, thread and message page
+// sequentially and can take minutes, so awaiting it inside a server action
+// would freeze the web app behind a pending request. The bot's cron awaits
+// the thunk inline (a background process, so the wait is harmless); the web
+// action runs it via next/server's after(), so the response is flushed
+// first. Everything inside is best-effort: individually caught, never thrown.
 //
 // Returns { advanced, previousTurn, newTurn, note, runSideEffects }. `advanced`
 // is false when another caller won the race to close the open turn (see the
@@ -653,14 +633,14 @@ async function advanceTurn() {
     // clicking it just as the bot's twice-daily cron fires. Postgres
     // serializes the two updateMany's, so exactly one sees count === 1; the
     // loser bails out here instead of resolving Needs a second time and
-    // opening a duplicate turn (which needs hand-editing the DB to undo).
+    // opening a duplicate turn.
     //
-    // Closing before resolving (rather than after, as this used to) is what
-    // makes the claim atomic. The cost is that a mid-resolve crash leaves the
-    // turn RESOLVED with Needs half-applied; the alternative is that a losing
-    // racer runs the whole of resolveNeeds() before finding out it lost,
-    // double-charging every character's upkeep and double-decaying the
-    // Lifeweb. A half-resolved turn is the cheaper failure.
+    // Closing before resolving is what makes the claim atomic. The cost is
+    // that a mid-resolve crash leaves the turn RESOLVED with Needs half-
+    // applied; the alternative — resolving before closing — lets a losing
+    // racer run the whole of resolveNeeds() before finding out it lost,
+    // double-charging upkeep and double-decaying the Lifeweb. A half-resolved
+    // turn is the cheaper failure.
     const closed = await prisma.turn.updateMany({
       where: { id: openTurn.id, status: "OPEN" },
       data: { status: "RESOLVED", resolvedAt: new Date() },
@@ -682,11 +662,9 @@ async function advanceTurn() {
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn, which normally means "opening the very first turn". It
-    // also means something else: a previous advance that claimed its turn and
-    // then died before creating the next one. The claim is what removes the
-    // OPEN turn, so that crash landed the game here — and here used to do
-    // nothing but open a fresh turn, silently skipping that day's hunger,
-    // decay and remaining Default Moves with no log of it having happened.
+    // also means a previous advance claimed its turn and then died before
+    // creating the next one — the claim is what removes the OPEN turn, so
+    // that crash landed the game here.
     //
     // A RESOLVED turn with no needsResolvedAt is exactly that turn. Finishing
     // it re-runs only the passes it never recorded.
@@ -695,19 +673,16 @@ async function advanceTurn() {
       orderBy: { number: "desc" },
     });
     if (unfinished) {
-      // The resume needs the same compare-and-swap the normal path does above,
-      // and had none: this was a plain findFirst, so the bot's 04:00 cron and
-      // a GM clicking End turn on a crashed turn both matched the same row,
-      // both read the same resolvedPasses, both cleared every `!done.has(...)`
-      // guard, and both ran every outstanding pass. Hunger charged twice,
-      // Lifeweb decayed twice. resolvedPasses is not a lock — markDone is
-      // last-write-wins and cannot arbitrate — and needsResolvedAt cannot
-      // double as one either, since it is the completion stamp written at the
-      // END. Hence its own column.
+      // The resume needs the same compare-and-swap the normal path does above:
+      // without it, the bot's cron and a GM clicking End turn on a crashed
+      // turn could both match the same row and both run every outstanding
+      // pass, charging Hunger twice and double-decaying the Lifeweb.
+      // resolvedPasses is not a lock (markDone is last-write-wins) and
+      // needsResolvedAt is the completion stamp written at the END, so the
+      // claim needs its own column.
       //
       // The staleness arm matters as much as the claim: a resume that dies
-      // holding the lease would otherwise wedge the turn forever, and this is
-      // the code path that exists because processes die mid-turn.
+      // holding the lease would otherwise wedge the turn forever.
       const staleBefore = new Date(Date.now() - RESUME_LEASE_MS);
       const claimed = await prisma.turn.updateMany({
         where: {
@@ -783,19 +758,15 @@ async function advanceTurn() {
 
   // The Caving Die — every ALIVE character already standing in the Depths
   // gets one roll for the turn that JUST opened (newTurn, not the one this
-  // function is closing). It used to run inside resolveNeeds() against the
-  // closing turn, which meant an arrival roll made earlier that same turn had
-  // already claimed the row and the pass rolled nothing — see
-  // db/lib/cavingPass.js and docs/systemdocs/CAVING.md §2. Placed after the
-  // TURN_START archive row rather than straight after turn.create: the
-  // weather/note reset and that row are facts about the turn opening, and a
-  // roster-wide pass is a run of small transactions that shouldn't sit in
-  // front of them. Still database-only — nothing below this comment talks to
-  // Discord until runSideEffects.
+  // function is closing). Must roll against the opening turn, not the
+  // closing one, or an arrival roll made earlier the same turn claims the row
+  // first and the pass rolls nothing (db/lib/cavingPass.js, CAVING.md §2).
+  // Placed after the TURN_START archive row so the weather/note reset lands
+  // before a roster-wide pass. Still database-only — nothing below this
+  // comment talks to Discord until runSideEffects.
   //
-  // Own try/catch, and it must never rethrow: passFailed/markDone are
-  // resolveNeeds()'s closures and don't reach here, and a throw escaping this
-  // block would abort advanceTurn() after newTurn already exists — no
+  // Own try/catch, and it must never rethrow: a throw escaping this block
+  // would abort advanceTurn() after newTurn already exists — no
   // runSideEffects, no turn announcement, for the sake of one missed die.
   try {
     const caving = await runCavingPass(prisma, newTurn);
@@ -824,12 +795,12 @@ async function advanceTurn() {
   }
 
   // Everything below this line talks to Discord and nothing above it does, so
-  // the turn is fully committed by the time the caller gets this back. This is
-  // now the ONLY place in the turn-advance path that makes a network call —
-  // all three resolveNeeds() passes hand their posts and DMs back rather than
-  // sending them. Order matches the narrative: the closing turn's Default Move
-  // summaries and DMs, then the tag progression DMs, then the Hunger DMs, then
-  // the announcement opening the next turn, then the Dawn wipe.
+  // the turn is fully committed by the time the caller gets this back. This
+  // is the ONLY place in the turn-advance path that makes a network call —
+  // every resolveNeeds() pass hands its posts and DMs back rather than
+  // sending them. Order matches the narrative: the closing turn's Default
+  // Move summaries and DMs, then tag progression, then Hunger, then the
+  // announcement opening the next turn, then the Dawn wipe.
   const runSideEffects = async () => {
     // The cutoff every deletion below is bounded by. Taken before the first
     // Discord call, so everything this thunk posts is newer than it — which is

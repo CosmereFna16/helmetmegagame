@@ -1,18 +1,10 @@
-// The destructive half of the tag sync, and the only tag operation in this
-// repo that deletes anything.
+// The destructive half of the tag sync (`npm run db:prune-tags`) — the only
+// tag operation in this repo that deletes anything. syncTagsFromYaml is
+// upsert-only, so this is the deliberate counterpart.
 //
-// syncTagsFromYaml (db/lib/syncTags.js) is upsert-only by design: dropping an
-// entry from docs/tags.yaml leaves its DB row untouched forever. That is the
-// right default — a tag a character holds must never vanish because someone
-// tidied a YAML file — but it means the catalog only ever grows. This is the
-// deliberate, separately-invoked counterpart: `npm run db:prune-tags`.
-//
-// It is DRY-RUN BY DEFAULT. Nothing is deleted without `--apply`.
-//
-// A tag is deletable only when EVERY check below passes. Anything that fails
-// even one is reported with its reason and skipped — never cascaded, never
-// forced. A prune that silently skips is worse than one that deletes, so the
-// caller prints every refusal.
+// DRY-RUN BY DEFAULT. A tag deletes only when EVERY check below passes;
+// anything that fails even one is reported with its reason and skipped —
+// never cascaded, never forced.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -33,10 +25,10 @@ function yamlSlugs() {
 }
 
 // Every reason a Tag row must survive, gathered in one pass so the report can
-// name all of them at once rather than stopping at the first.
+// name all of them at once.
 //
 // The Role check compares against tag NAMES, not slugs: Role.startingTagSlugs
-// is misnamed and actually stores names (see the `startingTagNames` mapping in
+// is misnamed and actually stores names (see `startingTagNames` in
 // db/lib/syncRoles.js). Document.tagSlugs really does store slugs.
 // expiresInto is a Json array whose entries are either a bare slug or
 // { oneOf: ["slug", "slug"] } for a random pick between them.

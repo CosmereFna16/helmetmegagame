@@ -2,63 +2,34 @@
 // cron advance and the Dev Panel's "End turn" button behave identically.
 //
 // At the close of every turn each ALIVE character is checked, in this order:
-//   1. Holds Hungerless -> skipped entirely. No resource taken, no Hunger,
-//                          streak reset to 0 (can't go hungry, so a lingering
-//                          streak from before they had this tag is stale —
-//                          this is immunity, not eating, so it's still a full
-//                          reset rather than the one-tick-per-turn rule below).
-//   2. Holds Ate Meal   -> shielded from Hunger, the tag is consumed
-//                          (whether or not they were broke), NO ⬢ is
-//                          taken, and the streak drops by ONE tick. The meal
-//                          was already paid for when it was cooked — 2 ⬢ for
-//                          a Fine, 3 ⬢ for a Lavish — so billing the upkeep on
-//                          top made eating strictly worse than the 1 ⬢ it
-//                          saves. Eating settles the turn's upkeep; the streak
-//                          it climbed over several starved turns takes that
-//                          many fed turns to climb back down.
-//   3. Check FIRST, then pay: at 0 ⬢ you go Hungry, owe nothing, and the
-//      streak increments; at 1+ ⬢ you pay 1, stay fed, and the streak drops
-//      by ONE tick. So 1 ⬢ always buys a fed turn, and resources can never go
-//      negative — the clamp is structural, not a Math.max.
+//   1. Holds Hungerless -> skipped entirely, streak reset to 0.
+//   2. Holds Ate Meal   -> shielded, the tag is consumed, no ⬢ taken, streak
+//      drops by ONE tick (the meal was already paid for when it was cooked,
+//      so billing upkeep on top would make eating worse than paying 1 ⬢).
+//   3. Check FIRST, then pay: at 0 ⬢ you go Hungry and the streak increments;
+//      at 1+ ⬢ you pay 1, stay fed, streak drops by ONE tick. The `gte: 1` on
+//      the decrement's where clause makes the resources floor structural —
+//      the balance is read in a bulk query and decremented later, so a
+//      player who spends their last ⬢ in between simply isn't matched and
+//      eats free that turn (the safe direction to miss in).
 //
-// "Structural" only holds if the check and the pay are the same statement,
-// which they were not: the balance was read in the bulk query above and the
-// decrement issued some milliseconds later, so anyone who spent their last ⬢
-// in between went to −1. Turn rollover is exactly when players are most
-// active. The `gte: 1` on the decrement's where clause is what makes the
-// sentence above true; a racer who slipped to 0 simply isn't matched and eats
-// free that turn, which is the safe direction to miss in.
+// The streak (Character.hungerStreak) is what escalates the penalty:
+// db/lib/gambitModifier.js reads it and clamps at HUNGER_STREAK_CAP. Since a
+// meal only sheds one tick, `hunger` means "carrying hunger damage", not
+// "starved this turn" — it's re-granted to anyone whose streak is still above
+// 0 after eating. Reaching the cap also grants `dying`, a one-turn countdown
+// that db/lib/dyingDeathPass.js finishes at the NEXT close.
+// skipDuplicates makes re-granting it a harmless no-op.
 //
-// The streak (Character.hungerStreak) is what lets the penalty escalate
-// instead of staying a flat -1: db/lib/gambitModifier.js reads it and clamps
-// at HUNGER_STREAK_CAP. Since one meal only sheds one tick, the `hunger` tag
-// itself now means "carrying hunger damage" rather than "starved this turn" —
-// it's re-granted to anyone whose streak is still above 0 after eating, not
-// just to those who starved outright. Reaching the cap also grants `dying`,
-// the same terminal tag every untreated-wound chain lands on. This pass still
-// kills nobody itself — it only ever grants the tag — but `dying` is a
-// one-turn countdown now rather than a permanent flag waiting on a GM, so
-// db/lib/dyingDeathPass.js finishes at the NEXT close what starving started
-// here. skipDuplicates means re-granting it on a later starved turn is a
-// harmless no-op, and leaves the original clock alone. Only starving (never
-// eating) can push a character over the cap — a fed character's streak only
-// ever goes down.
+// Shaped for 100+ players: two reads and bulk writes regardless of headcount;
+// the per-player Hunger DMs are returned as a list for advanceTurn() to send.
 //
-// Shaped for 100+ players: two reads and bulk writes regardless of headcount,
-// and no network call at all — the per-player Hunger DMs are returned as a
-// list for advanceTurn() to send later.
-//
-// Nobility rides the same pass: each turn close without the Ate Meal shield
-// ticks Character.missedMealStreak up for a noble (paying the 1 ⬢ upkeep is
-// commoner food and doesn't count), and at DISAPPOINTMENT_THRESHOLD the pass
-// grants `disappointed`, with a warning DM the day before. Unlike the hunger
-// streak there is no slow climb back down: one proper meal resets the count
-// to 0 outright. The tag is granted with no expiry, like `catatonic`, because
-// the cure is an act rather than time: consuming anything that becomes Ate
-// Meal removes it on the spot (web/app/(app)/character/requestActions.js).
-// The shielded-branch delete below is only the backstop for meals a GM
-// granted directly. Hungerless and Dying nobles are exempt from gaining it —
-// no appetite and no appetite for life, respectively.
+// Nobility rides the same pass: each close without the Ate Meal shield ticks
+// Character.missedMealStreak up for a noble, and at DISAPPOINTMENT_THRESHOLD
+// the pass grants `disappointed`, with a warning DM the day before. One
+// proper meal resets the count to 0 outright; the tag has no expiry and is
+// cleared by eating (web/app/(app)/character/requestActions.js). Hungerless
+// and Dying nobles are exempt.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const {
@@ -211,14 +182,8 @@ async function runHungerPass(prisma, turn) {
     }
   }
 
-  // A Hunger granted while closing turn N gets expiresTurn N+1 — the usual
-  // `turn.number + defaultDurationTurns` arithmetic. It's
-  // live for the whole of turn N+1 and deleted by resolveNeeds()' sweep when
-  // N+1 closes. That's also what makes Ate Meal's "won't go hungry next turn"
-  // copy literally true: eaten during turn N, consumed at N's close, it
-  // suppresses the tag that would have bitten during N+1.
-  // turn.number + 1: this closes turn N, and the Hunger's first live turn
-  // is N+1, the one about to open.
+  // A Hunger granted while closing turn N gets expiresTurn N+1 — live for the
+  // whole of N+1, deleted by resolveNeeds()' sweep when N+1 closes.
   const expiresTurn = expiryFrom(turn.number + 1, hungerTag.defaultDurationTurns ?? 1);
 
   // Computed in JS off the streak already loaded above, not off a DB return
@@ -229,9 +194,8 @@ async function runHungerPass(prisma, turn) {
     character,
     newStreak: Math.max(character.hungerStreak - 1, 0),
   }));
-  // A meal only sheds one tick, so anyone who was several turns deep is still
-  // hungry afterward — the tag now means "carrying hunger damage", not
-  // "starved this turn", so it's re-granted here too.
+  // A meal only sheds one tick, so anyone several turns deep is still hungry
+  // afterward — re-granted here too.
   const stillHungryAfterEating = fedWithNewStreak.filter((f) => f.newStreak > 0);
   const toDecrementIds = fed.map((character) => character.id);
 
@@ -241,11 +205,7 @@ async function runHungerPass(prisma, turn) {
       kind: "starved",
       streak: Math.min(character.hungerStreak + 1, HUNGER_STREAK_CAP),
       // `>=`, matching newlyDyingIds below — the flag that sends DYING_DM and
-      // the grant that lands the tag must never disagree. With `===`, a GM who
-      // pulled Dying off by hand without also dropping the streak below the cap
-      // got the tag re-granted on the next starved turn (skipDuplicates no
-      // longer suppresses it, since it is no longer held) and the player was
-      // never told.
+      // the grant that lands the tag must never disagree.
       justDied: dyingId != null && character.hungerStreak + 1 >= HUNGER_STREAK_CAP,
     })),
     // Only characters who were actually carrying a streak get a DM — someone
@@ -336,11 +296,8 @@ async function runHungerPass(prisma, turn) {
               characterId,
               tagId: dyingId,
               source: "EVENT",
-              // Was `null` — permanent, like every other terminal chain — back
-              // when a GM decided how Dying ended. It carries a clock now:
-              // one turn, then db/lib/dyingDeathPass.js. Granted while closing
-              // turn N, so N + 1 is the close it runs out on, the same
-              // "+ 1 is the first live turn" expression tagExpiryPass uses.
+              // Carries a one-turn clock: granted closing turn N, expires at N + 1,
+              // then db/lib/dyingDeathPass.js takes over.
               expiresTurn: turn.number + 1,
             })),
             // A character can hit the cap more than one turn running, since

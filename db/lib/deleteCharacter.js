@@ -1,14 +1,9 @@
 // Removing a Character row and everything that points at it, in FK order.
-//
-// Shared by the two callers that need it: the GM Dev Panel's Delete
-// microaction, and bot/src/events/guildMemberRemove.js when a player leaves
-// the guild. Both used to hand-roll the list, and the bot's copy was WRONG —
-// it deleted Note / DefaultEffort / Action / CharacterTag / Character and
-// missed AuditLog, Request and Desire, all three of which carry a required or
-// optional FK to Character with no onDelete rule. Any character who had ever
-// had a Request adjudicated or a tag GM-granted therefore threw a Postgres
-// foreign-key violation on the way out, rolling the whole transaction back and
-// leaving the row behind.
+// Shared by the GM Dev Panel's Delete microaction and
+// bot/src/events/guildMemberRemove.js, so the FK list is defined once:
+// AuditLog, Request and Desire all carry a required or optional FK to
+// Character with no onDelete rule, so any caller that misses one throws a
+// Postgres foreign-key violation and rolls the whole transaction back.
 //
 // Two of the four dependents are DETACHED rather than deleted:
 //
@@ -36,10 +31,8 @@ async function deleteCharacterRow(prisma, characterId) {
 
     // DefaultEffort carries TWO foreign keys to Character: the owner, and
     // setByCharacterId ("DefaultEffortSetBy") for a default someone else set.
-    // Nothing writes the second as anyone but self today, so no row survives
-    // to dangle — but this is exactly the class of miss that made the bot's
-    // old list throw, and the first "a Leader sets a subordinate's default
-    // effort" feature would resurrect it. Detach before deleting by owner.
+    // Detach before deleting by owner, or a future "Leader sets a
+    // subordinate's default effort" feature dangles this FK.
     await tx.defaultEffort.updateMany({
       where: { setByCharacterId: characterId },
       data: { setByCharacterId: null },

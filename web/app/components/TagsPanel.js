@@ -12,18 +12,14 @@ import { heldSlugsOf } from "@/lib/consumeGrants";
 
 // The Tags section of a character sheet. It's a client component for one
 // reason: clicking a consumable chip opens the Consume dialog already pointed
-// at that tag. That used to work through an onReady callback out of
-// TagRequestButtons, which this panel rendered; the buttons are now
-// ActionGrid.js up in StatusPanel, so the opener comes off
-// RequestActionsProvider's context instead. Everything else here is the
-// markup that used to sit inline in CharacterSheet.js.
+// at that tag, via RequestActionsProvider's context.
 //
 // Equipment lives here too, as an embedded EquipmentPanel sub-section —
 // equipped items are just a view over the same held-tags data this panel
 // already renders, so a standalone Equipment card was one more scroll stop
-// for no new information. And "Spend Tag Points" (the old /store page,
-// mounted here as StorePanel inside a Modal) sits in this header next to the
-// Tag Points readout it spends, rather than as its own nav destination.
+// for no new information. "Spend Tag Points" (StorePanel inside a Modal)
+// sits in this header next to the Tag Points readout it spends, rather than
+// as its own nav destination.
 
 // Fixed display order rather than alphabetical or catalog order — Status
 // (needs, buffs/debuffs) and Health (whatever is currently wrong with you)

@@ -1,23 +1,11 @@
-// Acknowledging an interaction, and answering one, without either of the two
-// ways that go wrong.
+// Acknowledging and answering a Discord interaction correctly.
 //
-// 1. Discord gives a bot THREE SECONDS to acknowledge an interaction. Several
-//    handlers here did their whole database write — the Action row, the dice
-//    roll, an audit entry — before the first ack, so under launch-day load the
-//    player got "The application did not respond" while their Move had already
-//    gone through. Retrying then told them they had already acted. Deferring
-//    first buys fifteen minutes and costs nothing but Discord's own thinking
-//    indicator.
-//
-// 2. A reply over 2000 characters is rejected outright, AFTER the work
-//    committed. The Move confirmation echoes an 1800-character description and
-//    then adds a Kind line, a dice line and a resource line on top of it, so
-//    the ceiling was reachable by typing.
-//
-// Every handler that touches the database should call `ack` as its first
-// statement and `respond` in place of `interaction.reply`. The four handlers
-// that open a modal are the exception: showModal IS the acknowledgement and a
-// deferred interaction can no longer open one.
+// Discord gives a bot three seconds to acknowledge an interaction, so `ack`
+// must run before any database work, not after. A reply over 2000 characters
+// is rejected outright after that work has already committed, so `respond`
+// clamps it instead. Every handler that touches the database calls `ack`
+// first and answers via `respond`, not `interaction.reply` — the exception is
+// a handler that opens a modal, where `showModal` IS the acknowledgement.
 
 const { MessageFlags } = require("discord.js");
 
@@ -69,16 +57,11 @@ async function ack(interaction, { update = false, ephemeral = true } = {}) {
   }
 }
 
-// Answers, picking edit/follow-up/reply from what has already happened to this
-// interaction. Never throws: by the time this runs the database work is done,
-// and a failed reply must not become an unhandled rejection on top of it.
-//
-// Self-deletes after FLEETING_DELETE_DELAY_MS by default — an ephemeral reply
-// is only ever visible to the one player who triggered it, and one that
-// outlives its moment just sits there as a Dismiss chore. The durable record
-// of anything that matters lives in AuditLog / Action / ArchiveEntry, not in
-// an ephemeral, so there is nothing here worth keeping around. Pass
-// `fleeting: false` to opt a specific reply out.
+// Answers, picking edit/follow-up/reply from what has already happened to
+// this interaction. Never throws: a failed reply must not become an
+// unhandled rejection on top of database work that's already done. Self-
+// deletes after FLEETING_DELETE_DELAY_MS by default; pass `fleeting: false`
+// to opt a specific reply out.
 async function respond(interaction, payload, { fleeting = true } = {}) {
   const options = typeof payload === "string" ? { content: payload } : { ...payload };
   if (options.content !== undefined) options.content = clampContent(options.content);
