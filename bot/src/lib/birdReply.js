@@ -25,7 +25,7 @@ const { ack, respond } = require("./respond");
 // boundary, and the submit is the only check that can't be outrun.
 
 // A modal must be shown within three seconds and CANNOT be deferred first, so
-// the button handler reads exactly one row and no more. Same constraint
+// the button handler stays to a small, fixed number of reads. Same constraint
 // topicModal.js documents.
 function buildReplyModal(birdMessageId, recipientName) {
   return new ModalBuilder()
@@ -46,7 +46,8 @@ function buildReplyModal(birdMessageId, recipientName) {
 }
 
 // Shared by both handlers so the button and the submit can never disagree
-// about whether the window is open.
+// about whether the window is open — or about whether the replier can write at
+// all.
 async function windowState(birdMessageId) {
   const message = await prisma.birdMessage.findUnique({ where: { id: birdMessageId } });
   if (!message) return { ok: false, reason: TOO_LATE_REPLY };
@@ -61,6 +62,19 @@ async function windowState(birdMessageId) {
   // simply waiting, and refusing here would burn a reply on a technicality.
   if (!openTurn) return { ok: false, reason: "The bird is restless. Try again when the turn opens." };
   if (openTurn.number > message.replyDeadlineTurn) return { ok: false, reason: TOO_LATE_REPLY };
+
+  // Answering a letter is writing one, so it wants the same Literate the sender
+  // needed. An illiterate recipient is never given the Reply button in the
+  // first place (web requestActions.js), but the button is only a hint: a GM
+  // can strip the tag between the letter landing and the answer going out.
+  // Read last, so the cheap refusals above stay cheap.
+  const replier = await prisma.character.findUnique({
+    where: { id: message.recipientId },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!replier?.tags.some((ct) => ct.tag.slug === LITERATE_SLUG)) {
+    return { ok: false, reason: "You cannot write. The bird leaves without an answer." };
+  }
 
   return { ok: true, message };
 }

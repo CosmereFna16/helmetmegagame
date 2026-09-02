@@ -18,7 +18,9 @@ immediately, and the GM reviews it later:
 
 1. The player clicks a button on their character sheet.
 2. A universal popup asks **"What is your reason?"**, with type-specific
-   fields underneath.
+   fields underneath. (One exception: the Bird's letter passes
+   `reasonRequired={false}`, because the letter it files is already the evidence
+   a GM would read — `BIRD.md` §7.)
 3. The player confirms.
 4. The effect is applied and a `Request` row is written, in one transaction.
 5. A GM sees it in the Requests tab of `/gm/turns` and can **Mark reviewed**

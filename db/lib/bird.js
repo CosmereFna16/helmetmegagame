@@ -69,7 +69,8 @@ function canSendBird(tags) {
 // An illiterate recipient gets the real thing, ciphered, rather than a refusal
 // — the letter did arrive, they simply cannot read it, and the footer tells
 // them what to do about that. That turns illiteracy into something they play
-// through (find someone who reads) instead of a dead end.
+// through (find someone who reads) instead of a dead end. They get no Reply
+// button, though — see the caller in web requestActions.js.
 //
 // The `»` that opens every DM is added by sendDm itself, so the sender's line
 // is written bare here.
@@ -78,8 +79,7 @@ function deliveryDm({ senderName, body, recipientIsLiterate }) {
     return `A bird finds you, and there is a letter tied to its leg. It is from **${senderName}**.\n\n> ${body.replace(/\n/g, "\n> ")}`;
   }
   return (
-    `A bird finds you, and there is a letter tied to its leg. ` +
-    `You turn it over. You cannot read a word of it.\n\n` +
+    `A bird brings you a letter. You can’t read it because you’re illiterate.\n\n` +
     `${encodeGribble(body)}\n\n` +
     `-# Show this to someone with the Literate tag. They can decode it with the Read button.`
   );
@@ -93,7 +93,7 @@ function deliveryDm({ senderName, body, recipientIsLiterate }) {
 // coming back, and a sender who lost their letters in the meantime should get
 // the same unreadable block anyone else would.
 function replyDm({ replierName, body, senderIsLiterate = true }) {
-  const opening = `Your bird comes back, and there is an answer tied to its leg. It is from **${replierName}**.`;
+  const opening = `Your bird's returned. It is from **${replierName}**.`;
   if (senderIsLiterate) {
     return `${opening}\n\n> ${body.replace(/\n/g, "\n> ")}`;
   }

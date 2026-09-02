@@ -22,6 +22,7 @@ import {
   createRequest,
   logRequest,
   requireReason,
+  MAX_REASON_LENGTH,
   isDeadSimple,
   DEAD_SIMPLE_PER_TURN,
 } from "@/lib/requests";
@@ -2305,14 +2306,8 @@ export async function buryCharacterRequest(input) {
 // now would hand every Bird-holder a free once-a-day probe for whether a named
 // person is alive and standing in a named zone, which is worth vastly more than
 // the letter.
-async function birdMessageRequestImpl({
-  recipientId,
-  guessedZoneId,
-  body: rawBody,
-  reason: rawReason,
-}) {
+async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBody }) {
   const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
 
   // Re-derived from the database. The hidden button is a hint, not a lock.
   if (!holdsBirdAndLetters(character.tags)) {
@@ -2324,6 +2319,13 @@ async function birdMessageRequestImpl({
   if (body.length > MAX_BIRD_BODY) {
     throw new UserError(`A bird can only carry ${MAX_BIRD_BODY} characters.`);
   }
+
+  // The only Request with no reason box, so there is no rawReason to validate:
+  // the letter IS the record. The plaintext is filed on the Request row either
+  // way, and asking for a one-line justification on top of it was asking the
+  // same question twice. The Request and AuditLog reason columns still want
+  // something, so they get the letter, clipped to what they hold.
+  const reason = body.slice(0, MAX_REASON_LENGTH);
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is currently open.");
@@ -2454,7 +2456,10 @@ async function birdMessageRequestImpl({
       recipient,
       deliveryDm({ senderName: character.name, body, recipientIsLiterate }),
       {
-        components: replyButtonRow(birdMessageId),
+        // No Reply button for someone who cannot read the letter. Writing back
+        // is the same Literate gate the sender had to pass to send it. The
+        // button is only a hint — birdReply.js re-checks on both halves.
+        components: recipientIsLiterate ? replyButtonRow(birdMessageId) : undefined,
         // The plaintext rides along in meta so /gm/messages can join a wall of
         // runes back to what it says. Without it a GM reading an illiterate
         // player's conversation sees only the cipher.

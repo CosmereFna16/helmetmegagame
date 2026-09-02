@@ -11,6 +11,11 @@ import Modal from "./Modal";
 // reads later), then whatever type-specific fields the caller passes as
 // children. See docs/systemdocs/REQUESTS.md §2.
 //
+// `reasonRequired={false}` drops that box, for the one kind of Request whose
+// own fields are already the evidence a GM would read — the Bird's letter is
+// filed in full on the Request row, so asking for a justification as well was
+// asking the same question twice.
+//
 // Deliberately a rendered component taking children rather than a
 // promise-returning hook like useConfirm() — the second half is arbitrary
 // JSX per call site, which a hook API handles badly. It reuses the same
@@ -31,6 +36,7 @@ function RequestDialogBody({
   busy = false,
   error = null,
   canSubmit = true,
+  reasonRequired = true,
   onCancel,
   onConfirm,
   children,
@@ -38,7 +44,7 @@ function RequestDialogBody({
   const [reason, setReason] = useState("");
 
   const trimmed = reason.trim();
-  const ready = !busy && canSubmit && trimmed.length > 0;
+  const ready = !busy && canSubmit && (!reasonRequired || trimmed.length > 0);
 
   return (
     <Modal title={title} width={width} onClose={() => !busy && onCancel?.()}>
@@ -49,25 +55,34 @@ function RequestDialogBody({
           if (ready) onConfirm?.(trimmed);
         }}
       >
-        <label className="field">
-          <span className="field-label">What&apos;s your reason?</span>
-          <textarea
-            name="reason"
-            rows={3}
-            required
-            autoFocus
-            maxLength={MAX_REASON_LENGTH}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="The GMs will see this."
-          />
-        </label>
-        <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>
-          This takes effect immediately, but a GM can undo or edit it after.
-        </p>
+        {reasonRequired && (
+          <>
+            <label className="field">
+              <span className="field-label">What&apos;s your reason?</span>
+              <textarea
+                name="reason"
+                rows={3}
+                required
+                autoFocus
+                maxLength={MAX_REASON_LENGTH}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="The GMs will see this."
+              />
+            </label>
+            <p className="text-xs text-muted" style={{ marginTop: "-0.25rem" }}>
+              This takes effect immediately, but a GM can undo or edit it after.
+            </p>
+          </>
+        )}
 
         {children && (
-          <div className="flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+          // The rule divides the reason from the type-specific fields. With no
+          // reason above it there is nothing to divide, so it goes too.
+          <div
+            className={`flex flex-col gap-3${reasonRequired ? " border-t pt-3" : ""}`}
+            style={reasonRequired ? { borderColor: "var(--border)" } : undefined}
+          >
             {children}
           </div>
         )}

@@ -16,7 +16,8 @@ only crossings are travel and a GM. The Bird adds one more, and prices it:
 2. They pick a person, **guess which zone that person is standing in**, and
    write a letter.
 3. If the guess is right and the recipient is alive, the letter is DMed to them
-   **immediately**, with a Reply button.
+   **immediately**, with a Reply button — unless they can't read, in which case
+   see §5.
 4. If the guess is wrong, or the recipient is dead, nothing happens — and the
    sender is told **at the next turn close**: *"The message wasn't delivered."*
 
@@ -45,7 +46,10 @@ Three more disclosures are closed off the same way:
 - **The recipient dropdown lists every character, alive or dead.** A list of
   the living updates itself into a casualty report that anyone can read twice a
   week by opening a dialog. This is the same rule `REQUESTS.md` §3 gives for
-  leaving the transfer dropdowns unfiltered.
+  leaving the transfer dropdowns unfiltered. There is a search box over it,
+  because a hundred-odd names in one `<select>` is unusable — but it narrows on
+  the text the player typed, never on liveness, so it discloses nothing they did
+  not already have to guess.
 - **The sender gets a receipt either way**, saying what they wrote and where
   they sent it — never whether it landed.
 - **The failure is reported even to a sender who has since died.** Skipping
@@ -91,7 +95,13 @@ against live state at all.
 
 A recipient without **Literate** still gets the letter. They just can't read
 it: the body arrives enciphered, under a `-#` line telling them to show it to
-someone who can. They get no Reply button.
+someone who can. They get no Reply button — answering a letter is writing one,
+and that is the same gate the sender had to pass.
+
+The missing button is only the hint. The lock is in `windowState()`
+(`bot/src/lib/birdReply.js`), which re-reads the replier's tags alongside the
+reply window, so a GM stripping **Literate** between the letter landing and the
+answer going out is caught on both the button and the modal submit.
 
 That is the point. Illiteracy becomes something a player *plays through* —
 find a reader, decide whether to trust them with your mail — rather than a wall
@@ -164,6 +174,14 @@ on the way into the database.
 For the same reason, a ciphered DM carries its own plaintext in
 `DirectMessage.meta` — otherwise a GM reading an illiterate player's
 conversation on `/gm/messages` sees only runes.
+
+**Bird is the one Request with no reason box.** `RequestDialog` takes
+`reasonRequired={false}` for it, and the server action fills the `Request` and
+`AuditLog` reason columns with the letter itself, clipped to
+`MAX_REASON_LENGTH`. The letter *is* the record: the plaintext is already filed
+on the row, so a separate one-line justification asked the same question twice
+and made sending mail feel like filing a form. Every other Request still
+requires one — see `REQUESTS.md` §1.
 
 **Undo is the one place this type is unlike every other.** A sent DM cannot be
 recalled. Undo hands back the day and closes the reply window, and its note says

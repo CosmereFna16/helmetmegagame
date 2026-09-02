@@ -37,6 +37,7 @@ import ReadDialog from "./ReadDialog";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
+import { scoreMatch } from "@/lib/fuzzySearch";
 import {
   addTagRequest,
   removeTagRequest,
@@ -449,6 +450,7 @@ export default function RequestActionsProvider({
   // a dropdown here would be a list of the dead. See REQUESTS.md §5d.
   const [buryName, setBuryName] = useState("");
   const [birdBody, setBirdBody] = useState("");
+  const [birdQuery, setBirdQuery] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -546,6 +548,18 @@ export default function RequestActionsProvider({
   // off the raw sidecar, so the preview stays honest.
   const { tagsBySlug } = useTags();
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
+
+  // The Bird's recipient list, narrowed by what the player typed. This is a
+  // text filter, not a liveness filter — the dead stay in it, so it discloses
+  // nothing the unfiltered dropdown didn't. The current pick is always kept,
+  // or a query typed after choosing someone would silently clear the Select.
+  const birdChoices = useMemo(() => {
+    const q = birdQuery.trim();
+    if (!q) return birdTargets;
+    return birdTargets.filter(
+      (t) => t.id === targetId || scoreMatch(q, { name: t.name }),
+    );
+  }, [birdTargets, birdQuery, targetId]);
   const nameOf = (slug) => tagsBySlug.get(slug)?.name ?? slug;
   const becomes = (chosen?.consumesInto ?? [])
     .map((slug, i) => {
@@ -616,6 +630,7 @@ export default function RequestActionsProvider({
       setLethal(false);
       setBuryName("");
       setBirdBody("");
+      setBirdQuery("");
       setError(null);
     },
     [selfId],
@@ -724,11 +739,11 @@ export default function RequestActionsProvider({
           reason,
         });
       case "bird":
+        // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
           recipientId: targetId,
           guessedZoneId: zoneId,
           body: birdBody,
-          reason,
         });
       default:
         return Promise.resolve({ ok: false, error: "Nothing to do." });
@@ -829,6 +844,9 @@ export default function RequestActionsProvider({
             busy={pending}
             error={error}
             canSubmit={canSubmit}
+            // The letter itself is what a GM reads, so Bird asks for no
+            // separate justification. See RequestDialog.js.
+            reasonRequired={mode !== "bird"}
             onCancel={() => !pending && setMode(null)}
             onConfirm={submit}
           >
@@ -1439,13 +1457,22 @@ export default function RequestActionsProvider({
 
             {mode === "bird" && (
               <>
+                {/* EVERY character, alive or dead, unfiltered. Narrowing this to
+                the living would turn the picker into a casualty list that
+                updates itself — the same disclosure REQUESTS.md §3 refuses
+                for the transfer dropdowns. A letter to someone already dead
+                simply never arrives, and you find that out a turn later.
+                The search box below narrows on the NAME THE PLAYER TYPED,
+                which is not a disclosure — it tells them nothing they did not
+                already have to guess. */}
                 <label className="field">
                   <span className="field-label">Who is it for?</span>
-                  {/* EVERY character, alive or dead, unfiltered. Narrowing this to
-                  the living would turn the picker into a casualty list that
-                  updates itself — the same disclosure REQUESTS.md §3 refuses
-                  for the transfer dropdowns. A letter to someone already dead
-                  simply never arrives, and you find that out a turn later. */}
+                  <input
+                    type="search"
+                    value={birdQuery}
+                    onChange={(e) => setBirdQuery(e.target.value)}
+                    placeholder="Search by name"
+                  />
                   <Select
                     value={targetId}
                     onChange={(e) => setTargetId(e.target.value)}
@@ -1454,12 +1481,15 @@ export default function RequestActionsProvider({
                     <option value="" disabled>
                       Pick someone
                     </option>
-                    {birdTargets.map((t) => (
+                    {birdChoices.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
                   </Select>
+                  <span className="text-xs text-muted mono">
+                    {birdChoices.length} / {birdTargets.length}
+                  </span>
                 </label>
 
                 <label className="field">
@@ -1495,11 +1525,6 @@ export default function RequestActionsProvider({
                     {birdBody.length} / {MAX_BIRD_BODY}
                   </span>
                 </label>
-
-                <p className="text-sm text-muted">
-                  Guess wrong and the bird comes back empty — you&apos;ll hear
-                  next turn. Either way, that&apos;s your letter for the day.
-                </p>
               </>
             )}
           </RequestDialog>
