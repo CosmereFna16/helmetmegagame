@@ -25,22 +25,22 @@ const DESIRE_HELP = (
 );
 
 // Rewritten for the catalog rework — the old free-text 1-5 point ladder is
-// gone. ‡ marks every rewritten line (docs/desires.yaml's own convention).
+// gone.
 function pointsHelp(desireSlots) {
   return (
     <>
       <p>
-        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}.‡
+        You have {desireSlots} Desire slot{desireSlots === 1 ? "" : "s"}.
       </p>
       <p>
         Desires have tiers, which determine the amount of points given and, in most cases, how many
-        turns until that same Desire is available again.‡
+        turns until that same Desire is available again.
       </p>
       <p>
         Cancelling or fulfilling a Desire locks its slot for the rest of the turn and all of the
         next one. It opens again after.
       </p>
-      <p>Tier 7 Desires can only be fulfilled once per game.‡</p>
+      <p>Tier 7 Desires can only be fulfilled once per game.</p>
     </>
   );
 }
