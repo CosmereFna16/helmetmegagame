@@ -5,6 +5,7 @@ import FormError from "@/app/components/FormError";
 import EmptyState from "./EmptyState";
 import InfoIcon from "./InfoIcon";
 import RequestDialog from "./RequestDialog";
+import RichText from "./RichText";
 import DesireCatalog from "./DesireCatalog";
 import { useConfirm } from "./ConfirmProvider";
 import { cancelDesire, fulfillDesireRequest } from "../(app)/character/requestActions";
@@ -53,6 +54,8 @@ export default function DesirePanel({
   slotStates = [],
   catalog = [],
   families = [],
+  familyGroups = [],
+  lockNotes = [],
   desiresEnabled = true,
 }) {
   const confirm = useConfirm();
@@ -121,7 +124,12 @@ export default function DesirePanel({
               >
                 {slot.active ? (
                   <>
-                    <p className="text-sm">{slot.active.text}</p>
+                    {/* RichText, not a bare string: Desire.text snapshots the
+                        template name with its {tag:…} tokens intact, and out
+                        here a token can be a real, hoverable chip. */}
+                    <p className="text-sm">
+                      <RichText text={slot.active.text} />
+                    </p>
                     <p className="text-sm text-muted">
                       Worth {slot.active.points} Tag Point{slot.active.points === 1 ? "" : "s"}
                       {slot.active.setTurnNumber != null ? ` — set on turn ${slot.active.setTurnNumber}` : ""}
@@ -160,12 +168,19 @@ export default function DesirePanel({
 
       <FormError>{error}</FormError>
 
+      {/* Keyed per opening so search, tab and target slot start fresh each
+          time — the component asks for exactly that. */}
       <DesireCatalog
+        key={catalogSlot ?? "closed"}
         open={catalogSlot != null}
         onClose={() => setCatalogSlot(null)}
         slotIndex={catalogSlot ?? 0}
+        desireSlots={desireSlots}
+        slotStates={slotStates}
         catalog={catalog}
         families={families}
+        familyGroups={familyGroups}
+        lockNotes={lockNotes}
       />
 
       <RequestDialog
@@ -177,7 +192,8 @@ export default function DesirePanel({
         onConfirm={submitFulfill}
       >
         <p className="text-sm">
-          {fulfilling?.text} — {fulfilling?.points} Tag Point{fulfilling?.points === 1 ? "" : "s"}
+          <RichText text={fulfilling?.text} /> — {fulfilling?.points} Tag Point
+          {fulfilling?.points === 1 ? "" : "s"}
         </p>
         <p className="text-xs text-muted">
           You get the points immediately, but tell the GMs how you pulled it off.

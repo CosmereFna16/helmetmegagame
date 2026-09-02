@@ -315,9 +315,15 @@ Three `GameConfig` knobs govern this system, all live-editable from
 `docs/tags.yaml`: hand-edited, upsert-by-slug. Two top-level keys:
 
 ```yaml
+familyGroups:                    # picker-only: the tab bar's hue clusters
+  - key: appetite
+    name: Appetite
+
 families:
   - key: alcohol
     name: Alcohol
+    group: appetite               # picker-only: which familyGroups entry
+    color: "#d9a545"              # picker-only: freeform hex, see the palette rule
     # comment describing what belongs here
 
 desires:
@@ -337,7 +343,16 @@ desires:
 
 `families:` is the fixed vocabulary every entry's `families` list draws
 from — nothing writes to it dynamically, and referencing an undeclared key
-throws at sync time. `{tag:slug}` references inside a Desire's `name` are
+throws at sync time. `familyGroups:` and a family's `group:` / `color:` are
+**picker-only**: the sync never reads them, `db/lib/desireFamilies.js` hands
+them to the web app at runtime, and `DesireCatalog.js` builds its tab bar
+from the groups and draws each family's colour as the left rule on its rows
+and the swatch in its sticky header. The palette rule is written above the
+`families:` header in the YAML and is the same one `docs/taggroups.yaml`
+follows — one hue per group, families step in lightness inside it, every
+value clears 3:1 against `--surface` on dusk and dawn. A family may appear in
+several of a desire's `families`; the picker files it under the **first** one
+and lists the rest beside its name. `{tag:slug}` references inside a Desire's `name` are
 checked against `docs/tags.yaml` the same way any other `{tag:…}` reference
 is.
 
@@ -436,12 +451,12 @@ would break exactly those. Auto-cancel closes the hole at the source instead.
 |---|---|
 | `docs/desires.yaml` | Sole master for the `DesireTemplate` catalog — families header + desire entries |
 | `db/lib/syncDesires.js` | `docs/desires.yaml` → DB. Four-pass soft-retire sync, `npm run db:sync-desires` / `db/prisma/sync-desires.js` |
-| `db/lib/desireFamilies.js` | Reads only the `families:` header, for `db/lib/syncTags.js` to validate a tag's `desires.locks` families against — tolerates a missing `desires.yaml` |
+| `db/lib/desireFamilies.js` | Reads only the `families:` / `familyGroups:` headers — `desireFamilyKeys` for `db/lib/syncTags.js` to validate a tag's `desires.locks` families against, `desireFamilies` (key/name/group/colour) and `desireFamilyGroups` for the picker. Tolerates a missing `desires.yaml` |
 | `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
 | `db/lib/desireGates.js` | Pure gate evaluator, no DB. `evaluateDesireCatalog` (visible/hidden catalog per character) and `slotStates` (per-slot occupancy + lock) |
 | `db/lib/desireOrphans.js` | Cancels an ACTIVE Desire whose `requires` no longer pass after a tag or role change (§11). Takes `tx`, returns its DMs. `cancelOrphanedDesiresForEveryone` is the turn-advance sweep |
 | `web/lib/desireProjection.js` | `projectDesireTemplateForGates` — the one path that resolves a `DesireTemplate`'s role-slug arrays into `{ slug, name }` for `desireGates.js`; every caller must go through it |
-| `web/app/components/DesireCatalog.js` | Player-facing catalog picker modal — the family-grouped `<select>`, state pills, "Set desire" |
+| `web/app/components/DesireCatalog.js` | Player-facing catalog picker modal, on the Point Buy layout: search + sort, a tab per family group, one scroller with sticky coloured family headers and `.select-card` rows, your slots in the side pane. Only ever sees what `character/page.js` leaves after dropping `locked` |
 | `web/app/components/DesirePanel.js` | Player-facing panel chrome — per-slot rows, cancel/fulfil dialogs, opens `DesireCatalog` |
 | `web/app/components/GoalsPanel.js` | Mounts `DesirePanel` on `/character` |
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot catalog/free-text set form, Fulfil/Cancel, cooldown + past-desire readouts |

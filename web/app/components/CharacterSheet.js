@@ -42,6 +42,8 @@ export default function CharacterSheet({
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],
+  desireFamilyGroups = [],
+  desireLockNotes = [],
   desiresEnabled = true,
   canHeal = false,
   canFastTravel = false,
@@ -154,6 +156,8 @@ export default function CharacterSheet({
               slotStates={desireSlotStates}
               catalog={desireCatalog}
               families={desireFamilies}
+              familyGroups={desireFamilyGroups}
+              lockNotes={desireLockNotes}
               openTurnNumber={openTurn?.number ?? null}
               desiresEnabled={desiresEnabled}
             />

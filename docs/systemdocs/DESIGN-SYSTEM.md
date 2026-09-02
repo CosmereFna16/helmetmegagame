@@ -129,7 +129,7 @@ Use these instead of rolling one-off markup.
 | `.icon-btn` | The one framed icon button — via `IconButton`. |
 | `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
-| `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. |
+| `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. Its left rule may carry a group colour set inline per row — a tag group in Point Buy, a desire family in the Desire picker — because those are freeform hexes out of data, not tokens. |
 | `.check-row` / `.switch-row` | A boolean and its label — via `CheckField` / `Switch`. |
 | `.status-pill` | A state, coloured by `data-tone`. |
 | `.empty-state` | "Nothing here" text. |

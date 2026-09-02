@@ -29,102 +29,191 @@
 #
 # Every {tag:slug} reference below has been checked against docs/tags.yaml.
 
+# familyGroups: the hue clusters the Desire picker's tab bar shows
+# (web/app/components/DesireCatalog.js). Every family below names one via
+# `group:`. The sync ignores both keys; only the web app reads them, at
+# runtime, through db/lib/desireFamilies.js.
+familyGroups:
+  - key: appetite
+    name: Appetite
+  - key: heart
+    name: Heart
+  - key: blood
+    name: Blood
+  - key: nerve
+    name: Nerve
+  - key: ambition
+    name: Ambition
+  - key: mind
+    name: Mind
+  - key: bacchus
+    name: Bacchus
+  - key: demoness
+    name: Demoness
+
+# THE PALETTE — same rules as docs/taggroups.yaml, keep it:
+#   * One hue per GROUP, so the picker reads by group at a glance: Appetite
+#     amber, Heart rose, Blood red, Nerve green, Ambition teal, Mind blue,
+#     Bacchus violet and Demoness magenta (the last two match their tag
+#     categories in taggroups.yaml).
+#   * Families inside a group step by LIGHTNESS and SATURATION, never out of
+#     the hue.
+#   * `color` is drawn as the 3px left rule on a picker row (a .panel on
+#     --surface) and the swatch in its sticky family header. Every value
+#     clears 3:1 (WCAG 1.4.11) against --surface on BOTH dusk and dawn; the
+#     tightest here, betrayal, measures 3.32. Check the numbers before adding.
 families:
   - key: alcohol
     name: Alcohol
+    group: appetite
+    color: "#d9a545"
     # Drinking, drunkenness, and specific drinks.
   - key: drugs
     name: Drugs
+    group: appetite
+    color: "#c98f3e"
     # Recreational narcotics — taking, dealing, overdosing, first tastes.
   - key: gambling
     name: Gambling
+    group: appetite
+    color: "#e3b866"
     # Wagers and games of chance; winning at play.
   - key: food
     name: Food
+    group: appetite
+    color: "#ecc98a"
     # Meals, feasts, cooking, sweets, tea, eating anything at all.
   - key: vanity
     name: Vanity
+    group: heart
+    color: "#eab0c8"
     # Being admired, complimented, adorned, or unmistakably better-looking
     # than the room.
   - key: violence
     name: Violence
+    group: blood
+    color: "#e07868"
     # Deliberate physical harm — fights, brawls, duels, battles, killings.
   - key: cruelty
     name: Cruelty
+    group: blood
+    color: "#cf6a5c"
     # Suffering inflicted on someone who can't stop you: torture,
     # humiliation, beating the defenceless.
   - key: bravery
     name: Bravery
+    group: nerve
+    color: "#8fc07f"
     # Courage against real risk: saving lives, standing ground, monsters,
     # tournaments, overwhelming odds.
   - key: romance
     name: Romance
+    group: heart
+    color: "#e08aa0"
     # Kissing, lovers, courtship, seduction.
   - key: social
     name: Social
+    group: heart
+    color: "#d9a0b4"
     # Friendship, argument, hugs, insults, dancing, performing, being
     # listened to.
   - key: wealth
     name: Wealth
+    group: ambition
+    color: "#5fc2c2"
     # Acquiring, hoarding, and owning — ⬢ stockpiles, houses, manors, pets,
     # purchases.
   - key: theft
     name: Theft
+    group: ambition
+    color: "#78b8b0"
     # Taking what isn't yours: cons, stealing, fencing, rackets, bribes.
   - key: status
     name: Status
+    group: ambition
+    color: "#5ab3ce"
     # Rank, office, title, promotion, coronation, standing.
   - key: faction-success
     name: Faction Success
+    group: ambition
+    color: "#8cd0dc"
     # Your own side winning something.
   - key: feud
     name: Feud
+    group: blood
+    color: "#e89a8c"
     # The enemy clan or rival specifically losing, bleeding, or being
     # humiliated.
   - key: faith
     name: Faith
+    group: mind
+    color: "#86a6e6"
     # Worship, sermons, conversion, confession, a god's favour, heresy and
     # its punishment.
   - key: esoterica
     name: Esoterica
+    group: mind
+    color: "#9a93e0"
     # Spells, occult and forbidden knowledge, ancient artifacts and ruins.
   - key: medical
     name: Medical
+    group: mind
+    color: "#a8bde8"
     # Treating, curing, dissecting, installing, testing on.
   - key: craft
     name: Craft
+    group: mind
+    color: "#b9c8ee"
     # Making or displaying a learned skill — paintings, songs, literacy,
     # teaching, footwork.
   - key: duty
     name: Duty
+    group: nerve
+    color: "#7fb29a"
     # Orders carried out: assignments, arrests, executions, interrogations,
     # messages, the watch.
   - key: betrayal
     name: Betrayal
+    group: blood
+    color: "#b96b60"
     # Turning on your own — informing, defecting, sabotage from inside.
   - key: scheming
     name: Scheming
+    group: ambition
+    color: "#92c9c0"
     # Manipulation at one remove: plots, blackmail, framing, setting people
     # against each other.
   - key: adventure
     name: Adventure
+    group: nerve
+    color: "#a9cf8c"
     # Exploration and danger for its own sake — the Pits, the mountains,
     # the Windlands, climbing.
   - key: mortality
     name: Mortality
+    group: mind
+    color: "#9fa9c8"
     # Death and the near side of it: dying, returning, burial, the Lifeweb.
   - key: ascetic
     name: Ascetic
+    group: mind
+    color: "#7f95cf"
     # Self-denial and stillness. Exactly one desire lives here.
   - key: charity
     name: Charity
+    group: heart
+    color: "#f0c4d0"
     # Giving with nothing back — feeding the poor, hugs given, mercy,
     # treating strangers.
   - key: cult-bacchus
     name: Cult of Bacchus
+    group: bacchus
+    color: "#b48ae0"
     # Bacchus: revelry, rite, excess, spectacle.
   - key: demoness
     name: Demoness
+    group: demoness
+    color: "#d98ad0"
     # Predation, domination, enslavement, terror.
   # Deliberate adjacencies (not bugs — see content-spec.md §1):
   #   - violence and bravery overlap on duels/tournaments/battles (both
@@ -474,9 +563,16 @@ desires:
     requires:
       anyTags: [escape-artist]
 
-  - slug: escape
-    name: Escape
-    tier: 7
+  - slug: escape-the-dungeons
+    name: Escape the dungeons
+    tier: 5
+    families: [adventure, bravery]
+    requires:
+      anyTags: [escape-artist]
+
+  - slug: escape-being-bound
+    name: Escape being bound
+    tier: 3
     families: [adventure, bravery]
     requires:
       anyTags: [escape-artist]
@@ -538,7 +634,7 @@ desires:
       anyTags: [melee-flamboyant]
 
   - slug: feed-the-lifeweb
-    name: Feed someone to the Lifeweb
+    name: Feed someone to the Lifeweb, killing them
     tier: 3
     families: [mortality, cruelty]
     requires:
@@ -671,7 +767,7 @@ desires:
       anyRoles: [mortus]
 
   - slug: feed-web-willing
-    name: Feed a live, willing participant to the Web
+    name: Donate someone's blood to the Lifeweb
     tier: 4
     families: [mortality]
     requires:
@@ -853,10 +949,24 @@ desires:
 
   - slug: promoted-to-watchman
     name: Be promoted to Watchman
+    tier: 4
+    families: [status, duty]
+    requires:
+      anyRoles: [squire]
+
+  - slug: promoted-to-captain-squire
+    name: Be promoted to Captain
     tier: 7
     families: [status, duty]
     requires:
       anyRoles: [squire]
+
+  - slug: promoted-to-captain-watchman
+    name: Be promoted to Captain
+    tier: 3
+    families: [status, duty]
+    requires:
+      anyRoles: [watchman]
 
   - slug: coronate-a-baron
     name: Coronate a new Baron
@@ -959,7 +1069,7 @@ desires:
       anyTags: [musician]
 
   - slug: perform-for-5
-    name: Perform for 5 people
+    name: Perform for at least 5 people
     tier: 3
     families: [craft, social]
     requires:
@@ -967,7 +1077,7 @@ desires:
       anyTags: [musician, artist]
 
   - slug: perform-for-15
-    name: Perform for 15 people
+    name: Perform for at least 15 people
     tier: 5
     families: [craft, social]
     requires:
@@ -1102,7 +1212,7 @@ desires:
       anyRoles: [mercenary]
 
   - slug: kill-deadly-cave-creature
-    name: Land the killing blow on a very, very dangerous creature of the Caves
+    name: Land the killing blow on a very dangerous creature of the Caves
     tier: 3
     families: [violence, adventure, bravery]
     requires:
@@ -1242,8 +1352,8 @@ desires:
       anyTags: [adventurer]
 
   - slug: slay-a-great-beast
-    name: Slay a great beast
-    tier: 7
+    name: Slay a legendary beast
+    tier: 5
     families: [bravery, violence, adventure]
     requires:
       anyTags: [adventurer]

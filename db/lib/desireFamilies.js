@@ -1,50 +1,70 @@
-// Reads ONLY the `families:` header of docs/desires.yaml — never the
-// `desires:` list below it, so a caller that just needs to validate a
-// family key doesn't pay for parsing the whole catalog.
+// Reads ONLY the `families:` / `familyGroups:` headers of docs/desires.yaml —
+// never the `desires:` list below them, so a caller that just needs to
+// validate a family key doesn't pay for parsing the whole catalog.
 //
-// docs/desires.yaml does not exist yet (a later task, db/lib/syncDesires.js,
-// writes both it and the sync that reads the rest of it). A MISSING file is
-// NOT an error here: db/lib/syncTags.js requires this module so a tag's
-// `desires.locks` families can be checked at db:sync-tags time, and a repo
-// with no desires.yaml yet must still be able to sync tags — it just can't
-// validate any `desires:` block against real families, so it gets an empty
-// set and every reference throws (the same failure a typo would produce).
+// A MISSING file is NOT an error here: db/lib/syncTags.js requires this
+// module so a tag's `desires.locks` families can be checked at db:sync-tags
+// time, and a repo with no desires.yaml must still be able to sync tags — it
+// just can't validate any `desires:` block against real families, so it gets
+// an empty set and every reference throws (the same failure a typo would
+// produce).
 
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 
-let cached;
+let cachedDoc;
+
+// The parsed file, or {} when absent. Cached for the life of the process —
+// this module never invalidates at runtime, same posture as before.
+function loadDoc() {
+  if (cachedDoc !== undefined) return cachedDoc;
+  const file = docsPath("desires.yaml");
+  if (!file || !fs.existsSync(file)) return (cachedDoc = {});
+  cachedDoc = yaml.load(fs.readFileSync(file, "utf8")) ?? {};
+  return cachedDoc;
+}
+
+let cachedKeys;
 let cachedFamilies;
+let cachedGroups;
 
 // Returns a Set of family keys. Empty when docs/desires.yaml is absent.
 function desireFamilyKeys() {
-  if (cached !== undefined) return cached;
-  cached = new Set();
-  const file = docsPath("desires.yaml");
-  if (!file || !fs.existsSync(file)) return cached;
-  const doc = yaml.load(fs.readFileSync(file, "utf8")) ?? {};
-  for (const entry of doc.families ?? []) {
-    if (entry?.key) cached.add(entry.key);
+  if (cachedKeys !== undefined) return cachedKeys;
+  cachedKeys = new Set();
+  for (const entry of loadDoc().families ?? []) {
+    if (entry?.key) cachedKeys.add(entry.key);
   }
-  return cached;
+  return cachedKeys;
 }
 
-// Same read, but { key, name } pairs — cheap since the header is tiny and
-// already parsed above; kept as a separate export so a caller that only
-// wants the Set (the common case, e.g. validation) never carries names it
-// doesn't need. Cached the same way and with the same posture as
-// desireFamilyKeys above — this module never invalidates either cache at
-// runtime; both live for the life of the process.
+// { key, name, group, color } per family, in header order. `group` names a
+// familyGroups entry and `color` is a freeform hex — both are picker-only
+// data (web/app/components/DesireCatalog.js) the sync never reads, so either
+// may be absent and comes back null. Kept as a separate export so a caller
+// that only wants the Set (the common case, validation) never carries names.
 function desireFamilies() {
   if (cachedFamilies !== undefined) return cachedFamilies;
-  const file = docsPath("desires.yaml");
-  if (!file || !fs.existsSync(file)) return (cachedFamilies = []);
-  const doc = yaml.load(fs.readFileSync(file, "utf8")) ?? {};
-  cachedFamilies = (doc.families ?? [])
+  cachedFamilies = (loadDoc().families ?? [])
     .filter((f) => f?.key)
-    .map((f) => ({ key: f.key, name: f.name ?? f.key }));
+    .map((f) => ({
+      key: f.key,
+      name: f.name ?? f.key,
+      group: f.group ?? null,
+      color: f.color ?? null,
+    }));
   return cachedFamilies;
 }
 
-module.exports = { desireFamilyKeys, desireFamilies };
+// { key, name } per familyGroups entry, in header order — the hue clusters
+// the picker's tab bar is built from.
+function desireFamilyGroups() {
+  if (cachedGroups !== undefined) return cachedGroups;
+  cachedGroups = (loadDoc().familyGroups ?? [])
+    .filter((g) => g?.key)
+    .map((g) => ({ key: g.key, name: g.name ?? g.key }));
+  return cachedGroups;
+}
+
+module.exports = { desireFamilyKeys, desireFamilies, desireFamilyGroups };

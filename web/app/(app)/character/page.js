@@ -5,8 +5,13 @@ import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
-import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
+import {
+  evaluateDesireCatalog,
+  slotStates,
+  describeDesireLocks,
+  unlockedBy,
+} from "@lifeweb/db/lib/desireGates";
+import { desireFamilies, desireFamilyGroups } from "@lifeweb/db/lib/desireFamilies";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -357,16 +362,34 @@ export default async function CharacterPage() {
   // the `hidden` half (db/lib/desireGates.js) is never bound to a variable
   // above, so a "hidden" template has no path from here into the shape
   // below. That is the filter: nothing after this line ever sees it.
-  const desireCatalog = desireCatalogEvaluated.map(({ template, state, reason, availableFromTurn }) => ({
-    slug: template.slug,
-    name: template.name,
-    description: template.description,
-    tier: template.tier,
-    families: template.families,
-    state,
-    reason,
-    availableFromTurn,
-  }));
+  // A "locked" entry — an unmet requires gate, or a family a held tag shuts —
+  // is dropped here too, so the picker only ever lists what this character
+  // has access to and the evaluator's reason strings never leave the server.
+  // Cooldown, slotted and once-ever-done rows stay: those are yours, just
+  // not pickable right now.
+  const desireCatalog = desireCatalogEvaluated
+    .filter(({ state }) => state !== "locked")
+    .map(({ template, state, availableFromTurn }) => ({
+      slug: template.slug,
+      name: template.name,
+      description: template.description,
+      tier: template.tier,
+      families: template.families,
+      state,
+      availableFromTurn,
+      // Safe to name here and only here: every row past the filter above is
+      // one this character's own tags/role opened (desireGates.js#unlockedBy).
+      unlockedBy: unlockedBy(template, {
+        heldTagIds: heldDesireTagIds,
+        roleSlug: character.role?.slug ?? null,
+      }),
+    }));
+  // Why the list is as short as it is — one line per lock a held tag puts on
+  // the catalog, since the locked rows themselves are gone.
+  const desireLockNotes = describeDesireLocks(
+    character.tags.map((ct) => ct.tag),
+    new Map(desireFamilies().map((f) => [f.key, f.name])),
+  );
   const desireSlotStates = slotStates({
     history: desireHistory,
     openTurnNumber: openTurn?.number ?? 0,
@@ -688,6 +711,8 @@ export default async function CharacterPage() {
       desireSlotStates={desireSlotStates}
       desireCatalog={desireCatalog}
       desireFamilies={desireFamilies()}
+      desireFamilyGroups={desireFamilyGroups()}
+      desireLockNotes={desireLockNotes}
       desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
       canFastTravel={canFastTravel}

@@ -129,7 +129,7 @@ export default function TagChip({
           <Meta label="Requires">{prerequisiteNames(tag).join(", ")}</Meta>
         )}
         <Meta label="Cost">
-          <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} pts</span>
+          <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} {Math.abs(tag.pointCost ?? 0) === 1 ? "pt" : "pts"}</span>
         </Meta>
       </dl>
     </>

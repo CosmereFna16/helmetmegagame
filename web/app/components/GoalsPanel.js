@@ -12,6 +12,8 @@ export default function GoalsPanel({
   slotStates = [],
   catalog = [],
   families = [],
+  familyGroups = [],
+  lockNotes = [],
   openTurnNumber,
   desiresEnabled = true,
 }) {
@@ -22,6 +24,8 @@ export default function GoalsPanel({
         slotStates={slotStates}
         catalog={catalog}
         families={families}
+        familyGroups={familyGroups}
+        lockNotes={lockNotes}
         desiresEnabled={desiresEnabled}
       />
     </section>

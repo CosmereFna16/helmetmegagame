@@ -138,7 +138,7 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   }
 
   if (anyRoles.length > 0 && (!roleSlug || !anyRoles.some((r) => r.slug === roleSlug))) {
-    return { ok: false, reason: `Requires a ${anyRoles[0].name} role` };
+    return { ok: false, reason: `Requires the ${anyRoles[0].name} role` };
   }
 
   return { ok: true };
@@ -188,6 +188,55 @@ function lockedReasonForTemplate(template, pairs) {
   return null;
 }
 
+// "1–4" for a run of tiers with no gap, "1, 2, 5" otherwise. A gap is
+// measured on the tier LADDER, not the integers — tier 6 doesn't exist
+// (syncDesires.js#TIER_WHITELIST), so 2, 3, 4, 5, 7 is the unbroken run
+// "2–7". Tiers arrive sorted from desireShapes.js.
+const TIER_LADDER = [1, 2, 3, 4, 5, 7];
+function formatTiers(tiers) {
+  const steps = tiers.map((t) => TIER_LADDER.indexOf(t));
+  const unbroken = steps.every((s, i) => s >= 0 && (i === 0 || s === steps[i - 1] + 1));
+  return unbroken && tiers.length > 1 ? `${tiers[0]}–${tiers[tiers.length - 1]}` : tiers.join(", ");
+}
+
+// Every lock a character's held tags put on the catalog, as one sentence per
+// clause: "Alcoholic shuts every Desire outside Alcohol at tiers 1–4." The
+// picker drops locked rows outright (character/page.js), so without this a
+// narrowed catalog would just look small — the player couldn't tell an
+// Addiction was doing it. `familyNames` maps family key → display name
+// (db/lib/desireFamilies.js); an unknown key falls back to itself.
+function describeDesireLocks(heldTags, familyNames) {
+  const name = (key) => familyNames?.get?.(key) ?? familyNames?.[key] ?? key;
+  const list = (keys) => keys.map(name).join(", ");
+  const notes = [];
+  for (const { clause, sourceName } of unionLockClauses(heldTags || [])) {
+    const except = Array.isArray(clause.exceptFamilies) ? ` outside ${list(clause.exceptFamilies)}` : "";
+    if (clause.all) {
+      notes.push(`${sourceName} shuts every Desire${except}.`);
+    } else if (Array.isArray(clause.families)) {
+      notes.push(`${sourceName} shuts ${list(clause.families)}.`);
+    } else if (Array.isArray(clause.tiers)) {
+      const tiers = clause.tiers.length === 1 ? `tier ${clause.tiers[0]}` : `tiers ${formatTiers(clause.tiers)}`;
+      notes.push(`${sourceName} shuts every Desire${except} at ${tiers}.`);
+    }
+  }
+  return notes;
+}
+
+// What opened a template to THIS character — the held tag(s) among its
+// requires.anyTags and/or the role among its requires.anyRoles — as a short
+// string ("Pacifist", "Innkeeper role", "Dancer · Minstrel role"), or null
+// for a template open to everyone. Only ever call this for a template whose
+// gate the character PASSES: the row is already theirs, so naming the gate
+// leaks nothing (the same reasoning as PointBuy's "Requires:" line). Never
+// call it for a locked or hidden one.
+function unlockedBy(template, { heldTagIds, roleSlug }) {
+  const parts = (template.requiresAnyTags || []).filter((t) => heldTagIds.has(t.id)).map((t) => t.name);
+  const role = roleSlug && (template.requiresAnyRoles || []).find((r) => r.slug === roleSlug);
+  if (role) parts.push(`${role.name} role`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 // Per-slot occupancy + cooldown. A slot is locked (cooling down) while
 // openTurnNumber <= max(endedTurnNumber) + 1 over that slot's ended rows —
 // i.e. there is a whole EMPTY TURN between ending one Desire and setting the
@@ -224,6 +273,8 @@ function slotStates({ history, openTurnNumber, desireSlots }) {
 module.exports = {
   evaluateDesireCatalog,
   slotStates,
+  describeDesireLocks,
+  unlockedBy,
   // Exported for db/lib/desireOrphans.js, which re-checks an already-ACTIVE
   // Desire's gate after a tag or role change. It deliberately does NOT go
   // through evaluateDesireCatalog: cooldown, onceEver and "a row is already
