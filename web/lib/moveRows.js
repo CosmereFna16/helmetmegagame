@@ -1,29 +1,18 @@
-// The bare constants module, not the @lifeweb/db barrel — MoveDesk.js (a
-// client component) imports moveStatusLabel from this file, and the barrel
-// would drag the Prisma client into that bundle.
-// SERVER ONLY. This module imports the Prisma barrel (through referenceData.js),
-// so importing it from a "use client" file bundles every server-only module
-// into the browser and the first Node-only module (fs) throws at load — which is
-// exactly what took /gm/turns down on 2026-09-02. Pure helpers a client
-// component needs go in their own import-free file (see stagingReach.js).
+// SERVER ONLY. This module imports the Prisma barrel (through
+// referenceData.js), so importing it from a "use client" file bundles every
+// server-only module into the browser, and the first Node-only module (fs)
+// throws at load. Pure helpers a client component needs go in their own
+// import-free file (see stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 
-// The DTO mappers the adjudication desk's queue is built from, in one place
-// so the two callers can't drift.
-//
-// They used to live inside gm/turns/[[...selection]]/page.js, which was fine
-// while the open turn was the only thing the desk could load. The History
-// lens loads a resolved turn through a server action instead, and StagedItems
-// reads these rows field by field — a mapper written twice would have gone
-// wrong the first time either copy grew a key. Server-side only: the includes
-// below are Prisma shapes, and the two callers are an RSC and a server action.
+// The DTO mappers the adjudication desk's queue is built from, in one
+// place so the two callers (an RSC and a server action) can't drift.
 
-// The includes each mapper expects. Exported for the same reason the mappers
-// are — a query missing one of these produces a DTO with silently empty
-// fields rather than an error.
+// The includes each mapper expects, exported for the same reason: a query
+// missing one produces a DTO with silently empty fields rather than an error.
 export const MOVE_INCLUDE = {
   character: {
     include: {
@@ -80,12 +69,8 @@ function isConfirmed(a) {
 }
 
 // The label is always the review-status label — a live lock never masks it.
-// It used to render "In Progress" for any Move under a live lock, which let a
-// GM's OWN lock on a Move they had just Solved make the desk they were
-// sitting in read back `solved = false` (moveStatusLabel(a, now) === "Solved"
-// was the desk's test) and offer Save/Solve on a row that was already SOLVED
-// in the DB — the incident this rework fixes. The lock renders separately, as
-// presence (a GmAvatar chip — see QueueRail.js), never as a status.
+// A lock renders separately, as presence (a GmAvatar chip — see
+// QueueRail.js), never folded into the status a Save/Solve check reads.
 export function moveStatusLabel(a, now) {
   if (!isConfirmed(a)) return MOVE_PIPELINE_LABELS[a.status] ?? a.status;
   return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";

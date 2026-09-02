@@ -1,26 +1,11 @@
 // The {kind:payload} inline-reference syntax, split from its rendering.
 //
-// Two components resolve these tokens, and they differ only in what a
-// {tag:...} becomes:
-//
-//   RichText.js — a full, hoverable TagChip. For prose the reader can point
-//     at: documents, a character's appearance.
-//   ChipText.js — a bare ChipLabel with no tooltip of its own. For places
-//     where an interactive chip is illegal or useless: inside another chip's
-//     hover tooltip, or inside the <button> that is a point-buy row.
-//
-// The parser lives here rather than in either of them because RichText
-// renders TagChip and TagChip renders ChipText — importing one from the other
-// would close that loop into an import cycle.
-//
-// remarkTokens.js is a third consumer, resolving the same syntax inside
-// Markdown documents. It builds its own RegExp from TOKEN_SOURCE rather than
-// sharing a compiled instance with splitTokens below — a `g`-flag RegExp
-// carries mutable `lastIndex` state, and mdast-util-find-and-replace's
-// exec-loop and this file's matchAll loop have no business sharing it.
-// One kind is not a reference at all: {info:…} carries its own tooltip
-// sentence as the payload and renders a "?" glyph. It is for prose the reader
-// can hover — RichText and DocumentMarkdown render it, ChipText drops it.
+// RichText.js renders {tag:...} as a hoverable TagChip; ChipText.js renders a
+// bare ChipLabel with no tooltip, for use inside another chip's tooltip. The
+// parser lives here to avoid an import cycle (RichText renders TagChip, which
+// renders ChipText).
+// remarkTokens.js parses the same syntax for Markdown, with its own RegExp —
+// a `g`-flag RegExp's mutable lastIndex can't be shared between exec loops.
 export const TOKEN_SOURCE = "\\{(\\w+):([^}]+)\\}";
 
 // Returns an ordered list of parts: { text } for literal runs, and

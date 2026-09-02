@@ -1,29 +1,11 @@
 // docs/zones.yaml -> DB + Discord, shared by db/scripts/sync/sync-zones.js
 // (manual `npm run db:sync-zones`) and wipeGameData's "Restart Game" flow
 // (web/app/(app)/gm/dev/actions.js). docs/zones.yaml is the sole source of
-// truth for the Zone roster and its Location topics: this function fully
-// reconciles DB + Discord to match it, both upserting entries present in the
-// YAML and destructively removing (DB row + Discord category/channels/role,
-// or forum post) any Zone/topic no longer listed there.
-//
-// Five passes:
-//   0. Parse + validate. No writes. A malformed master fails the whole run
-//      before anything is touched.
-//   1. DB upsert: Zones matched by slug (cave levels flattened out of the
-//      group's `levels:` list), a second sweep to stamp seatZoneId once all
-//      ids exist, LocationTopic rows matched by slug, and the zone
-//      connection graph written both directions.
-//   2. Discord provisioning: each presence zone's "Zone: {Name}" role, then
-//      each zone's category/channels per zoneChannelSpec — create-only,
-//      keyed on the id columns being null. Names are one-time.
-//   3. Reconcile, every run, for everything already provisioned: channel
-//      topics + slowmode, permission overwrites (one PUT per target, then a
-//      delete pass over MANAGED strays only), forum tags, category/channel
-//      ordering, the Create-a-Topic anchor posts, the #private anchor
-//      messages, the generated Location topic posts (all hash-gated), and
-//      the cursed role's color.
-//   4. Prune: any Zone or topic whose slug left the YAML loses its Discord
-//      objects and its DB row.
+// truth for the Zone roster: this reconciles DB + Discord to match it,
+// upserting entries present in the YAML and destructively removing (DB row +
+// Discord category/channels/role, or forum post) any Zone/topic no longer
+// listed there. Five passes: parse+validate, DB upsert, Discord provisioning
+// (create-only), reconcile (every run), and prune.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const {
@@ -205,11 +187,9 @@ function collectTopics(zone, zoneSlug, topicEntries, problems) {
 }
 
 // The overwrite targets this sync may DELETE. Everything else on a zone
-// channel belongs to somebody else and must never be touched here. The zone
-// roles are all in the set — that is what makes a stray "Zone: Fortress"
-// overwrite on a Town channel self-heal — but @everyone is deliberately NOT:
-// its ViewChannel deny is the single overwrite the entire privacy model rests
-// on, and excluding it structurally means no future edit to the spec can turn
+// channel belongs to somebody else and must never be touched here. @everyone
+// is deliberately NOT in the set: its ViewChannel deny is the single
+// overwrite the whole privacy model rests on, so no future spec edit can turn
 // this pass into the thing that strips a zone's privacy.
 function managedOverwriteIds(zoneRoleIds) {
   return new Set(
@@ -221,9 +201,8 @@ function managedOverwriteIds(zoneRoleIds) {
 
 // Reconciles one channel's overwrites against the spec: PUT everything the
 // spec names, then DELETE any *managed* target the spec no longer names.
-// Still one request per target, never a PATCH of the whole array — a
-// wholesale replace would evict overwrites this sync doesn't own (the
-// narrowcast member grants, on the special channels this is also used for).
+// One request per target, never a PATCH of the whole array — a wholesale
+// replace would evict overwrites this sync doesn't own (narrowcast grants).
 async function reconcileChannelOverwrites(channelId, want, managed) {
   const wanted = new Map(want.permission_overwrites.map((o) => [o.id, o]));
   const changes = [];
@@ -301,13 +280,10 @@ function buildTopicBody(topic) {
 
 // Rebuilds a generated forum post in place: everything except the starter
 // message (whose id IS the thread id) is deleted, the starter is edited, and
-// the full intended thread state is re-asserted. Shared by the anchor posts
-// and the Location topics — the same hard-won sequence the old description
-// posts used: unlock first (a locked thread rejects edits from everyone,
-// ManageThreads or not), lock last (never briefly reply-able mid-rebuild).
-// `pinned` is separate from `locked` because the anchor is pinned and NOT
-// locked: a locked thread greys its own buttons out for anyone without
-// ManageThreads, which is every player.
+// the full intended thread state is re-asserted. Unlock first (a locked
+// thread rejects edits from everyone, ManageThreads or not), lock last (never
+// briefly reply-able mid-rebuild). `pinned` is separate from `locked` because
+// a locked thread greys its own buttons out for anyone without ManageThreads.
 async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, pinned, components }) {
   await patchThread(threadId, { locked: false, archived: false });
 
@@ -327,11 +303,11 @@ async function rewriteForumPost(threadId, { name, chunks, appliedTags, locked, p
 
 // The pinned, UNLOCKED "Create a Topic" post at the top of a zone's forum.
 // Unlocked on purpose: Discord disables a message's buttons for anyone who
-// cannot send in the thread, so a locked anchor left every player staring at
-// two dead buttons while GMs (ManageThreads) saw them work fine. Replies that
-// land in it are deleted on sight by bot/src/events/messageCreate.js.
-// Location-tagged so the wipe skips it outright; hash-gated so a no-op
-// re-sync costs one ensureForumTag read and nothing else.
+// cannot send in the thread, so a locked anchor would leave every player
+// staring at dead buttons while GMs (ManageThreads) saw them work fine.
+// Replies that land in it are deleted on sight by
+// bot/src/events/messageCreate.js. Location-tagged so the wipe skips it
+// outright; hash-gated so a no-op re-sync costs one ensureForumTag read.
 // Returns "created" | "updated" | "unchanged" | "skipped".
 async function syncCreateTopicPost(prisma, zone) {
   if (!zone.discordPublicChannelId) return "skipped";
@@ -441,9 +417,8 @@ async function syncPrivateAnchor(prisma, zone) {
 // Finds a forum post already sitting in the forum with this exact title, so
 // syncTopicPost can adopt it instead of creating a second post next to it. A
 // retried create (discordRest.js's bounded 429 retry, or a request Discord
-// actually applied before the client gave up on it) is the only way this
-// happens in practice — nothing else in this sync creates a Location post —
-// so an exact-name match is a safe, cheap check rather than a fuzzy one.
+// applied before the client gave up on it) is the only way this happens in
+// practice, so an exact-name match is a safe, cheap check.
 async function findExistingTopicThread(forumChannelId, title) {
   const active = await listActiveThreadsForChannel(forumChannelId, await fetchActiveThreads());
   const found = active.find((t) => t.name === title);
@@ -453,10 +428,10 @@ async function findExistingTopicThread(forumChannelId, title) {
 }
 
 // One generated, Location-tagged, UNLOCKED, unpinned forum post per topic.
-// Players roleplay inside it — that is the point of the rework — so it is
-// never locked; the Dawn wipe clears its replies but never its starter.
-// Not pinned: Discord caps pinned posts per forum, and the Location tag is
-// the discoverability mechanism instead. Only the Create-a-Topic anchor pins.
+// Players roleplay inside it, so it is never locked; the Dawn wipe clears its
+// replies but never its starter. Not pinned: Discord caps pinned posts per
+// forum, and the Location tag is the discoverability mechanism instead. Only
+// the Create-a-Topic anchor pins.
 async function syncTopicPost(prisma, topic, zone) {
   if (!zone?.discordPublicChannelId) return "skipped";
 
@@ -468,9 +443,9 @@ async function syncTopicPost(prisma, topic, zone) {
   const title = topic.name.slice(0, 100);
   // The "Who's here?" button lives on the Create-a-Topic anchor only, not on
   // every generated Location post — components stays empty here, but the
-  // hash-tracked starter-edit path below still matters: it is what lets a
-  // future button change (or removal, like this one) clear the row without
-  // the destructive rewriteForumPost rebuild.
+  // hash-tracked starter-edit path below still matters: it lets a future
+  // button change clear the row without the destructive rewriteForumPost
+  // rebuild.
   const components = [];
   const componentsHash = hashBody(JSON.stringify(components));
 
@@ -483,22 +458,18 @@ async function syncTopicPost(prisma, topic, zone) {
   if (!existing) {
     // Adopt a same-named post already sitting in the forum instead of making
     // a second one — same posture as syncSpecialChannels.js for a same-name
-    // channel (CHANNELS.md §7). Without this, a 429 mid-create that Discord
-    // actually applied before timing out gets retried by discordRest.js's
-    // bounded-retry loop (any non-2xx that isn't a clean 404/429 throws, but
-    // a slow 2xx the client gave up waiting on looks like a fresh failure to
-    // the next attempt) and the retry makes a second, empty post next to the
-    // first — the exact duplicate this guard exists to catch.
+    // channel (CHANNELS.md §7). A 429 mid-create that Discord actually
+    // applied before timing out gets retried by discordRest.js's
+    // bounded-retry loop, and the retry would otherwise make a second, empty
+    // post next to the first.
     const adopted = await findExistingTopicThread(zone.discordPublicChannelId, title);
     if (adopted) {
       await rewriteForumPost(adopted.id, { name: title, chunks, appliedTags, locked: false, components });
-      // The DB is only now learning this Location has a live post at all —
-      // from the player's perspective this is a creation moment even though
-      // Discord itself just saw an edit, so it earns the same starter pin a
-      // true create gets below. (channelId, messageId) = (adopted.id,
-      // adopted.id) because a forum post's thread is its own channel for API
-      // purposes, the same shape rewriteForumPost's own editMessage calls
-      // use. Best-effort: a pin failure must never abort the sync.
+      // The DB is only now learning this Location has a live post, so it
+      // earns the same starter pin a true create gets below. (channelId,
+      // messageId) = (adopted.id, adopted.id) because a forum post's thread
+      // is its own channel for API purposes. Best-effort: a pin failure must
+      // never abort the sync.
       await pinMessage(adopted.id, adopted.id).catch((err) =>
         console.error(`Location topic pin failed for ${topic.slug} (adopted ${adopted.id}):`, err),
       );
@@ -512,9 +483,7 @@ async function syncTopicPost(prisma, topic, zone) {
       return "updated";
     }
 
-    // Same 400-status wobble as the Create-a-Topic anchor (syncCreateTopicPost)
-    // — whether a forum post's create call honors `components` has wobbled
-    // across API revisions, so a rejection falls back to create-then-edit.
+    // Same 400-status wobble as the Create-a-Topic anchor (syncCreateTopicPost).
     let thread;
     try {
       thread = await createForumPost(zone.discordPublicChannelId, {
@@ -533,12 +502,8 @@ async function syncTopicPost(prisma, topic, zone) {
       await editMessage(thread.id, thread.id, chunks[0], components);
     }
     // Pin the description — the starter message's id is the thread's own id
-    // (LocationTopic.discordThreadId), and (channelId, messageId) =
-    // (thread.id, thread.id) for the same reason the editMessage call above
-    // uses that shape: a forum post's thread is its own channel for API
-    // purposes, not the parent forum's id. Best-effort: a pin failure (a
-    // rate limit, a permission hiccup) must never block the topic from
-    // being created.
+    // (LocationTopic.discordThreadId). Best-effort: a pin failure must never
+    // block the topic from being created.
     await pinMessage(thread.id, thread.id).catch((err) =>
       console.error(`Location topic pin failed for ${topic.slug} (${thread.id}):`, err),
     );
@@ -695,14 +660,9 @@ async function syncZonesFromYaml(prisma) {
       mapLabelY: entry.mapLabelY,
     };
 
-    // No by-name fallback for a pre-slug row: the zone_rework migration's
-    // backfill (`UPDATE "Zone" SET "slug" = ... WHERE "slug" IS NULL`) already
-    // slugs every row that existed before this sync ever runs, and `slug` is
-    // a required column — Prisma's client refuses `slug: null` as a filter
-    // value outright (a validation error, not an empty result), which is
-    // exactly what crashed here on the first zone with no existing row at
-    // all (a genuinely new one, like a cave level). A miss on slug always
-    // means "doesn't exist yet" now.
+    // No by-name fallback: `slug` is a required column, and every row is
+    // slugged before this sync ever runs. A miss on slug always means
+    // "doesn't exist yet".
     let zone = await prisma.zone.findUnique({ where: { slug: entry.slug } });
     if (!zone) {
       zone = await prisma.zone.create({ data: { ...data, slug: entry.slug } });

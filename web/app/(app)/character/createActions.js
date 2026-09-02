@@ -55,21 +55,14 @@ import {
 
 // Creates a character from the wizard's final Confirm step.
 //
-// Everything the client sent is re-derived and re-checked here. The wizard's
-// own gating (full roles greyed out, Next disabled while overspent) is UX
-// only — this action is the actual enforcement boundary, and it has to be,
-// since a server action is a public HTTP endpoint that anyone can post to
-// directly.
+// Everything the client sent is re-derived and re-checked here — a server
+// action is a public HTTP endpoint, so the wizard's own gating is UX only,
+// not enforcement.
 //
-// The seat-cap recheck also closes a genuine race the UI cannot: two players
-// sitting on the last Baron seat both see "0/1" and both hit Confirm. A bare
-// count inside the transaction is NOT enough on its own — Prisma runs at
-// READ COMMITTED, so two concurrent transactions can both read the same
-// pre-insert count and both commit. The `FOR UPDATE` row lock on the Role
-// below is what actually serializes the two attempts, same pattern as
-// equipActions.js's equip-slot check. The wizard's own reservation
-// (db/lib/roleReservation.js) only narrows the window before Confirm; this
-// lock is what closes it.
+// The seat-cap recheck closes a genuine race: Prisma runs at READ COMMITTED,
+// so two concurrent transactions can both read the same pre-insert count and
+// both commit. The `FOR UPDATE` row lock on the Role below is what actually
+// serializes the two attempts.
 export async function createCharacter(formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -130,15 +123,12 @@ export async function createCharacter(formData) {
 
   // The launch gate, checked before any of the point-buy work below so a
   // closed game costs nothing to bounce. Both halves have to hold: the game
-  // has to be open, and this member has to be on the list. This is the real
-  // enforcement boundary — the wizard hides itself too, but a server action
-  // is a public endpoint, so the check that matters is this one.
+  // has to be open, and this member has to be on the list. A server action
+  // is a public endpoint, so this check is the real enforcement boundary.
   //
-  // A superadmin walks through both halves. This is host/developer access
-  // (one hardcoded Discord ID, see web/lib/superadmin.js), not a game
-  // permission — it exists so the host can roll a test character before the
-  // doors open, which is otherwise impossible without flipping the live
-  // openToPlayers toggle for everyone.
+  // A superadmin walks through both halves — host/developer access (one
+  // hardcoded Discord ID, see web/lib/superadmin.js), not a game permission,
+  // so the host can roll a test character before the doors open.
   const bypass = isSuperadmin(discordUserId);
   if (!bypass && !config?.openToPlayers) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
@@ -173,17 +163,14 @@ export async function createCharacter(formData) {
   }
 
   // The Baroness, Heir and Successor are the Baron's family: their last name
-  // is his, never one they typed. The wizard greys the input out once such a
-  // role is picked, but the input is only the hint — not reading what it
-  // posted is the lock, same as `title` above. Null when no Baron is alive
-  // yet, which is the common case at creation; he propagates his name to them
-  // the moment he rolls up (see below).
+  // is his, never one they typed — not reading what the form posted is the
+  // lock, same as `title` above. Null when no Baron is alive yet; he
+  // propagates his name to them the moment he rolls up (see below).
   if (isDynastyMember(role.slug)) lastName = await dynastyLastName();
 
-  // The same four seats fix the holder's gender as hand down the surname, and
-  // for the same reason: the Baron is a man and the Successor is his daughter.
-  // The wizard greys the picker out once such a role is picked, but the greying
-  // is only the hint — taking the seat's value over the posted one is the lock.
+  // The same four seats fix the holder's gender as they hand down the
+  // surname: the Baron is a man and the Successor is his daughter. Taking
+  // the seat's value over the posted one is the lock.
   const effectiveGender = role.lockedGender ?? gender;
 
   // Selected tags must actually be buyable — a hand-posted request could
@@ -207,11 +194,9 @@ export async function createCharacter(formData) {
     ? await prisma.tag.findMany({ where: { name: { in: role.startingTagSlugs } } })
     : [];
 
-  // Now both halves of "what did they earn" exist, so the title can be gated.
-  // A word this character has no claim to lands as null rather than failing
-  // the create: the wizard already filtered the dropdown, so anything else
-  // arriving here is a hand-posted request, and silently going untitled is
-  // the right answer to one.
+  // Now both halves of "what did they earn" exist, so the title can be
+  // gated. A word this character has no claim to lands as null rather than
+  // failing the create — a hand-posted request just goes untitled.
   const honorific = normalizeEarnedHonorific(rawHonorific, {
     tagSlugs: [...selected, ...startingTags].map((t) => t.slug),
     roleSlug: role.slug,
@@ -312,12 +297,9 @@ export async function createCharacter(formData) {
   // the budget check above already passed.
   //
   // A tag with a catalog duration has to arrive already stamped, or it sits
-  // on the sheet forever: resolveNeeds()' sweep only ever looks at
-  // expiresTurn, and nothing else backfills it. This is what makes a timed
-  // starting pick (a Tipsy, a Wound) actually run out. Both tag sets are
-  // fetched without a `select`, so defaultDurationTurns is already on them.
-  // Before the game opens there is no turn to count from, so nothing
-  // expires.
+  // on the sheet forever — resolveNeeds()' sweep only ever looks at
+  // expiresTurn, and nothing else backfills it. Before the game opens there
+  // is no turn to count from, so nothing expires.
   const tagIdsToGrant = new Map();
   for (const tag of startingTags) {
     const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
@@ -399,10 +381,8 @@ export async function createCharacter(formData) {
   // reads the zone/tags written above.
   //
   // Channel access is the zone's own "Zone: {Name}" role, granted here the
-  // same way travel swaps it (web/lib/discordGuild.js#syncCharacterZoneRole).
-  // It has nothing to do with the character's PERSONAL role, which is a
-  // mentionable name token only — so a failed ensureCharacterRole above must
-  // never cost a new character the rooms they can see.
+  // same way travel swaps it. It has nothing to do with the character's
+  // PERSONAL role, a mentionable name token only.
   await ensureCharacterRole(created).catch(() => {});
   if (created.zoneId) {
     await syncCharacterZoneRole(discordUserId, null, created.zoneId).catch(() => {});

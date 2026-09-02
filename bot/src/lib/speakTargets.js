@@ -3,32 +3,13 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("./channels
 
 // Where can this player speak as their character right now?
 //
-// Deliberately derived, never a hardcoded list. A destination qualifies on
-// two tests only:
+// Derived, never hardcoded: a destination qualifies only if it's a tupper
+// channel (bot/src/lib/channels.js) and Discord says the member can post
+// there, reusing the narrowcast overwrites directly.
 //
-//   1. it is a tupper channel (bot/src/lib/channels.js), so proxying is
-//      actually supported there, and
-//   2. Discord says this member may actually post in it.
-//
-// That second test is the live answer to every narrowcast rule without a
-// second copy of them: syncCharacterNarrowcastAccess already writes exactly
-// the ViewChannel/SendMessages overwrite that computeNarrowcastAccess decided
-// on, so a bracelet-only Watchman quietly loses Send on #watch and
-// Intercom-outside-the-Keep falls out for free. It also means a narrowcast
-// channel added later shows up here the moment its id lands in
-// refreshLocationChannels' tupperOnly set — nothing to edit.
-//
-// "Actually post in it" is two different permissions, and conflating them is
-// what broke this the first time round:
-//
-//   - a text/forum CHANNEL needs SendMessages;
-//   - a THREAD needs SendMessagesInThreads, which is a different bit.
-//
-// And the two thread containers are never offered as destinations themselves.
-// You cannot post a message to a forum channel (only create a post), and
-// `-private` denies SendMessages for @everyone by design — it exists solely to
-// spin up private threads (db/lib/syncLocations.js#locationChannelSpec). So
-// they are walked for their threads and gated on ViewChannel alone.
+// A CHANNEL needs SendMessages; a THREAD needs SendMessagesInThreads — a
+// different bit. A thread container (forum/private) is never a destination
+// itself; walk it for its threads, gated on ViewChannel alone.
 
 const MAX_OPTIONS = 25;
 
@@ -75,18 +56,11 @@ function canSpeakInTarget(target, member) {
 
 // Every active thread in the guild, bucketed by the channel it hangs off.
 //
-// ONE fetch, outside the channel walk, and that is not an optimisation — the
-// per-container version was a live bug. ThreadManager#fetchActive calls
-// guild.channels.rawFetchGuildActiveThreads(), which is guild-wide however it
-// is invoked, so calling it per container fetched the same whole-guild list
-// ~77 times over. Worse, _mapThreads caches every thread it returns into
-// guild.channels.cache — the very Map listSpeakTargets was iterating. A JS
-// Map iterator visits entries appended during iteration, so those threads
-// were then walked as if they were containers, and ThreadChannel extends
-// BaseChannel and has no `.threads` (only BaseGuildTextChannel and
-// ThreadOnlyChannel get one), so the walk threw
-// "Cannot read properties of undefined (reading 'fetchActive')" the moment
-// any location had one live thread. That is the Speak hang.
+// Fetch ONCE, outside the channel walk: ThreadManager#fetchActive is
+// guild-wide regardless of which container calls it, and it caches fetched
+// threads into guild.channels.cache — the same Map the channel walk
+// iterates — so calling it per container both multiplies the requests and
+// corrupts that walk with threads treated as containers.
 async function fetchThreadsByParent(guild) {
   const byParent = new Map();
   const fetched = await guild.channels.fetchActiveThreads().catch(() => null);

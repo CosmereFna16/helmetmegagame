@@ -1,23 +1,11 @@
-// The Bird's failure pass — the delayed half of a mechanic whose other half is
-// instant. See docs/systemdocs/BIRD.md.
+// The Bird's failure pass — the delayed half of a mechanic whose other half
+// is instant. See docs/systemdocs/BIRD.md.
 //
-// A letter resolves the moment it is sent: right zone and a living recipient,
-// and the DM goes out there and then. A wrong guess resolves too, into nothing,
-// and the sender is told NOW ONLY THAT THEY SENT IT. This pass is what tells
-// them, one turn later, that it never arrived.
-//
-// THE DELAY IS THE WHOLE POINT, and it is the one thing not to "fix" here. An
-// immediate "not delivered" would turn a Bird into a once-a-day question —
-// "is Ada alive and standing in Town?" — answered for free and with certainty.
-// A turn's delay makes the answer stale on arrival, which is exactly what a
-// bird flying back overnight should feel like. For the same reason the message
-// is identical whether the guess was wrong or the recipient was dead: two
-// wordings would be two different questions, and one of them would be a
-// reliable death detector.
-//
-// Same discipline as every pass: DB writes only, and Discord work returned as
-// `notices` for the side-effect thunk in db/index.js rather than sent from in
-// here. Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// A wrong guess resolves instantly, into silence; this pass tells the sender,
+// one turn later, that it never arrived. The delay is the point — an instant
+// answer would make a Bird a free, reliable "is X alive and in Town?" check.
+// The message is identical for a wrong guess and a dead recipient, on purpose
+// — different wordings would make one of them a reliable death detector.
 const { NOT_DELIVERED_DM } = require("./bird");
 
 async function runBirdPass(prisma, turn) {

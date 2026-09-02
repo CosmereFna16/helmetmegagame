@@ -1,21 +1,12 @@
-// Moves ⬢ between two parties (see db/lib/parties.js) atomically, and never
-// mints or burns a balance from nowhere. Promoted out of
-// web/lib/requestEffects.js so the turn-end push (CommonJS, runs inside the
-// bot's turn engine) and every GM transfer surface share the exact primitive
-// the player-facing TRANSFER_RESOURCES request already used.
+// Moves ⬢ between two parties (see db/lib/parties.js) atomically, never
+// minting or burning a balance from nowhere. Shared by the turn-end push and
+// every GM transfer surface, same primitive as TRANSFER_RESOURCES.
 //
-// The check and the subtraction used to be separate statements with a whole
-// server action between them: read the balance, compare, and some lines later
-// decrement. Prisma runs READ COMMITTED, so two requests firing at the same
-// moment — two tabs, a double-click, a flaky connection retrying — both read
-// the same balance, both passed, and both subtracted. Ten ⬢ sent twice left
-// the sender at −10 and the recipient up 20, and it worked on faction silos
-// too.
-//
-// So the write IS the check: a conditional updateMany that matches only while
-// the balance still covers the amount, and a count of 0 means it didn't. Every
-// caller runs inside a $transaction, so the throw rolls back everything else
-// in it along with it.
+// Prisma runs READ COMMITTED, so the balance check must be the write itself
+// (a conditional updateMany matching only while the balance still covers the
+// amount) rather than a separate read-then-decrement, or two concurrent
+// requests can both pass and both subtract. Every caller runs inside a
+// $transaction, so a throw here rolls back everything else in it.
 class InsufficientResourcesError extends Error {
   constructor(party, amount) {
     super(`${party?.name ?? "That party"} no longer has ${amount} ⬢.`);
@@ -104,11 +95,9 @@ async function writeSiloRows(tx, { factionId, amount, toCharacterId = null, toNa
 // Moves `amount` from `from` to `to`, writing Silo rows for each end that's a
 // faction. See writeSiloRows for what `ledger` carries.
 //
-// Legs are sorted by (kind, id), not by which side is the sender. Two
-// simultaneous transfers between the same pair in opposite directions used to
-// take their row locks in opposite orders — A then B for one, B then A for
-// the other — which is a textbook Postgres deadlock. A total order over the
-// participants means both transactions queue instead.
+// Legs are sorted by (kind, id), not by which side is the sender: a total
+// order over the participants keeps two simultaneous transfers between the
+// same pair from taking their row locks in opposite orders, which deadlocks.
 async function applyTransfer(tx, { from, to, amount, ledger }) {
   const legs = [
     [from, -amount],

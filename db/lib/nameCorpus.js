@@ -1,28 +1,17 @@
-// The pool the "Randomize" button on the creation wizard and the /character
-// Bio panel draws from.
+// The pool the "Randomize" button and the /character Bio panel draw from.
+// Kept in code (not YAML) so it can be imported by a client component —
+// every sync*.js reads YAML with node:fs, which can't bundle for the
+// browser. Pure: no prisma, no node: builtins, no I/O.
 //
-// Kept in code rather than a table or a YAML master, for the same reason as
-// db/lib/antagonists.js: fixed values that can never differ per environment, so
-// a row would only add a join and a way to drift. It also has to be importable
-// by a client component (via web/lib/nameCorpus.js), which rules out YAML
-// outright — every sync*.js reads its file with node:fs, which cannot be
-// bundled for the browser.
-//
-// Pure: no prisma, no node: builtins, no I/O. Same posture as
-// db/lib/characterName.js, whose NAME_LIMITS every entry here fits inside by a
-// wide margin (longest given name 10, longest surname 10, against caps of 24
-// and 20) — so nothing downstream ever silently truncates a generated name.
-//
-// Register: Central and Eastern European first, then Iberian, a few
-// British — all drawn from OpenXcom's bin/common/SoldierName/*.nam files
-// (github.com/OpenXcom/OpenXcom, GPL-3.0), which ship real, everyday given
-// names and surnames per nationality rather than the archaic, hard-to-place
-// names an earlier pass of this file used (Miłosz, Zbyslava). The surnames mix
-// noble houses with trade and descriptive names on purpose, so one pool serves
-// both a Baron and a miner.
-// Region tags exist only so a generated name can be internally coherent —
-// "Zsigmond Nádasdy" reads like a person, "Zsigmond Ataíde" reads like a random
-// generator. See randomCharacterName's CROSS_REGION_CHANCE for the exception.
+// Every entry fits inside db/lib/characterName.js's NAME_LIMITS by a wide
+// margin. Region tags keep a generated name internally coherent — see
+// randomCharacterName's CROSS_REGION_CHANCE for the exception.
+
+// Register: Central and Eastern European, Iberian, and British given names
+// and surnames drawn from OpenXcom's bin/common/SoldierName/*.nam files
+// (github.com/OpenXcom/OpenXcom, GPL-3.0). The surnames mix noble houses
+// with trade and descriptive names, so one pool serves both a Baron and a
+// miner.
 const SLAVIC_WEST = "slavic-west"; // Polish, Czech, Slovak
 const HUNGARIAN = "hungarian";
 const ROMANIAN = "romanian";
@@ -74,32 +63,21 @@ const MEDIEVAL_SURNAMES = expand([
 ]);
 
 // The non-medieval pool: cosmopolitan European given names, nicknames drawn
-// from ordinary objects, surnames worn as first names, real common nouns worn
-// as names (Watership Down's rabbits are named after English words, mostly
-// plants; Strong/Brick/Red/Domino/Ivy/Ghost/Rook are each a real character's
-// actual given name, not a nickname, in Fallout 4, Borderlands, Transistor,
-// Marvel, DC, Call of Duty and Dragon Age: The Veilguard respectively), and a
-// large batch of RimWorld colonist nicknames — sourced from a fan-maintained
-// list of backer-submitted names (rimworldwiki.com/wiki/User:Paintsimmon/
-// NameinGame), which is why this batch in particular reads as "found," not
-// designed. Ravenheart is a city people arrive in, and a name that doesn't
-// match the local register is a character detail rather than a mistake.
+// from ordinary objects, real common nouns worn as names, and a large batch
+// of RimWorld colonist nicknames (rimworldwiki.com/wiki/User:Paintsimmon/
+// NameinGame). Ravenheart is a city people arrive in, so a mismatched
+// register reads as a character detail, not a mistake.
 //
-// These carry no region — they are the leakage, so pairing them with a
-// regional surname is the whole point (see randomCharacterName). The Witcher
-// pool below is the one exception: it pairs with its own surnames instead,
-// since "Olgierd Kowalski" reads as a mismatch this pool doesn't otherwise
-// have to worry about.
+// These carry no region — pairing them with a regional surname is the whole
+// point (see randomCharacterName). The Witcher pool below is the exception:
+// it pairs with its own surnames, since "Olgierd Kowalski" would read as a
+// mismatch.
 //
-// A handful of the common nouns and RimWorld nicknames read as gender-neutral
-// in their source material (a rabbit called Fiver has no gender the word
-// itself implies), so rather than invent a third pool they are simply listed
-// in both arrays below — the same trick poolsFor()'s "Person" branch already
-// relies on.
+// A handful of these names read as gender-neutral in their source material,
+// so they're simply listed in both arrays below rather than a third pool.
 //
-// This block used to be pasted twice, byte-identical, into FLAVOUR_MALE and
-// FLAVOUR_FEMALE. Kept here as its own array instead so the next batch of
-// gender-neutral nicknames only needs adding once — don't re-inline it.
+// Kept as its own array, shared by FLAVOUR_MALE and FLAVOUR_FEMALE, so a
+// new gender-neutral nickname only needs adding once — don't re-inline it.
 function freezeNames(names) {
   return Object.freeze(names.map((name) => Object.freeze({ name, region: null })));
 }
@@ -189,11 +167,9 @@ const NAME_CORPUS = Object.freeze({
 const FLAVOUR_CHANCE = 1 / 3;
 
 // Of a flavour roll, how often it narrows further to the three-name Witcher
-// batch. Nested under FLAVOUR_CHANCE rather than a top-level chance of its own
-// — three names getting equal billing with the ~180-entry cosmopolitan/noun
-// pools would make Olgierd absurdly overrepresented. Dropped from 1/6 to 1/10
-// when FLAVOUR_CHANCE went up, so the Witcher batch's absolute rate holds
-// roughly steady rather than becoming more common along with everything else.
+// batch. Nested under FLAVOUR_CHANCE rather than a top-level chance of its
+// own — three names getting equal billing with the ~180-entry cosmopolitan
+// pools would make Olgierd absurdly overrepresented.
 const WITCHER_SHARE_OF_FLAVOUR = 1 / 10;
 
 // How often a medieval given name is paired with a surname from a different
@@ -202,8 +178,7 @@ const WITCHER_SHARE_OF_FLAVOUR = 1 / 10;
 const CROSS_REGION_CHANCE = 0.15;
 
 // Which given-name pool a character's gender implies. Reads Character.gender
-// directly — it used to be inferred from whichever title they happened to wear,
-// so an untitled character or a Captain drew from both pools whoever they were.
+// directly, never title.
 function poolsFor(gender, medieval) {
   switch (gender) {
     case "MAN":

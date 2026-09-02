@@ -1,20 +1,12 @@
-// One-off: drop the per-zone walls so anyone in the guild can read and write in
-// every roleplay channel.
+// One-off: drop the per-zone walls so anyone in the guild can read and write
+// in every roleplay channel, between games. Touches Discord permissions only
+// — no roles, channels, messages or members created, changed, or deleted.
 //
-// The game's database was lost and the mechanics are down, so zone-role gating
-// only stops people from talking to each other. This lifts it at the Discord
-// layer and touches nothing else: no roles created or deleted, no channels, no
-// messages, no members, no database.
+//   node db/scripts/ops/open-rp-channels.js            # dry run, writes a snapshot
+//   node db/scripts/ops/open-rp-channels.js --apply    # snapshot, then apply
 //
-// Per target: @everyone is opened, Cursed's send-deny is cleared so ghosts get
-// their voice back, and Spectator is left alone so it stays a watching seat (an
-// explicit role deny still beats the @everyone allow).
-//
-//   node db/scripts/open-rp-channels.js            # snapshot + report, no writes
-//   node db/scripts/open-rp-channels.js --apply    # snapshot, then apply
-//
-// The snapshot it writes first is the undo: every current overwrite for every
-// target, keyed by channel id.
+// Per target: @everyone is opened, Cursed's send-deny is cleared, Spectator
+// is left alone. The snapshot written first is the undo.
 
 const fs = require("node:fs");
 const path = require("node:path");

@@ -16,12 +16,9 @@ export function formatDesirePoints(tier) {
   return `${formatCost(-tier)} ${tier === 1 ? "pt" : "pts"}`;
 }
 
-// A Desire's own cooldown, in words: "3-turn cooldown", or "once ever" for
-// a template that can only be fulfilled once per life (tier 7 by default).
-// `cooldownTurns` arrives already resolved (cooldownTurns ?? tier) from
-// character/page.js, or as the raw template off a past claim — so resolve
-// again here, cheaply, rather than trust which one a caller handed over.
-// Null when nothing is known (a GM free-text Desire has no template).
+// A Desire's own cooldown, in words: "3-turn cooldown", or "once ever" for a
+// template fulfillable only once per life. Resolves cooldownTurns ?? tier
+// itself rather than trust a caller's resolution; null when nothing is known.
 export function cooldownLabel(t) {
   if (!t) return null;
   if (t.onceEver) return "once ever";
@@ -49,11 +46,9 @@ function rowState(entry) {
 }
 
 // One pickable row, PointBuy's TagRow with the tag facts swapped for a
-// Desire's: the family colour as the left rule (the select-card comment
-// sanctions that one inline colour), the award where the price sits, and the
-// other families a multi-family desire carries where the group name goes.
-// ChipText rather than RichText: the row is a <button>, so a hoverable chip
-// inside it would be a button in a button.
+// Desire's: family colour as the left rule, award where the price sits, other
+// families a multi-family desire carries beside the name. ChipText not
+// RichText: the row is a <button>, so a hoverable chip would nest a button.
 function DesireRow({ entry, family, otherNames, onChoose }) {
   const state = rowState(entry);
   const pickable = entry.state === "available";
@@ -83,10 +78,9 @@ function DesireRow({ entry, family, otherNames, onChoose }) {
             {otherNames.length > 0 && (
               <span className="text-xs text-muted">{otherNames.join(" · ")}</span>
             )}
-            {/* The source column: what opened this row to you — a held tag,
-                your role — or nothing at all for a Desire open to everyone.
-                Pushed to the row's end so the eye can run down it. Named
-                server-side (desireGates.js#unlockedBy), never guessed here. */}
+            {/* Source column: what opened this row (a held tag, your role),
+                pushed to the row's end. Named server-side (desireGates.js
+                #unlockedBy), never guessed here. */}
             {entry.unlockedBy && (
               <span className="ml-auto text-xs" style={{ color: "var(--accent-text)" }}>
                 Unlocked by {entry.unlockedBy}
@@ -101,11 +95,8 @@ function DesireRow({ entry, family, otherNames, onChoose }) {
 }
 
 // One of your slots, in the "Your slots" pane. An open slot is a select-card
-// you can retarget the claim at — the modal opens aimed at the slot whose
-// button was pressed, but nothing stops you claiming into the other one
-// instead, and which slot you pick matters when an Addiction binds the bottom
-// one. A cooling slot can't take a claim, so it's disabled; claimDesire
-// refuses it server-side anyway.
+// you can retarget the claim at, which matters when an Addiction binds the
+// bottom one. A cooling slot is disabled; claimDesire refuses it server-side too.
 function SlotCard({ slot, isTarget, isBottom, addiction, onTarget }) {
   const open = slot.lockedUntilTurn == null;
   return (
@@ -142,25 +133,12 @@ function SlotCard({ slot, isTarget, isBottom, addiction, onTarget }) {
   );
 }
 
-// The catalog picker: the Spend Tag Points menu's layout (PointBuy.js) with
-// Desires in it. Catalog pane on the left — search, sort, a tab per family
-// group, one tall scroller with a sticky coloured header per family — and
-// your slots on the right. `catalog` is already gate-evaluated and already
-// stripped of everything you can't see or can't pick for a gate reason
-// (character/page.js); what's left is yours, and only cooldown and
-// once-ever-done rows sit dimmed among the claimable ones.
-//
-// The one gate this component applies itself is the SLOT-scoped one: an
-// Addiction shuts the bottom slot to everything outside its own family, so a
-// row's `slotLocks[target]` decides whether it is in this list at all — and
-// retargeting a slot re-filters the catalog.
-//
-// Mount this with a `key` that changes per opening: every bit of state here
-// (search, tab, target slot) is meant to reset when the modal is reopened.
-//
-// Picking a row posts nothing. It hands the choice back to DesirePanel, which
-// opens the reason dialog — a claim moves Tag Points, so it is a request and
-// needs a reason like every other one.
+// The catalog picker: the Spend Tag Points menu's layout with Desires in it.
+// `catalog` arrives already gate-evaluated (character/page.js); the one gate
+// applied here is slot-scoped (an Addiction shuts the bottom slot to its own
+// family via `slotLocks[target]`). Mount with a `key` that changes per
+// opening so search/tab/target state resets. Picking a row hands the choice
+// to DesirePanel, which opens the reason dialog.
 export default function DesireCatalog({
   open,
   onClose,

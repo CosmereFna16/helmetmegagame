@@ -1,30 +1,14 @@
-// The channel doctor — the reconciliation sweep that makes the role/channel
-// system self-healing instead of drift-until-someone-notices. It compares
-// what the database says the game looks like against what Discord actually
-// shows, reports every mismatch, and (with apply) repairs it.
+// The channel doctor — the reconciliation sweep that compares what the
+// database says the game looks like against what Discord actually shows,
+// reports every mismatch, and (with apply) repairs it. Runs on bot restart
+// and after each turn advance (cheap scope), and from finishGameWipe (full).
 //
-// Two scopes:
-//   "cheap" — role membership only: zone roles vs Character.zoneId, turn-ping
-//     vs turnPingOptIn, cursed vs the dead-not-yet-rerolled set, character
-//     roles existing/orphaned, the structural checks (zone channels/roles
-//     exist, the bot's role sits above the zone roles, cursed color 0, no
-//     seat-zone stamp pointing at a cave level). One member-list read plus a
-//     handful of requests, safe on every bot restart — which is where it runs
-//     (bot/src/events/ready.js), and after every turn advance when
-//     GameConfig.autoReconcileEnabled is on.
-//   "full" — everything above plus the expensive halves: channel overwrites
-//     vs the spec, leftover per-member overwrites from the pre-rework access
-//     model, PlayerThread rows whose threads 404, threads with no row
-//     (adopted), dead invites, and narrowcast member overwrites vs the rules.
+// "cheap": role membership + structural checks, safe on every restart.
+// "full": adds channel overwrites, thread/invite bookkeeping, and
+// narrowcast overwrites — the expensive halves.
 //
-// Everything is sequential, every check independently caught, and the whole
-// run is persisted as a SystemReport (kind: DOCTOR) the Dev Panel renders.
-// Dry-run by default: apply: false reports without touching anything.
-//
-// This is the structural answer to the wipe-time complaint ("no one loses
-// their turn-ping role"): instead of hoping every removal in a hundred-call
-// loop lands, the doctor makes any miss visible and repairable, and
-// finishGameWipe runs it as its own final step.
+// Dry-run by default (apply: false). Every run is persisted as a
+// SystemReport (kind: DOCTOR) the Dev Panel renders.
 const {
   getGuildRoles,
   listGuildMembers,
@@ -291,8 +275,8 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         }
         if (!live) continue;
 
-        // Leftover per-member overwrites from the pre-rework model: a member
-        // overwrite on a zone channel belongs to nobody now.
+        // A member overwrite on a zone channel belongs to nobody; access
+        // rides the zone role.
         for (const overwrite of live.permission_overwrites ?? []) {
           if (overwrite.type !== 1) continue;
           await report(

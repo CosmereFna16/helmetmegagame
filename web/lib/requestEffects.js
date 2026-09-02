@@ -5,44 +5,25 @@ import { UserError } from "@/lib/actionResult";
 
 // The per-type behaviour of a Request: how a GM's Undo reverses it, and which
 // fields (if any) a GM can Edit. Adding a new RequestType means adding one
-// entry here and one entry in RequestPanel.js's section map — nothing else in
-// the adjudication surface needs to change.
+// entry here and one entry in RequestPanel.js's section map.
 //
-// Every function here runs INSIDE a prisma transaction and reads only
-// `request.effect` — the snapshot of what was actually applied. It must never
-// re-derive from live state, or a GM edit (or any later transaction by the
-// player) silently corrupts the reversal.
-//
-// `applyEdit` returns `{ effect, note, changed }`. `changed` is whether this
-// call actually moved something — a real edit — as opposed to a Confirm that
-// only stamped gmNotes/reviewedAt. The caller (resolveRequestImpl in
-// actions.js) uses it to decide EDITED vs. leaving the player's own status
-// alone.
+// Every function runs INSIDE a prisma transaction and reads only
+// `request.effect`, never live state, so a GM edit can't corrupt the
+// reversal. `applyEdit` returns `{ effect, note, changed }` — `changed` is
+// whether this call actually moved something, as opposed to a Confirm that
+// only stamped gmNotes/reviewedAt.
 
 // --- shared primitives ------------------------------------------------
 
 // Moves a party's balance by a signed delta, and REFUSES rather than going
-// negative.
+// negative. The write IS the check: a conditional updateMany that only
+// matches while the balance still covers the amount, so two concurrent
+// requests (Prisma runs READ COMMITTED) can't both pass a stale check and
+// double-spend. Every caller runs inside a $transaction, so a refusal rolls
+// back everything else in it.
 //
-// The check and the subtraction used to be separate statements with a whole
-// server action between them: read the balance, compare, and some lines later
-// decrement. Prisma runs READ COMMITTED, so two requests firing at the same
-// moment — two tabs, a double-click, a flaky connection retrying — both read
-// the same balance, both passed, and both subtracted. Ten ⬢ sent twice left
-// the sender at −10 and the recipient up 20, and it worked on faction silos
-// too.
-//
-// So the write IS the check: a conditional updateMany that matches only while
-// the balance still covers the amount, and a count of 0 means it didn't. Every
-// caller runs inside a $transaction, so the throw rolls back the tag grant,
-// the Request row and the audit entry along with it. The friendly pre-checks
-// in the request actions are kept for their better wording; this is the
-// enforcement underneath them.
-//
-// The primitive itself lives in db/lib/resourceTransfer.js — the turn-end
-// push (CommonJS, no Next.js request context) needs the exact same clamp, so
-// this is a thin delegate that maps InsufficientResourcesError to the
-// friendlier UserError wording this surface has always used.
+// Lives in db/lib/resourceTransfer.js; this is a thin delegate mapping
+// InsufficientResourcesError to this surface's UserError wording.
 export async function moveResources(tx, party, delta) {
   const character = party?.kind === "character";
   try {
@@ -238,13 +219,9 @@ export const REQUEST_EFFECTS = {
 
       if (edits.removeTag && effect.tagId && !effect.tagRemovedByGm) {
         // Only what this request added comes off — a stack the player built
-        // over several requests keeps whatever the others put there.
-        //
-        // The `!effect.tagRemovedByGm` guard is what stops a second Confirm
-        // taking a second unit. The flag was already being written below and
-        // already honoured by undo(); it just wasn't read here, and
-        // resolveRequest allows unlimited confirms. HEAL_CHARACTER.applyEdit
-        // has had this exact guard all along.
+        // over several requests keeps whatever the others put there. The
+        // `!effect.tagRemovedByGm` guard stops a second Confirm
+        // (resolveRequest allows unlimited confirms) from taking a second unit.
         await dropCharacterTag(tx, request.characterId, effect.tagId, effect.quantity ?? 1);
         notes.push(`Removed ${formatStack(effect.tagName, effect.quantity)}.`);
         effect.tagRemovedByGm = true;
@@ -538,10 +515,10 @@ export const REQUEST_EFFECTS = {
   // Discord catches up the next time the player saves their Bio form, which
   // always re-syncs off the live DB name regardless of what changed.
   //
-  // Older Request rows, from before renaming stopped costing a Mulligan
-  // Potion, carry a `potionTagId`/`potionRestore` in their effect — undoing
-  // one of those also gives the potion back, same idiom as CONSUME_TAG. New
-  // requests carry neither key, so that step is skipped for them.
+  // Some rows also carry `potionTagId`/`potionRestore` in their effect
+  // (renaming once cost a Mulligan Potion) — undoing those also gives the
+  // potion back, same idiom as CONSUME_TAG. Current requests carry neither
+  // key, so that step is skipped for them.
   CHANGE_NAME: {
     editableFields: [],
     async undo(tx, request) {

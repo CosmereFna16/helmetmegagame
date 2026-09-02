@@ -5,20 +5,13 @@ import HoverCard from "./HoverCard";
 
 // An inline reference to another document, from {document:key}.
 //
-// Unlike a TagChip this one actually goes somewhere: documents have a URL now
-// (/documents?doc=key), so a reference in one paper can be followed to the
-// paper it names.
+// Unlike a TagChip this one goes somewhere: documents have a URL
+// (/documents?doc=key). HoverCard's trigger pins the tooltip open rather
+// than navigating, so the "Open →" link lives inside the panel.
 //
-// HoverCard's trigger click/Enter/Space now pins the tooltip open rather
-// than navigating, so the "Open →" link lives inside the panel instead —
-// reachable once pinning makes the panel interactive.
-//
-// `doc` comes from useDocuments() and is already resolved by the caller —
-// see DocumentsProvider. A doc the reader may not open arrives with
-// accessible:false and no body, and renders as an inert chip: the reference
-// still reads as a reference, but there is nothing to follow. That is
-// deliberate — degrading to plain text would hide that a document exists,
-// while a working link would hand out Gamemaster briefs.
+// `doc` comes from useDocuments(), already resolved — see DocumentsProvider.
+// An inaccessible doc renders as an inert chip (no link) rather than plain
+// text, so its existence stays visible without exposing GM-only content.
 export default function DocumentChip({ doc }) {
   const face = (
     <span className="chip doc-chip" data-locked={!doc.accessible || undefined}>
