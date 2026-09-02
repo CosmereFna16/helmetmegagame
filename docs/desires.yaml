@@ -444,7 +444,7 @@ desires:
     # F-13: the proper noun "Theb Etter" is unverified against any other doc
     # — carried through as the planner wrote it.
     requires:
-      anyTags: [existentialist]
+      anyTags: [ascetic, existentialist]
 
   - slug: praised-footwork
     name: Be complimented on your footwork
@@ -2022,3 +2022,13 @@ desires:
     families: [cult-bacchus, faith]
     requires:
       anyTags: [follower-of-bacchus]
+
+  # Restored with the Ascetic tag (2026-09-02). The sole member of the
+  # `ascetic` family, and therefore the only thing that tag leaves open.
+  - slug: sit-in-bliss
+    name: "Sit in bliss"
+    tier: 1
+    families: [ascetic]
+    requires:
+      anyTags: [ascetic]
+    cooldownTurns: 2

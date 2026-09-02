@@ -383,7 +383,7 @@ tags:
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed]
+    conflictsWith: [depressed, ascetic]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -402,7 +402,7 @@ tags:
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed]
+    conflictsWith: [depressed, ascetic]
     desires:
       locks:
         - all: true
@@ -644,7 +644,7 @@ tags:
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, prudish]
+    conflictsWith: [depressed, ascetic, prudish]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -940,6 +940,25 @@ tags:
 
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
+  # Restored 2026-09-02 after being cut in the sign-off pass. Locks everything
+  # except its own family, which contains exactly one desire (sit-in-bliss) —
+  # so a -6 that opens one tier-1 goal is still overwhelmingly a lock, and it
+  # keeps the negative price rather than the 0 that a genuine lock-and-open
+  # tag like Pacifist or Kleptomaniac gets.
+  - slug: ascetic
+    name: Ascetic
+    category: general
+    group: general-personality
+    description: "You don't want anything. You gain tag points slowly."
+    pointCost: -6
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [ascetic]
+
   - slug: craven
     name: Craven
     category: general
@@ -1084,7 +1103,7 @@ tags:
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, prudish]
+    conflictsWith: [depressed, ascetic, prudish]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -1219,7 +1238,7 @@ tags:
     purchasableAfterStart: false
     removable: false
     consumable: false
-    conflictsWith: [depressed, prudish]
+    conflictsWith: [depressed, ascetic, prudish]
     desires:
       locks:
         - tiers: [1, 2, 3, 4]
@@ -7412,7 +7431,7 @@ tags:
     name: "Rite: Overwhelm"
     category: bacchus
     group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious} or {tag:ascetic}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -7622,7 +7641,7 @@ tags:
     name: "Rite: Judgement"
     category: bacchus
     group: bacchus-bountiful
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious} or {tag:ascetic}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
