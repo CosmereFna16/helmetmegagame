@@ -96,12 +96,16 @@ const R = {
   request_transfer_resources: (d) => [actor(), t("sent"), res(d.amount ?? d.resources), t("to"), target()],
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],
   request_transfer_tag: (d) => [actor(), t("gave"), chip(d.tagName), qty(d.quantity), t("to"), em(d.toName)],
-  request_fulfill_desire: (d) => [actor(), t("fulfilled a Desire for"), points(d.pointsAwarded)],
+  request_fulfill_desire: (d) => [actor(), t("claimed a Desire for"), points(d.pointsAwarded)],
   request_donate_blood: (d) => [actor(), t("donated blood to the Lifeweb"), ...bloodTail(d)],
   request_feed_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
   request_feed_person_killed: (d) => [t("The Lifeweb took"), em(d.targetName), t("— fed by"), actor()],
+  // Legacy, kept so pre-2026-09-02 rows still render. Setting and cancelling a
+  // Desire stopped existing when claiming became retroactive (DESIRES.md §1),
+  // so nothing writes either of these any more.
   desire_set: (d) => [actor(), t("set a Desire worth"), points(d.points), ...(d.text ? [t("—"), em(quote(d.text))] : [])],
   desire_cancelled: () => [actor(), t("cancelled their Desire")],
+  desire_auto_cancelled: (d) => [t("A Desire of"), target(), t("was auto-cancelled"), ...(d?.desireName ? [t("—"), em(quote(d.desireName))] : [])],
 
   // ---- Request review, from the adjudication desk ----
   request_reviewed: (d) => [actor(), t("reviewed a"), em(typeWords(d.type)), t("request")],
@@ -155,9 +159,12 @@ const R = {
   gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name)],
   gm_custom_tag_updated: (d) => [actor(), t("edited the custom tag"), chip(d.name)],
   gm_custom_tag_deleted: (d) => [actor(), t("deleted the custom tag"), chip(d.name)],
+  // gm_desire_set is legacy for the same reason as desire_set above; a GM now
+  // AWARDS a Desire, which writes gm_desire_fulfilled, and REVOKES one, which
+  // writes gm_desire_cancelled.
   gm_desire_set: (d) => [actor(), t("set a Desire for"), target(), t("worth"), points(d.points)],
-  gm_desire_fulfilled: (d) => [actor(), t("fulfilled a Desire for"), target(), t("worth"), points(d.points)],
-  gm_desire_cancelled: () => [actor(), t("cancelled the Desire of"), target()],
+  gm_desire_fulfilled: (d) => [actor(), t("awarded a Desire to"), target(), t("worth"), points(d.points)],
+  gm_desire_cancelled: () => [actor(), t("revoked a Desire of"), target()],
   gm_donated_lifeweb_blood: (d) => [actor(), t("donated blood for"), target(), ...bloodTail(d)],
   gm_fed_lifeweb_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
 

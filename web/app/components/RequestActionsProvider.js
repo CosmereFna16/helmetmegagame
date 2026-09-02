@@ -319,12 +319,11 @@ function payerLabel(parties, key) {
 
 export const ACTION_HELP = {
   add:
-    "To save the GMs time, you can add or remove tags at will, but you're " +
-    "expected to subtract the appropriate amount of resources / spend the " +
-    "amount of turns. They'll review the action later, but it'll push " +
-    "immediately. This is for crafting, or for taking gear the fiction " +
-    "already puts in your hands. Do not use it to dodge the point buy — " +
-    "that's the Spend Tag Points button.",
+    "This is the crafting menu. Make something, then subtract the resources " +
+    "and spend the turns the recipe asks for yourself — it pushes " +
+    "immediately, and a GM reviews it later. It also covers picking up gear " +
+    "the fiction already puts in your hands. Anything with a point price is " +
+    "bought with the Spend Tag Points button instead. \u2021",
   heal: "Works on others nearby too. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",

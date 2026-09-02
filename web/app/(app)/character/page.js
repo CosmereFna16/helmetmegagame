@@ -9,6 +9,7 @@ import {
   evaluateDesireCatalog,
   slotStates,
   describeDesireLocks,
+  bottomSlotAddiction,
   unlockedBy,
 } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies, desireFamilyGroups } from "@lifeweb/db/lib/desireFamilies";
@@ -43,6 +44,7 @@ import {
   buildSkillAncestry,
   healCost,
   isHealable,
+  isInflictable,
   missingSkillsFor,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
@@ -281,8 +283,9 @@ export default async function CharacterPage() {
       // resolves back down its chain to the Medical (Basic) gate. Four columns
       // over a few hundred rows — cheaper than nesting three parentTag includes.
       prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-      // ALL statuses, not just ACTIVE — the gate evaluator needs the whole
-      // history to compute per-desire and per-slot cooldowns.
+      // ALL statuses — the gate evaluator needs the whole history to compute
+      // per-desire and per-slot cooldowns, and the panel prints each slot's
+      // last claim.
       prisma.desire.findMany({
         where: { characterId: character.id },
         select: {
@@ -294,8 +297,8 @@ export default async function CharacterPage() {
           points: true,
           setTurnNumber: true,
           endedTurnNumber: true,
-          // So the ACTIVE row a slot holds can say its own cooldown. Null for
-          // a GM free-text Desire, which then just says nothing about it.
+          // So a slot's last claim can say its own cooldown. Null for a GM
+          // free-text Desire, which then just says nothing about it.
           template: { select: { tier: true, cooldownTurns: true, onceEver: true } },
         },
       }),
@@ -316,6 +319,7 @@ export default async function CharacterPage() {
           onceEver: true,
           cooldownTurns: true,
           retired: true,
+          requiresAnyOf: true,
           requiresAnyRoleSlugs: true,
           requiresNotRoleSlugs: true,
           requiresAnyTags: { select: { id: true, name: true } },
@@ -331,6 +335,7 @@ export default async function CharacterPage() {
           portraitFantasyPartsEnabled: true,
           desiresEnabled: true,
           desireSlots: true,
+          desireSlotLockTurns: true,
           // Read here too, for the Spend Tag Points modal folded in from the
           // old /store page — see store below.
           maxDrawbackTags: true,
@@ -347,6 +352,7 @@ export default async function CharacterPage() {
   // already carries desireLocks: its `tag` relation is loaded with `include`
   // (not `select`), which pulls every scalar column, desireLocks included.
   const desireSlots = gameConfig?.desireSlots ?? 2;
+  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
   const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
   const hiddenTagIds = await computeHiddenDesireTagIds(prisma, heldDesireTagIds);
   const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplateRows);
@@ -360,6 +366,7 @@ export default async function CharacterPage() {
     roleSlug: character.role?.slug ?? null,
     history: desireHistory,
     openTurnNumber: openTurn?.number ?? 0,
+    desireSlots,
   });
   // `desireCatalogEvaluated` IS `evaluateDesireCatalog`'s `visible` array —
   // the `hidden` half (db/lib/desireGates.js) is never bound to a variable
@@ -368,11 +375,14 @@ export default async function CharacterPage() {
   // A "locked" entry — an unmet requires gate, or a family a held tag shuts —
   // is dropped here too, so the picker only ever lists what this character
   // has access to and the evaluator's reason strings never leave the server.
-  // Cooldown, slotted and once-ever-done rows stay: those are yours, just
-  // not pickable right now.
+  // Cooldown and once-ever-done rows stay: those are yours, just not
+  // claimable right now. `slotLocks` rides along instead of being filtered
+  // here, because a slot-scoped lock (an Addiction) shuts one slot and leaves
+  // the others open — which slot the player is claiming into isn't known until
+  // they open the picker.
   const desireCatalog = desireCatalogEvaluated
     .filter(({ state }) => state !== "locked")
-    .map(({ template, state, availableFromTurn }) => ({
+    .map(({ template, state, availableFromTurn, slotLocks }) => ({
       slug: template.slug,
       name: template.name,
       description: template.description,
@@ -380,6 +390,7 @@ export default async function CharacterPage() {
       families: template.families,
       state,
       availableFromTurn,
+      slotLocks,
       // The per-desire cooldown, resolved the same way the evaluator does
       // (desireGates.js: cooldownTurns ?? tier), so the row prints the
       // number the gate will actually use.
@@ -402,7 +413,11 @@ export default async function CharacterPage() {
     history: desireHistory,
     openTurnNumber: openTurn?.number ?? 0,
     desireSlots,
+    lockTurns: desireSlotLockTurns,
   });
+  // Which held tag, if any, binds the bottom slot — the caption on the panel's
+  // Addiction box. Derived from the lock shape, not from a tag group.
+  const desireAddiction = bottomSlotAddiction(character.tags.map((ct) => ct.tag));
 
   // The mid-game tag store, folded into the sheet as a modal (see
   // StorePanel.js). Held ids widen the catalog so unpurchasable held tags (a
@@ -659,21 +674,31 @@ export default async function CharacterPage() {
       finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
     }));
 
-  // The injuries that can be inflicted: the same Health category the cure
-  // ladder treats (TAGS.md §5c), minus anything a GM or a player invented.
-  const harmTags = await prisma.tag.findMany({
-    where: { category: HEALABLE_CATEGORY, custom: false },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      category: true,
-      pointCost: true,
-      stackable: true,
-      group: { select: { name: true, color: true } },
-    },
-  });
+  // The injuries that can be inflicted. Not the whole Health category — that
+  // is the set the cure ladder TREATS (TAGS.md §5c), and most of it is the
+  // aftermath of an injury rather than an injury. isInflictable narrows it to
+  // wounds and maiming; see web/lib/healRequests.js. The filter runs in JS,
+  // not as a Prisma where, so this and the server action's re-check are the
+  // same predicate and cannot drift.
+  const harmTags = (
+    await prisma.tag.findMany({
+      where: { category: HEALABLE_CATEGORY, custom: false },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        category: true,
+        custom: true,
+        pointCost: true,
+        stackable: true,
+        // group.slug is what isInflictable reads; name and color are the
+        // picker's heading and swatch.
+        group: { select: { slug: true, name: true, color: true } },
+      },
+    })
+  ).filter(isInflictable);
 
   const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
@@ -716,6 +741,8 @@ export default async function CharacterPage() {
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
       desireSlots={desireSlots}
+      desireSlotLockTurns={desireSlotLockTurns}
+      desireAddiction={desireAddiction}
       desireSlotStates={desireSlotStates}
       desireCatalog={desireCatalog}
       desireFamilies={desireFamilies()}

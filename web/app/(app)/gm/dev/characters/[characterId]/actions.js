@@ -30,7 +30,6 @@ import {
   applyTagOpsInTx,
   planDiscordEffects,
 } from "@/lib/characterWrite";
-import { cancelOrphanedDesires } from "@lifeweb/db/lib/desireOrphans";
 import { applyPendingInvites } from "@lifeweb/db/lib/threadInvites";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
@@ -140,7 +139,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 
   let appliedTags = [];
 
-  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     // The same row lock character/equipActions.js#toggleEquip takes, for the
     // same reason: Postgres runs at READ COMMITTED, so without it an Apply
@@ -189,24 +187,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         details: { core: diff, leader, tags: appliedTags },
       },
     });
-
-    // Last inside the transaction, so it reads the post-edit tags AND the
-    // post-edit role in one pass. Both can move in a single Apply, and a
-    // Desire orphaned by either has to go — see db/lib/desireOrphans.js.
-    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
-      characterId,
-      openTurnNumber: openTurn?.number ?? null,
-      actorDiscordUserId: session.discordUserId,
-    }));
   });
-
-  // After the commit, and individually caught: the cancellation is already
-  // durable, so a Discord hiccup must not surface as a failed action.
-  for (const dm of orphanDms) {
-    await sendDm(dm.discordUserId, dm.content).catch((err) =>
-      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
-    );
-  }
 
   // Discord, after the commit and outside the request. revokeAllCharacterAccess
   // walks every channel a character can reach, syncCharacterZoneRole is a role
@@ -608,12 +589,10 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   return { name: character.name };
 }
 
-// At most one ACTIVE Desire per SLOT is an action-level invariant, not a
-// schema one — so it is re-checked here as well as in the player action.
-// Setting a new one cancels that slot's current ACTIVE row first, in the
-// same transaction (occupied-slot cancel path, same shape as
-// setDesireImpl/cancelDesireImpl in character/requestActions.js, now
-// slot-scoped rather than whole-character).
+// A GM awards a Desire the same way a player claims one: retroactively, into
+// a slot, paid out on the spot. There is no "set it and settle later" any
+// more (DESIRES.md §1), so the old setDesireGm/endDesireGm pair collapses into
+// award/revoke.
 //
 // Two branches, chosen by which fields the caller sends:
 //   - Catalog: { characterId, slotIndex, slug } — gates are BYPASSED. A GM
@@ -623,7 +602,11 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
 //   - Free-text: { characterId, slotIndex, text, points } — templateId stays
 //     null, and points may run 1..7 (a GM may exceed the player-facing 1-5
 //     ladder; see docs/desires.yaml's own tier ceiling).
-async function setDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, text, points }) {
+//
+// Bypassing the gate does NOT bypass the bookkeeping: the row is stamped
+// ended, so it starts the normal per-slot and per-desire cooldown clocks. What
+// a GM grant skips is who may claim a Desire, not what claiming one costs.
+async function awardDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, text, points }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
 
@@ -656,74 +639,82 @@ async function setDesireGmImpl({ characterId, slotIndex: rawSlotIndex, slug, tex
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
-  // Same row lock as the player's setDesireImpl: cancel-if-active-in-this-slot
-  // and create together.
+  // Same row lock as the player's claimDesireImpl, so a GM award landing at
+  // the same moment as a player's own claim serializes rather than both
+  // reading the same tagPoints and one overwriting the other.
   const desire = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
-    await tx.desire.updateMany({
-      where: { characterId, status: "ACTIVE", slotIndex },
-      data: { status: "CANCELLED", endedTurnNumber: openTurn?.number ?? null },
-    });
-    return tx.desire.create({
+    const row = await tx.desire.create({
       data: {
         characterId,
         templateId,
         slotIndex,
         text: body,
         points: value,
-        status: "ACTIVE",
+        status: "FULFILLED",
         setTurnNumber: openTurn?.number ?? null,
-      },
-    });
-  });
-
-  await audit(session, "gm_desire_set", characterId, { desireId: desire.id, points: value, slotIndex, templateId });
-  notifyCharacter(session, character, `New Desire (worth ${value} pt${value === 1 ? "" : "s"}):\n${body}`);
-  repaint(characterId);
-  return { desireId: desire.id };
-}
-
-async function endDesireGmImpl({ characterId, desireId, mode }) {
-  const session = await requireGm();
-  const character = await loadCharacter(characterId);
-  const desire = await prisma.desire.findUnique({ where: { id: desireId } });
-  if (!desire || desire.characterId !== characterId) throw new UserError("That desire is gone.");
-  if (desire.status !== "ACTIVE") throw new UserError("That desire has already ended.");
-
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
-  const fulfilling = mode === "fulfill";
-
-  await prisma.$transaction(async (tx) => {
-    await tx.desire.update({
-      where: { id: desireId },
-      data: {
-        status: fulfilling ? "FULFILLED" : "CANCELLED",
         endedTurnNumber: openTurn?.number ?? null,
       },
     });
-    // Fulfilling is the earn side of the point economy; cancelling pays
-    // nothing (CHARACTERS.md).
-    if (fulfilling) {
-      await tx.character.update({
-        where: { id: characterId },
-        data: { tagPoints: { increment: desire.points } },
-      });
-    }
+    await tx.character.update({
+      where: { id: characterId },
+      data: { tagPoints: { increment: value } },
+    });
+    return row;
   });
 
-  await audit(session, fulfilling ? "gm_desire_fulfilled" : "gm_desire_cancelled", characterId, {
-    desireId,
-    points: fulfilling ? desire.points : 0,
+  await audit(session, "gm_desire_fulfilled", characterId, {
+    desireId: desire.id,
+    points: value,
+    slotIndex,
+    templateId,
   });
   notifyCharacter(
     session,
     character,
-    fulfilling
-      ? `Desire fulfilled: "${desire.text}" (+${desire.points} tag point${desire.points === 1 ? "" : "s"})`
-      : `Desire cancelled: "${desire.text}"`,
+    `Desire fulfilled: "${body}" (+${value} tag point${value === 1 ? "" : "s"})`,
   );
   repaint(characterId);
-  return { points: fulfilling ? desire.points : 0 };
+  return { desireId: desire.id };
+}
+
+// Take an awarded Desire back — the Dev Panel twin of undoing a FULFILL_DESIRE
+// request (web/lib/requestEffects.js). Clearing endedTurnNumber is what frees
+// the slot: only an ended row that CARRIES a turn number locks one
+// (db/lib/desireGates.js#slotStates). Points come back off even if that drives
+// the balance negative, same rule as the request Undo.
+async function revokeDesireGmImpl({ characterId, desireId }) {
+  const session = await requireGm();
+  const character = await loadCharacter(characterId);
+  const desire = await prisma.desire.findUnique({ where: { id: desireId } });
+  if (!desire || desire.characterId !== characterId) throw new UserError("That desire is gone.");
+  if (desire.status === "CANCELLED") throw new UserError("That desire was already revoked.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
+    const { count } = await tx.desire.updateMany({
+      where: { id: desireId, characterId, status: { not: "CANCELLED" } },
+      data: { status: "CANCELLED", endedTurnNumber: null },
+    });
+    // Guarded the same way the player-facing fulfil used to be: two Revokes
+    // fired together would both pass the read above, and only the one that
+    // actually flipped the row may take the points back.
+    if (count === 0) throw new UserError("That desire was already revoked.");
+    if (desire.status === "FULFILLED") {
+      await tx.character.update({
+        where: { id: characterId },
+        data: { tagPoints: { decrement: desire.points } },
+      });
+    }
+  });
+
+  await audit(session, "gm_desire_cancelled", characterId, {
+    desireId,
+    points: desire.status === "FULFILLED" ? desire.points : 0,
+  });
+  notifyCharacter(session, character, `Desire revoked: "${desire.text}"`);
+  repaint(characterId);
+  return { points: desire.status === "FULFILLED" ? desire.points : 0 };
 }
 
 export async function applyCharacterEdits(input) {
@@ -756,9 +747,9 @@ export async function teleportCharacter(input) {
 export async function deleteCharacter(input) {
   return guarded(() => deleteCharacterImpl(input));
 }
-export async function setDesireGm(input) {
-  return guarded(() => setDesireGmImpl(input));
+export async function awardDesireGm(input) {
+  return guarded(() => awardDesireGmImpl(input));
 }
-export async function endDesireGm(input) {
-  return guarded(() => endDesireGmImpl(input));
+export async function revokeDesireGm(input) {
+  return guarded(() => revokeDesireGmImpl(input));
 }

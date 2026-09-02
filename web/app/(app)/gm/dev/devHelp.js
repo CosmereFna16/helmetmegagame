@@ -29,7 +29,9 @@ export const CONFIG_HELP = {
   archiveTravelEvents: "Record arrivals/departures in the archive.",
   lifewebBlood: "0-100, raw override.",
   desiresEnabled:
-    "Let players set new Desires on /character. Turning this off shows “Temporarily disabled.” in place of the Desire form. A Desire already ACTIVE can still be fulfilled or cancelled, and GMs can still set one — catalog or free text — from a character's Dev Panel regardless.",
+    "Let players claim Desires on /character. Turning this off shows “Temporarily disabled.” in place of the Desire panel and blocks a claim server-side. GMs can still award one — catalog or free text — from a character's Dev Panel regardless.",
   desireSlots:
-    "How many Desire slots every character gets. Each slot holds one Desire at a time, fulfilled or cancelled independently of the others. Lowering this doesn't clear an already-ACTIVE Desire sitting in a slot past the new count.",
+    "How many Desire slots every character gets. Each slot cools down independently of the others, and the bottom one is the slot an Addiction binds. Lowering this hides a slot rather than deleting what was claimed in it.",
+  desireSlotLockTurns:
+    "Whole turns a slot stays shut after a Desire is claimed into it. At 2, a claim on turn 40 leaves that slot shut through turn 42 and open on 43. Remember a turn is half a day.",
 };

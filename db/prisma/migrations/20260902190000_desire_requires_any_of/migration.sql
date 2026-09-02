@@ -1,0 +1,11 @@
+-- Desires: `requires.combine: or` (2026-09-02).
+--
+-- Joins a template's requiresAnyTags with its requiresAnyRoleSlugs using OR
+-- instead of the default AND, so a purchasable gating tag is not dead weight
+-- to everyone outside the gated role (Esoteric cost 5 points and unlocked
+-- nothing for a non-Scholastic), and so a role listed in anyRoles that can
+-- never hold the required tag is not a lie (chaplain on bury-a-body).
+--
+-- Default false is exactly today's behaviour, so no backfill: db:sync-desires
+-- flips the 13 templates whose YAML now carries `combine: or`.
+ALTER TABLE "DesireTemplate" ADD COLUMN "requiresAnyOf" BOOLEAN NOT NULL DEFAULT false;

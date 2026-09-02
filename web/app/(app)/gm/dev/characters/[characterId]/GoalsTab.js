@@ -5,24 +5,26 @@ import Select from "@/app/components/Select";
 import { EnumPill, DESIRE_STATUS } from "@/app/components/StatusPill";
 import { useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { setDesireGm, endDesireGm } from "./actions";
+import { awardDesireGm, revokeDesireGm } from "./actions";
 
 // The Desire half of the tag-point economy.
 //
-// This is a microaction rather than a staged field, because fulfilling a
-// Desire moves tagPoints: staging a point movement alongside a hand-edited
-// tagPoints value on the Identity tab would make the arithmetic ambiguous,
-// so it commits on its own and the Identity field always shows the result.
+// This is a microaction rather than a staged field, because awarding a Desire
+// moves tagPoints: staging a point movement alongside a hand-edited tagPoints
+// value on the Identity tab would make the arithmetic ambiguous, so it commits
+// on its own and the Identity field always shows the result.
 //
-// Per-slot, mirroring the player-facing DesirePanel/DesireCatalog: each of
-// GameConfig.desireSlots slots shows its own occupant (catalog OR freeform)
-// and, when empty, its own "set a Desire" sub-form — a catalog picker
-// (gates BYPASSED for a GM grant, retired templates included and marked) and
-// the kept free-text fallback (1..7 points, wider than the player ladder).
+// Per-slot, mirroring the player-facing DesirePanel/DesireCatalog. A Desire is
+// claimed retroactively now (DESIRES.md §1), so a slot has no occupant to
+// fulfil or cancel — each slot shows what it last paid out, whether it is
+// cooling down, and an Award sub-form: a catalog picker (gates BYPASSED for a
+// GM grant, retired templates included and marked) and the kept free-text
+// fallback (1..7 points, wider than the player ladder). Taking one back is
+// Revoke, on the row itself, down in Past desires.
 
 const POINT_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
 
-function SlotForm({ slotIndex, catalog, families, pending, onSetCatalog, onSetFreeform }) {
+function SlotForm({ slotIndex, catalog, families, pending, onAwardCatalog, onAwardFreeform }) {
   const [mode, setMode] = useState("catalog");
   const [slug, setSlug] = useState("");
   const [text, setText] = useState("");
@@ -76,15 +78,15 @@ function SlotForm({ slotIndex, catalog, families, pending, onSetCatalog, onSetFr
             type="button"
             className="btn"
             disabled={pending || !slug}
-            onClick={() => onSetCatalog(slotIndex, slug, () => setSlug(""))}
+            onClick={() => onAwardCatalog(slotIndex, slug, () => setSlug(""))}
           >
-            Set desire
+            Award
           </button>
         </div>
       ) : (
         <>
           <label className="field">
-            <span className="field-label">Set a desire</span>
+            <span className="field-label">Award a desire</span>
             <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} />
           </label>
           <div className="flex flex-wrap items-end gap-2">
@@ -100,9 +102,9 @@ function SlotForm({ slotIndex, catalog, families, pending, onSetCatalog, onSetFr
               type="button"
               className="btn"
               disabled={pending || !text.trim()}
-              onClick={() => onSetFreeform(slotIndex, text, points, () => setText(""))}
+              onClick={() => onAwardFreeform(slotIndex, text, points, () => setText(""))}
             >
-              Set desire
+              Award
             </button>
           </div>
         </>
@@ -111,17 +113,23 @@ function SlotForm({ slotIndex, catalog, families, pending, onSetCatalog, onSetFr
   );
 }
 
-export default function GoalsTab({ character, desires, desireSlots = 2, desireCatalog = [], desireFamilies = [], desireCooldowns = [] }) {
+export default function GoalsTab({
+  character,
+  desires,
+  desireSlots = 2,
+  desireSlotStates = [],
+  desireCatalog = [],
+  desireFamilies = [],
+  desireCooldowns = [],
+}) {
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
-  const activeBySlot = useMemo(() => {
-    const map = new Map();
-    for (const d of desires) if (d.status === "ACTIVE") map.set(d.slotIndex, d);
-    return map;
-  }, [desires]);
-  const past = desires.filter((d) => d.status !== "ACTIVE");
+  const bySlot = useMemo(
+    () => new Map(desireSlotStates.map((s) => [s.slotIndex, s])),
+    [desireSlotStates],
+  );
 
   function run(fn) {
     setError(null);
@@ -141,17 +149,17 @@ export default function GoalsTab({ character, desires, desireSlots = 2, desireCa
     run(fn);
   }
 
-  function setCatalog(slotIndex, slug, onDone) {
+  function awardCatalog(slotIndex, slug, onDone) {
     run(async () => {
-      const res = await setDesireGm({ characterId: character.id, slotIndex, slug });
+      const res = await awardDesireGm({ characterId: character.id, slotIndex, slug });
       if (res?.ok) onDone();
       return res;
     });
   }
 
-  function setFreeform(slotIndex, text, points, onDone) {
+  function awardFreeform(slotIndex, text, points, onDone) {
     run(async () => {
-      const res = await setDesireGm({ characterId: character.id, slotIndex, text, points });
+      const res = await awardDesireGm({ characterId: character.id, slotIndex, text, points });
       if (res?.ok) onDone();
       return res;
     });
@@ -160,58 +168,27 @@ export default function GoalsTab({ character, desires, desireSlots = 2, desireCa
   return (
     <>
       {Array.from({ length: desireSlots }, (_, slotIndex) => {
-        const active = activeBySlot.get(slotIndex) ?? null;
+        const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
         return (
           <section key={slotIndex} className="panel flex flex-col gap-3 p-4">
             <h2 className="panel-header">Desire — slot {slotIndex + 1}</h2>
 
-            {active ? (
+            {slot.lastEnded ? (
               <>
-                <p className="text-sm">» {active.text}</p>
+                <p className="text-sm">» {slot.lastEnded.text}</p>
                 <p className="text-sm text-muted mono">
-                  worth {active.points} · set turn {active.setTurnNumber ?? "—"}
-                  {active.templateName ? ` · ${active.templateName} (${active.templateTier})` : " · free text"}
+                  paid {slot.lastEnded.points} ·{" "}
+                  {slot.lockedUntilTurn != null
+                    ? `slot opens turn ${slot.lockedUntilTurn}`
+                    : "slot open"}
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={pending}
-                    onClick={() =>
-                      confirmThenRun(
-                        {
-                          title: "Fulfil this desire?",
-                          message: `${character.name} gains ${active.points} tag point${active.points === 1 ? "" : "s"}.`,
-                          confirmLabel: "Fulfil",
-                        },
-                        () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "fulfill" }),
-                      )
-                    }
-                  >
-                    Fulfil (+{active.points})
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-quiet"
-                    disabled={pending}
-                    onClick={() =>
-                      confirmThenRun(
-                        {
-                          title: "Cancel this desire?",
-                          message: "It ends with no points awarded.",
-                          confirmLabel: "Cancel it",
-                          cancelLabel: "Keep it",
-                        },
-                        () => endDesireGm({ characterId: character.id, desireId: active.id, mode: "cancel" }),
-                      )
-                    }
-                  >
-                    Cancel
-                  </button>
-                </div>
               </>
             ) : (
-              <p className="text-sm text-muted">No active desire in this slot.</p>
+              <p className="text-sm text-muted">
+                {slot.lockedUntilTurn != null
+                  ? `Slot opens on turn ${slot.lockedUntilTurn}.`
+                  : "Nothing claimed in this slot yet."}
+              </p>
             )}
 
             <SlotForm
@@ -219,8 +196,8 @@ export default function GoalsTab({ character, desires, desireSlots = 2, desireCa
               catalog={desireCatalog}
               families={desireFamilies}
               pending={pending}
-              onSetCatalog={setCatalog}
-              onSetFreeform={setFreeform}
+              onAwardCatalog={awardCatalog}
+              onAwardFreeform={awardFreeform}
             />
           </section>
         );
@@ -242,17 +219,37 @@ export default function GoalsTab({ character, desires, desireSlots = 2, desireCa
         </section>
       )}
 
-      {past.length > 0 && (
+      {desires.length > 0 && (
         <section className="panel flex flex-col gap-2 p-4">
           <h2 className="panel-header">Past desires</h2>
           <ul className="flex flex-col gap-1 text-sm">
-            {past.map((d) => (
+            {desires.map((d) => (
               <li key={d.id} className="flex flex-wrap items-baseline gap-2">
                 <EnumPill map={DESIRE_STATUS} value={d.status} />
                 <span>{d.text}</span>
                 <span className="mono text-xs text-muted">
                   slot {d.slotIndex + 1} · {d.points} pt · turn {d.endedTurnNumber ?? "—"}
                 </span>
+                {d.status !== "CANCELLED" && (
+                  <button
+                    type="button"
+                    className="btn-quiet ml-auto"
+                    disabled={pending}
+                    onClick={() =>
+                      confirmThenRun(
+                        {
+                          title: "Revoke this desire?",
+                          message: `${character.name} loses ${d.points} tag point${d.points === 1 ? "" : "s"}, and the slot reopens.`,
+                          confirmLabel: "Revoke",
+                          cancelLabel: "Keep it",
+                        },
+                        () => revokeDesireGm({ characterId: character.id, desireId: d.id }),
+                      )
+                    }
+                  >
+                    Revoke
+                  </button>
+                )}
               </li>
             ))}
           </ul>

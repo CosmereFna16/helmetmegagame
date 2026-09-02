@@ -150,11 +150,15 @@ async function handleDossierReaction(reaction, proxy, user) {
     openTurn
       ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
       : null,
-    // Every slot's occupant, not just one — a character can hold more than
-    // one ACTIVE Desire at once now (GameConfig.desireSlots).
+    // The last Desire this character actually fulfilled. A Desire is claimed
+    // retroactively now (DESIRES.md §1) — nothing is ever "in flight" to
+    // show, so the one readable fact is what they most recently wanted badly
+    // enough to claim. Ordered by the turn it landed, id breaking a tie
+    // between two claims in the same turn.
     prisma.desire.findMany({
-      where: { characterId: character.id, status: "ACTIVE" },
-      orderBy: { slotIndex: "asc" },
+      where: { characterId: character.id, status: "FULFILLED" },
+      orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+      take: 1,
       select: { text: true, points: true },
     }),
   ]);
@@ -208,7 +212,7 @@ async function handleDossierReaction(reaction, proxy, user) {
 
   if (desires.length > 0) {
     embed.addFields({
-      name: "Desire",
+      name: "Last Desire",
       value: fitField(desires.map((d) => `» ${d.text} (+${d.points})`).join("\n")),
     });
   }
@@ -586,21 +590,23 @@ module.exports = {
         // untouched.
         //
         // Inscrutable closes the read, and it closes it as "nothing there"
-        // rather than as a blocked field — the exact line a subject with no
-        // active Desire produces. A reader can't tell the two apart, which is
-        // the whole point of buying it.
+        // rather than as a blocked field — the exact line a subject who has
+        // never claimed a Desire produces. A reader can't tell the two apart,
+        // which is the whole point of buying it.
         if (canSeeDesire) {
-          // Every slot's occupant, not just one — a character can hold more
-          // than one ACTIVE Desire at once now (GameConfig.desireSlots).
+          // The last Desire they fulfilled — same fact Empathetic and
+          // Mindreading buy on a Gambit, which the Demoness gets free and
+          // silent (db/lib/inspectVision.js).
           const desires = isInscrutable(character.tags)
             ? []
             : await prisma.desire.findMany({
-                where: { characterId: character.id, status: "ACTIVE" },
-                orderBy: { slotIndex: "asc" },
+                where: { characterId: character.id, status: "FULFILLED" },
+                orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+                take: 1,
                 select: { text: true, points: true },
               });
           embed.addFields({
-            name: "Desire",
+            name: "Last Desire",
             value:
               desires.length > 0
                 ? fitField(desires.map((d) => `» ${d.text} (+${d.points})`).join("\n"))

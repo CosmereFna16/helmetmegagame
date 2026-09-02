@@ -47,11 +47,11 @@ import {
   moveResources,
 } from "@/lib/requestEffects";
 import {
-  HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
   healCost,
   isHealable,
+  isInflictable,
   missingSkillsFor,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
@@ -73,7 +73,6 @@ import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { rollCaving } from "@lifeweb/db/lib/cavingPass";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
-import { cancelOrphanedDesires } from "@lifeweb/db/lib/desireOrphans";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -319,21 +318,18 @@ async function addTagRequestImpl({
   });
   if (!tag) throw new UserError("Unknown tag.");
   // Mirrors addableTags() in web/lib/tagRequests.js — re-checked here because
-  // the client's filtered list is only advisory. The purchasable branch also
-  // requires purchasableAfterStart (a launch-day-only pick can't arrive as a
-  // request); craftables bypass it deliberately, their gate being the
-  // requirement block.
-  if (!(tag.purchasable && tag.purchasableAfterStart) && !tag.craftable) {
+  // the client's filtered list is only advisory. Craftable is the whole test:
+  // Add Tag is the crafting door, and anything with a point price goes
+  // through /store instead. See REQUESTS.md §3.
+  if (!tag.craftable) {
     throw new UserError("That tag can't be added this way.");
   }
 
   // The Add Tag menu's own gate, re-checked here because the client's
   // filtering is decorative — a hand-posted request would otherwise walk
-  // straight past it. Two routes, either suffices: buy it (purchasable +
-  // requiredTag) or make it (any craftable — the recipe's skills are advice,
-  // not a gate). The group gate (hides a whole category — Demoness, Bacchus)
-  // applies to both routes unconditionally. See
-  // tagRequests.js#addRequirementSatisfied.
+  // straight past it. It is the group gate (which hides a whole category —
+  // Demoness, Bacchus) plus craftable; the recipe's skills are advice, not a
+  // gate. See tagRequests.js#addRequirementSatisfied.
   //
   // The whole catalog's ids/parents come down (~80 rows) so a chain walk
   // never dead-ends on an ancestor the character doesn't hold, same reason
@@ -436,7 +432,6 @@ async function addTagRequestImpl({
       quantity: ct.quantity,
     }));
 
-  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     if (deadSimple) {
       // Serialise concurrent Dead Simple requests from one character: the
@@ -492,23 +487,7 @@ async function addTagRequestImpl({
       reason,
       details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
     });
-    // A tag moving on or off the sheet can orphan a Desire already in flight
-    // — a removed tag failing an anyTags gate, an added one tripping notTags.
-    // See db/lib/desireOrphans.js.
-    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
-      characterId: character.id,
-      openTurnNumber: openTurn?.number ?? null,
-      actorDiscordUserId: session.discordUserId,
-    }));
   });
-
-  // After the commit, and individually caught: the cancellation is already
-  // durable, so a Discord hiccup must not surface as a failed action.
-  for (const dm of orphanDms) {
-    await sendDm(dm.discordUserId, dm.content).catch((err) =>
-      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
-    );
-  }
   // Tags gate #watch access, so a grant can change narrowcast visibility.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
@@ -552,7 +531,6 @@ async function removeTagRequestImpl({
   const aftermathSlugs = rollTagChain(held.tag.removesInto);
 
   let granted = [];
-  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, quantity);
     granted = await grantTagSlugs(tx, character.id, aftermathSlugs, openTurn?.number ?? null);
@@ -580,23 +558,7 @@ async function removeTagRequestImpl({
         granted: granted.map((g) => g.tagName),
       },
     });
-    // A tag moving on or off the sheet can orphan a Desire already in flight
-    // — a removed tag failing an anyTags gate, an added one tripping notTags.
-    // See db/lib/desireOrphans.js.
-    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
-      characterId: character.id,
-      openTurnNumber: openTurn?.number ?? null,
-      actorDiscordUserId: session.discordUserId,
-    }));
   });
-
-  // After the commit, and individually caught: the cancellation is already
-  // durable, so a Discord hiccup must not surface as a failed action.
-  for (const dm of orphanDms) {
-    await sendDm(dm.discordUserId, dm.content).catch((err) =>
-      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
-    );
-  }
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
   return {};
@@ -662,7 +624,6 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       }
     : null;
 
-  let orphanDms = [];
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
     if (cleared) await dropCharacterTag(tx, character.id, cleared.tagId, 1);
@@ -699,23 +660,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         cleared: cleared?.tagName,
       },
     });
-    // A tag moving on or off the sheet can orphan a Desire already in flight
-    // — a removed tag failing an anyTags gate, an added one tripping notTags.
-    // See db/lib/desireOrphans.js.
-    ({ dms: orphanDms } = await cancelOrphanedDesires(tx, {
-      characterId: character.id,
-      openTurnNumber: openTurn?.number ?? null,
-      actorDiscordUserId: session.discordUserId,
-    }));
   });
-
-  // After the commit, and individually caught: the cancellation is already
-  // durable, so a Discord hiccup must not surface as a failed action.
-  for (const dm of orphanDms) {
-    await sendDm(dm.discordUserId, dm.content).catch((err) =>
-      console.error(`Orphaned-Desire DM to ${dm.discordUserId} failed:`, err),
-    );
-  }
   // Both the tag consumed and anything it became can gate #watch/#intercom.
   await syncCharacterNarrowcastAccess(character.id).catch(() => {});
   revalidateAll();
@@ -1477,14 +1422,19 @@ async function harmCharacterRequestImpl({
       where: { id: tagId },
       select: {
         id: true,
+        // slug, custom and group.slug are isInflictable's inputs — the same
+        // predicate the picker filtered on (character/page.js).
+        slug: true,
         name: true,
         category: true,
+        custom: true,
+        group: { select: { slug: true } },
         stackable: true,
         defaultDurationTurns: true,
       },
     });
     if (!tag) throw new UserError("Unknown injury.");
-    if (tag.category !== HEALABLE_CATEGORY) throw new UserError("That isn't an injury.");
+    if (!isInflictable(tag)) throw new UserError("That isn't an injury.");
     if (target.tags.some((ct) => ct.tagId === tag.id)) {
       throw new UserError(`${target.name} already has ${tag.name}.`);
     }
@@ -1565,9 +1515,17 @@ async function harmCharacterRequestImpl({
 
 // --- Desires ----------------------------------------------------------
 
-// Setting and cancelling are NOT requests — nothing has been granted yet, so
-// there's nothing for a GM to undo. Only fulfilling one moves Tag Points and
-// therefore needs a reason and a review.
+// ONE action, because there is only one thing a player does to a Desire now:
+// claim it. The 2026-09-02 rework deleted setting and cancelling — a Desire is
+// no longer a contract you sign in advance and settle later, it is a
+// retroactive claim on something your character already did. So the old
+// setDesire (not a request, nothing granted yet) and fulfillDesireRequest
+// (a request, points move) collapse into this: pick a Desire, say how you did
+// it, get the points, and a GM reviews it afterwards like every other request.
+//
+// The anti-loop rule (DESIRES.md §8) does more work than it used to as a
+// result, and it is GM-adjudicated from the reason field — there is no gate
+// here that can tell a real evening from a manufactured one.
 
 // Tag ids referenced by any TagGroup.requiredTagId that the character does
 // NOT hold — i.e. the tags whose category is a hidden category for this
@@ -1575,23 +1533,24 @@ async function harmCharacterRequestImpl({
 // web/lib/desireProjection.js#computeHiddenDesireTagIds — see that module
 // for the rule.
 
-async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
+async function claimDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug, reason: rawReason }) {
   const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
 
   const slug = rawSlug?.toString().trim();
   if (!slug) throw new UserError(DESIRE_NOT_AVAILABLE);
 
-  // Missing config row means the default (true/2) applies — same "=== false"
-  // idiom as leaderWhitelistEnabled (character/page.js). Only setting a NEW
-  // Desire is gated; an already-ACTIVE one can still be fulfilled/cancelled.
+  // Missing config row means the defaults apply — same "=== false" idiom as
+  // leaderWhitelistEnabled (character/page.js).
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
-    select: { desiresEnabled: true, desireSlots: true },
+    select: { desiresEnabled: true, desireSlots: true, desireSlotLockTurns: true },
   });
   if (config?.desiresEnabled === false) {
     throw new UserError("Temporarily disabled.");
   }
   const desireSlots = config?.desireSlots ?? 2;
+  const lockTurns = config?.desireSlotLockTurns ?? 2;
 
   const slotIndex = parseCount(rawSlotIndex, { min: 0, max: desireSlots - 1 });
   if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
@@ -1616,14 +1575,14 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
   const openTurn = await getOpenTurn();
   const openTurnNumber = openTurn?.number ?? 0;
 
-  // Runs the exact same pure checks (evaluateDesireCatalog availability incl.
-  // onceEver/per-desire cooldown, and the slot cooldown) against whatever
-  // `history` is passed. Called once outside the transaction as a cheap
-  // pre-check (so a plainly-unavailable request fails fast without ever
-  // taking the row lock), then again INSIDE the transaction on a fresh read
-  // after the FOR UPDATE lock — closing the TOCTOU window between the
-  // pre-check and the row lock (a fulfil/cancel racing this set could move
-  // `history` in between).
+  // Runs the exact same pure checks the picker ran (evaluateDesireCatalog
+  // availability incl. onceEver/per-desire cooldown, the slot-scoped Addiction
+  // lock, and the per-slot cooldown) against whatever `history` is passed.
+  // Called once outside the transaction as a cheap pre-check (so a plainly
+  // unavailable claim fails fast without ever taking the row lock), then again
+  // INSIDE the transaction on a fresh read after the FOR UPDATE lock — closing
+  // the TOCTOU window between the pre-check and the row lock (a second claim
+  // racing this one could move `history` in between).
   function assertAvailable(history) {
     const { visible, hidden } = evaluateDesireCatalog({
       templates: [projectedTemplate],
@@ -1632,14 +1591,20 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
       roleSlug,
       history,
       openTurnNumber,
+      desireSlots,
     });
     if (hidden.length > 0) throw new UserError(DESIRE_NOT_AVAILABLE);
     const evaluated = visible[0];
     if (!evaluated || evaluated.state !== "available") throw new UserError(DESIRE_NOT_AVAILABLE);
 
-    // Slot cooldown: available again strictly the turn after the slot's last
-    // ended row, whether that row ended by cancel or by fulfil.
-    const slots = slotStates({ history, openTurnNumber, desireSlots });
+    // An Addiction shuts the bottom slot to everything outside its own family,
+    // and leaves every other slot alone — so this is per-slot, not part of
+    // `state` above.
+    const slotLock = evaluated.slotLocks?.[slotIndex];
+    if (slotLock) throw new UserError(`${slotLock} in that slot.`);
+
+    // Slot cooldown: a claim shuts its slot for desireSlotLockTurns turns.
+    const slots = slotStates({ history, openTurnNumber, desireSlots, lockTurns });
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
       throw new UserError(
@@ -1648,137 +1613,63 @@ async function setDesireImpl({ slotIndex: rawSlotIndex, slug: rawSlug }) {
     }
   }
 
+  const historySelect = {
+    id: true,
+    templateId: true,
+    slotIndex: true,
+    status: true,
+    endedTurnNumber: true,
+  };
   const historyPreCheck = await prisma.desire.findMany({
     where: { characterId: character.id },
-    select: { id: true, templateId: true, slotIndex: true, status: true, endedTurnNumber: true },
+    select: historySelect,
   });
   assertAvailable(historyPreCheck);
 
   // Check-then-create under a row lock on the character: two posts fired
-  // together would otherwise both see "slot empty"/"available" and both
-  // land, so the pure checks above are re-run on a fresh read taken AFTER
-  // the lock, not trusted from the pre-check.
-  await prisma.$transaction(async (tx) => {
+  // together would otherwise both see "available"/"slot open" and both land,
+  // paying twice, so the pure checks above are re-run on a fresh read taken
+  // AFTER the lock rather than trusted from the pre-check.
+  const desire = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
     const historyInTx = await tx.desire.findMany({
       where: { characterId: character.id },
-      select: { id: true, templateId: true, slotIndex: true, status: true, endedTurnNumber: true },
+      select: historySelect,
     });
     assertAvailable(historyInTx);
-    const occupant = historyInTx.find((h) => h.status === "ACTIVE" && h.slotIndex === slotIndex);
-    if (occupant) throw new UserError("That slot already has an active Desire.");
-    const duplicate = historyInTx.find((h) => h.status === "ACTIVE" && h.templateId === template.id);
-    if (duplicate) throw new UserError(DESIRE_NOT_AVAILABLE);
-    await tx.desire.create({
+
+    // Born ended: setTurnNumber and endedTurnNumber are the same turn, because
+    // the claim IS the fulfilment. Both columns stay because pre-rework rows
+    // carry a real gap between them.
+    const row = await tx.desire.create({
       data: {
         characterId: character.id,
         templateId: template.id,
         slotIndex,
         text: template.name,
         points: template.tier,
+        status: "FULFILLED",
         setTurnNumber: openTurn?.number ?? null,
+        endedTurnNumber: openTurn?.number ?? null,
       },
     });
-  });
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "desire_set",
-      targetCharacterId: character.id,
-      // text/points kept for auditNarrative.js:103; slug/name/tier/slotIndex
-      // are additive.
-      details: { text: template.name, points: template.tier, slug: template.slug, name: template.name, tier: template.tier, slotIndex },
-    },
-  });
-
-  revalidatePath("/character");
-  return {};
-}
-
-async function cancelDesireImpl({ slotIndex: rawSlotIndex }) {
-  const { session, character } = await requireCharacter();
-  const openTurn = await getOpenTurn();
-
-  const slotIndex = parseCount(rawSlotIndex, { min: 0 });
-  if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
-
-  // Same character-row lock as setDesireImpl/fulfillDesireRequestImpl, so a
-  // Cancel racing a Set (or another Cancel) on the same slot serializes
-  // instead of both reading "still ACTIVE" before either writes.
-  const active = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-    const row = await tx.desire.findFirst({
-      where: { characterId: character.id, status: "ACTIVE", slotIndex },
-    });
-    if (!row) return null;
-    await tx.desire.update({
-      where: { id: row.id },
-      data: { status: "CANCELLED", endedTurnNumber: openTurn?.number ?? null },
-    });
-    return row;
-  });
-  if (!active) return {};
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "desire_cancelled",
-      targetCharacterId: character.id,
-      details: { desireId: active.id, slotIndex },
-    },
-  });
-
-  revalidatePath("/character");
-  return {};
-}
-
-async function fulfillDesireRequestImpl({ desireId: rawDesireId, reason: rawReason }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-
-  const desireId = rawDesireId?.toString();
-  if (!desireId) throw new UserError("You have no active Desire.");
-
-  const openTurn = await getOpenTurn();
-  // Explicit desireId, verified against this character and ACTIVE — with
-  // more than one slot, "the active Desire" is ambiguous.
-  const active = await prisma.desire.findFirst({
-    where: { id: desireId, characterId: character.id, status: "ACTIVE" },
-    include: { template: { select: { slug: true, tier: true } } },
-  });
-  if (!active) throw new UserError("You have no active Desire.");
-
-  await prisma.$transaction(async (tx) => {
-    // Same character-row lock as setDesireImpl/cancelDesireImpl, so a Fulfil
-    // racing a Set/Cancel on the same slot serializes.
-    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-    // Guarded update: two concurrent Fulfils of the same desireId would both
-    // pass the findFirst above before either writes. Scoping the write to
-    // `status: "ACTIVE"` and checking the affected count means only the
-    // first one actually flips the row and pays out; the second aborts with
-    // no writes at all instead of double-incrementing tagPoints.
-    const { count } = await tx.desire.updateMany({
-      where: { id: active.id, characterId: character.id, status: "ACTIVE" },
-      data: { status: "FULFILLED", endedTurnNumber: openTurn?.number ?? null },
-    });
-    if (count === 0) throw new UserError("You have no active Desire.");
     await tx.character.update({
       where: { id: character.id },
-      data: { tagPoints: { increment: active.points } },
+      data: { tagPoints: { increment: row.points } },
     });
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "FULFILL_DESIRE",
       reason,
-      payload: { desireId: active.id },
+      payload: { desireId: row.id },
       effect: {
-        desireId: active.id,
-        desireText: active.text,
-        pointsAwarded: active.points,
-        desireSlug: active.template?.slug ?? null,
-        desireTier: active.template?.tier ?? null,
-        slotIndex: active.slotIndex,
+        desireId: row.id,
+        desireText: row.text,
+        pointsAwarded: row.points,
+        desireSlug: template.slug,
+        desireTier: template.tier,
+        slotIndex,
       },
     });
     await logRequest(tx, {
@@ -1786,8 +1677,9 @@ async function fulfillDesireRequestImpl({ desireId: rawDesireId, reason: rawReas
       actionType: "request_fulfill_desire",
       targetCharacterId: character.id,
       reason,
-      details: { desireId: active.id, pointsAwarded: active.points },
+      details: { desireId: row.id, pointsAwarded: row.points, slug: template.slug, slotIndex },
     });
+    return row;
   });
 
   // Outside the transaction: the transcript row isn't part of the effect being
@@ -1797,7 +1689,7 @@ async function fulfillDesireRequestImpl({ desireId: rawDesireId, reason: rawReas
     character,
     zoneId: character.zoneId ?? null,
     turn: openTurn,
-    content: `${character.name} fulfilled a Desire: ${active.text}`,
+    content: `${character.name} fulfilled a Desire: ${desire.text}`,
   });
 
   revalidateAll();
@@ -2255,16 +2147,8 @@ export async function healCharacterRequest(input) {
   return guarded(() => healCharacterRequestImpl(input));
 }
 
-export async function setDesire(input) {
-  return guarded(() => setDesireImpl(input));
-}
-
-export async function cancelDesire(input) {
-  return guarded(() => cancelDesireImpl(input));
-}
-
-export async function fulfillDesireRequest(input) {
-  return guarded(() => fulfillDesireRequestImpl(input));
+export async function claimDesire(input) {
+  return guarded(() => claimDesireImpl(input));
 }
 
 export async function changeNameRequest(input) {

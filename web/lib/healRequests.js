@@ -45,6 +45,37 @@ export function isHealable(tag) {
   return Boolean(tag) && tag.category === HEALABLE_CATEGORY && hasCureCost(tag);
 }
 
+// What one person can do to another with their hands. Harm used to offer the
+// whole Health category — all 75 rows — which is how a player could stand over
+// a Bound character and give them Exploded Chest ("a larva slithered out"),
+// Appendicitis, or Hungover.
+//
+// The category is not a menu of attacks. Most of it is downstream of one:
+// health-recovery is the aftermath a treatment leaves (Stitched Up, Splinted),
+// health-infection is what the engine grants when a wound goes untended
+// (Festering, Sepsis, Dying), health-illness is disease, and health-minor is
+// mostly jokes. None of those is a thing you do to someone.
+//
+// Two groups are: health-wounds and health-maiming. Everything you can inflict
+// by hand lives in one of them.
+export const INFLICTABLE_GROUPS = new Set(["health-wounds", "health-maiming"]);
+
+// Four out of health-mind that a beating plainly can cause, named one by one
+// because the rest of that group (Amnesiac, Lunatic, Hallucinating, Night
+// Blind, Stutter, Silence) cannot be. Paralyzed is deliberately absent: it is
+// in INCAPACITATING_SLUGS, so inflicting it would let one player lock another
+// out of their Default Move indefinitely, at will.
+export const INFLICTABLE_SLUGS = new Set(["concussed", "shell-shocked", "blind", "mute"]);
+
+// The picker and harmCharacterRequest both call this, for the reason this
+// whole module is pure: an injury the dialog offers must be one the action
+// accepts. `custom` keeps GM-authored tags out — the Harm menu is the catalog,
+// not whatever a GM wrote for one scene.
+export function isInflictable(tag) {
+  if (!tag || tag.category !== HEALABLE_CATEGORY || tag.custom) return false;
+  return INFLICTABLE_GROUPS.has(tag.group?.slug) || INFLICTABLE_SLUGS.has(tag.slug);
+}
+
 // null means free, not "unpriced" — the payer is still recorded either way.
 export function healCost(tag) {
   return tag?.requirementResources ?? 0;

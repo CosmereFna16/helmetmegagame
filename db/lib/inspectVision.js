@@ -1,12 +1,12 @@
 // What 🔍-inspecting another character shows you beyond their appearance.
 //
 // Seductive — the Demoness tag (docs/tags.yaml's hidden `demoness` category) —
-// is the ONE tag that buys real read access to someone else's sheet: their
-// active Desire, free and silent.
+// is the ONE tag that buys real read access to someone else's sheet: the last
+// Desire they fulfilled, free and silent.
 //
 // Two tags that used to sit beside it no longer do, and the reason is the same
 // for both. Empathetic (slug `seductive`, an old name kept as the stable key)
-// and Mindreading (the Succubus Draught's grant) now read a Desire with a
+// and Mindreading (the Succubus Draught's grant) now read the same fact with a
 // Gambit, after a conversation — that is the GM's to adjudicate, not this
 // file's, and a free field on the embed would hand over what the roll is for.
 // Being an automatic read is what the Demoness is paying its extra point for.

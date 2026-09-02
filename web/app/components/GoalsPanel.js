@@ -9,11 +9,13 @@ import DesirePanel from "./DesirePanel";
 // the natural place for it to slot back in.
 export default function GoalsPanel({
   desireSlots = 2,
+  slotLockTurns = 2,
   slotStates = [],
   catalog = [],
   families = [],
   familyGroups = [],
   lockNotes = [],
+  addiction = null,
   openTurnNumber,
   desiresEnabled = true,
 }) {
@@ -21,11 +23,13 @@ export default function GoalsPanel({
     <section className="panel p-4">
       <DesirePanel
         desireSlots={desireSlots}
+        slotLockTurns={slotLockTurns}
         slotStates={slotStates}
         catalog={catalog}
         families={families}
         familyGroups={familyGroups}
         lockNotes={lockNotes}
+        addiction={addiction}
         desiresEnabled={desiresEnabled}
       />
     </section>

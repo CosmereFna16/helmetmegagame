@@ -12,6 +12,17 @@
 # "Dancer or Minstrel or Diplomat". Omit a sub-key entirely rather than
 # writing an empty list.
 #
+# The one opt-out is `requires.combine: or`, which joins anyTags with
+# anyRoles using OR so either alone opens the Desire — used where the gating
+# tag is PURCHASABLE and the AND would make buying it dead weight to anyone
+# outside the role (Esoteric unlocked nothing for a non-Scholastic), or where
+# a listed role can never hold the required tag anyway (chaplain on
+# bury-a-body, sheriff on imprison-someone). Both lists must be non-empty;
+# notTags/notRoles are never part of the OR. AND remains the default and the
+# common case — the five Lifeweb feed-* entries and all five corrupt ones keep
+# it deliberately (corrupt is visible: false and promises no unlocks, so it
+# reads as a Watch tag rather than a broad purchase).
+#
 # TIER: one of 1, 2, 3, 4, 5, 7. Tier 6 is deliberately absent from the
 # whitelist — don't invent it. Tier doubles as the default Tag Point award
 # and the per-desire cooldown in turns; `cooldownTurns` overrides the latter
@@ -286,7 +297,7 @@ desires:
     families: [drugs]
 
   - slug: try-a-new-drug
-    name: Try a kind of drug you never have
+    name: "Try a kind of recreational drug you never have ‡"
     tier: 2
     families: [drugs]
 
@@ -373,6 +384,8 @@ desires:
     tier: 1
     families: [social, charity]
     cooldownTurns: 5
+    requires:
+      anyTags: [charitable]
 
   - slug: convert-someone
     name: Convert someone to your religion
@@ -408,9 +421,9 @@ desires:
 
   - slug: make-a-friend
     name: Make a friend
-    tier: 2
+    tier: 1
     families: [social]
-    cooldownTurns: 4
+    cooldownTurns: 5
 
   - slug: gain-a-lover
     name: Gain a lover
@@ -538,6 +551,7 @@ desires:
     requires:
       anyTags: [prudish]
       anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+      combine: or
     cooldownTurns: 5
 
   - slug: better-person
@@ -547,6 +561,7 @@ desires:
     requires:
       anyTags: [prudish]
       anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+      combine: or
     cooldownTurns: 4
 
   - slug: complete-assignment
@@ -771,6 +786,7 @@ desires:
     requires:
       anyTags: [mortus]
       anyRoles: [mortus, chaplain]
+      combine: or
 
   - slug: hit-with-a-whip
     name: Hit someone with a whip
@@ -852,6 +868,7 @@ desires:
     requires:
       anyRoles: [watchman, sheriff]
       anyTags: [watchman]
+      combine: or
 
   - slug: arrest-a-criminal
     name: Arrest a criminal
@@ -1129,6 +1146,7 @@ desires:
     requires:
       anyRoles: [minstrel]
       anyTags: [musician]
+      combine: or
 
   - slug: perform-for-5
     name: Perform for at least 5 people
@@ -1137,6 +1155,7 @@ desires:
     requires:
       anyRoles: [minstrel]
       anyTags: [musician, artist]
+      combine: or
 
   - slug: perform-for-15
     name: Perform for at least 15 people
@@ -1145,6 +1164,7 @@ desires:
     requires:
       anyRoles: [minstrel]
       anyTags: [musician, artist]
+      combine: or
 
   - slug: paid-for-performance
     name: Be paid for your performance
@@ -1153,6 +1173,7 @@ desires:
     requires:
       anyRoles: [minstrel]
       anyTags: [musician, artist]
+      combine: or
 
   - slug: convince-the-baron
     name: Convince the Baron to join the Culture
@@ -1386,6 +1407,7 @@ desires:
     requires:
       anyTags: [esoteric]
       anyRoles: [scholastic]
+      combine: or
 
   - slug: find-an-artifact
     name: Find a powerful ancient artifact
@@ -1394,6 +1416,7 @@ desires:
     requires:
       anyTags: [esoteric, adventurer]
       anyRoles: [scholastic]
+      combine: or
 
   - slug: discover-a-ruin
     name: Discover an ancient ruin
@@ -1402,6 +1425,7 @@ desires:
     requires:
       anyTags: [esoteric, adventurer]
       anyRoles: [diplomat, scholastic]
+      combine: or
 
   - slug: forbidden-knowledge
     name: Uncover forbidden knowledge
@@ -1410,6 +1434,7 @@ desires:
     requires:
       anyTags: [esoteric]
       anyRoles: [scholastic]
+      combine: or
 
   - slug: two-turns-in-the-pits
     name: Stay 2 turns consecutively in the Aberrant Pits
@@ -1425,6 +1450,7 @@ desires:
     requires:
       anyTags: [adventurer]
       anyRoles: [mercenary]
+      combine: or
 
   - slug: win-a-brawl
     name: Win a brawl
@@ -1489,13 +1515,6 @@ desires:
     families: [esoterica, faith]
     requires:
       anyTags: [superstitious]
-
-  - slug: be-betrayed
-    name: Be betrayed
-    tier: 3
-    families: [social]
-    requires:
-      anyTags: [desperate]
 
   - slug: receive-praise
     name: Receive praise

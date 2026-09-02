@@ -63,6 +63,7 @@ export default function DevPanel({
   defaultEffort,
   desires,
   desireSlots,
+  desireSlotStates,
   desireCatalog,
   desireFamilies,
   desireCooldowns,
@@ -323,6 +324,7 @@ export default function DevPanel({
           character={character}
           desires={desires}
           desireSlots={desireSlots}
+          desireSlotStates={desireSlotStates}
           desireCatalog={desireCatalog}
           desireFamilies={desireFamilies}
           desireCooldowns={desireCooldowns}

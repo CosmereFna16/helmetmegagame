@@ -23,60 +23,45 @@ export function isTradeable(tag) {
   return Boolean(tag?.tradeable);
 }
 
-// Per the brief, Add Tag offers Purchasable or Craftable tags only — the
-// point-buy drawbacks and the GM/system-only statuses (Drained, Hungry,
-// Tipsy, ...) stay out of reach.
-// A stackable tag stays on offer once held — cooking a fifth meal is the
+// Add Tag is the CRAFTING door, and nothing else: `craftable` is the whole
+// test. A stackable tag stays on offer once held — cooking a fifth meal is the
 // whole point — while an ordinary one drops off the menu as before.
 //
-// `purchasableAfterStart` gates the PURCHASABLE branch only, and that
-// asymmetry is the point. Without it every creation-only drawback (Frail, Fat,
-// Wanted, ...) was addable mid-game, which is the leak TAGS.md §4 forbids
-// outright — this is the only routed mid-game path, since PointBuy's
-// afterStartOnly mode is mounted nowhere yet. Craftables skip the check
-// because most of them are deliberately `purchasableAfterStart: false` (43 of
-// 58: meals, tonics, explosives) — they are not bought at all, they are made,
-// and their gate is the requirement block. No drawback is craftable, so
-// nothing slips through the seam.
+// It used to admit a second route, `purchasable && purchasableAfterStart`, so
+// a player could take a Skill or a trait here instead of paying for it. That
+// was 155 tags, every one of them also priced in /store, and Add Tag costs
+// nothing but a written reason — so it was strictly cheaper than the point
+// buy, and players used it that way (Butcher, Horse, Stealth, Literate,
+// Ranged (Basic), Workshop...). The help text asking them not to was the tell
+// that the option should not have been on the menu. The two economies are now
+// cleanly split: /store spends Tag Points against catalog prices, Add Tag
+// spends turns and ⬢ against a recipe. See REQUESTS.md §3, TAGS.md §3b.
 export function addableTags(tags, heldTagIds = []) {
   const held = new Set(heldTagIds);
-  return tags.filter(
-    (tag) =>
-      ((tag.purchasable && tag.purchasableAfterStart) || tag.craftable) &&
-      (tag.stackable || !held.has(tag.id)),
-  );
+  return tags.filter((tag) => tag.craftable && (tag.stackable || !held.has(tag.id)));
 }
 
-// The Add Tag menu's real gate — the only place the two routes onto a tag are
-// combined. Two ways in, either suffices:
+// The Add Tag menu's real gate. Two checks, and only two:
 //
-//   - BUY it: purchasable after start, and you hold its requiredTag (the
-//     combat/use gate — Ranged (Basic) to carry a Longbow).
-//   - MAKE it: craftable, full stop. The recipe's skills are deliberately
-//     NOT enforced here — Add Tag is the honor-system door (the help text
-//     says so: spend the ⬢ and the turns yourself, a GM reviews the pushed
-//     request), and it also covers taking gear the fiction already puts in
-//     a character's hands (a clan armoury), which no skill check can see.
-//     The picker's "To make: …" line still shows what the recipe expects.
-//     A craftable's requiredTag isn't checked either — that's a combat/use
-//     gate, not a workshop gate.
+//   - The GROUP gate, unconditional — the hidden-category mechanism (Demoness,
+//     Bacchus; TAGS.md §3a). A Bacchus craftable is invisible to anyone
+//     outside the cult, exactly as it is everywhere else.
+//   - `craftable`, full stop. The recipe's skills are deliberately NOT
+//     enforced — Add Tag is the honor-system door (the help text says so:
+//     spend the ⬢ and the turns yourself, a GM reviews the pushed request),
+//     and it also covers taking gear the fiction already puts in a
+//     character's hands (a clan armoury), which no skill check can see. The
+//     picker's "To make: …" line still shows what the recipe expects.
 //
-// The GROUP gate is unconditional and applies to BOTH routes — it's the
-// hidden-category mechanism (Demoness, Bacchus; TAGS.md §3a) and is never
-// bypassed by either one.
+// A craftable's own requiredTag isn't checked either — that's a combat/use
+// gate, not a workshop gate. A smith with no combat skill can forge weapons
+// to sell.
 //
 // Character creation and /store deliberately do NOT use this — they keep
 // calling requirementSatisfied() in characterCreation.js, because buying a
-// Longbow at creation should still require Ranged (Basic).
+// Longbow with points should still require Ranged (Basic).
 export function addRequirementSatisfied(tag, tagsById, heldTagIds) {
   if (!holdsRequirement(tag.group?.requiredTagId, tagsById, heldTagIds)) return false;
-  if (
-    tag.purchasable &&
-    tag.purchasableAfterStart &&
-    holdsRequirement(tag.requiredTagId, tagsById, heldTagIds)
-  ) {
-    return true;
-  }
   return Boolean(tag.craftable);
 }
 

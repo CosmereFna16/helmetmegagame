@@ -105,6 +105,7 @@ export async function updateGameConfig(formData) {
       // Same floor-at-1 posture as equipSlots — a zero-slot Desire economy
       // isn't a coherent state, unlike zero drawbacks above.
       desireSlots: Math.max(1, intOrZero(formData, "desireSlots")),
+      desireSlotLockTurns: Math.max(0, intOrZero(formData, "desireSlotLockTurns")),
     },
   });
 
@@ -247,6 +248,7 @@ const DEFAULT_GAME_CONFIG = {
   equipSlots: 6,
   maxDrawbackTags: 5,
   desireSlots: 2,
+  desireSlotLockTurns: 2,
   catatonicEnabled: true,
   catatonicTurns: 4,
   catatonicDeathTurns: 4,

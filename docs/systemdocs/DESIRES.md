@@ -9,19 +9,36 @@ doc for the catalog, its gates, and the GM surface.
 
 ## 1. What a Desire is now
 
-`DesireTemplate` is the catalog — one row per pickable goal, sourced from
-`docs/desires.yaml`, upserted by `db:sync-desires`. `Desire` is a
-character's attempt at one: a row per set/cancel/fulfil cycle, carrying
-`slotIndex`, `status` (`ACTIVE`/`FULFILLED`/`CANCELLED`), `setTurnNumber`,
-`endedTurnNumber`, and — for a catalog pick — `templateId` and the template's
-`points` snapshotted at set time. A free-text Desire (still available, from a
-GM only — see §6) carries `templateId: null` instead.
+**A Desire is claimed retroactively.** You do the thing, then you open a slot,
+pick the Desire out of the catalog, say how you pulled it off, and the points
+land. That is the whole interaction. The 2026-09-02 rework deleted the other
+half of it — there is no setting a Desire in advance, no `ACTIVE` row waiting
+to be settled, and nothing to cancel.
 
-`GameConfig.desireSlots` (default 2) is how many Desires a character may
-hold `ACTIVE` at once, one per slot. A slot is independent of every other
-slot: setting, cancelling and fulfilling all take a `slotIndex`, and a
-character with two slots can have one Desire cooking while another cools
-down or sits idle.
+What that replaced was a two-step contract, and the reason it went is that the
+contract taxed the wrong thing: a player had to *predict* what their character
+would do, and anything good they did without a slot already aimed at it earned
+nothing. The old rule ("you can't fulfil a Desire retroactively — it had to be
+set at the time") is now exactly backwards; if you find it written anywhere,
+it's stale.
+
+`DesireTemplate` is the catalog — one row per claimable goal, sourced from
+`docs/desires.yaml`, upserted by `db:sync-desires`. `Desire` is one claim
+against it: `slotIndex`, `status`, `templateId`, the template's `points`
+snapshotted at claim time, and `setTurnNumber`/`endedTurnNumber` **both stamped
+with the same open turn**, because the row is born ended. A free-text Desire
+(still available, from a GM only — see §6) carries `templateId: null` instead.
+
+`status` is `FULFILLED` on every row a claim creates. `ACTIVE` is legacy and
+nothing writes it any more, kept in the Postgres enum rather than dropped (same
+posture as `MoveReviewStatus.WAITING_FOR_OPPONENTS`). `CANCELLED` still means
+something real: a claim a GM revoked, or one undone through the Request system
+— and such a row has its `endedTurnNumber` **cleared**, which is what releases
+the slot (§2).
+
+`GameConfig.desireSlots` (default 2) is how many slots a character has. Slots
+are independent: each cools down on its own clock, and the **bottom** one is
+the slot an Addiction binds (§3).
 
 **Tier doubles as the Tag Point award and the per-desire cooldown length.**
 A tier-3 Desire is worth 3 points and, once fulfilled, can't be picked again
@@ -55,16 +72,26 @@ pass:
   the hug has none. The 38 entries that pay nothing per attempt were put on an
   inverted ladder (tier 1 → 5 turns, tier 2 → 4, tier 3 → 3) so the cheapest
   goals come back slowest and aiming higher always pays better per turn.
-- **Per-slot lock** — once *any* Desire in a slot ends (cancel or fulfil),
-  that slot stays shut for the rest of that turn **and all of the next one**:
-  `openTurnNumber <= max(endedTurnNumber over that slot's ended rows) + 1`
-  locks it, so a Desire ended on turn N leaves the slot shut on N and N+1 and
-  open on N+2 — a whole empty turn in between. This stops a player from
-  cancel-and-refill farming a slot, independent of which template they're
-  aiming at. The `+ 1` was added 2026-09-02: one turn of lockout meant ending a
-  Desire late in a turn and refilling first thing the next, which is barely a
-  cooldown. Note it is one TURN, not one day — `Turn.number` increments twice
-  daily, so the added lockout is 12 hours.
+- **Per-slot lock** — claiming into a slot shuts that slot for
+  `GameConfig.desireSlotLockTurns` whole turns afterwards:
+
+  ```
+  locked while  openTurnNumber <= maxEnded + lockTurns
+  reopens on    maxEnded + lockTurns + 1
+  ```
+
+  where `maxEnded` is the largest `endedTurnNumber` over that slot's ended
+  rows. At the default of **2**, a claim on turn N leaves the slot shut for the
+  rest of N, shut through N+1 and N+2, and open on N+3. This is the throttle on
+  income itself, independent of which template is being claimed. It has grown
+  twice: the lock was one turn until 2026-09-02, then two, and it is now a live
+  `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
+  `Turn.number` increments twice daily, so each turn of lockout is 12 hours.
+
+  A row with `endedTurnNumber: null` is excluded from this **and** from the
+  slot's "last claim" readout. That is the one lever the revoke/undo paths
+  pull: a rejected claim costs the player their points but does not also cost
+  them two turns of the slot.
 - **Tier 7 — ONCE EVER.** `db:sync-desires` defaults `oncePerLife: true` for
   every tier-7 entry automatically; it's never written by hand in the YAML
   for a tier-7 row. `oncePerLife` can also be set by hand at any other tier,
@@ -74,8 +101,8 @@ pass:
   default *off* for that entry.
 
 **Why these are stateless turn-number comparisons, not a turn pass.** Every
-gate above reads as `openTurnNumber` vs. a stamped `endedTurnNumber` (or
-`setTurnNumber`), computed fresh on every read (`db/lib/desireGates.js`).
+gate above reads as `openTurnNumber` vs. a stamped `endedTurnNumber`, computed
+fresh on every read (`db/lib/desireGates.js`).
 Nothing runs at turn-close to advance a Desire's cooldown counter — there is
 no counter, only two absolute turn numbers and a comparison. This is
 deliberate: it means a GM can rewind the open turn (superadmin-only, see
@@ -98,6 +125,38 @@ forbidden tag or role always wins the "locked" reason over an unmet `any`
 gate — this only decides which reason string wins when more than one clause
 fails; it changes nothing about whether the Desire is available.
 
+### `combine: or` — when the tag alone should be enough
+
+`requires.combine: or` is the one opt-out from "AND across the lists": it
+joins `anyTags` and `anyRoles` with **OR**, so either one alone opens the
+Desire. `notTags`/`notRoles` are never part of it — a forbidden pairing is
+not something an OR may open.
+
+It exists because AND makes a **purchasable** gating tag dead weight to
+everyone outside the role. Esoteric costs 5 points and says "Unlocks Desires
+about esotericism", but all four Desires behind it also demanded the
+Scholastic role, so a Serpent who bought it saw nothing change — the rows
+evaluated `locked`, and `/character` drops those server-side. The same shape
+had also quietly killed **role** entries: `bury-a-body` offered `chaplain`,
+who can never hold the role-exclusive `mortus` tag, and `imprison-someone`
+offered `sheriff`, who never holds `watchman`.
+
+Both lists must be non-empty for `combine: or`; the sync throws otherwise,
+because an OR over one populated list is a silent no-op that still reads
+like a working gate. Note the asymmetry with AND: there an empty list means
+"no constraint", while under OR an empty list must never be the thing that
+*passes* the gate, or the Desire opens to everyone.
+
+**AND is still the default and still the common case** — ten of the
+twenty-three tag+role Desires keep it on purpose:
+
+- the five Lifeweb `feed-*` ones — the Mortus's sacral job, not something the
+  role-exclusive `mortus` tag should carry on its own;
+- all five `corrupt` ones. Unlike Esoteric, `corrupt` is `visible: false` and
+  promises no unlocks, so it reads as a Watch-flavoured tag rather than a
+  broad purchase that disappoints. `sell-a-watch-secret` is the clearest case
+  — you cannot sell Watch equipment you were never issued.
+
 ### Lock-clause grammar and the union rule
 
 Separately from `requires`, a **held tag** can lock parts of the catalog
@@ -117,6 +176,43 @@ combination). Precedence when a template is checked against a tag's clauses:
 `all` beats `families` beats `tiers`, so an `all` clause always wins even if
 a `families` clause from a different held tag would otherwise have matched
 first (`db/lib/desireGates.js#lockedReasonForTemplate`).
+
+### `slot: bottom`
+
+A clause may also carry `slot: bottom`, which narrows it to the character's
+**last** slot and leaves every other slot untouched. `bottom` is the only
+accepted value: the rule is "your last slot", not "slot N", and `desireSlots`
+is live-editable, so the grammar deliberately can't name an index.
+
+That is what an Addiction is now (§5) — every one of the five reads:
+
+```yaml
+desires:
+  locks:
+    - all: true
+      exceptFamilies: [alcohol]
+      slot: bottom
+```
+
+i.e. **everything** outside its own family, in the bottom slot only. Note the
+`tiers: [1, 2, 3, 4]` escape hatch is gone with it: an Addiction used to leave
+tiers 5 and 7 open as a pressure valve, which stopped being needed once it only
+costs one slot.
+
+Because the same template can be claimable in one slot and shut in another,
+this half does NOT collapse into a template's `state`. `evaluateDesireCatalog`
+takes `desireSlots` and gives every visible entry a `slotLocks` array — one
+reason-or-null per slot — alongside `state`. `character/page.js` still drops
+`locked` rows outright but ships `slotLocks` on the survivors, and
+`DesireCatalog.js` re-filters on it whenever the target slot changes. The
+server action checks `slotLocks[slotIndex]` on the way in, so retargeting a
+slot in a stale tab can't smuggle a claim past it.
+
+`describeDesireLocks` has a sentence for the scoped shape — *"Alcoholic shuts
+your bottom Desire slot to everything outside Alcohol."* — and
+`bottomSlotAddiction(heldTags)` finds the tag doing it, by the shape of the
+clause rather than by its tag group, so the panel's boxed bottom slot and its
+`Addiction: …` caption follow the data.
 
 **Union rule**: when a character holds more than one tag with a
 `desires.locks` block, every clause from every held tag applies —
@@ -168,7 +264,7 @@ own two entries (`break-up-a-fight`, `stop-a-war`) demonstrate.
 
 | Group | Shape | Price band |
 |---|---|---|
-| `general-addictions` | `exclusive: true`, `removable: false`, `consumable: false` drawbacks. Each locks most of the catalog shut except its own family (`Alcoholic` locks everything but `alcohol` at tiers 1–4; `Glutton` locks everything but `food`, at *every* tier). **One Addiction at a time** — that rule is why this stayed its own group. | −2…−7 |
+| `general-addictions` | `exclusive: true`, `removable: false`, `consumable: false` drawbacks. Each shuts the **bottom slot only**, to everything outside its own family — see §3. **One Addiction at a time** — that rule is why this stayed its own group. | −4 flat |
 | `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. Some members close the catalog down (`Depressed` locks everything; `Nobility` locks tier 1; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
 
 `general-restrictions` and `general-interests` survive as **orphaned, empty
@@ -205,6 +301,15 @@ one family, is −1. An Interest-shaped tag costs points because it is pure
 upside. Pacifist sits at −2 even with two Desires of its own, because what it
 opens is narrow and what it forbids is not.
 
+**Addictions are flat −4 as of 2026-09-02**, down from a −3…−6 spread
+(Alcoholic −3, Drug Habit −4, Gambler −5, Vain −5, Glutton −6). The spread
+priced how much of the *whole catalog* each one closed, and that variable
+stopped existing when the lock moved to the bottom slot: all five now shut
+exactly one slot to exactly one family's worth of exceptions, so they are worth
+the same thing. Glutton losing two points is the biggest single move here, and
+it is the right one — "food is the largest family" was compensation for closing
+tiers 5 and 7, which it no longer does.
+
 **`conflictsWith`** (`Tag.conflictsWith`, a self-referential m2m,
 `SYNC.md` pass 6) is a named pairwise conflict, authored one-directional in
 `docs/tags.yaml` and symmetrized by the sync — unlike `exclusive` (at most
@@ -224,41 +329,40 @@ creation-time gate.
 
 `GoalsTab` (`web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js`) is
 per-slot, mirroring the player-facing `DesirePanel`/`DesireCatalog`: each of
-`GameConfig.desireSlots` slots shows its own occupant and, when empty, its
-own "set a Desire" sub-form. This is a microaction rather than a staged
-field — fulfilling a Desire moves `Character.tagPoints`, and staging a point
-movement alongside a hand-edited `tagPoints` value on the Identity tab would
-make the arithmetic ambiguous, so it commits on its own and the Identity
+`GameConfig.desireSlots` slots shows what it last paid out, whether it is
+cooling down, and an **Award** sub-form. This is a microaction rather than a
+staged field — awarding a Desire moves `Character.tagPoints`, and staging a
+point movement alongside a hand-edited `tagPoints` value on the Identity tab
+would make the arithmetic ambiguous, so it commits on its own and the Identity
 field always shows the result.
 
-Two routes to set one, both **gates bypassed** (a GM grant is never
+Two routes to award one, both **gates bypassed** (a GM grant is never
 second-guessed, same rule as every other gate in the game):
 
 - **Catalog** — pick any `DesireTemplate`, retired ones included and marked.
-  No `requires`, no held-tag lock, no cooldown, no `onceEver` check.
+  No `requires`, no held-tag lock, no slot lock, no cooldown, no `onceEver`
+  check.
 - **Free text** — the kept fallback, 1..7 points (wider than the
   player-facing 1–5 ladder that used to be the whole system), `templateId`
   stays null.
 
-Setting a new Desire in an already-occupied slot cancels that slot's current
-`ACTIVE` row first, in the same transaction (`setDesireGmImpl`).
+Bypassing the gate does **not** bypass the bookkeeping. `awardDesireGmImpl`
+stamps `endedTurnNumber` like any claim, so the award starts the normal
+per-slot and per-desire cooldown clocks — there is no "GM award, no cooldown"
+mode. What a GM grant skips is *who may claim*, not what claiming costs.
 
-Fulfilling from the Dev Panel is a **re-score, not a cooldown reset**: it
-awards `desire.points` and stamps `endedTurnNumber`, the same as the player
-path, which means it *does* start the normal per-desire/per-slot cooldown
-clock — there's no separate "GM fulfil, no cooldown" mode. What a GM grant
-actually skips is the *gate* on setting a new one, not the bookkeeping once
-one ends.
+`revokeDesireGmImpl` is the inverse and the Dev Panel twin of undoing a
+`FULFILL_DESIRE` request: it takes the points back (even into negative) and
+sets the row `CANCELLED` with `endedTurnNumber` **cleared**, which releases the
+slot. Both actions take the same `FOR UPDATE` row lock on `Character` as the
+player path, so a GM award landing at the same moment as a player's own claim
+serializes rather than one overwriting the other's `tagPoints`.
 
-**Undo slot-collision rule**: because a GM's Fulfil/Cancel button
-(`endDesireGm`) operates on a specific `desireId`, not "the slot's current
-row," undoing an old Fulfil/Cancel through the Request system (`REQUESTS.md`
-§2) after a *new* Desire has since been set in that same slot is safe — the
-undo only ever touches the row it snapshotted, never whatever now occupies
-the slot. The visible effect is that a slot can carry more than one
-`FULFILLED`/`CANCELLED` row in its history, and only the single row with
-`status: ACTIVE` (if any) is ever "the" occupant a picker or the cooldown
-math cares about.
+**Both operate on a specific `desireId`**, never on "the slot's current row",
+so revoking or undoing an old claim after a newer one has landed in the same
+slot is safe — it only ever touches the row it snapshotted. The visible effect
+is that a slot carries a history of rows, and the cooldown math cares only
+about the largest `endedTurnNumber` among them.
 
 ## 7. The clawback rule ‡
 
@@ -283,26 +387,42 @@ consequence (going negative) is the one a GM might otherwise hesitate over.
 "**A Desire arranged solely to fulfil a Desire is not fulfilled.**" A
 character can't stage a scene whose entire content is manufacturing the
 conditions for a Desire and then claim it — e.g. asking someone for a hug
-purely to fulfil `get-a-hug`. The rule exists specifically against a
-tier-1, high-frequency Desire like that one turning into a repeatable income
-tap with no roleplay cost. There is no code check for this (a Desire is
-fulfilled by a GM review of a `FULFILL_DESIRE` request, same as any other
-Request), so it's a written adjudication standard, not a gate — a GM reading
-the reason field is the enforcement.
+purely to claim `get-a-hug`. The rule exists specifically against a tier-1,
+high-frequency Desire like that one turning into a repeatable income tap with
+no roleplay cost. There is no code check for this (a claim files a
+`FULFILL_DESIRE` request and a GM reviews it, same as any other Request), so
+it's a written adjudication standard, not a gate — a GM reading the reason
+field is the enforcement.
 
-## 9. Config: `desiresEnabled` / `desireSlots` / `maxDrawbackTags`
+**Since the retroactive rework this is the load-bearing rule of the whole
+system, and it should be read that way.** It used to share the work with the
+shape of the mechanic: having to commit to a goal in advance meant a player
+could not simply survey their turn afterwards and pick whichever Desire best
+described something they happened to do. That friction is gone on purpose —
+it was taxing ordinary play far more than it was taxing farming — and what is
+left standing between a claim and a farm is a GM reading the reason field.
+Which is the right place for it: the difference between an evening that
+happened and an evening staged to be claimed is a judgement about fiction, and
+no gate was ever going to make it.
 
-Three `GameConfig` knobs govern this system, all live-editable from
+## 9. Config: `desiresEnabled` / `desireSlots` / `desireSlotLockTurns` / `maxDrawbackTags`
+
+Four `GameConfig` knobs govern this system, all live-editable from
 `/gm/dev` and all reset by a Restart Game wipe:
 
-- **`desiresEnabled`** (default `true`) — closes the faucet without
-  freezing what's in flight. Off blocks `setDesire` server-side (not just
-  hidden in the UI); an already-`ACTIVE` Desire can still be fulfilled or
-  cancelled, and `setDesireGm`/`endDesireGm` on the Dev Panel are unaffected
-  (host access, not game permission). `/character` greys the "set a new
-  Desire" form and shows "Temporarily disabled." in its place.
-- **`desireSlots`** (default 2) — how many Desires a character may hold
-  `ACTIVE` at once, one per slot. See §1.
+- **`desiresEnabled`** (default `true`) — closes the faucet. Off blocks
+  `claimDesire` server-side, not just in the UI, and `/character` shows
+  "Temporarily disabled." in place of the whole panel.
+  `awardDesireGm`/`revokeDesireGm` on the Dev Panel are unaffected (host
+  access, not game permission).
+- **`desireSlots`** (default 2) — how many slots a character has. The
+  **bottom** one is what an Addiction binds (§3). Lowering this hides a slot
+  rather than deleting what was claimed in it. See §1.
+- **`desireSlotLockTurns`** (default 2) — whole turns a slot stays shut after a
+  claim lands in it (§2). This is the tuning knob on how fast Tag Points enter
+  the game, so it is the first number to reach for if income is running hot or
+  cold. `0` disables the lock entirely, which is a debugging setting, not a
+  balance one.
 - **`maxDrawbackTags`** (default 5) — **not** a Desires-system knob itself,
   but the field every drawback counts against at character creation. It caps
   the *count* of point-bought drawback tags, not their combined point value —
@@ -358,6 +478,8 @@ desires:
       anyRoles: [minstrel, diplomat]
       notTags: [...]
       notRoles: [...]
+      combine: or                 # optional, default "and"; ORs anyTags with
+                                  #   anyRoles (both must be non-empty)
     cooldownTurns: 5              # optional, overrides tier as cooldown length
     oncePerLife: true             # optional; forced true at tier 7 unless set false
     description: "..."            # optional
@@ -408,64 +530,22 @@ catalog, and before documents for no particular dependency but to keep the
 whole chain in one linear pass (`web/app/(app)/gm/dev/actions.js`'s Restart
 Game step list; see `SYNC.md` §1 and §3).
 
-## 11. Auto-cancelling an orphaned Desire
+## 11. *(removed)* Auto-cancelling an orphaned Desire
 
-A Desire's gate is checked when it is **set** and never again. Before this,
-that meant a goal could outlive whatever opened it: strip a player's Pacifist
-tag or change their role from Innkeeper to Peasant, and the goal stayed
-`ACTIVE` and still worth full points, because `fulfillDesireRequestImpl`
-checks nothing but `status: "ACTIVE"`.
+`db/lib/desireOrphans.js` and its five call sites are **gone** as of
+2026-09-02. It existed because a Desire's `requires` gate was checked when the
+Desire was *set* and never again, so stripping a player's Pacifist tag left an
+`ACTIVE` goal still worth full points. Nothing is in flight any more — a claim
+is evaluated and paid in the same instant — so there is nothing left to orphan.
 
-`db/lib/desireOrphans.js#cancelOrphanedDesires(tx, { characterId,
-openTurnNumber, actorDiscordUserId })` closes that. It re-runs
-`evalRequires` from `desireGates.js` against the character's **current** tags
-and role, sets every failing row to `CANCELLED` with `endedTurnNumber`
-stamped (so the per-slot lock and per-desire cooldown keep computing
-correctly), writes one `desire_auto_cancelled` `AuditLog` row per
-cancellation, and **returns** a DM instead of sending it — the
-`runTagExpiryPass` pattern.
+What went with it: the four in-transaction hooks (`requestActions.js`'s add /
+remove / consume tag paths, `store/actions.js#buyTags`, and the Dev Panel's
+`applyCharacterEditsImpl`), the `desireOrphans` pass in `db/index.js`'s
+turn-advance sequence, and the `desire_auto_cancelled` audit writer. Old
+`desire_auto_cancelled` rows still render; `web/lib/auditNarrative.js` keeps
+its case for them.
 
-**What it touches, exactly:**
-
-- Only `requires` (`anyTags` / `notTags` / `anyRoles` / `notRoles`). **Not** a
-  held tag's `desireLocks`. A lock says "this isn't the kind of thing you can
-  pick any more"; it doesn't say a goal already in flight is illegitimate, and
-  Depressed is meant to be curable while the player waits it out.
-- Only catalog picks (`templateId` not null). A GM's free-text Desire has no
-  gate to fail and is never touched.
-- A GM-**set** catalog pick **is** cancelled if its gate later fails. Setting
-  one from `/gm/dev` bypasses the gate on purpose (§6), but a GM who then
-  strips the gating tag has taken the goal away; pretending otherwise is
-  worse.
-- Cooldown, `onceEver` and "a row is already active" are all reasons a
-  template isn't *pickable* — none of them means a held Desire is illegitimate
-  — which is why this calls `evalRequires` directly rather than
-  `evaluateDesireCatalog`.
-
-**Where it runs.** Every path that can move a character's tags or role, each
-inside that path's existing transaction:
-
-| File | Function | What can orphan |
-|---|---|---|
-| `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `applyCharacterEditsImpl` | Role change and tag ops, which can both land in one Apply |
-| `web/app/(app)/character/requestActions.js` | `addTagRequestImpl`, `removeTagRequestImpl`, `consumeTagRequestImpl` | A removed tag failing `anyTags`; an added one tripping `notTags` |
-| `web/app/(app)/store/actions.js` | `buyTags` | A bought tag tripping `notTags`; a chain upgrade dropping the lower tier |
-| `db/index.js` `resolveNeeds()` | the `desireOrphans` pass | A tag that expired this turn |
-
-The turn-advance pass uses `cancelOrphanedDesiresForEveryone(prisma, ...)` and
-sits **after** the expiry sweep, not before — before it, the expiring tag is
-still on the sheet and every gate still passes. Its DMs are folded into
-`tagExpiryDms` rather than threaded as another return field: from the player's
-side it is the same moment, something ran out and a goal went with it. It
-carries its own `resolvedPasses` marker, so a resumed turn doesn't re-run it.
-
-`gm/dev/tags/actions.js` deliberately has **no** hook. The only tag it applies
-is one a GM just created, and a brand-new tag cannot appear in any desire's
-`notTags` — the catalog that would reference it hasn't been authored yet.
-
-**Not done, on purpose:** `fulfillDesireRequestImpl` still does no gate
-re-check. A GM-set Desire bypasses gates by design, so a fulfil-time check
-would break exactly those. Auto-cancel closes the hole at the source instead.
+The section number is kept rather than renumbering everything below it.
 
 ## 12. File map
 
@@ -474,14 +554,15 @@ would break exactly those. Auto-cancel closes the hole at the source instead.
 | `docs/desires.yaml` | Sole master for the `DesireTemplate` catalog — families header + desire entries |
 | `db/lib/syncDesires.js` | `docs/desires.yaml` → DB. Four-pass soft-retire sync, `npm run db:sync-desires` / `db/prisma/sync-desires.js` |
 | `db/lib/desireFamilies.js` | Reads only the `families:` / `familyGroups:` headers — `desireFamilyKeys` for `db/lib/syncTags.js` to validate a tag's `desires.locks` families against, `desireFamilies` (key/name/group/colour) and `desireFamilyGroups` for the picker. Tolerates a missing `desires.yaml` |
-| `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
-| `db/lib/desireGates.js` | Pure gate evaluator, no DB. `evaluateDesireCatalog` (visible/hidden catalog per character) and `slotStates` (per-slot occupancy + lock) |
-| `db/lib/desireOrphans.js` | Cancels an ACTIVE Desire whose `requires` no longer pass after a tag or role change (§11). Takes `tx`, returns its DMs. `cancelOrphanedDesiresForEveryone` is the turn-advance sweep |
+| `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3, `slot: bottom` included) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
+| `db/lib/desireGates.js` | Pure gate evaluator, no DB. `evaluateDesireCatalog` (visible/hidden catalog per character, plus per-entry `slotLocks`), `slotStates` (per-slot lock + last claim), `describeDesireLocks`, `bottomSlotAddiction` |
 | `web/lib/desireProjection.js` | `projectDesireTemplateForGates` — the one path that resolves a `DesireTemplate`'s role-slug arrays into `{ slug, name }` for `desireGates.js`; every caller must go through it |
-| `web/app/components/DesireCatalog.js` | Player-facing catalog picker modal, on the Point Buy layout: search + sort, a tab per family group, one scroller with sticky coloured family headers and `.select-card` rows, your slots in the side pane. Only ever sees what `character/page.js` leaves after dropping `locked` |
-| `web/app/components/DesirePanel.js` | Player-facing panel chrome — per-slot rows, cancel/fulfil dialogs, opens `DesireCatalog` |
+| `web/app/components/DesireCatalog.js` | Player-facing catalog picker modal, on the Point Buy layout: search + sort, a tab per family group, one scroller with sticky coloured family headers and `.select-card` rows, your slots in the side pane. Only ever sees what `character/page.js` leaves after dropping `locked`, and re-filters on `slotLocks` for the target slot. Posts nothing — it hands the pick back to `DesirePanel` |
+| `web/app/components/DesirePanel.js` | Player-facing panel chrome — per-slot rows (last claim / cooldown / Claim button), the boxed Addiction slot, the reason dialog, opens `DesireCatalog` |
 | `web/app/components/GoalsPanel.js` | Mounts `DesirePanel` on `/character` |
-| `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot catalog/free-text set form, Fulfil/Cancel, cooldown + past-desire readouts |
-| `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `setDesireGm`/`endDesireGm` — gates bypassed, same-transaction slot-cancel-then-create |
-| `web/app/(app)/character/requestActions.js` | Player-facing `setDesire`/`cancelDesire`/`fulfillDesireRequest` — gates enforced via `evaluateDesireCatalog`/`slotStates`, in-tx re-validated |
+| `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
+| `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
+| `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action. Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
+| `web/lib/requestEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
+| `bot/src/events/messageReactionAdd.js` | The 🔍/⚜️ embeds' `Last Desire` field — the most recent `FULFILLED` row, gated by `db/lib/inspectVision.js` |
 | `db/prisma/backfill-desires.js` | One-off: moves live holdings off six retired-in-place drawback tags onto their catalog-era replacements; `npm run db:backfill-desires` |

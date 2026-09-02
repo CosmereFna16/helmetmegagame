@@ -14,8 +14,16 @@
 // plus an optional `exceptFamilies: [...]`, meaningful only alongside
 // `tiers` or `all` (a `families` clause already IS the family list; excepting
 // from it would be self-contradictory, so that combination throws too).
+//
+// And an optional `slot: bottom` (2026-09-02), which narrows the clause to the
+// character's LAST Desire slot instead of all of them. That is how an Addiction
+// works now: it shuts the bottom slot to everything outside its own family and
+// leaves every other slot alone. `bottom` is the only accepted value — the
+// grammar deliberately can't name slot 0 or an arbitrary index, because the
+// rule is "your last slot", not "slot N", and desireSlots is live-editable.
 
 const TIER_WHITELIST = new Set([1, 2, 3, 4, 5, 7]);
+const SLOT_SCOPES = new Set(["bottom"]);
 
 function isNonEmptyArray(value) {
   return Array.isArray(value) && value.length > 0;
@@ -39,6 +47,7 @@ function normalizeClause(clause) {
   if (isNonEmptyArray(clause?.families)) out.families = [...clause.families].sort();
   if (isNonEmptyArray(clause?.tiers)) out.tiers = [...clause.tiers].sort((a, b) => a - b);
   if (isNonEmptyArray(clause?.exceptFamilies)) out.exceptFamilies = [...clause.exceptFamilies].sort();
+  if (clause?.slot != null) out.slot = String(clause.slot);
   return out;
 }
 
@@ -77,6 +86,10 @@ function validateClause(clause, { slug, index, families }) {
   }
   if (clause.exceptFamilies != null && !("tiers" in clause) && clause.all !== true) {
     throw new Error(`${label} has exceptFamilies but no "tiers" or "all" — exceptFamilies only modifies those`);
+  }
+
+  if ("slot" in clause && !SLOT_SCOPES.has(clause.slot)) {
+    throw new Error(`${label} has slot "${clause.slot}" — the only supported scope is "bottom"`);
   }
 
   if ("tiers" in clause) {

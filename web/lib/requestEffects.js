@@ -199,8 +199,8 @@ export const REQUEST_EFFECTS = {
       effect.pointsAwarded = next;
       return { effect, note: `Tag Points ${previous} -> ${next}.`, changed: true };
     },
-    async undo(tx, request, ctx) {
-      const { desireId, pointsAwarded, slotIndex } = request.effect;
+    async undo(tx, request) {
+      const { desireId, pointsAwarded } = request.effect;
       if (pointsAwarded) {
         await tx.character.update({
           where: { id: request.characterId },
@@ -208,43 +208,18 @@ export const REQUEST_EFFECTS = {
         });
       }
       if (desireId) {
-        // A pre-rework effect (filed before this deploy) never wrote
-        // `slotIndex` into the effect payload — but the Desire ROW it points
-        // at still has one, defaulted to 0 by the column. Reading it off the
-        // row rather than trusting its absence in the effect is what keeps
-        // this branch from unconditionally reopening into a slot 0 that a
-        // newer Desire already occupies (two ACTIVE rows in the same slot).
-        let effectiveSlotIndex = slotIndex;
-        if (effectiveSlotIndex == null) {
-          const row = await tx.desire.findUnique({ where: { id: desireId }, select: { slotIndex: true } });
-          effectiveSlotIndex = row?.slotIndex ?? 0;
-        }
-
-        // The slot may have been refilled since this Desire was fulfilled —
-        // reopening it to ACTIVE would then collide with whatever's sitting
-        // in that slot now. Reopen only if the slot is still free; otherwise
-        // the row stays CANCELLED (the points are still revoked above).
-        const occupant = await tx.desire.findFirst({
-          where: { characterId: request.characterId, status: "ACTIVE", slotIndex: effectiveSlotIndex, id: { not: desireId } },
+        // A claim is retroactive, so undoing it doesn't reopen anything —
+        // there is nothing to go back to. The row is closed as CANCELLED and
+        // its endedTurnNumber cleared, which is what frees the slot: only an
+        // ended row that CARRIES a turn number locks one
+        // (db/lib/desireGates.js#slotStates). A rejected claim should cost the
+        // player their points, not two more turns of that slot.
+        await tx.desire.updateMany({
+          where: { id: desireId },
+          data: { status: "CANCELLED", endedTurnNumber: null },
         });
-        let reopened = false;
-        if (!occupant) {
-          await tx.desire.updateMany({
-            where: { id: desireId },
-            data: { status: "ACTIVE", endedTurnNumber: null },
-          });
-          reopened = true;
-        } else {
-          await tx.desire.updateMany({
-            where: { id: desireId },
-            data: { status: "CANCELLED" },
-          });
-        }
-        if (!reopened) {
-          return `Revoked ${pointsAwarded} Tag Point(s). The slot was already refilled, so the Desire was closed rather than reopened.`;
-        }
       }
-      return `Revoked ${pointsAwarded} Tag Point(s) and reopened the Desire.`;
+      return `Revoked ${pointsAwarded} Tag Point(s) and released the slot.`;
     },
   },
 

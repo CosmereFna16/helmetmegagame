@@ -39,11 +39,13 @@ export default function CharacterSheet({
   tagCatalog,
   otherCharacters,
   desireSlots = 2,
+  desireSlotLockTurns = 2,
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],
   desireFamilyGroups = [],
   desireLockNotes = [],
+  desireAddiction = null,
   desiresEnabled = true,
   canHeal = false,
   canFastTravel = false,
@@ -153,11 +155,13 @@ export default function CharacterSheet({
           {isSelf && (
             <GoalsPanel
               desireSlots={desireSlots}
+              slotLockTurns={desireSlotLockTurns}
               slotStates={desireSlotStates}
               catalog={desireCatalog}
               families={desireFamilies}
               familyGroups={desireFamilyGroups}
               lockNotes={desireLockNotes}
+              addiction={desireAddiction}
               openTurnNumber={openTurn?.number ?? null}
               desiresEnabled={desiresEnabled}
             />

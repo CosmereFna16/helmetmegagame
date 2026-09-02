@@ -1,5 +1,5 @@
 import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
-import { evaluateDesireCatalog } from "@lifeweb/db/lib/desireGates";
+import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -118,7 +118,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     }),
     prisma.defaultEffort.findFirst({ where: { characterId } }),
     // The full catalog for the GM's picker — retired rows included AND
-    // marked (a GM grant bypasses gates entirely, see setDesireGmImpl), so
+    // marked (a GM grant bypasses gates entirely, see awardDesireGmImpl), so
     // this is a separate, wider select than the player-facing one in
     // character/page.js.
     prisma.desireTemplate.findMany({
@@ -133,6 +133,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         onceEver: true,
         cooldownTurns: true,
         retired: true,
+        requiresAnyOf: true,
         requiresAnyRoleSlugs: true,
         requiresNotRoleSlugs: true,
         requiresAnyTags: { select: { id: true, name: true } },
@@ -184,7 +185,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   // The GM-facing Desire read-outs for GoalsTab. Two different shapes off the
   // same `desireTemplates` fetch:
   //   - desireCatalog: the full picker list, retired rows included and
-  //     flagged — a GM grant bypasses every gate (see setDesireGmImpl below),
+  //     flagged — a GM grant bypasses every gate (see awardDesireGmImpl),
   //     so nothing here is filtered the way the player catalog is.
   //   - desireCooldowns: the read-only "what is this character locked out
   //     of" list, run through the SAME evaluator the player catalog uses.
@@ -192,6 +193,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   //     page, so nothing is withheld from the GM's own view (constraint:
   //     never let this projection reach a player payload).
   const desireSlotsConfig = config?.desireSlots ?? 2;
+  const desireSlotLockTurns = config?.desireSlotLockTurns ?? 2;
   const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplates);
   const projectedDesireTemplates = desireTemplates.map((t) =>
     projectDesireTemplateForGates(roleBySlugForDesires, t),
@@ -203,6 +205,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     roleSlug: character.role?.slug ?? null,
     history: desires,
     openTurnNumber: openTurn?.number ?? 0,
+    desireSlots: desireSlotsConfig,
   });
   const desireCooldowns = desireStatesEvaluated
     .filter((e) => e.state === "cooldown" || e.state === "spent")
@@ -213,6 +216,21 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       state: e.state,
       availableFromTurn: e.availableFromTurn,
     }));
+  // Per-slot cooldown + last claim, the same read the player panel gets. A GM
+  // award ignores the cooldown, but seeing it is what stops one being handed
+  // out by accident into a slot the player is still locked out of.
+  const desireSlotStates = slotStates({
+    history: desires,
+    openTurnNumber: openTurn?.number ?? 0,
+    desireSlots: desireSlotsConfig,
+    lockTurns: desireSlotLockTurns,
+  }).map((slot) => ({
+    slotIndex: slot.slotIndex,
+    lockedUntilTurn: slot.lockedUntilTurn,
+    lastEnded: slot.lastEnded
+      ? { id: slot.lastEnded.id, text: slot.lastEnded.text, points: slot.lastEnded.points }
+      : null,
+  }));
   const desireCatalog = desireTemplates.map((t) => ({
     slug: t.slug,
     name: t.name,
@@ -336,6 +354,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       templateTier: d.template?.tier ?? null,
     })),
     desireSlots: desireSlotsConfig,
+    desireSlotStates,
     desireCatalog,
     desireFamilies: desireFamilies(),
     desireCooldowns,

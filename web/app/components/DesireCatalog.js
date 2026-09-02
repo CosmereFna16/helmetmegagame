@@ -1,16 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Modal from "./Modal";
-import FormError from "./FormError";
 import StatusPill from "./StatusPill";
 import ChipText from "./ChipText";
 import RichText from "./RichText";
 import Select from "./Select";
 import CheckField from "./CheckField";
-import { useConfirm } from "./ConfirmProvider";
 import { formatCost, costColor } from "@/lib/characterCreation";
-import { setDesire } from "../(app)/character/requestActions";
 
 // A Desire's award, in the same voice as a Point Buy price: `+3 pts`,
 // `+1 pt`. Tier IS the award, and formatCost/costColor read a NEGATIVE cost
@@ -22,7 +19,7 @@ export function formatDesirePoints(tier) {
 // A Desire's own cooldown, in words: "3-turn cooldown", or "once ever" for
 // a template that can only be fulfilled once per life (tier 7 by default).
 // `cooldownTurns` arrives already resolved (cooldownTurns ?? tier) from
-// character/page.js, or as the raw template off an ACTIVE row — so resolve
+// character/page.js, or as the raw template off a past claim — so resolve
 // again here, cheaply, rather than trust which one a caller handed over.
 // Null when nothing is known (a GM free-text Desire has no template).
 export function cooldownLabel(t) {
@@ -39,8 +36,6 @@ const OTHER = { key: "__other", name: "Other", group: null, color: null };
 // in the list — and "hidden" never even leaves db/lib/desireGates.js.
 function rowState(entry) {
   switch (entry.state) {
-    case "active":
-      return { tone: "accent", label: "Slotted" };
     case "cooldown":
       return {
         tone: "warn",
@@ -62,7 +57,6 @@ function rowState(entry) {
 function DesireRow({ entry, family, otherNames, onChoose }) {
   const state = rowState(entry);
   const pickable = entry.state === "available";
-  const slotted = entry.state === "active";
   return (
     <li>
       <button
@@ -75,9 +69,9 @@ function DesireRow({ entry, family, otherNames, onChoose }) {
         <span
           aria-hidden="true"
           className="mt-0.5 shrink-0 text-sm"
-          style={{ color: slotted ? "var(--accent-text)" : "var(--muted)" }}
+          style={{ color: "var(--muted)" }}
         >
-          {slotted ? "◆" : "◇"}
+          ◇
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex flex-wrap items-baseline gap-2">
@@ -106,13 +100,14 @@ function DesireRow({ entry, family, otherNames, onChoose }) {
   );
 }
 
-// One of your slots, in the "Your Desires" pane. An open slot is a
-// select-card you can retarget the pick at — the modal opens aimed at the
-// slot whose button was pressed, but nothing stops you filling the other
-// one instead. An occupied or cooling slot can't take a pick, so it's
-// disabled; setDesire refuses both server-side anyway.
-function SlotCard({ slot, isTarget, onTarget }) {
-  const open = !slot.active && slot.lockedUntilTurn == null;
+// One of your slots, in the "Your slots" pane. An open slot is a select-card
+// you can retarget the claim at — the modal opens aimed at the slot whose
+// button was pressed, but nothing stops you claiming into the other one
+// instead, and which slot you pick matters when an Addiction binds the bottom
+// one. A cooling slot can't take a claim, so it's disabled; claimDesire
+// refuses it server-side anyway.
+function SlotCard({ slot, isTarget, isBottom, addiction, onTarget }) {
+  const open = slot.lockedUntilTurn == null;
   return (
     <li>
       <button
@@ -124,23 +119,22 @@ function SlotCard({ slot, isTarget, onTarget }) {
       >
         <span className="text-xs font-bold uppercase tracking-wide text-muted">
           Slot {slot.slotIndex + 1}
+          {isBottom && addiction ? ` · ${addiction.name}` : ""}
         </span>
-        {slot.active ? (
-          <>
-            <RichText text={slot.active.text} as="span" />
-            <span className="text-sm text-muted">
-              <span style={{ color: costColor(-slot.active.points) }}>
-                {formatDesirePoints(slot.active.points)}
-              </span>
-              {slot.active.setTurnNumber != null ? ` · set on turn ${slot.active.setTurnNumber}` : ""}
-              {cooldownLabel(slot.active.template) ? ` · ${cooldownLabel(slot.active.template)} after` : ""}
-            </span>
-          </>
-        ) : slot.lockedUntilTurn != null ? (
+        {slot.lockedUntilTurn != null ? (
           <span className="text-sm text-muted">Opens on turn {slot.lockedUntilTurn}</span>
         ) : (
           <span className="text-sm" style={{ color: isTarget ? "var(--accent-text)" : "var(--muted)" }}>
-            {isTarget ? "Choosing for this slot" : "Empty"}
+            {isTarget ? "Claiming into this slot" : "Open"}
+          </span>
+        )}
+        {slot.lastEnded && (
+          <span className="text-sm text-muted">
+            Last:{" "}
+            <RichText text={slot.lastEnded.text} as="span" />{" "}
+            <span style={{ color: costColor(-slot.lastEnded.points) }}>
+              {formatDesirePoints(slot.lastEnded.points)}
+            </span>
           </span>
         )}
       </button>
@@ -153,18 +147,24 @@ function SlotCard({ slot, isTarget, onTarget }) {
 // group, one tall scroller with a sticky coloured header per family — and
 // your slots on the right. `catalog` is already gate-evaluated and already
 // stripped of everything you can't see or can't pick for a gate reason
-// (character/page.js); what's left is yours, and only cooldown / slotted /
-// once-ever-done rows sit dimmed among the pickable ones.
+// (character/page.js); what's left is yours, and only cooldown and
+// once-ever-done rows sit dimmed among the claimable ones.
+//
+// The one gate this component applies itself is the SLOT-scoped one: an
+// Addiction shuts the bottom slot to everything outside its own family, so a
+// row's `slotLocks[target]` decides whether it is in this list at all — and
+// retargeting a slot re-filters the catalog.
 //
 // Mount this with a `key` that changes per opening: every bit of state here
 // (search, tab, target slot) is meant to reset when the modal is reopened.
 //
-// Picking a row confirms first, THEN runs the transition (DESIGN-SYSTEM.md
-// §8): `confirm()` has to resolve on a click outside any startTransition
-// scope, or the dialog never mounts.
+// Picking a row posts nothing. It hands the choice back to DesirePanel, which
+// opens the reason dialog — a claim moves Tag Points, so it is a request and
+// needs a reason like every other one.
 export default function DesireCatalog({
   open,
   onClose,
+  onChoose,
   slotIndex,
   desireSlots = 2,
   slotStates = [],
@@ -172,8 +172,8 @@ export default function DesireCatalog({
   families = [],
   familyGroups = [],
   lockNotes = [],
+  addiction = null,
 }) {
-  const confirm = useConfirm();
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState("family");
   const [tab, setTab] = useState("all");
@@ -182,8 +182,6 @@ export default function DesireCatalog({
   // open catalog. Same filter, same wording, as PointBuy's.
   const [requiresOnly, setRequiresOnly] = useState(false);
   const [target, setTarget] = useState(slotIndex);
-  const [error, setError] = useState(null);
-  const [pending, startTransition] = useTransition();
 
   const familyByKey = useMemo(() => new Map(families.map((f) => [f.key, f])), [families]);
   const groupByKey = useMemo(() => new Map(familyGroups.map((g) => [g.key, g])), [familyGroups]);
@@ -193,14 +191,17 @@ export default function DesireCatalog({
   // of repeating as a row per family, which doubled a 270-row list.
   const rows = useMemo(
     () =>
-      catalog.filter((entry) => !requiresOnly || entry.unlockedBy).map((entry) => {
-        const known = (entry.families ?? []).filter((k) => familyByKey.has(k));
-        const family = known.length > 0 ? familyByKey.get(known[0]) : OTHER;
-        const otherNames = known.slice(1).map((k) => familyByKey.get(k).name);
-        const group = (family.group && groupByKey.get(family.group)) || null;
-        return { entry, family, otherNames, group };
-      }),
-    [catalog, familyByKey, groupByKey, requiresOnly],
+      catalog
+        .filter((entry) => !entry.slotLocks?.[target])
+        .filter((entry) => !requiresOnly || entry.unlockedBy)
+        .map((entry) => {
+          const known = (entry.families ?? []).filter((k) => familyByKey.has(k));
+          const family = known.length > 0 ? familyByKey.get(known[0]) : OTHER;
+          const otherNames = known.slice(1).map((k) => familyByKey.get(k).name);
+          const group = (family.group && groupByKey.get(family.group)) || null;
+          return { entry, family, otherNames, group };
+        }),
+    [catalog, familyByKey, groupByKey, requiresOnly, target],
   );
 
   // Tabs come from what's actually on offer, in header order, so a family
@@ -251,28 +252,17 @@ export default function DesireCatalog({
   const bySlot = new Map(slotStates.map((s) => [s.slotIndex, s]));
   const slots = Array.from(
     { length: desireSlots },
-    (_, i) => bySlot.get(i) ?? { slotIndex: i, active: null, lockedUntilTurn: null },
+    (_, i) => bySlot.get(i) ?? { slotIndex: i, lockedUntilTurn: null, lastEnded: null },
   );
-  const filled = slots.filter((s) => s.active).length;
+  const openSlots = slots.filter((s) => s.lockedUntilTurn == null).length;
+  const bottomIndex = desireSlots - 1;
 
-  async function choose(entry) {
-    if (pending) return;
-    setError(null);
-    const ok = await confirm({
-      title: "Set this Desire?",
-      message: `It goes in slot ${target + 1}. Once set, cancelling or fulfilling it shuts that slot for the rest of the turn and all of the next one.`,
-      confirmLabel: "Set Desire",
-    });
-    if (!ok) return;
-    startTransition(async () => {
-      const res = await setDesire({ slotIndex: target, slug: entry.slug });
-      if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
-      onClose?.();
-    });
+  function choose(entry) {
+    onChoose?.({ entry, slotIndex: target });
   }
 
   return (
-    <Modal open={open} title="Choose a Desire" onClose={() => !pending && onClose?.()} width="widest">
+    <Modal open={open} title="Claim a Desire" onClose={() => onClose?.()} width="widest">
       <div className="mt-3 flex flex-col gap-4">
         {/* Mobile target bar: the slots pane stacks below the catalog on
             small screens, so which slot the pick lands in stays in view. */}
@@ -280,10 +270,10 @@ export default function DesireCatalog({
           className="panel sticky top-0 z-10 flex items-center justify-between gap-3 p-3 text-sm md:hidden"
           aria-hidden="true"
         >
-          <span className="text-muted">Choosing for</span>
+          <span className="text-muted">Claiming into</span>
           <strong>
             Slot {target + 1}
-            <span className="text-muted font-normal"> · {filled} of {desireSlots} filled</span>
+            <span className="text-muted font-normal"> · {openSlots} of {desireSlots} open</span>
           </strong>
         </div>
 
@@ -401,10 +391,10 @@ export default function DesireCatalog({
           {/* ----- Your Desires ----- */}
           <aside className="panel flex flex-col gap-3 p-4 md:sticky md:top-4">
             <h2 className="panel-header" style={{ margin: 0 }}>
-              Your Desires
+              Your slots
             </h2>
             <div className="text-sm text-muted">
-              {filled} of {desireSlots} slot{desireSlots === 1 ? "" : "s"} filled
+              {openSlots} of {desireSlots} slot{desireSlots === 1 ? "" : "s"} open
             </div>
             <ul className="flex flex-col gap-2">
               {slots.map((slot) => (
@@ -412,11 +402,12 @@ export default function DesireCatalog({
                   key={slot.slotIndex}
                   slot={slot}
                   isTarget={slot.slotIndex === target}
+                  isBottom={slot.slotIndex === bottomIndex}
+                  addiction={addiction}
                   onTarget={setTarget}
                 />
               ))}
             </ul>
-            <FormError>{error}</FormError>
           </aside>
         </div>
       </div>

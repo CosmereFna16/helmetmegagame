@@ -143,7 +143,7 @@ At this point there are a few recommended next steps:
 - Write your Appearance, a brief description of your character that others will see when examining you.
 - Create your public character portrait.
 - Review your role [Documents](https://ravenheart.quest/documents).
-- Select Desires from the catalog — your character's current goals.
+- Read the Desire catalog — the goals your character can claim points for once they achieve them.
 - Enter a Default Move, an activity that your character performs whenever you don't submit a specific Move during a turn.
 
 ## Playing A Turn
@@ -427,8 +427,11 @@ In the header:
 - **Spend Tag Points:** Opens the Tag Store to spend unused points.
 - **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
 
-**Desires:** Your character's current goals. Once a Desire ends (fulfilled or cancelled), that slot stays shut for the rest of that turn and all of the next one, and that specific Desire goes on its own cooldown before it can be picked again.  
-**Fulfill** one when you have achieved it, or **Cancel** it.
+**Desires:** Goals you claim *after* the fact. Do the thing, then open a Desire slot, pick it out of the catalog, and tell the GMs how you pulled it off — the points land immediately. There is nothing to set up in advance and nothing to cancel.
+
+Claiming shuts that slot for a couple of turns, and puts that specific Desire on its own cooldown before anyone can claim it again. If you have an Addiction, your bottom slot only accepts Desires about the thing you're addicted to; your other slot is untouched.
+
+A Desire arranged purely to claim a Desire doesn't count — asking someone for a hug so you can tick off "Get a hug" is not a hug.
 
 **Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.
 

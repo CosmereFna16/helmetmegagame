@@ -240,6 +240,11 @@ enum RequestStatus {
   UNDONE
 }
 
+// ACTIVE is legacy — the 2026-09-02 retroactive rework removed set/cancel, so
+// a Desire row is created FULFILLED and nothing ever writes ACTIVE again. Kept
+// in the enum rather than dropped, same posture as
+// MoveReviewStatus.WAITING_FOR_OPPONENTS. CANCELLED still means something: a
+// claim a GM revoked, or one undone through the Request system.
 enum DesireStatus {
   ACTIVE
   FULFILLED
@@ -442,9 +447,15 @@ model GameConfig {
   // order in docs/systemdocs/DESIRES.md.
   maxNegativeTags Int @default(8)
 
-  // How many Desires a character may hold ACTIVE at once, one per slot.
-  // Same live-editable posture as equipSlots above.
+  // How many Desire slots a character has, each of which can be claimed into
+  // once every desireSlotLockTurns turns. Same live-editable posture as
+  // equipSlots above.
   desireSlots Int @default(2)
+
+  // Whole turns a Desire slot stays shut after a Desire is claimed into it.
+  // A claim on turn N leaves the slot shut on N and open again on
+  // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates).
+  desireSlotLockTurns Int @default(2)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -482,12 +493,12 @@ model GameConfig {
   autoReconcileEnabled Boolean @default(false)
 
   // Master switch for players setting a NEW Desire on /character
-  // (docs/systemdocs/REQUESTS.md §5). Off greys the form and shows
-  // "Temporary disabled." An already-ACTIVE Desire can still be fulfilled or
-  // cancelled — this only closes the faucet, it doesn't freeze what's in
-  // flight. GMs are unaffected: setDesireGm/endDesireGm on the Dev Panel are
-  // host access, same split as the rest of the Discord permission model. On
-  // by default, since Desires are the only way Tag Points are earned in play.
+  // (docs/systemdocs/REQUESTS.md §5). Off greys the panel and shows
+  // "Temporarily disabled." in place of every slot, and blocks claimDesire
+  // server-side. GMs are unaffected: awardDesireGm/revokeDesireGm on the Dev
+  // Panel are host access, same split as the rest of the Discord permission
+  // model. On by default, since Desires are the only way Tag Points are
+  // earned in play.
   desiresEnabled Boolean @default(true)
 }
 
@@ -2243,6 +2254,12 @@ model DesireTemplate {
   // block that (Document.roleSlugs precedent).
   requiresAnyRoleSlugs String[] @default([])
   requiresNotRoleSlugs String[] @default([])
+  // When true, requiresAnyTags and requiresAnyRoleSlugs are satisfied by
+  // EITHER one, not both (docs/desires.yaml `requires.combine: or`). Lets a
+  // tag open a Desire that a role also opens, without the tag purchase being
+  // dead weight to everyone outside that role. notTags/notRoles stay AND
+  // regardless — a forbidden pairing is never something an OR should open.
+  requiresAnyOf Boolean @default(false)
   // Absent from docs/desires.yaml: hidden from every picker, existing
   // instances keep running.
   retired   Boolean @default(false)
@@ -2255,15 +2272,18 @@ model Desire {
   id              String       @id @default(cuid())
   characterId     String
   character       Character    @relation(fields: [characterId], references: [id])
-  // STAYS non-null: a snapshot of template.name at set time, so every
+  // STAYS non-null: a snapshot of template.name at claim time, so every
   // existing reader (requestEffects.js, the bot's 🔍/⚜️ embeds, the archive,
   // auditNarrative.js…) stays untouched by the catalog rework.
   text   String
   // The awarded number — a GM re-score writes it, so it can diverge from
   // template.tier. The COOLDOWN reads template.tier, never points.
   points Int
-  status DesireStatus @default(ACTIVE)
+  status DesireStatus @default(FULFILLED)
+  // A claim stamps BOTH with the open turn — the row is born ended. They stay
+  // two columns because pre-rework rows carry a real gap between them.
   setTurnNumber   Int?
+  // null means "does not lock its slot": a revoked or undone claim.
   endedTurnNumber Int?
 
   // Nullable ON PURPOSE AND FOREVER: grandfathers freeform rows and GM

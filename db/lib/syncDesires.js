@@ -111,6 +111,20 @@ async function syncDesiresFromYaml(prisma) {
     if (d.oncePerLife != null && typeof d.oncePerLife !== "boolean") {
       throw new Error(`docs/desires.yaml: desire "${d.slug}" has a non-boolean oncePerLife`);
     }
+    const combine = d.requires?.combine;
+    if (combine != null && combine !== "and" && combine !== "or") {
+      throw new Error(
+        `docs/desires.yaml: desire "${d.slug}" has requires.combine "${combine}" — only "and" (the default) or "or"`,
+      );
+    }
+    // `combine: or` with only one populated list is a silent no-op, and worse,
+    // it reads like a working gate. Refuse it rather than ship a Desire whose
+    // YAML says one thing and whose evaluation says another.
+    if (combine === "or" && (anyTags.length === 0 || anyRoles.length === 0)) {
+      throw new Error(
+        `docs/desires.yaml: desire "${d.slug}" has requires.combine: or but needs BOTH requires.anyTags and requires.anyRoles to be non-empty`,
+      );
+    }
   }
 
   let created = 0;
@@ -134,6 +148,9 @@ async function syncDesiresFromYaml(prisma) {
       families: entry.families ?? [],
       onceEver,
       cooldownTurns: entry.cooldownTurns ?? null,
+      // Default AND. Only an explicit `combine: or` joins anyTags/anyRoles
+      // with OR — see db/lib/desireGates.js#evalRequires.
+      requiresAnyOf: entry.requires?.combine === "or",
       sortOrder: index,
     };
 
