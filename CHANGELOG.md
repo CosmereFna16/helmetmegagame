@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Tag stacking: set the count, and tag edits save on the spot
+
+✎ The Dev Panel's Holds row now has a stepper showing how many they hold — type the number you want. Taking a stack of seven meals down to three is one gesture, not four clicks of Take one  
+✎ Tag changes on a character's dev panel save the moment you make them, like Kill and Revive already did. No more staging a tag and hunting for Apply  
+✚ Heal all, Feed and Inflict a wound now fire straight away and say what they did, instead of quietly staging  
+✎ Removing a wound that leaves an aftermath behind still asks first, since putting the wound back will not clear it  
+✎ One quantity control everywhere — craft, destroy, transfer, loot, the depot and both GM desks — with plus and minus buttons instead of nine slightly different boxes
+
 ## 2026-09-03 · Walking into an inn no longer empties your cart onto its floor
 
 ✎ Carrying is measured in pounds now, not item count. Every item has a weight; a horse, a cart, a house and anything grafted into you weigh nothing  
