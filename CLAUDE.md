@@ -682,36 +682,57 @@ anything that carries a schema change.
 ### The changelog
 
 **Every push writes an entry in `CHANGELOG.md` and posts the same entry to
-Discord.** `npm run push` does both for you — the entry is written from the
-staged diff *before* the commit, so it rides along inside that commit instead of
-trailing behind in a second one, and the Discord post goes out after the push
-succeeds.
+Discord.** `npm run push` does both for you — the entry is written *before* the
+commit, so it rides along inside that commit instead of trailing behind in a
+second one, and the Discord post goes out after the push succeeds.
+
+**The changelog is GM-facing, and it says what changed in the game — never
+which files moved.** A path means nothing to a GM. Write the sentence you would
+say out loud: "the good labor spots now wear out as they are worked", not
+`✎ db/lib/autoLaborPass.js`. The heading is that sentence; each note under it is
+one more.
 
 ```
-npm run push -- "Message"   # commit, push, log, announce
-npm run changelog           # log HEAD + announce, for a commit made by hand
-npm run changelog -- --dry-run             # preview the CHANGELOG.md entry
-npm run changelog -- --announce --dry-run  # preview the Discord message
+npm run push -- "Subject" "a note" "another note"   # commit, push, log, announce
+npm run push -- "Subject" --hidden                  # push, log nothing, say nothing
+npm run changelog                                   # log HEAD + announce, for a hand commit
+npm run changelog -- --dry-run                      # preview the CHANGELOG.md entry
+npm run changelog -- --announce --dry-run           # preview the Discord message
 ```
 
-Commit by hand and nothing is logged, so run `npm run changelog` afterwards.
-
-The format is three symbols and nothing else — `+` a file arrived, `-` a file
-went away, `✎` a file changed:
-
-````
-## 2026-09-03 · Keyed ways: hold the door open behind you for 24 hours
+The first argument is the heading. Every plain argument after it is one note.
+Three glyphs, and a note with none is a change:
 
 ```
-+ db/lib/keyedWays.js
-✎ db/prisma/schema.prisma
-- db/lib/oldGate.js
-```
-````
+## 2026-09-03 · Laboring wears the good spots out
 
-They sit inside a fenced block on purpose. Both GitHub and Discord read a
-leading `+` or `-` as a list marker and would eat the symbol; a fence renders
-all three literally and keeps the paths aligned.
+✎ The best labor Locations now drift down as they are worked, so nobody camps one
+✚ A Labor? button on the turn console
+− The old /labor command
+```
+
+A note may lead with its own glyph — `"+A Labor? button"`, `"-The old /labor
+command"`, plain text for `✎`. The glyphs are `✚ − ✎` rather than `+ - ~`
+because none of those three is a Markdown list marker, so the lines render
+literally with no code fence around them — and prose inside a fence does not
+wrap, which is the whole reason the old file-list format could get away with
+one.
+
+Commit by hand and nothing is logged, so run `npm run changelog` afterwards. It
+reads HEAD, and takes its notes from the **commit message body** — any body line
+starting with a glyph, a `-` or a `*`.
+
+**Two things stay out of it.**
+
+- **`--hidden`.** If Bascinet says a push is hidden, pass `--hidden` (or
+  `--secret`) and nothing is written and nothing is posted. There is no partial
+  version — a heading alone still tells the GMs something happened.
+- **Lore and antagonists, by default.** A push touching `docs/lore.md`,
+  `docs/threats.md`, `docs/archive/` or `db/lib/antagonists.js` is held back on
+  its own, with a line printed saying so. The GMs get briefed on that material
+  deliberately and in order, not by changelog. `--tell-gms` overrides it for the
+  odd case where the change really is theirs to see. The same applies to your
+  own wording: don't describe a secret in a note about some other file.
 
 The Discord half is **best-effort and never fails the push** — a missing
 `DISCORD_TOKEN` or a Discord outage prints a warning and the run stays green.

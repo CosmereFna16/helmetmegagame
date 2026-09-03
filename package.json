@@ -12,7 +12,7 @@
     "dev:bot": "npm run dev --workspace=bot",
     "dev:session": "node scripts/dev/session.mjs",
     "dev:check": "node scripts/dev/check.mjs",
-    "push": "bash -c 'git add -A && node scripts/changelog/log.js --staged --message \"${1:-wip}\" && git add CHANGELOG.md && (git diff --cached --quiet || git commit -m \"${1:-wip}\") && git push -u origin master && node scripts/changelog/log.js --announce' --",
+    "push": "bash scripts/push.sh",
     "changelog": "node scripts/changelog/log.js",
     "redeploy": "railway redeploy -s web --from-source -y && railway redeploy -s '@lifeweb/bot' --from-source -y",
     "deploy": "git push origin master && ./migrate.sh && npm run redeploy",

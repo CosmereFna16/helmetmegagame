@@ -1,7 +1,16 @@
 # Changelog
 
-Every push, newest first. Written by `npm run push` and mirrored to Discord —
-see CLAUDE.md. `+` added, `-` removed, `✎` changed.
+Every push, newest first, in plain language for the GM team. Written by
+`npm run push` and mirrored to Discord — see CLAUDE.md.
+`✚` new, `−` gone, `✎` changed.
+
+Entries below predate this format and list files instead.
+
+## 2026-09-03 · The changelog speaks plain language, and can be told to stay quiet
+
+✎ Changelog entries now say what changed in the game instead of listing files  
+✚ A --hidden switch on a push: nothing is written and nothing is posted  
+✎ Lore and antagonist work is held back from the changelog by default
 
 ## 2026-09-03 · Weapons don't stack: you hunt with one bow, not the whole rack
 
