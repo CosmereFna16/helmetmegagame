@@ -367,7 +367,13 @@ export async function ensureCharacterRole(character) {
     if (!character.discordRoleId) {
       const role = await discordRequest(`/guilds/${guildId}/roles`, {
         method: "POST",
-        body: { name, color, hoist: false, mentionable: true },
+        // permissions: "0" is NOT the API default — Discord's create-role
+        // endpoint copies @everyone's permissions when the field is omitted.
+        // Leaving it out gave every character role @everyone's bits, which
+        // granted nothing extra (nobody holds these roles) but did make each
+        // one look like a real access role to db:prune-orphan-roles, whose
+        // "carries permissions" gate then refused to ever delete one.
+        body: { name, color, hoist: false, mentionable: true, permissions: "0" },
       });
 
       // Assigned to NOBODY on purpose: it's a mentionable name token with no

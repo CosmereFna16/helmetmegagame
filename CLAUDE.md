@@ -321,6 +321,14 @@ npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
 npm run db:prune-orphan-roles        # deletes Discord character roles no living
                                      #   character claims. DRY RUN unless given
                                      #   `-- --apply`. Guards the 250-role cap.
+                                     #   `-- --include-catatonic` also accepts
+                                     #   the Catatonic repaint, which can never
+                                     #   match the normal signature.
+npm run db:prune-stale-channels      # deletes categories, channels and zone/
+                                     #   location roles from a PREVIOUS game
+                                     #   that no DB row references. db:sync-
+                                     #   zones cannot see these. DRY RUN unless
+                                     #   given `-- --apply`.
 npm run db:report-inactive-characters  # read-only inactivity report
 npm run db:open-rp-channels          # between games: open every roleplay
                                      #   channel to the guild. DRY RUN unless

@@ -18,6 +18,10 @@ const {
   LEADER_WHITELIST_ROLE_ID,
 } = require("../../lib/roleIds");
 const { hashNameToColor } = require("../../lib/roleColor");
+const {
+  CATATONIC_ROLE_COLOR,
+  CATATONIC_ROLE_SUFFIX,
+} = require("../../lib/characterRoleAppearance");
 
 // See the header: mentionable, and coloured by a hash of its own name. A
 // Catatonic character's role ("<name> • Catatonic", flat grey —
@@ -25,6 +29,22 @@ const { hashNameToColor } = require("../../lib/roleColor");
 // because a claimed role is never a candidate.
 function looksLikeCharacterRole(role) {
   return role.mentionable === true && role.color === hashNameToColor(role.name);
+}
+
+// The Catatonic repaint (db/lib/characterRoleAppearance.js) renames a role to
+// "<name> • Catatonic" in one fixed grey, so it can no longer match the
+// signature above. While a character claims the role that is exactly right —
+// the claim check protects it either way. But a role left behind by a PREVIOUS
+// game is unclaimed AND unmatchable, so the normal sweep can never reach it.
+// --include-catatonic accepts that second exact appearance as well. Every
+// other gate (unclaimed, unheld, permissionless, unmanaged, not standing) is
+// unchanged, so this only widens the net by genuine catatonic leftovers.
+function looksLikeCatatonicRole(role) {
+  return (
+    role.mentionable === true &&
+    role.color === CATATONIC_ROLE_COLOR &&
+    role.name.endsWith(CATATONIC_ROLE_SUFFIX)
+  );
 }
 
 function protectedRoleIds() {
@@ -42,6 +62,7 @@ function protectedRoleIds() {
 
 async function main() {
   const apply = process.argv.includes("--apply");
+  const includeCatatonic = process.argv.includes("--include-catatonic");
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId) throw new Error("DISCORD_GUILD_ID is not set.");
 
@@ -61,6 +82,16 @@ async function main() {
     }),
     discordRequest(`/guilds/${guildId}/members?limit=1000`),
   ]);
+
+  // "Permissionless" can't just mean "0". Discord's create-role endpoint
+  // copies @everyone's permissions whenever the field is omitted, and
+  // ensureCharacterRole omitted it for the whole of Bascinet 1 — so every
+  // character role in this guild carries @everyone's exact bitfield and the
+  // gate below rejected all of them, making this script a silent no-op.
+  // A role matching @everyone grants nothing over the baseline, so it counts
+  // as permissionless here; anything ELSE is somebody's real access role.
+  const everyoneRole = roles.find((r) => r.id === guildId);
+  const baselinePermissions = new Set(["0", everyoneRole?.permissions].filter(Boolean));
 
   const claimed = new Map(characters.map((c) => [c.discordRoleId, c]));
   const protectedIds = protectedRoleIds();
@@ -87,14 +118,19 @@ async function main() {
     if (role.managed) reasons.push("managed by an integration");
     // A name token grants nothing; anything with permissions is somebody's
     // real access role and is not ours to delete.
-    if (role.permissions && role.permissions !== "0") reasons.push("carries permissions");
-    if (!looksLikeCharacterRole(role)) reasons.push("not a character role");
+    if (role.permissions && !baselinePermissions.has(role.permissions)) {
+      reasons.push("carries permissions");
+    }
+    const isCharacterRole =
+      looksLikeCharacterRole(role) || (includeCatatonic && looksLikeCatatonicRole(role));
+    if (!isCharacterRole) reasons.push("not a character role");
 
     if (reasons.length) kept.push({ role, reasons });
     else candidates.push(role);
   }
 
   console.log(`Guild has ${roles.length} role(s) of Discord's 250 cap.`);
+  if (includeCatatonic) console.log("--include-catatonic: catatonic-styled roles are candidates too.");
   console.log(
     `${characters.length} character role(s) claimed (${characters.filter((c) => c.status === "ALIVE").length} by living characters).\n`,
   );
