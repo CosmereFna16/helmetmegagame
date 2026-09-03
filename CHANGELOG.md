@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · A body decides what it can carry, and bad eyes cannot look anyone over
+
+Carry caps now ADD their bonuses instead of multiplying them, so a frail body costs everyone the same pounds whether or not they happen to be pulling a cart  
+Giant, the priciest tag in the game, finally buys carry: +0.75, the biggest body bonus there is  
+Frail, Old, Fat, Dwarf, the maimings and a dozen wounds all take a small bite out of what you can haul, floored at a quarter of the base so nobody is stuck permanently overburdened  
+✚ Pack Mouse, the mirror of Pack Mule: narrow shoulders, -0.5, and 4 points back  
+Strong now matches Pack Mule's carry instead of a fifth of it, having cost more and done less  
+A crippled or missing leg costs you your free zone crossing, unless a horse is doing the walking. A peg leg still walks  
+✚ Sun Sensitivity, a new drawback, and the first code Nearsighted and Spectacles have ever had: both now block Look at, and a greyed button says why on hover  
+Twelve pairs of contradictory tags can no longer be bought together, Mute and Vow of Silence and Blind and Eagle Eyes among them
+
 ## 2026-09-03 · Drawbacks now run out two ways, not one
 
 ✚ A second limit at character creation: your drawbacks can claim back at most 12 points between them, on top of the cap on how many you may take  
