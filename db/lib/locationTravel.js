@@ -11,6 +11,7 @@ const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
+const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted } = require("./mounts");
 const { turnDay } = require("./turnFormat");
 
@@ -96,6 +97,15 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
 
   let openTurn = null;
   if (crossedZone) {
+    // Over a carry cap (db/lib/carry.js). Only the mover is gated — the
+    // dragged are corpses and the helpless — and only a zone crossing: a hop
+    // inside the zone stays free so they can walk to a room and stash.
+    if (character.tags?.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
+      return {
+        ok: false,
+        reason: "You're overburdened. Stash or hand off some of what you carry before you cross into another zone. ‡",
+      };
+    }
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
   }

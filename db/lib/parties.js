@@ -76,6 +76,39 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
       zoneName: (f.siloZone ?? f.zone)?.name ?? null,
     };
   }
+  // A Room's stash (docs/systemdocs/CARRY.md). Location-grain where the
+  // other two are zone-grain: reach is "standing in this Location, and
+  // admitted to this room", decided by web/lib/transferReach.js with
+  // db/lib/roomAccess.js#accessibleRooms.
+  if (kind === "room") {
+    const r = await prisma.room.findUnique({
+      where: { id: id ?? "" },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        resources: true,
+        locationId: true,
+        accessTagSlugs: true,
+        discordThreadId: true,
+        location: { select: { name: true, zoneId: true } },
+      },
+    });
+    return r
+      ? {
+          kind,
+          id: r.id,
+          name: r.name,
+          balance: r.resources,
+          zoneId: r.location.zoneId,
+          locationId: r.locationId,
+          locationName: r.location.name,
+          roomKind: r.kind,
+          accessTagSlugs: r.accessTagSlugs,
+          discordThreadId: r.discordThreadId,
+        }
+      : null;
+  }
   return null;
 }
 

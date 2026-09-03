@@ -1,4 +1,4 @@
-const { concealedAlias } = require("@lifeweb/db");
+const { concealedAlias, withArticle, capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 
 // Every 15 minutes, each Room hears who has been whispering in the
@@ -18,14 +18,6 @@ const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const WINDOW_MINUTES = 15;
 // Past this many, the line stops being informative and starts being a wall.
 const MAX_NAMED = 5;
-
-function withArticle(word) {
-  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
-}
-
-function capitalizeFirst(text) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
 
 // Oxford comma throughout, and a hard stop at MAX_NAMED so a crowded thread
 // reads as a crowd instead of a roster.

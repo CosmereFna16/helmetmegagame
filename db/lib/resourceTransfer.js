@@ -14,13 +14,23 @@ class InsufficientResourcesError extends Error {
   }
 }
 
+// Which model and column hold each party kind's balance. A table rather
+// than a branch so applyTransfer's (kind, id) lock ordering keeps working
+// unchanged as kinds are added — a Room's stash (docs/systemdocs/CARRY.md)
+// is the third.
+const BALANCE = {
+  character: ["character", "resources"],
+  faction: ["faction", "silo"],
+  room: ["room", "resources"],
+};
+
 async function moveParty(tx, party, delta) {
   if (!party || !delta) return;
-  const character = party.kind === "character";
-  if (!character && party.kind !== "faction") return;
+  const spec = BALANCE[party.kind];
+  if (!spec) return;
 
-  const model = character ? tx.character : tx.faction;
-  const field = character ? "resources" : "silo";
+  const [modelName, field] = spec;
+  const model = tx[modelName];
 
   if (delta > 0) {
     await model.update({ where: { id: party.id }, data: { [field]: { increment: delta } } });

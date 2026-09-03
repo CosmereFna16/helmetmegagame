@@ -464,6 +464,21 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # ×1.5 on both carry caps; stacks with Cart (docs/systemdocs/CARRY.md).
+  # Priced at 4 by Bascinet's call — between the 2 and 5 bands, deliberately
+  # (TAGS.md §4a). {carry:pack-mule} renders the exact bonus from the live
+  # config, so the number never drifts from what the caps actually are.
+  pack-mule:
+    name: Pack Mule
+    category: general
+    group: general-traits
+    description: "Broad back, strong legs, and no shame about what you'll haul. {carry:pack-mule} ‡"
+    pointCost: 4
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    carryMultiplier: 1.5
+
   old:
     name: Old
     category: general
@@ -2285,6 +2300,20 @@ tags:
     purchasable: false
     durationTurns: 1
 
+  # Over a carry cap. Granted and cleared by db/lib/carry.js#settleCarry —
+  # never by a player, never on a clock — and read by the zone-crossing gate
+  # in db/lib/locationTravel.js. Description is Bascinet's own wording.
+  overburdened:
+    name: Overburdened
+    category: status
+    group: status-debuffs
+    description: "You're overburdened. You can't freely change zones until you fix that."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
   # Two effects the Merchant's imported goods produce (docs/systemdocs/DEPOT.md
   # §3). Neither is bought or brewed: Caffeinated is what a cup of Coffee
   # consumes into, and Asleep is what a Soporific does to whoever drinks it —
@@ -3479,10 +3508,12 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Upgrades the {tag:horse}, allowing you to carry up to 6 people total on fast travel."
+    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Upgrades the {tag:horse}, allowing you to carry up to 6 people total on fast travel. {carry:cart} ‡"
     pointCost: 5
     visible: true
     tradeable: true
+    # ×5 on both carry caps; stacks with Pack Mule (docs/systemdocs/CARRY.md).
+    carryMultiplier: 5
     purchasable: true
     purchasableAfterStart: true
     removable: true

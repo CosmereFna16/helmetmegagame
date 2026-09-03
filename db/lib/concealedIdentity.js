@@ -51,8 +51,27 @@ function concealedLine(alias) {
   return `An unknown ${(alias || "person").toLowerCase()}, their identity concealed.`;
 }
 
+// "a young man" / "an old woman" — the alias as a noun phrase for a line of
+// prose. Shared by the whisper poll and the room stash announcements so the
+// same person reads the same way in both.
+function withArticle(word) {
+  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+}
+
+function capitalizeFirst(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+// "An old woman", ready to start a sentence.
+function aliasSubject(character) {
+  return capitalizeFirst(withArticle(concealedAlias(character ?? {}).toLowerCase()));
+}
+
 module.exports = {
   concealedAlias,
   concealedLine,
   genderWord,
+  withArticle,
+  capitalizeFirst,
+  aliasSubject,
 };

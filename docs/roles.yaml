@@ -1167,6 +1167,7 @@ zones:
             starting_zone: caverns
             leader: true
             starting_tags:
+              - Cart
               - Literate
               - Merchant's Garb
               - Merchant's License

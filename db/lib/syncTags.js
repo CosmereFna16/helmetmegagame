@@ -4,6 +4,7 @@
 // Upsert-only and never deletes. Six passes: tags/groups reference each
 // other by slug, and some fields can only resolve once every Tag row
 // exists. Each pass only writes when something actually changed.
+const { settleCarry } = require("./carry");
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -207,6 +208,10 @@ async function syncTagsFromYaml(prisma) {
         }
       }
     }
+    // carryMultiplier scales both carry caps (docs/systemdocs/CARRY.md).
+    if (t.carryMultiplier != null && !(typeof t.carryMultiplier === "number" && t.carryMultiplier > 0)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" has a carryMultiplier that is not a positive number`);
+    }
     // sellable/sellablePrice must travel together.
     if (t.sellable && !(Number.isInteger(t.sellablePrice) && t.sellablePrice > 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" is sellable but has no positive sellablePrice`);
@@ -299,6 +304,7 @@ async function syncTagsFromYaml(prisma) {
       // web/lib/characterCreation.js#exclusiveConflict.
       exclusive: entry.exclusive ?? false,
       tradeable: entry.tradeable ?? false,
+      carryMultiplier: entry.carryMultiplier ?? null,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,
       forcedName: entry.forcesName?.trim() ?? null,
@@ -442,7 +448,23 @@ async function syncTagsFromYaml(prisma) {
     }
   }
 
-  return { groupsCreated, groupsUpdated, tagsCreated, tagsUpdated, linksUpdated };
+  // A changed carryMultiplier must never read as "a Cart just left": rebase
+  // every holder's carryMultiplierSeen without dropping anything, so the
+  // next real settle compares against the new catalog (CARRY.md).
+  const holders = await prisma.character.findMany({
+    where: { status: "ALIVE", tags: { some: { tag: { carryMultiplier: { not: null } } } } },
+    select: { id: true },
+  });
+  let rebased = 0;
+  for (const { id } of holders) {
+    const result = await settleCarry(prisma, id, { drop: false }).catch((err) => {
+      console.error(`sync-tags: carry rebase failed for ${id}:`, err.message ?? err);
+      return null;
+    });
+    if (result) rebased += 1;
+  }
+
+  return { groupsCreated, groupsUpdated, tagsCreated, tagsUpdated, linksUpdated, carryRebased: rebased };
 }
 
 module.exports = { syncTagsFromYaml };

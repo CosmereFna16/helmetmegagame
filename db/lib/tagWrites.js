@@ -138,4 +138,52 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
   return granted;
 }
 
-module.exports = { addToStack, dropCharacterTag, grantTagSlugs };
+// --- Room stashes (docs/systemdocs/CARRY.md) ---------------------------
+//
+// A Room's stash is the game's first MULTI-ACTOR inventory: two players
+// standing in the same public room can pull the same stack in the same tick.
+// dropCharacterTag can afford a read-then-write because a character has one
+// actor; here the decrement IS the check — the conditional-updateMany lesson
+// from resourceTransfer.js#moveParty.
+
+// Adds `quantity` of a tag to a room, creating the row or incrementing it.
+// Deliberately NO non-stackable pin: two players can each leave their
+// Longbow here and the row must go to 2. The pin is a rule about what one
+// CHARACTER can hold, and addToStack re-applies it on the way out.
+// `expiresTurn` carries over from the holder's row; an earlier clock wins
+// when stacks with different clocks merge, so stashing never extends one.
+async function addToRoomStack(tx, roomId, tagId, quantity, { expiresTurn = null } = {}) {
+  const n = Math.max(1, Math.trunc(quantity ?? 1));
+  const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
+  if (!existing) {
+    return tx.roomTag.create({ data: { roomId, tagId, quantity: n, expiresTurn } });
+  }
+  const clocks = [existing.expiresTurn, expiresTurn].filter((t) => t != null);
+  return tx.roomTag.update({
+    where: { id: existing.id },
+    data: {
+      quantity: { increment: n },
+      expiresTurn: clocks.length ? Math.min(...clocks) : null,
+    },
+  });
+}
+
+// Removes `quantity` of a tag from a room (null = the whole stack). Returns
+// false when the stack no longer covers it — a concurrent taker got there
+// first — so the caller can refuse cleanly instead of overdrawing.
+async function dropRoomTag(tx, roomId, tagId, quantity = null) {
+  if (quantity == null) {
+    await tx.roomTag.deleteMany({ where: { roomId, tagId } });
+    return true;
+  }
+  const n = Math.max(1, Math.trunc(quantity));
+  const { count } = await tx.roomTag.updateMany({
+    where: { roomId, tagId, quantity: { gte: n } },
+    data: { quantity: { decrement: n } },
+  });
+  if (count === 0) return false;
+  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
+  return true;
+}
+
+module.exports = { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag };

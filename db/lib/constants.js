@@ -12,6 +12,9 @@ const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
 const CATATONIC_SLUG = "catatonic-afk";
 const DISAPPOINTED_SLUG = "disappointed";
+// Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
+// never by a player; read by the travel gate in db/lib/locationTravel.js.
+const OVERBURDENED_SLUG = "overburdened";
 
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
@@ -53,6 +56,7 @@ module.exports = {
   LABORER_FARMING_SLUG,
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
+  OVERBURDENED_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
 };

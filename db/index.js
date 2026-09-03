@@ -19,6 +19,8 @@ const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
+const { runCarryPass } = require("./lib/carryPass");
+const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
@@ -89,8 +91,10 @@ const LIFEWEB_SPUTTER_THRESHOLD = 20;
 // The stackable half of resolveNeeds()' expiry sweep: each expired stack
 // loses one unit and the remainder's clock restarts from the tag's catalog
 // duration, so a stack sheds one unit at a time rather than all at once.
-async function sweepExpiredStacks(turn) {
-  const expired = await prisma.characterTag.findMany({
+// `model` is "characterTag" or "roomTag": a stack lying in a Room sheds
+// exactly the way one in a pocket does (docs/systemdocs/CARRY.md).
+async function sweepExpiredStacks(turn, model = "characterTag") {
+  const expired = await prisma[model].findMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: true } },
     select: { id: true, quantity: true, tag: { select: { defaultDurationTurns: true } } },
   });
@@ -110,11 +114,11 @@ async function sweepExpiredStacks(turn) {
   }
 
   await prisma.$transaction([
-    ...(spent.length ? [prisma.characterTag.deleteMany({ where: { id: { in: spent } } })] : []),
+    ...(spent.length ? [prisma[model].deleteMany({ where: { id: { in: spent } } })] : []),
     // decrement, not a computed literal, so a concurrent grant on the same
     // row can't be clobbered between the read above and this write.
     ...[...rescheduled].map(([expiresTurn, ids]) =>
-      prisma.characterTag.updateMany({
+      prisma[model].updateMany({
         where: { id: { in: ids } },
         data: { quantity: { decrement: 1 }, expiresTurn },
       }),
@@ -135,6 +139,7 @@ const TURN_PASSES = [
   "catatonicDeath",
   "bird",
   "hunger",
+  "carry",
   "lifewebDecay",
 ];
 
@@ -298,6 +303,12 @@ async function resolveNeeds(turn, config) {
         where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
       });
       await sweepExpiredStacks(turn);
+      // A stashed tag rots on the same clock — nothing festers in a crate,
+      // so no progression, just the sweep.
+      await prisma.roomTag.deleteMany({
+        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
+      });
+      await sweepExpiredStacks(turn, "roomTag");
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);
@@ -369,6 +380,26 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
 
+  // Carry caps: Overburdened on and off, and overflow drops for anyone whose
+  // Cart or Pack Mule left during the turn. After hunger so it sees the
+  // final sheet. See db/lib/carryPass.js, CARRY.md.
+  let carry = null;
+  if (!done.has("carry")) {
+    carry = await runCarryPass(prisma, turn).catch(async (err) => {
+      await passFailed("Carry", err);
+      return null;
+    });
+    if (carry) await markDone("carry");
+  }
+  const { drops: carryDrops = [], ...carrySummary } = carry ?? {};
+  if (carry) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "carry_resolved", details: carrySummary },
+      })
+      .catch((err) => console.error("Carry audit log failed:", err));
+  }
+
   // bumpBlood rather than a computed literal off `config`: that snapshot
   // predates the passes above, so a donation made during the advance would
   // otherwise be discarded by the write-back.
@@ -418,6 +449,7 @@ async function resolveNeeds(turn, config) {
     dyingDeaths,
     dyingDeathWarnings,
     birdNotices,
+    carryDrops,
     privateDeliveries,
     publicPosts,
     zoneMoves,
@@ -456,6 +488,7 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let dyingDeathWarnings = [];
   let birdNotices = [];
+  let carryDrops = [];
   let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
@@ -481,7 +514,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
@@ -531,7 +564,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -636,6 +669,12 @@ async function advanceTurn() {
     for (const dm of birdNotices) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Bird failure DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    for (const result of carryDrops) {
+      await deliverCarryDrop(prisma, result).catch((err) =>
+        console.error(`Carry drop delivery for ${result.characterId} failed:`, err),
       );
     }
 

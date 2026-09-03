@@ -13,6 +13,7 @@ const { addMemberRole, removeMemberRole, putChannelOverwrite, deleteChannelOverw
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
 const { syncCharacterRoomAccess } = require("./roomAccess");
+const { settleCarry, deliverCarryDrop } = require("./carry");
 
 // Mirrors web/lib/discordGuild.js's PERM_VIEW_CHANNEL / PERM_SEND_MESSAGES —
 // duplicated rather than imported because db/ cannot reach into web/.
@@ -99,9 +100,23 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     );
   }
 
+  // Settle carry BEFORE room access: arriving somewhere with a public room
+  // is what lets a deferred overflow drop finally land (db/lib/carry.js),
+  // and that drop can take a private-room key off the sheet, so membership
+  // has to be recomputed from the post-drop holdings.
+  const carry = await settleCarry(prisma, characterId).catch((err) => {
+    console.error(`Move: carry settle failed for ${characterId}:`, err.message ?? err);
+    return null;
+  });
+
   await syncCharacterRoomAccess(prisma, { ...character, locationId: toLocationId }).catch((err) =>
     console.error(`Move: room access sync failed for ${characterId}:`, err.message ?? err),
   );
+  if (carry?.drop) {
+    await deliverCarryDrop(prisma, carry).catch((err) =>
+      console.error(`Move: carry drop delivery failed for ${characterId}:`, err.message ?? err),
+    );
+  }
   await applyPendingInvites(prisma, { ...character, locationId: toLocationId }).catch((err) =>
     console.error(`Move: thread invite pass failed for ${characterId}:`, err.message ?? err),
   );

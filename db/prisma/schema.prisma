@@ -431,6 +431,14 @@ model GameConfig {
   // as startingTagPoints above.
   equipSlots Int @default(6)
 
+  // Carry caps: how many UNITS of tradeable tags and how many ⬢ a character
+  // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base
+  // values, multiplied by every held Tag.carryMultiplier. Going over is
+  // allowed; it grants the `overburdened` status, which blocks zone
+  // crossings until they stash or hand something off. Live on /gm/dev.
+  carryTagCap      Int @default(10)
+  carryResourceCap Int @default(25)
+
   // How many drawback TAGS a character may buy through the point-buy menu —
   // a cap on the COUNT of negative-cost tags picked, not on their combined
   // point value. Replaces the old points-based maxNegativeTags: that field's
@@ -782,12 +790,45 @@ model Room {
   starterMessageId String?
   postHash         String?
 
+  // The stash. ⬢ left lying in this room, moved only through
+  // db/lib/resourceTransfer.js#moveParty with a `room:` party, and the tag
+  // stacks below. Unlimited on purpose — a room is where you put what you
+  // can't carry (docs/systemdocs/CARRY.md).
+  resources Int       @default(0)
+  tags      RoomTag[]
+
   playerThreads PlayerThread[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([locationId])
+}
+
+/// One stack of a tag lying in a Room. No per-room limit, and unlike
+/// CharacterTag there is no non-stackable pin: two players can each leave a
+/// Longbow here and the row goes to 2 — the pin is a rule about what one
+/// CHARACTER can hold, re-applied on the way out by tagWrites.js#addToStack.
+/// `expiresTurn` rides along from the holder's row so stashing a meal can't
+/// stop it rotting; the sweeps in db/index.js shed it the same way.
+model RoomTag {
+  id String @id @default(cuid())
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  tagId String
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  quantity    Int  @default(1)
+  expiresTurn Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, tagId])
+  @@index([tagId])
+  @@index([expiresTurn])
 }
 
 /// A Conversation: the one kind of thread a player can open, from the
@@ -996,6 +1037,15 @@ model Character {
   // enforcement. Non-null with a 0 default, so every character has one and
   // only the licensed one can ever move it. See docs/systemdocs/DEPOT.md §5.
   depotDebt Int @default(0)
+
+  // Product of held Tag.carryMultipliers at the last db/lib/carry.js
+  // settleCarry, stored ×1000 as an integer (Cart × Pack Mule = 7500) so
+  // "has it shrunk?" compares exactly. It is how the settle notices a Cart
+  // just left without any caller saying so: a smaller product than the one
+  // seen is what triggers the overflow drop. Only the multiplier is kept,
+  // never the derived cap — a GM lowering GameConfig.carryTagCap must make
+  // people Overburdened, not dump a hundred inventories onto the floor.
+  carryMultiplierSeen Int @default(1000)
 
   // When this body went into the ground, set by a BURY_CHARACTER request.
   // Nullable, so the column is both the flag and the record of when. A buried
@@ -1234,6 +1284,11 @@ model Tag {
   // default below can never silently make new gear unmovable.
   tradeable Boolean @default(false)
 
+  // Multiplies both carry caps while held (Pack Mule 1.5, Cart 5); null for
+  // the rest of the catalog. Multipliers stack multiplicatively. See
+  // docs/systemdocs/CARRY.md.
+  carryMultiplier Float?
+
   // Whether this tag is a thing a character can wear or carry readied, and so
   // occupies one of their GameConfig.equipSlots. Equipped state lives on
   // CharacterTag.equipped; equipping is instant and writes no Request.
@@ -1464,6 +1519,7 @@ model Tag {
   desireAllRequiredBy DesireTemplate[] @relation("DesireRequiresAllTag")
 
   characters  CharacterTag[]
+  roomTags    RoomTag[]
   gatedGroups TagGroup[]     @relation("TagGroupGate")
   cavingRolls CavingRoll[]
 
