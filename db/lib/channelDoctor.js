@@ -32,7 +32,7 @@ const {
   locationChannelSpec,
   LOCATION_MEMBER_ALLOW,
 } = require("./zoneChannelSpec");
-const { accessibleRooms, heldTagSlugs } = require("./roomAccess");
+const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { reconcileChannelOverwrites, managedOverwriteIds } = require("./syncZones");
 const { SPECIAL_CHANNELS, buildNarrowcastContext, computeNarrowcastAccess } = require("./specialChannels");
 const {
@@ -478,16 +478,23 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
 
     // Private-room membership: exactly the living characters standing in the
-    // room's location who hold one of its access tags. Thread-major: one
-    // member-list read per private room.
+    // room's location who hold one of its access tags OR have been let in by
+    // hand (RoomGuest). Thread-major: one member-list read per private room.
+    //
+    // Guests are NOT optional here. This check deletes anyone it can't account
+    // for, so a doctor that only knew about keys would evict every guest on
+    // its next run — and it runs on every bot ready.
     if (privateRooms.length > 0) {
-      const heldByCharacter = new Map();
-      for (const c of alive) heldByCharacter.set(c.id, await heldTagSlugs(prisma, c.id));
+      const keysByCharacter = new Map();
+      for (const c of alive) keysByCharacter.set(c.id, await roomAccessKeys(prisma, c.id));
       for (const room of privateRooms) {
         const shouldHave = new Set(
           alive
             .filter((c) => c.locationId === room.locationId && c.discordUserId)
-            .filter((c) => accessibleRooms([room], heldByCharacter.get(c.id)).length > 0)
+            .filter((c) => {
+              const keys = keysByCharacter.get(c.id);
+              return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length > 0;
+            })
             .map((c) => c.discordUserId),
         );
         let live;
@@ -524,6 +531,28 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
           await prisma.playerThreadInvite.deleteMany({ where: { threadId: row.threadId } });
         });
       }
+    }
+
+    // Room guests who no longer qualify: dead, or wandered off. The membership
+    // check above repairs the THREAD; this repairs the row behind it, so a
+    // guest who left doesn't sit in the table until they happen to move again.
+    const guests = await prisma.roomGuest.findMany({
+      include: { room: { select: { locationId: true, name: true } } },
+    });
+    for (const guest of guests) {
+      const character = characters.find((c) => c.id === guest.characterId);
+      const stillHere =
+        character?.status === "ALIVE" && guest.room && character.locationId === guest.room.locationId;
+      if (stillHere) continue;
+      await report(
+        "room-guest",
+        `${guest.room?.name ?? guest.roomId}/${guest.characterId}`,
+        "guest is dead or no longer standing in the room's location",
+        () =>
+          prisma.roomGuest.delete({
+            where: { roomId_characterId: { roomId: guest.roomId, characterId: guest.characterId } },
+          }),
+      );
     }
 
     // Dead invites: character gone, or thread untracked.

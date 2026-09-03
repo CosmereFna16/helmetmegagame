@@ -948,6 +948,7 @@ model Room {
   tags      RoomTag[]
 
   playerThreads PlayerThread[]
+  guests        RoomGuest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1036,6 +1037,37 @@ model PlayerThreadInvite {
   createdAt DateTime @default(now())
 
   @@id([threadId, characterId])
+  @@index([characterId])
+}
+
+/// One character let into one private Room by hand rather than by holding a
+/// key — the Baron waving somebody into his office. A private Room's
+/// membership is otherwise pulled entirely from Room.accessTagSlugs
+/// (db/lib/roomAccess.js), and this is the one exception.
+///
+/// The grant is SPENT WHEN THEY LEAVE. syncCharacterRoomAccess deletes every
+/// row whose Room is not where the character now stands, and it already runs
+/// on every arrival, so walking out of the Location is what closes the door.
+/// That is why a guest is a row rather than a thread-member add and nothing
+/// else: Discord's member list survives a move, and the rule must not.
+///
+/// Real FKs both ways, unlike PlayerThreadInvite — a Room and a Character are
+/// both rows here, so the cascade is free and there is nothing for the doctor
+/// to reconcile except a guest who wandered off.
+model RoomGuest {
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  /// Who opened the door, for the audit trail. Snapshot id, not an FK — the
+  /// inviter may be dead by the time anyone reads it.
+  invitedById String?
+
+  createdAt DateTime @default(now())
+
+  @@id([roomId, characterId])
   @@index([characterId])
 }
 
@@ -1346,6 +1378,7 @@ model Character {
   cavingRolls             CavingRoll[]
   gmNotes                 GmCharacterNote[]
   craftProjects           CraftProject[]
+  roomGuestOf             RoomGuest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

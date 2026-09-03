@@ -28,7 +28,8 @@ roles *and* factions. Running them out of order throws on a reference that
 would have existed.
 
 `db:sync-narrowcast-channels` (§4) belongs right after `db:sync-zones`, because
-`#intercom`'s static view grants name the zone roles the zone sync creates.
+a registry entry's static `roleViewZones` grants name zone roles the zone sync
+creates.
 
 ## 2. Where they differ, in detail
 
@@ -343,7 +344,7 @@ pre-launch wipe rebuilds everything else from YAML.
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |
 | `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more. `db:sync-zones` cannot reach these: it only prunes a Zone/Location row that left `docs/zones.yaml` while the DB still holds its Discord ids, and the doctor never deletes a channel at all. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |
 | `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
-| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch`/`#intercom` channels from the special-channels registry. Run after `db:sync-zones`. |
+| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch` channel from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
 | `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. `db:sync-zones` re-walls them. |

@@ -553,7 +553,7 @@ async function syncRoomThread(prisma, room, location, snapshot) {
   const body = buildRoomBody(room);
   // Hashed with its button row, as the anchor is, so adding a button to the
   // starter re-posts it once and never again.
-  const components = [roomStarterRow(room.id)];
+  const components = [roomStarterRow(room)];
   const hash = hashBody(body + JSON.stringify(components));
   const chunks = chunkMessage(body);
   const title = room.name.slice(0, 100);

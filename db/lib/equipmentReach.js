@@ -14,7 +14,7 @@
 //
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
-const { accessibleRooms } = require("./roomAccess");
+const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // True when the character holds the tag, or one sits in a Room stash they can
 // get into at the Location they are standing in.
@@ -34,16 +34,14 @@ async function hasEquipmentInReach(prisma, character, slug) {
   // Nowhere to stand is nowhere to reach from.
   if (!character.locationId) return false;
 
-  const [rooms, heldSlugs] = await Promise.all([
+  const [rooms, keys] = await Promise.all([
     prisma.room.findMany({
       where: { locationId: character.locationId, tags: { some: { quantity: { gt: 0 }, tag: { slug } } } },
       select: { id: true, kind: true, accessTagSlugs: true },
     }),
-    prisma.characterTag
-      .findMany({ where: { characterId: character.id }, select: { tag: { select: { slug: true } } } })
-      .then((rows) => new Set(rows.map((r) => r.tag.slug))),
+    roomAccessKeys(prisma, character.id),
   ]);
-  return accessibleRooms(rooms, heldSlugs).length > 0;
+  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).length > 0;
 }
 
 module.exports = { hasEquipmentInReach };

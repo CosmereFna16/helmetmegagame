@@ -19,6 +19,7 @@ const {
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
 const { syncCharacterRoomAccess } = require("./roomAccess");
+const { ambientLine } = require("./ambientLine");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage } = require("./indoors");
 const { reconcileCorpses } = require("./corpseFollow");
@@ -34,7 +35,7 @@ const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
 // Reconciles a character's per-member overwrites on the narrowcast channels
-// (#watch, #intercom) against their CURRENT zone/tags. Same
+// (#watch) against their CURRENT zone/tags. Same
 // computation as web/lib/discordGuild.js#syncCharacterNarrowcastAccess,
 // built on the db/lib REST primitives instead of the web ones.
 async function reconcileNarrowcastAccess(prisma, characterId, discordUserId) {
@@ -126,7 +127,7 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
 
   const who = link.announce === "TRUE_NAME" ? character.name : aliasSubject(character);
   if (!who) return;
-  await postMessage(channelId, `» ${who} has entered ${toLocation.name}. ‡`);
+  await postMessage(channelId, ambientLine(`${who} has entered ${toLocation.name}.`));
 }
 
 // The offer to hold a keyed door open behind you.

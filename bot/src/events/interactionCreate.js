@@ -29,7 +29,12 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
-const { syncCharacterRoomAccess, accessibleRooms, heldTagSlugs } = require("@lifeweb/db/lib/roomAccess");
+const {
+  syncCharacterRoomAccess,
+  accessibleRooms,
+  roomAccessKeys,
+  heldTagSlugs,
+} = require("@lifeweb/db/lib/roomAccess");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
@@ -46,7 +51,7 @@ const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
 const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { messageLink } = require("../lib/mentions");
-const { startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discordRest");
+const { startPrivateThread, addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
 const {
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
@@ -57,7 +62,9 @@ const {
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation } = require("@lifeweb/db/lib/locationAttributes");
-const { ROOM_STORAGE_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
+const { ROOM_STORAGE_PREFIX, ROOM_INTERCOM_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
+const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
+const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
   buildConverseModal,
@@ -140,26 +147,54 @@ async function handleGmDmCommand(interaction) {
   }
 }
 
-// /add and /remove: a Conversation's guest list. /add works on any living
-// character wherever they stand — recorded as a PlayerThreadInvite, and
-// applied immediately if they are already standing in this Location, else
-// replayed by applyPendingInvites on arrival (db/lib/threadInvites.js).
+// /add and /remove work on two things, and the channel decides which.
 //
-// Gated on a PlayerThread row rather than "is this a private thread": a
-// private Room is a private thread too, and its guest list is a key tag
-// (db/lib/roomAccess.js), not something a player hands out.
+//   - A Conversation (a PlayerThread row): /add records a PlayerThreadInvite
+//     and works on any living character wherever they stand, applied at once
+//     if they are already here and replayed by applyPendingInvites on arrival
+//     (db/lib/threadInvites.js).
+//   - A private Room: /add writes a RoomGuest row, which is the ONE way into
+//     a private thread without one of its access tags. The target has to be
+//     standing here, because the grant is spent the moment they leave
+//     (db/lib/roomAccess.js) — inviting somebody far away would hand them a
+//     row that dies before they ever saw the door.
+//
+// A public Room takes neither: everyone standing in the Location can already
+// read it.
 async function handleThreadMemberCommand(interaction, action) {
   await ack(interaction);
 
   const channel = interaction.channel;
-  const row = channel
-    ? await prisma.playerThread.findUnique({
-        where: { threadId: channel.id },
-        include: { location: { select: { name: true } } },
-      })
-    : null;
+  if (!channel) {
+    await respond(interaction, "» *That only works inside a conversation or a private room.* ‡");
+    return;
+  }
+
+  const [row, room] = await Promise.all([
+    prisma.playerThread.findUnique({
+      where: { threadId: channel.id },
+      include: { location: { select: { name: true } } },
+    }),
+    prisma.room.findFirst({
+      where: { discordThreadId: channel.id },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        accessTagSlugs: true,
+        locationId: true,
+        discordThreadId: true,
+        location: { select: { name: true } },
+      },
+    }),
+  ]);
+
+  if (room) {
+    await handleRoomGuestCommand(interaction, action, room);
+    return;
+  }
   if (!row) {
-    await respond(interaction, "» *That only works inside a conversation.* ‡");
+    await respond(interaction, "» *That only works inside a conversation or a private room.* ‡");
     return;
   }
 
@@ -210,6 +245,7 @@ async function handleThreadMemberCommand(interaction, action) {
     } catch (err) {
       console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err);
     }
+    await notifyLetIn(interaction, target, row.name, row.location?.name, channel.id);
     await respond(interaction, `» *${target.name} was added.* ‡`, { fleeting: true });
     return;
   }
@@ -218,6 +254,158 @@ async function handleThreadMemberCommand(interaction, action) {
     `» *${target.name} is invited — they'll see this when they reach ${row.location?.name ?? "this place"}.* ‡`,
     { fleeting: true },
   );
+}
+
+// Telling somebody a door opened for them. Discord's own "you were added to a
+// thread" notice is easy to miss and says nothing about where, so this carries
+// the place and a link — never the content, the same rule notifyMentioned
+// keeps (bot/src/lib/mentions.js).
+async function notifyLetIn(interaction, target, threadName, placeName, threadId) {
+  if (!target.discordUserId) return;
+  const where = placeName ? `${placeName} · ${threadName}` : threadName;
+  const user = await interaction.client.users.fetch(target.discordUserId).catch(() => null);
+  if (!user) return;
+  const link = `https://discord.com/channels/${interaction.guildId}/${threadId}`;
+  await sendDm(user, `» *You were let into ${where}.* ‡\n${link}`, { source: "system_notice" }).catch(() => {});
+}
+
+// The Room half of /add and /remove.
+//
+// Who may work the door: anyone already inside it, which — because membership
+// is pulled from standing here with a key or a guest row — is exactly the set
+// the fiction wants. A GM may always.
+//
+// /remove refuses a key-holder on purpose. Their key is what admits them, and
+// the next arrival or tag change would let them straight back in; taking the
+// key is the real removal, so say so rather than doing something that undoes
+// itself.
+async function handleRoomGuestCommand(interaction, action, room) {
+  if (room.kind !== "PRIVATE") {
+    await respond(interaction, "» *Anyone standing here can already walk in.* ‡");
+    return;
+  }
+
+  const gm = isGmMember(interaction);
+  if (!gm) {
+    const member = await interaction.channel.members.fetch(interaction.user.id).catch(() => null);
+    if (!member) {
+      await respond(interaction, "» *You're not in this room.* ‡");
+      return;
+    }
+  }
+
+  const role = interaction.options.getRole("character");
+  const target = await prisma.character.findFirst({
+    where: { discordRoleId: role.id, status: "ALIVE" },
+  });
+  if (!target) {
+    await respond(interaction, "» *That isn't a living character's role.* ‡");
+    return;
+  }
+  if (target.locationId !== room.locationId) {
+    await respond(interaction, `» *${target.name} isn't here to be let in.* ‡`);
+    return;
+  }
+
+  if (action === "remove") {
+    const held = await heldTagSlugs(prisma, target.id);
+    if (room.accessTagSlugs.some((slug) => held.has(slug))) {
+      await respond(interaction, "» *Their key admits them. Take the key.* ‡");
+      return;
+    }
+    await prisma.roomGuest
+      .deleteMany({ where: { roomId: room.id, characterId: target.id } })
+      .catch((err) => console.error("Failed to delete room guest:", err));
+    try {
+      await removeThreadMember(room.discordThreadId, target.discordUserId);
+    } catch (err) {
+      console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
+      await respond(interaction, "» *Couldn't remove them. The bot may be missing Manage Threads.* ‡");
+      return;
+    }
+    await respond(interaction, `» *${target.name} was shown out.* ‡`, { fleeting: true });
+    return;
+  }
+
+  const actor = await findAliveCharacter(interaction.user.id);
+  await prisma.roomGuest
+    .upsert({
+      where: { roomId_characterId: { roomId: room.id, characterId: target.id } },
+      update: {},
+      create: { roomId: room.id, characterId: target.id, invitedById: actor?.id ?? null },
+    })
+    .catch((err) => console.error("Failed to record room guest:", err));
+
+  try {
+    await addThreadMember(room.discordThreadId, target.discordUserId);
+  } catch (err) {
+    console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
+  }
+  await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
+  await respond(interaction, `» *${target.name} was let in. They stay until they leave.* ‡`, {
+    fleeting: true,
+  });
+}
+
+// The Council Room's Intercom button, and its modal.
+//
+// showModal IS the acknowledgement and must be the first thing that happens —
+// a deferred interaction can no longer open one, and Discord allows three
+// seconds. So the button does no database work at all, and every check waits
+// for the submit. That is not a hole: an ephemeral modal outlives the player
+// walking out of the Keep, so an open-time check would have to be re-run at
+// submit anyway.
+async function handleIntercomOpen(interaction, roomId) {
+  await interaction.showModal(buildIntercomModal(roomId));
+}
+
+async function handleIntercomSubmit(interaction, roomId) {
+  await ack(interaction);
+
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, slug: true, locationId: true },
+  });
+  if (!room || room.slug !== INTERCOM_ROOM_SLUG) {
+    await respond(interaction, "» *There's no intercom here.* ‡");
+    return;
+  }
+  if (character.locationId !== room.locationId) {
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    return;
+  }
+
+  const body = interaction.fields.getTextInputValue("intercom:body").trim();
+  if (!body) {
+    await respond(interaction, "» *Say something first.* ‡");
+    return;
+  }
+
+  const { sent, failed } = await broadcastIntercom(prisma, body);
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: interaction.user.id,
+        actionType: "intercom_broadcast",
+        targetCharacterId: character.id,
+        details: { body, zonesReached: sent, zonesFailed: failed },
+      },
+    })
+    .catch((err) => console.error("Intercom audit failed:", err.message ?? err));
+
+  // Say what actually happened. A PA that reached four zones out of five is
+  // not a failure, but the speaker has to know which one nobody heard.
+  const note =
+    failed.length > 0
+      ? `\n-# Nothing came through in ${failed.join(", ")}. ‡`
+      : "";
+  await respond(interaction, `» *Your voice goes out across Ravenheart.* ‡${note}`, { fleeting: true });
 }
 
 // Custom IDs below are "loc:"-namespaced for the travel flow off the Travel
@@ -716,20 +904,20 @@ async function handleSecretRooms(interaction, locationId) {
     return;
   }
 
-  const [rooms, held, invites] = await Promise.all([
+  const [rooms, keys, invites] = await Promise.all([
     prisma.room.findMany({
       where: { locationId, kind: "PRIVATE", discordThreadId: { not: null } },
       select: { id: true, name: true, kind: true, accessTagSlugs: true, discordThreadId: true },
       orderBy: { sortOrder: "asc" },
     }),
-    heldTagSlugs(prisma, character.id),
+    roomAccessKeys(prisma, character.id),
     prisma.playerThreadInvite.findMany({
       where: { characterId: character.id },
       select: { threadId: true },
     }),
   ]);
 
-  const mine = accessibleRooms(rooms, held);
+  const mine = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
   const conversations = await prisma.playerThread.findMany({
     where: {
       locationId,
@@ -773,15 +961,15 @@ async function handleConverseOpen(interaction, locationId) {
     return;
   }
 
-  const [rooms, held] = await Promise.all([
+  const [rooms, keys] = await Promise.all([
     prisma.room.findMany({
       where: { locationId, discordThreadId: { not: null } },
       select: { id: true, name: true, kind: true, accessTagSlugs: true },
       orderBy: { sortOrder: "asc" },
     }),
-    heldTagSlugs(prisma, character.id),
+    roomAccessKeys(prisma, character.id),
   ]);
-  const options = accessibleRooms(rooms, held).slice(0, MENU_OPTION_LIMIT);
+  const options = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).slice(0, MENU_OPTION_LIMIT);
   if (options.length === 0) {
     await respond(interaction, "» *There's no room here to hold a conversation in.* ‡");
     return;
@@ -1262,7 +1450,7 @@ async function handleHealPick(interaction, characterId) {
 
   // Clearing an affliction can change both narrowcast access and which
   // private Rooms this character belongs in — a key tag is a tag like any
-  // other, and #watch/#intercom are gated on tags too.
+  // other, and #watch is gated on tags too.
   await reconcileNarrowcastAccess(prisma, target.id, target.discordUserId).catch((err) =>
     console.error(`Heal: narrowcast reconcile failed for ${target.name}:`, err.message ?? err),
   );
@@ -1322,6 +1510,10 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_STORAGE_PREFIX)) {
           return void (await handleRoomStorage(interaction, interaction.customId.slice(ROOM_STORAGE_PREFIX.length)));
         }
+        // Opens a modal, so it must NOT be ack()'d first — see handleIntercomOpen.
+        if (interaction.customId.startsWith(ROOM_INTERCOM_PREFIX)) {
+          return void (await handleIntercomOpen(interaction, interaction.customId.slice(ROOM_INTERCOM_PREFIX.length)));
+        }
         if (interaction.customId.startsWith(SECRET_ROOMS_PREFIX)) {
           return void (await handleSecretRooms(interaction, interaction.customId.slice(SECRET_ROOMS_PREFIX.length)));
         }
@@ -1372,6 +1564,12 @@ module.exports = {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {
           return void (await handleConverseCreate(interaction, interaction.customId.slice(CONVERSE_MODAL_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(INTERCOM_MODAL_PREFIX)) {
+          return void (await handleIntercomSubmit(
+            interaction,
+            interaction.customId.slice(INTERCOM_MODAL_PREFIX.length),
+          ));
         }
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));

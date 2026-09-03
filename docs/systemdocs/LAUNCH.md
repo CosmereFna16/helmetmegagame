@@ -76,7 +76,7 @@ The order, and why:
 | 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, every Location channel and every thread under it, Rooms and anchors included. It then **nulls the recorded thread/anchor ids and hashes** so the re-sync rebuilds them instead of hash-matching something that no longer exists |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
 | 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, `#summary`, Location channel, zone and location role, Room thread and anchor from `docs/zones.yaml` |
-| 7 | **Special channels sync** | Right after zones, because `#intercom`'s view grants name the zone roles step 6 may have just recreated |
+| 7 | **Special channels sync** | Right after zones, because a registry entry's `roleViewZones` grants name zone roles step 6 may have just recreated |
 | 8 | **Tag sync** → 9. **Role sync** → 10. **Desire sync** → 11. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions |
 | 12 | **Channel doctor** (cheap, apply) | The structural backstop: whatever a retry above still missed, the doctor finds by diffing Discord against the now-empty roster and repairs. Not a bigger retry count — a different mechanism |
 
@@ -135,7 +135,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 
 | Survives | Consequence |
 |---|---|
-| `#watch`, `#intercom`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
+| `#watch`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
@@ -198,8 +198,10 @@ around that or add a second superadmin before the game opens.
 - [ ] The role tree on step 2 is populated — empty means the role sync failed
 - [ ] The point-buy menu on step 3 has tags
 - [ ] `/documents` is populated
-- [ ] `#watch` and `#intercom` exist under a `radio` category, and the old
-      `#radio` is gone
+- [ ] `#watch` exists under a `radio` category, and the old `#radio` and
+      `#intercom` are gone
+- [ ] The Council Room's starter post carries an **Intercom** button, and
+      pressing it reaches every `#summary` but the Black Hills'
 - [ ] `npm run db:doctor -- --full` comes back with nothing (or nothing you
       didn't expect)
 - [ ] Make one throwaway character end to end, then check it can see exactly

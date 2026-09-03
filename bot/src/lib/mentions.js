@@ -64,7 +64,7 @@ async function notifyMentioned(client, character, context, link) {
   const place = context.locationName ?? context.zoneName ?? null;
   const where = context.threadName
     ? `${place ?? "somewhere"} · ${context.threadName}`
-    : (place ?? (context.channelKind === "watch" ? "the Watch's radio" : "the Intercom"));
+    : (place ?? "the Watch's radio");
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;

@@ -18,7 +18,7 @@ provisioned channels, or a special channel whose registry entry says
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
 | A Location's channel (text), and every Room or Conversation thread under it | yes | no |
-| `#watch` / `#intercom` | yes | no |
+| `#watch` | yes | no |
 
 The special channels aren't tied to a place, so they're never summary.
 

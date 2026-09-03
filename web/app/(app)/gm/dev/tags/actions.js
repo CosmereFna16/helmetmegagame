@@ -330,7 +330,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/players", "layout");
 
-  // A live grant may change narrowcast access (#watch, #intercom) and
+  // A live grant may change narrowcast access (#watch) and
   // private-room membership, same as bulkTagCharacters. Sequential and after
   // the writes, per ARCHITECTURE.md §5 — never a fan-out of REST calls at
   // Discord's rate limiter. A staged grant hasn't touched anyone's holdings

@@ -8,17 +8,23 @@
 // predicate the thread-membership sync uses, so the transfer gate and the
 // door can never disagree about The Charon.
 import { prisma } from "@lifeweb/db";
-import { accessibleRooms, heldTagSlugs } from "@lifeweb/db/lib/roomAccess";
+import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { isHere } from "@/lib/peopleHere";
 
-// `party` is a resolveParty() result. `heldSlugs` may be passed to save the
-// lookup when the caller has it.
-export async function canReachParty(actor, party, { heldSlugs = null, allowDead = false } = {}) {
+// `party` is a resolveParty() result. `heldSlugs` and `guestRoomIds` may be
+// passed to save the lookup when the caller has them; a room needs BOTH, so
+// half an answer is re-read rather than trusted.
+export async function canReachParty(
+  actor,
+  party,
+  { heldSlugs = null, guestRoomIds = null, allowDead = false } = {},
+) {
   if (!party) return false;
   if (party.kind === "room") {
     if (!actor?.locationId || party.locationId !== actor.locationId) return false;
-    const held = heldSlugs ?? (await heldTagSlugs(prisma, actor.id));
-    return accessibleRooms([party], held).length === 1;
+    const keys =
+      heldSlugs && guestRoomIds ? { heldSlugs, guestRoomIds } : await roomAccessKeys(prisma, actor.id);
+    return accessibleRooms([party], keys.heldSlugs, keys.guestRoomIds).length === 1;
   }
   if (party.kind === "character") return isHere(actor, party, { allowDead });
   return false;

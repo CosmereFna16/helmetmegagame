@@ -1,13 +1,18 @@
 // The registry of SPECIAL CHANNELS — standing channels outside the zone
-// system (#watch, #intercom). Each entry fully describes a
-// channel: provisioning, static role grants, per-character access, wipe
-// behavior, ghost visibility and tupper routing all derive from it. Adding a
-// channel is one entry here plus one GameConfig id column.
+// system. Each entry fully describes a channel: provisioning, static role
+// grants, per-character access, wipe behavior, ghost visibility and tupper
+// routing all derive from it. Adding a channel is one entry here plus one
+// GameConfig id column.
 //
 // Access rules stay CODE: they're real logic over tags and zones, not data a
 // YAML mini-language could express cleanly.
-
-const { FORTRESS_SLUG } = require("./constants");
+//
+// #watch is the only entry left. #intercom used to be the second: a standing
+// channel a tag-holder typed into, viewable by every above-ground zone role.
+// It is now a button on the table in the Council Room (db/lib/intercom.js),
+// which broadcasts into each zone's own #summary — so the PA is a thing in a
+// room again rather than a place you travel to. Its GameConfig column stays
+// as an orphan, the way mindlinkChannelId did.
 
 const SPECIAL_CHANNELS = [
   {
@@ -24,27 +29,6 @@ const SPECIAL_CHANNELS = [
     member: (ctx) => {
       if (ctx.tagSlugs.has("radio-system-watch")) return { view: true, send: true };
       if (ctx.tagSlugs.has("radio-bracelet-watch")) return { view: true, send: false };
-      return null;
-    },
-  },
-  {
-    slug: "intercom",
-    configKey: "intercomChannelId",
-    categoryConfigKey: "radioCategoryId",
-    topic: "Ravenheart's PA system. Audible everywhere above ground; the rock swallows it below. Accessed from the Fortress. ‡",
-    tupper: true,
-    wipe: "clear",
-    ghostsMaySee: true,
-    // Audible by everyone with a character standing above ground; the two
-    // underground zones are deliberately out of range. Grant view to the zone
-    // ROLES rather than a per-member overwrite each, to stay under Discord's
-    // per-channel overwrite cap.
-    roleViewZones: ["town", "fortress", "forest", "east-forests", "marshes"],
-    // Speaking needs the Intercom tag and standing in the Fortress zone.
-    member: (ctx) => {
-      if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === FORTRESS_SLUG) {
-        return { view: true, send: true };
-      }
       return null;
     },
   },
@@ -79,8 +63,8 @@ async function buildNarrowcastContext(prisma, characterId) {
   };
 }
 
-// Returns { watch: {view,send}|null, intercom: {view,send}|null, ... } — null
-// means the character gets no member overwrite on that channel.
+// Returns { watch: {view,send}|null, ... } — null means the character gets no
+// member overwrite on that channel.
 function computeNarrowcastAccess(ctx) {
   return Object.fromEntries(SPECIAL_CHANNELS.map((entry) => [entry.slug, entry.member(ctx)]));
 }

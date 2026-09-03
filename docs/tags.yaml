@@ -1636,15 +1636,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  intercom:
-    name: Intercom
-    category: skills
-    teachable: true
-    description: "Can send announcements to all of Ravenheart. You have access to #intercom."
-    pointCost: 0
-    purchasable: false
-    purchasableAfterStart: false
-
   forester:
     name: Forester
     category: skills

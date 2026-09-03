@@ -341,10 +341,18 @@ async function createDmChannel(discordUserId) {
   return channel;
 }
 
-async function postMessage(channelId, content, components = undefined) {
+// `allowedMentions` is opt-in, and omitting it lets Discord parse everything
+// in `content` — which is right for bot-composed text and wrong for anything
+// a player typed. Pass one whenever the content carries user text; the proxy
+// (bot/src/lib/proxy.js) and the intercom (db/lib/intercom.js) both do.
+async function postMessage(channelId, content, components = undefined, allowedMentions = undefined) {
   return discordRequest(`/channels/${channelId}/messages`, {
     method: "POST",
-    body: { content, ...(components ? { components } : {}) },
+    body: {
+      content,
+      ...(components ? { components } : {}),
+      ...(allowedMentions ? { allowed_mentions: allowedMentions } : {}),
+    },
   });
 }
 

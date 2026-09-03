@@ -276,13 +276,24 @@ carrying throws; clear the holdings first.
 the room — `roomAccess.js#accessibleRooms`, the same predicate the
 thread-membership sync uses, so the transfer gate and the door can never
 disagree about The Charon. `web/lib/transferReach.js#canReachParty` carries
-the rule. Since the 9/2026 roster change every reach rule is Location-grain
+the rule.
+
+"Admitted" is two things, not one: holding one of the room's `access:` tags,
+**or** a `RoomGuest` row somebody wrote with `/add` (`CHANNELS.md` §4a). A
+guest reaches the stash exactly as a key-holder does — being in the room is
+being in the room, and a visitor who can read the thread but is told the floor
+isn't theirs would just be confusing. Load both halves with
+`roomAccessKeys(prisma, characterId)`; passing keys alone is how the two
+answers drift apart.
+
+Since the 9/2026 roster change every reach rule is Location-grain
 (`db/lib/presence.js`), so a room and a person are judged at the same grain.
 
 **A public stash is public.** Anyone at the Location can list its contents
 (the Storage button, or the Transfer dialog) and walk off with them. That is
 the point of a floor, and it is also a trace: the goods often say who passed
-through. Private rooms leak nothing to anyone their key doesn't admit.
+through. Private rooms leak nothing to anyone their key — or their host — hasn't
+admitted.
 
 The stash survives the Dawn wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag` and zeroes

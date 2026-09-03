@@ -8,14 +8,14 @@
 // failed transfer. Never call this inside a transaction.
 const { postMessage } = require("./discordRest");
 const { aliasSubject } = require("./concealedIdentity");
+const { ambientLine } = require("./ambientLine");
 
 // `room` needs { discordThreadId, name }; `character` needs { age, gender }.
 // `text` is the predicate ("leaves Graga Sac ×3 here."); `lines` are extra
-// » lines under it. One ‡ per message, at the very end.
+// quoted lines under it. Formatting is ambientLine's job, not this file's.
 async function announceInRoom(room, character, text, lines = []) {
   if (!room?.discordThreadId) return;
-  const body = [`*${aliasSubject(character)} ${text}*`, ...lines.map((l) => `» ${l}`)];
-  const content = `${body.join("\n")} ‡`;
+  const content = ambientLine(`${aliasSubject(character)} ${text}`, lines);
   await postMessage(room.discordThreadId, content).catch((err) =>
     console.error(`Room stash announcement failed (${room.name ?? room.discordThreadId}):`, err.message),
   );

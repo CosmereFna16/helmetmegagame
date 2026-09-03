@@ -42,8 +42,8 @@ Each command declares its contexts:
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/roll` | — | Anyone | Guild | `handleRollCommand` |
-| `/add` | `character` (role) | Conversation member or GM | Guild | `handleThreadMemberCommand` |
-| `/remove` | `character` (role) | Conversation member or GM | Guild | `handleThreadMemberCommand` |
+| `/add` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |
+| `/remove` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |
 | `/gm` | `message`, `attachment` | GM | Guild | `handleGmCommand` |
 | `/dm` | `recipient` (user), `message` | GM | Guild | `handleGmDmCommand` |
 | `/heal` | `character` (role) | GM | Guild | `handleHealCommand` |
@@ -80,9 +80,12 @@ Notes:
 
 ### 2b. `/add` and `/remove` in detail
 
-Both only work inside a **Conversation** — the one thread a player can still
-open (§5, `CHANNELS.md` §4) — and both changed with the Locations rework:
-they used to gate on standing in a zone, and now gate on a `PlayerThread` row.
+Both work on two things, and **the channel decides which**:
+a `PlayerThread` row means a **Conversation**, a `Room` row means a **private
+Room** (§2b-ii). A public Room takes neither — everyone standing in the
+Location can already read it — and anywhere else refuses.
+
+#### 2b-i. In a Conversation
 
 **`/add` works on any `ALIVE` character, wherever they stand.** There is no
 location gate. Discord refuses (or quietly sheds) a thread member who can't
@@ -94,7 +97,9 @@ immediately; otherwise `db/lib/threadInvites.js#applyPendingInvites` replays
 it the moment they arrive, called from `applyLocationMoveSideEffects` on
 every move (`MAP.md` §4). Adds are **silent**: the REST thread-members
 endpoint is used rather than `channel.members.add`, which would ping-mention
-them. Being brought into a room should be discovered, not announced.
+them in the channel. The target is DM'd instead — where they were let in, and
+a link, never the content. Discord's own "added to a thread" notice is easy to
+miss and says nothing about where.
 Mentions into a Conversation follow the same contract — a character-role
 mention there is also an invite (`bot/src/events/messageCreate.js`).
 
@@ -102,12 +107,31 @@ mention there is also an invite (`bot/src/events/messageCreate.js`).
 bot is missing `Manage Threads` the caller is told so, rather than seeing "the
 application did not respond".
 
-Both are open to anyone already in the thread (checked via
+#### 2b-ii. In a private Room
+
+The other way into a private Room, and the only one that isn't a key
+(`CHANNELS.md` §4a). `/add` writes a **`RoomGuest`** row, adds the thread
+member and sends the same DM.
+
+Three differences from the Conversation form, all downstream of the grant
+being **spent when the guest leaves the Location**:
+
+- **The target must already be standing there.** A row handed to somebody
+  across the map would be deleted before they ever saw the door.
+- **They stay until they leave.** `syncCharacterRoomAccess` drops every guest
+  row that isn't where the character now stands, so walking out is what shuts
+  the door. Coming back needs a fresh `/add`.
+- **`/remove` refuses a key-holder** — *"Their key admits them. Take the
+  key."* Removing them would undo itself on their next arrival, so the honest
+  answer is to name the real removal.
+
+A guest gets the room's **full reach**, not just the thread: the stash, the
+Transfer dialog, Storage, equipment standing there, corpse handling. That
+falls out of `accessibleRooms()` being the one predicate behind all of them.
+
+Both forms are open to anyone already in the thread (checked via
 `channel.members.fetch`), plus GMs — the same posture as pinging someone in,
-which any participant can already do. Neither command works in a private
-Room: a Room's guest list is a key tag (`db/lib/roomAccess.js`), not
-something a player hands out, and a Room carries no `PlayerThread` row for
-`/add`/`/remove` to find.
+which any participant can already do.
 
 ### 2c. `/conceal` in detail
 
@@ -168,6 +192,8 @@ parsed by literal `startsWith` + `slice`.
 | `loc:secret:{locationId}` | Button | Reply privately with the private Rooms and Conversations here you can see |
 | `loc:converse:{locationId}` | Button | Offer the Rooms you can link a new Conversation to |
 | `room:storage:{roomId}` | Button | Reply privately with what's lying in the Room's stash (`CARRY.md` §7) |
+| `room:intercom:{roomId}` | Button | Show the Intercom modal. **Council Room only**, and the one button here that must NOT be `ack()`'d — `showModal` is the acknowledgement |
+| `intercom:send:{roomId}` | Modal | Broadcast the PA (`CHANNELS.md` §7a) |
 | `conv:room:{locationId}` | Select | Pick which Room to link the Conversation to, then show the Converse modal |
 | `conv:new:{roomId}` | Modal | Create the Conversation |
 | `move:open` | Button | Show the Move modal |
@@ -360,6 +386,21 @@ value rather than a shared one.
 
 The destination is re-checked on submit: an ephemeral picker outlives its
 player walking out of the room.
+
+### Intercom — `intercom:send:{roomId}` (`bot/src/lib/intercomModal.js`)
+
+| Field | customId | Type |
+|---|---|---|
+| Announcement | `intercom:body` | Paragraph, required, max 1200 |
+
+The button lives on the Council Room's starter post, and standing in that room
+is the whole gate — there is no tag any more (`CHANNELS.md` §7a). Like Speak,
+the gate is re-checked on **submit**, because an ephemeral modal outlives its
+player walking out of the Keep.
+
+1200 characters is not arbitrary. The composed line has to fit one Discord
+message per zone: the broadcast pings `@here`, and a chunked message would ping
+once per chunk.
 
 ## 6. Reactions
 

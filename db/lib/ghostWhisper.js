@@ -13,13 +13,16 @@
 // (bot/src/events/messageReactionAdd.js). prisma is a parameter for the same
 // reason db/lib/dm.js takes one: requiring db/index.js back from inside
 // db/lib/ resolves to a partial exports object.
+const { ambientLine } = require("./ambientLine");
+
 const GHOST_COOLDOWN_MS = 12 * 60 * 60 * 1000;
 
 // Sent as the bot itself, in the channel or forum post the reaction landed
 // in. Deliberately says nothing about who pressed it — a ghost is anonymous,
 // and the line reads as the room noticing rather than a person speaking.
-const GHOST_LINE =
-  "Something's wrong. You feel like you're being watched. Have the dead been laid to rest?";
+const GHOST_LINE = ambientLine(
+  "Something's wrong. You feel like you're being watched. Have the dead been laid to rest?",
+);
 
 // Takes the ghost's charge if they have one. Returns { ok: true } on success,
 // or { ok: false, readyAt } with the Date the next one unlocks.

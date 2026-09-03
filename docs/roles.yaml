@@ -106,7 +106,7 @@ zones:
               - >-
                 Stay happy. An unhappy Baron is an unproductive, dangerous baron.
               - >-
-                Your offices have a PA system that can be heard in intercoms throughout Ravenheart. The yard also has an automated machine gun turret which can be turned on from the Captain's office. It can't tell hostiles or friendlies apart.
+                The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground hears — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Captain's office. It can't tell hostiles or friendlies apart. ‡
               - >-
                 You have three missions:
               - >-
@@ -134,7 +134,6 @@ zones:
               - Brigandine
               - Sabre
               - Literate
-              - Intercom
               - Courtier
             doc_elements:
               - courtstructure

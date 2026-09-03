@@ -53,6 +53,12 @@ async function revokeAllCharacterAccess(prisma, character) {
   const failures = [];
   let attempted = 0;
 
+  // Any private-Room door somebody held open for them. Rows first, so a
+  // Discord failure below can't leave a grant that would readmit a corpse.
+  await prisma.roomGuest
+    .deleteMany({ where: { characterId: character.id } })
+    .catch((err) => console.error(`Room guest revoke for ${character.id} failed:`, err.message ?? err));
+
   if (character.discordUserId) {
     const zoneRoles = await prisma.zone.findMany({
       where: { discordRoleId: { not: null } },
@@ -114,6 +120,14 @@ async function revokeAccessForCharacters(prisma, characters) {
     if (character.discordRoleId) targetIds.add(character.discordRoleId);
   }
   if (targetIds.size === 0) return { channels: 0, removed: 0, rolesRemoved: 0, failed: 0, unreadable: 0 };
+
+  // One statement for the whole roster, the bulk form's whole posture.
+  const characterIds = (characters ?? []).map((c) => c.id).filter(Boolean);
+  if (characterIds.length > 0) {
+    await prisma.roomGuest
+      .deleteMany({ where: { characterId: { in: characterIds } } })
+      .catch((err) => console.error("Access revoke: room guest sweep failed:", err.message ?? err));
+  }
 
   let rolesRemoved = 0;
   let failed = 0;

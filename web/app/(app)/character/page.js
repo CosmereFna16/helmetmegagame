@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { peopleHere } from "@/lib/peopleHere";
 import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/lib/lessons";
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
-import { accessibleRooms } from "@lifeweb/db/lib/roomAccess";
+import { accessibleRooms, guestRoomIds as roomGuestIds } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
@@ -394,6 +394,9 @@ export default async function CharacterPage() {
   // (CARRY.md) — with its contents, since pulling out of one means seeing
   // what's there. A room you can't enter isn't listed: it's a locked door.
   const heldSlugsForRooms = new Set(character.tags.map((ct) => ct.tag.slug));
+  // Rooms somebody let this character into by hand — the other half of the
+  // door, and the reason this page and the Transfer gate agree (CARRY.md).
+  const guestRoomIds = await roomGuestIds(prisma, character.id);
   const roomsHere = character.locationId
     ? await prisma.room.findMany({
         where: { locationId: character.locationId },
@@ -417,7 +420,7 @@ export default async function CharacterPage() {
         },
       })
     : [];
-  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms).map((r) => ({
+  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map((r) => ({
     id: r.id,
     name: r.name,
     resources: r.resources,
@@ -434,7 +437,7 @@ export default async function CharacterPage() {
   // — more importantly — so the menu is built from exactly the rooms the
   // server-side re-check will use. A locked door is not a scouting target.
   const corpses = await corpsesInReach(prisma, character, {
-    rooms: accessibleRooms(roomsHere, heldSlugsForRooms),
+    rooms: accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds),
   });
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.

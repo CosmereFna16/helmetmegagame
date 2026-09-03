@@ -468,7 +468,8 @@ never sits in a tier chain, so there is nothing to discount.
 **0 is a real price, not a missing one**, and it is the most common value in
 the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
 role grants — is 0, and every tag must carry the field explicitly. A tag with
-no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
+no `pointCost` at all is a bug; `intercom` was the one instance, and that tag
+has since been deleted outright along with the channel it opened.
 
 ### Rules that follow from the scale
 

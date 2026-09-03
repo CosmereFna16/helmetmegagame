@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · The Baron can wave somebody into his office, and the intercom is a button again
+
+✚ /add and /remove now work in a private room, not only in conversations — anyone already inside can let in somebody standing in the same place  
+✎ A guest stays until they leave; walking out of the location shuts the door behind them, and coming back needs a fresh invite  
+✎ A guest gets the whole room, not just the thread: the stash, the Transfer dialog, anything set up in there  
+✎ /remove refuses somebody holding the room's key, and says to take the key instead  
+✚ An Intercom button on the Council Room's table. It announces into every zone above ground except the Black Hills, and pings everyone there  
+− The #intercom channel and the Intercom tag. Standing at that table is now the whole gate  
+✎ Lines the world says — a gate crossing, the smell of death, whispering overheard, goods moved around a stash — are all small grey subtext now, so they stop competing with what players are writing
+
 ## 2026-09-03 · Mute and Stutter cannot be picked together, nor Dwarf and Giant
 
 Mute now conflicts with Stutter, the way Deaf conflicts with Hard of Hearing  

@@ -175,7 +175,7 @@ async function listSpeakTargets(guild, member) {
       });
     } else {
       // Anything tupper-and-speakable that is not tied to a place: #watch,
-      // #intercom, and whatever comes next.
+      // and whatever comes next.
       buckets.broadcast.push({
         value: channel.id,
         label: `#${channel.name}`.slice(0, 100),

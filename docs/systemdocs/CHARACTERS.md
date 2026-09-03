@@ -694,15 +694,15 @@ dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.
 
-## 6. Special channels (`#watch`, `#intercom`)
+## 6. Special channels (`#watch`)
 
 These are the **only** per-member overwrites left in the game: zone access
 rides a role now, but a special channel's grant is still keyed on
 `Character.discordUserId`, reconciled after every zone change, every tag
-change and on character creation. `#intercom`'s *view* is a static grant to the
-six zone roles instead. The rules themselves (who holds which radio tag, the
-Fortress gate) live in one place: **`CHANNELS.md` §7**. They were duplicated
-here and drifted; don't re-add them.
+change and on character creation. The rules themselves (who holds which radio
+tag) live in one place: **`CHANNELS.md` §7**. They were duplicated here and
+drifted; don't re-add them. `#intercom` is gone — the PA is a button on the
+Council Room now (`CHANNELS.md` §7a) and grants nothing to anybody.
 
 ## 7. Sync order
 

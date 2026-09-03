@@ -557,6 +557,16 @@ Move-declaration DM uses it to explain Routine/Gambit under the
 dropdowns. Use it sparingly: it's for explaining a control, not for
 footnoting prose.
 
+**A line the WORLD says into a channel is `-#` subtext, and it goes through
+`db/lib/ambientLine.js`.** A gate crossing into a zone's `#summary`, a smell in
+a Location, a whisper overheard in a Room, somebody moving goods around a
+stash, the intercom — all of it is scenery. It arrives unprompted, often
+mid-scene, and full-size bot text competing with player prose read as an
+interruption. Subtext sits under the conversation instead of in it. Two things
+are easy to get wrong by hand and the helper handles both: `-#` is **per line**,
+so a multi-line block needs the prefix on every line, and there is still only
+**one ‡ per message**, at the very end.
+
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix
 **automatically** to every DM a GM sends a player, so those callers pass raw

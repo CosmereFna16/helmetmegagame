@@ -21,7 +21,7 @@ system.
 |---|---|---|
 | A zone's `#summary` | yes | yes — adjudication results and staged public declarations post here |
 | A Location channel (surface or cave level) | yes | no |
-| `#watch`, `#intercom` | yes | no — neither is tied to a place, so there is no adjudication result to post there |
+| `#watch` | yes | no — it is tied to no place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -31,8 +31,9 @@ Keep them in sync if the rule changes.
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
 locationId, locationName, channelKind }`, so the proxy can stamp an archive
 row with where a message was said without a DB round trip per message.
-`channelKind` is one of `summary | location | watch | intercom` (a plain
-string field, not a Prisma enum — see `ARCHIVE.md`). A Room thread or a
+`channelKind` is one of `summary | location | watch` (a plain
+string field, not a Prisma enum — see `ARCHIVE.md`). `intercom` is a retired
+value nothing writes any more; old archive rows still carry it. A Room thread or a
 Conversation reports its parent Location
 channel's context and keeps its own name as the scene.
 
@@ -187,7 +188,6 @@ in `db/lib/turnsChannelAccess.js#syncTurnsChannelAccess`:
   character holds exactly one zone role from the moment `createCharacter` runs,
   and travel only swaps it — so "has a character" and "holds some zone role"
   are the same set, and the channel appears the instant a character exists.
-  Same trick `#intercom` uses (`roleViewZones`, §7).
 - the GM role, the spectator seat and the ghost seat, each via the helper that
   already exists for it.
 
@@ -334,7 +334,7 @@ auto-archive after 10080 minutes (a week) idle, and the sync re-asserts
 `archived: false` on every run — so a Room that idled into the archive comes
 back at the next `db:sync-zones`, not seven days of dead air.
 
-Each Room's first message is its body (name + description) plus one button,
+Each Room's first message is its body (name + description) plus a button,
 **Storage** (`db/lib/roomStarterRow.js`, `room:storage:{id}`), which prints
 what is lying in the room's stash — every Room holds unlimited ⬢ and tags,
 moved through the web's Transfer and surviving the Dawn wipe since they live
@@ -349,8 +349,8 @@ than the thread id.
 **Private-room membership is pull-based, not pushed from a tag writer.**
 `db/lib/roomAccess.js#syncCharacterRoomAccess(prisma, character)` recomputes,
 for every PRIVATE room, whether the character should be a thread member: any
-of `Room.accessTagSlugs` held **and** standing in that Room's Location adds
-them; anything else removes them. It's called from both travel side-effect
+of `Room.accessTagSlugs` held — **or** a `RoomGuest` row (§4a) — **and**
+standing in that Room's Location adds them; anything else removes them. It's called from both travel side-effect
 paths (§3) and from every existing call site that already calls
 `syncCharacterNarrowcastAccess` when tags, location or life status change —
 `/heal`, a character joining the guild, and the ~15 web request/GM-action
@@ -360,14 +360,57 @@ to catch and repair. Hold the Baron's Key and you're admitted to The Charon
 the moment you next arrive or the key changes hands — there is no separate
 "open the door" action.
 
+### 4a. Room guests: `/add` in a private Room
+
+A key is not the only way in. Somebody already inside a private Room can
+`/add` a character standing in the same Location, which writes a **`RoomGuest`**
+row and lets them in at once — the Baron waving a visitor into his office.
+
+- **Who may work the door:** anyone already in the room, or a GM. Membership
+  is pulled from standing there with a key or a guest row, so "in the room" is
+  already exactly the set the fiction wants; there is no separate owner.
+- **The target must be standing in the Location.** The grant is spent on
+  leaving (below), so inviting somebody across the map would hand them a row
+  that dies before they ever saw the door.
+- **The grant is spent when they leave.** `syncCharacterRoomAccess` deletes
+  every `RoomGuest` row whose Room is not where the character now stands, and
+  every mover already calls it with the destination — so walking out of the
+  Keep is what shuts the door behind you. A guest who comes back needs a fresh
+  `/add`. This is the one way room access differs from a key, which readmits
+  you forever.
+- **`/remove` refuses a key-holder**, and says so: *"Their key admits them.
+  Take the key."* Removing them would undo itself on their next arrival or tag
+  change, so the honest answer is that the key is the thing to take.
+- **A guest gets full reach**, not just the thread: the stash, the Transfer
+  dialog, the Storage button, workshop and surgical equipment standing in the
+  room, and corpse handling. That falls out of `accessibleRooms()` being the
+  one predicate behind all of them (below) — being in the room is being in the
+  room.
+- **The target is DM'd** where they were let in, plus a link. Discord's own
+  "added to a thread" notice is easy to miss and says nothing about where. The
+  Conversation `/add` sends the same DM, so the two feel alike.
+- Death and departure spend every grant
+  (`accessSweep.js#revokeAllCharacterAccess`).
+
+> **`accessibleRooms(rooms, heldSlugs, guestRoomIds)` is the one door.** It
+> answers for the Storage button, the Transfer dialog, `/character`'s room
+> list, **Secret rooms?**, the Converse picker, corpse placement, equipment
+> reach and the doctor's `room-membership` check. Any new reader loads both
+> halves with `roomAccessKeys(prisma, characterId)` — passing keys but not
+> guests is how a guest ends up standing in a room the Transfer dialog says
+> they cannot touch.
+
 ### Conversations
 
 A **Conversation** is the one thread a player can open: a private thread
 linked to a Room, created from the anchor's **Converse** button and tracked as
 a `PlayerThread` row (`locationId`, optional `roomId` — the room the
-whispering is heard in, §below). `/add` and `/remove` still work exactly as
-before, and a standing `PlayerThreadInvite` is replayed the moment its target
-next arrives at the Conversation's `locationId`
+whispering is heard in, §below). `/add` and `/remove` work here too, and the
+handler tells the two apart by the channel: a `PlayerThread` row means a
+Conversation, a `Room` row means §4a. A Conversation's `/add` is the looser of
+the two — it takes a character wherever they stand, and a standing
+`PlayerThreadInvite` is replayed the moment its target next arrives at the
+Conversation's `locationId`
 (`db/lib/threadInvites.js#applyPendingInvites`) — Discord refuses to add a
 member who can't see the parent channel, so the invite waits for them to be
 able to.
@@ -405,8 +448,8 @@ The Cursed role — a dead player, not yet buried or engraved — gets
 because the 🌬️ whisper (`COMMANDS.md` §6) is a ghost's only voice.
 
 **Ghosts now see every zone**, cave levels included — the Depths blackout and
-its `DEPTHS_SLUGS` exclusion list are gone. They read `#watch` and `#intercom`
-too (each special-channel entry declares `ghostsMaySee`). Private threads stay
+its `DEPTHS_SLUGS` exclusion list are gone. They read `#watch` too
+(each special-channel entry declares `ghostsMaySee`). Private threads stay
 invisible to them the way they are to any non-member; no overwrite is needed to
 keep that so.
 
@@ -451,8 +494,10 @@ Two scopes:
   leftover per-member overwrites on zone channels, **`room-thread`** (a Room's thread exists and is
   unarchived — recreating a missing one is the sync's job, so this is
   report-only), **`room-membership`** (a private Room's actual thread
-  membership vs who currently holds one of its `accessTagSlugs` and stands in
-  its Location, via `listThreadMembers`), `PlayerThread` rows whose threads
+  membership vs who currently holds one of its `accessTagSlugs` **or a
+  `RoomGuest` row** and stands in its Location, via `listThreadMembers`),
+  **`room-guest`** (rows whose character is dead or has wandered out of the
+  room's Location), `PlayerThread` rows whose threads
   404, dead `PlayerThreadInvite` rows, the special channels' member overwrites
   vs the registry rules, and `#turns`'s own overwrites vs
   `db/lib/turnsChannelAccess.js` (§3a).
@@ -468,10 +513,11 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#watch`, `#intercom`)
+## 7. Special channels (`#watch`)
 
 Standing channels outside the zone system, under one `radio` category (id on
-`GameConfig.radioCategoryId`). `db/lib/specialChannels.js` is a **registry**:
+`GameConfig.radioCategoryId`). There is one of them left.
+`db/lib/specialChannels.js` is a **registry**:
 one entry fully describes a channel — its `GameConfig` id columns, topic,
 tupper routing, wipe behaviour, ghost visibility, static role grants, an
 optional `slowmode`, and the per-character access rule. Adding a future
@@ -486,20 +532,66 @@ two access twins and the wipe.
 | Channel | Who sees it | Who speaks |
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
-| `#intercom` | **every above-ground zone role** — Town, Fortress, Forest, Black Hills, Marshes, a static `roleViewZones` grant; the rock swallows the PA below | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
 
-The Radio and Intercom tags are transferable, so possession is what matters —
-a bracelet handed to a non-Watch character still opens `#watch`.
+The Radio tags are transferable, so possession is what matters — a bracelet
+handed to a non-Watch character still opens `#watch`.
 
-`#intercom`'s role-based view is the fix for a real scaling problem: its old
-per-member view overwrite spanned a whole Zone and was drifting toward
-Discord's ~100-overwrite-per-channel ceiling. Five role entries replace ~100
-member entries. The speak half stays per-member, and its gate moved from
-"standing in the Keep" to "standing in the Fortress zone" because the Keep is
-prose now. Caves and Depths are deliberately off the list — the rock swallows
-the PA, so a character standing underground can't hear `#intercom` at all. The sync enforces both halves: it grants the listed zone roles view
-*and* deletes any zone-role grant the registry no longer lists, so dropping a
-zone from `roleViewZones` really silences the channel there on the next run.
+The sync still enforces `roleViewZones` in both directions: it grants the
+listed zone roles view *and* deletes any zone-role grant the registry no longer
+lists. Nothing currently uses the field — `#intercom` was its only client — but
+that deletion half is why dropping the channel really silenced it.
+
+### `#intercom` is gone; the PA is a button now
+
+There used to be a second entry. `#intercom` was a standing channel every
+above-ground zone role could see, and that a holder of the **Intercom** tag
+could type into while standing in the Fortress.
+
+It is now a button on the Council Room's starter post — which is what
+`docs/zones.yaml` always said was on that table — broadcasting into every
+zone's own `#summary` instead of into a channel of its own (§7a). That removed
+the channel, the registry entry, the `roleViewZones` grant, the per-member
+speak overwrite and the **Intercom tag**, which is deleted from
+`docs/tags.yaml` and off the Baron's starting list.
+`GameConfig.intercomChannelId` stays as an orphan column, the way
+`mindlinkChannelId` did.
+
+The reason is not tidiness. A PA you travel to is not a PA — the announcement
+landed somewhere nobody was standing, and hearing it meant being in a channel
+rather than in a room. Now it arrives where people already are.
+
+### 7a. The intercom
+
+`db/lib/intercom.js`. The **Intercom** button sits on the Council Room's
+starter row (`db/lib/roomStarterRow.js`, keyed on `INTERCOM_ROOM_SLUG =
+"council-room"`, hardcoded for the `roleIds.js` reason). It opens a modal, and
+the modal posts one line into each zone's `#summary`:
+
+```
+-# @here You hear a voice from the intercom: {text}. ‡
+```
+
+- **The gate is standing in the Council Room**, and nothing else. Getting into
+  the Keep and up to that table is the whole barrier. Re-checked at *submit*,
+  never at open — an ephemeral modal outlives somebody walking out of the Keep.
+- **The button must not be `ack()`'d.** `showModal` **is** the acknowledgement,
+  and a deferred interaction can no longer open one (`COMMANDS.md`), so the
+  button handler does no database work at all.
+- **The Black Hills do not hear it** (`OUT_OF_RANGE_ZONE_SLUGS`, the slug
+  `east-forests` — it never moved when the zone was renamed). The barony's writ
+  thins out across the river and no speaker was ever strung that far. The cave
+  levels need no exclusion: they have no `#summary`, so the rock swallows the
+  PA for free.
+- **Sequential fan-out, each zone individually caught.** Never `Promise.all`
+  this (`TURN-ENGINE.md`). A run that reached four zones of five says so to the
+  speaker rather than swallowing it.
+- **`allowed_mentions: { parse: ["everyone"] }`** — the one place this game
+  uses a channel-wide ping. It does two jobs: it lets the `@here` through, and
+  it makes every user and role ping a player types into the box inert, the same
+  posture `proxy.js` takes with character speech pointed the other way. The
+  modal caps the body at 1200 characters so the message never chunks, because
+  chunking would ping `@here` once per chunk.
+- Audited as `intercom_broadcast`.
 
 `#mindlink` used to be the Cult of Bacchus's own telepathy channel, and set
 the `slowmode` field — `entry.slowmode` is still optional on a registry
@@ -580,7 +672,7 @@ Per target, for every zone including cave levels, and per Location in it:
 | a Conversation | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
 | a thread newer than the cutoff | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next Dawn |
 | an untracked thread (no `PlayerThread` row, not a Room) | **adopted**: a `PlayerThread` row is written rather than the thread destroyed, so a GM's hand-made thread gets one full turn and a visible record instead of vanishing |
-| every registry entry with `wipe: "clear"` (`#watch`, `#intercom`) | every message deleted |
+| every registry entry with `wipe: "clear"` (`#watch`) | every message deleted |
 
 **Each Location is wiped inside its own `try`**, so one stale channel id costs
 one Location rather than every Location after it plus the special channels.

@@ -16,10 +16,11 @@
 // negative ones, and they matter: never pin this, and never write its id
 // anywhere the wipe treats as an anchor. Do neither and it clears itself.
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
+const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 
 const MIN_DELAY_MS = 2 * 60 * 60 * 1000;
 const MAX_DELAY_MS = 5 * 60 * 60 * 1000;
-const LINE = "It smells like death… ‡";
+const LINE = ambientLine("It smells like death…");
 
 function nextDelay() {
   return MIN_DELAY_MS + Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1));

@@ -16,7 +16,7 @@
 // yield, and importing anything prisma-shaped there drags the barrel into the
 // browser bundle and kills the route with a node:fs error.
 const { CORPSE_GROUP_SLUG, HUMAN_FLESH_SLUG } = require("./constants");
-const { accessibleRooms } = require("./roomAccess");
+const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // What each monster corpse cuts into. A corpse that isn't one of these three
 // is a person's, and yields Human Flesh — keyed on "not a listed monster"
@@ -85,15 +85,8 @@ async function corpsesInReach(prisma, character, { rooms = null } = {}) {
       where: { locationId: character.locationId },
       select: { id: true, name: true, kind: true, accessTagSlugs: true, discordThreadId: true },
     });
-    const slugs = new Set(
-      (
-        await prisma.characterTag.findMany({
-          where: { characterId: character.id },
-          select: { tag: { select: { slug: true } } },
-        })
-      ).map((ct) => ct.tag.slug),
-    );
-    reachable = accessibleRooms(all, slugs);
+    const { heldSlugs, guestRoomIds } = await roomAccessKeys(prisma, character.id);
+    reachable = accessibleRooms(all, heldSlugs, guestRoomIds);
   }
 
   const roomIds = reachable.map((r) => r.id);
