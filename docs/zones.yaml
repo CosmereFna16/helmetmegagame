@@ -111,13 +111,6 @@ zones:
     description: >-
       Ants in the marshy chaff. The town is surrounded by an old wall of ancient ceramite, so old it looks exhumed from the ground, patched by wooden palisade. Decayed electric lights illuminate the narrow streets. Speakers blare the Baron's words. It is claustrophobic — salt-of-the-earth, virtuous, and degenerate types all in one disease-ridden congregation.
     locations:
-      # Named "Gate" in play; the id is north-gate because the Gatehouse
-      # already owns the slug "gate" for its own room.
-      north-gate:
-        name: Gate
-        description: >-
-          The northern way in, and the one the road actually uses. Two towers, a chain, and a brazier that is kept lit because the Baron pays for the wood. Nobody is posted here at night, which everybody knows. ‡
-        rooms: {}
       # Old location id "town" collides with this zone's own id (all slugs
       # share one namespace) — hence "town-square".
       town-square:
@@ -143,6 +136,13 @@ zones:
         name: The Old Cock Inn
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
+        rooms: {}
+      # Named "Gate" in play; the id is north-gate because the Gatehouse
+      # already owns the slug "gate" for its own room.
+      north-gate:
+        name: Gate
+        description: >-
+          The northern way in, and the one the road actually uses. Two towers, a chain, and a brazier that is kept lit because the Baron pays for the wood. Nobody is posted here at night, which everybody knows. ‡
         rooms: {}
       church:
         name: Cathedral
