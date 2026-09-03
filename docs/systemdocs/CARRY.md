@@ -171,13 +171,12 @@ one. Deleting a Tag from the catalog cascades its stacks too.
 One dialog on `/character` (`TransferDialog.js`, mode `transfer` in
 `RequestActionsProvider.js`) replaces the old Transfer Tag and Transfer
 Resources buttons. From → To, any number of tag lines, a ⬢ amount, one reason.
-The parties are yourself, every living player, every Silo — unfiltered, as
-REQUESTS.md §3 explains — plus the Rooms at your Location you can get into,
-filtered, because a locked door is not a scouting target.
-
-Tags are offered only when the source is **you or a Room**. From another
-player or a Silo, ⬢ alone: browsing someone else's inventory is the abuse the
-send-only rule prevents, and a Silo holds ⬢, not things. The projection line
+From is **you or a Room** here; To is a person standing at your Location
+who isn't concealed (web/lib/peopleHere.js — the same roster every picker
+uses) or a Room here you can get into. Nothing is ever taken from another
+person through Transfer, ⬢ included: you can't reach into their pockets, and
+listing what's in them would show their hidden tags. Loot is how you take
+from a person, and only a helpless one (REQUESTS.md §5b). The projection line
 ("After this you carry 5 / 10 items and 6 / 25 ⬢") warns in accent when the
 result is over a cap and submits anyway — going over is allowed (§2).
 

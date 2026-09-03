@@ -61,6 +61,8 @@ export default async function DevTagsPage() {
           removable: t.removable,
           tradeable: t.tradeable,
           craftable: t.craftable,
+          healable: t.healable,
+          teachable: t.teachable,
           purchasable: t.purchasable,
           purchasableAfterStart: t.purchasableAfterStart,
           defaultDurationTurns: t.defaultDurationTurns,

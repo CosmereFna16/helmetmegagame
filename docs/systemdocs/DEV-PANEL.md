@@ -242,32 +242,27 @@ The Identity tab's Resources field only mints or burns ⬢ — it has no
 counterparty, because a staged edit is one character's diff. "The Watchmen
 paid Sera 8 ⬢" needs a party on both ends, which is what the **Transfer ⬢**
 button (`ActionBar.js`, `ResourcesIcon`) is for: two Selects, "From" and
-"To", each over the same party list — every ALIVE character plus every
-faction's Silo (Unaffiliated excluded) — with a small ⇄ button to swap them,
-plus an amount. Either end can be a character or a Silo, any pairing,
-character-to-character and Silo-to-Silo included; this panel just preselects
-"To" as this character, with "From" left on "— Select… —".
+"To", each over the roster of ALIVE characters — with a small ⇄ button to
+swap them, plus an amount. This panel just preselects "To" as this
+character, with "From" left on "— Select… —".
 
 It is **immediate, not staged**, unlike every other Dev Panel edit. The
-counterparty is a faction, not this panel's own subject, so having half of it
+counterparty usually isn't this panel's own subject, so having half of it
 wait on *this* character's Apply/Cancel would be incoherent — the same
 reasoning that keeps Kill, Revive, Restore turn and Spend turn off the staged
 diff. It goes through `web/lib/gmTransfer.js`, the same primitive the
-adjudication desk's staged transfers and `/gm/players`' FactionsPanel use
+adjudication desk's staged transfers use
 (`db/lib/resourceTransfer.js#applyTransfer`), open to any GM — not just a
-superadmin — and writes an `AuditLog` row plus a `SiloTransaction` row rather
-than a `Request`, so there is no one-click Undo; the reverse transfer is the
-reversal. See `FACTIONS.md` §5.
+superadmin — and writes an `AuditLog` row rather than a `Request`, so there
+is no one-click Undo; the reverse transfer is the reversal.
 
-This door now covers any pairing, not just this character against a Silo —
 `gmTransferResources({ fromKey, toKey, amount, reason })` is the same generic
-primitive `/gm/players`' FactionsPanel and the adjudication desk's
-`TransferComposer` stage a transfer through, so the Dev Panel's server action
-(`transferResourcesImpl`) just passes `fromKey`/`toKey` straight through
-rather than reconstructing them from a `characterId` + `factionId` +
-direction. It still preselects this character on one end for convenience,
-still writes an `AuditLog` row instead of a `Request`, and is still
-**immediate, not staged** — same reasoning as above.
+primitive the adjudication desk's `TransferComposer` stages a transfer
+through, so the Dev Panel's server action (`transferResourcesImpl`) just
+passes `fromKey`/`toKey` straight through. It still preselects this
+character on one end for convenience, still writes an `AuditLog` row instead
+of a `Request`, and is still **immediate, not staged** — same reasoning as
+above.
 
 ## 8. Custom tags
 
@@ -309,7 +304,7 @@ again.
 It opens on **Basics** — Name, Category, Group, Description, Seen by others on
 🔍 — with everything else folded into a collapsed `Advanced` disclosure in four
 blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
-`consumable`, `removable`, `tradeable`), **Lifespan** (`defaultDurationTurns`,
+`consumable`, `removable`, `tradeable`, `healable`, `teachable`), **Lifespan** (`defaultDurationTurns`,
 `expiresInto`, `removesInto`), **Economy** (`pointCost`, `purchasable`,
 `purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
 (`requirementTurns`, `requirementResources`, `requirementGambit`,

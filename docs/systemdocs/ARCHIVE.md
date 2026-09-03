@@ -29,8 +29,8 @@ character per turn before anyone speaks.
 
 Five things about it are load-bearing:
 
-- **The id columns are not foreign keys.** Same posture as `SiloTransaction`
-  and `AuditLog`'s snapshots. `syncZonesFromYaml` destructively deletes any
+- **The id columns are not foreign keys.** Same posture as
+  `AuditLog`'s snapshots. `syncZonesFromYaml` destructively deletes any
   Zone dropped from the YAML and `wipeGameData` clears Characters — a real
   relation would either take the transcript with it or fail on FK ordering
   (which Restart Game has been bitten by once already). Plain indexed ids plus

@@ -40,6 +40,18 @@ each arrived at by getting them wrong first.
    anyone who didn't act. **First**, because a default can *earn* resources and
    the Hunger pass below spends them; the other order makes a player whose
    default buys them a meal go hungry anyway.
+2b. **Lessons pass** (`db/lib/lessonPass.js`, `"lessons"` in `TURN_PASSES`) —
+   the game's first code-adjudicated Gambit. For every ACCEPTED lesson `Offer`
+   on the closing turn it rolls the modified die (threshold 5 for a normal
+   lesson, 4 for a fighting skill under a Drill Instructor teacher), grants
+   the skill on success with `TagSource.LESSON`, and DMs both sides the die
+   and the result in one line — so step 3 below skips its own 🎲 result DM
+   for a Gambit whose `gmNotes` reads `auto:lesson`, since this pass already
+   sent one. Every still-PENDING lesson offer on the turn expires here too,
+   with a DM to the initiator. Its slot is load-bearing: **after** the
+   Default Move pass, so a lesson Gambit filed via default doesn't miss its
+   roll, and **before** the staged push, so the push's silent-close and
+   payout logic sees the lesson's Action already resolved. See `LESSONS.md`.
 3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
    the GMs queued this turn, then every confirmed Move's own declared numbers
    (nothing pays at confirm any more — a Routine, a Labor payout and a

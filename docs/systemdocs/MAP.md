@@ -145,8 +145,7 @@ player either sees the wrong place or none.
 
 ## 5. Tax runs and the Lifeweb
 
-Travel cost is also what a **tax run** costs. Moving ⬢ into or out of a
-faction's Silo requires standing in its zone, and handing ⬢ or an item to a
+Travel cost is also what a **tax run** costs. Handing ⬢ or an item to a
 person requires the same zone — so a payment across zones is still a journey
 somebody physically makes, checked against `Character.zoneId` exactly as
 before. See `FACTIONS.md` §3b.

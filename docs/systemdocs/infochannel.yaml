@@ -153,11 +153,11 @@ categories:
           You can append `-#` before your OOC text to make it tiny and hidden, or even spoiler it with `||text||`.
       - title: Resources
         body: |-
-          The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods. Resources can be stored either in your character or in your faction’s Silo.
+          The game’s central currency are Resources (⬢), abstracting food, money, and other bulk goods.
 
           Players are responsible for producing, taxing, distributing, and trading Resources.
 
-          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6.
+          Characters automatically consume 1 ⬢ a day. If you have 0 ⬢ at the start of a turn, you’ll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6. ‡
 
           **Laboring**
           Resources can be produced by anyone as a Routine Move. Laboring can be roleplayed in any way — hunting, fishing, foraging, herding. The yield is pitiful without supporting tags.

@@ -8,6 +8,7 @@
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
+const { cancelOffersForCharacter } = require("./lessons");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -34,6 +35,16 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   await prisma.characterTag
     .updateMany({ where: { characterId: character.id, equipped: true }, data: { equipped: false } })
     .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
+
+  // A pending handshake either way is void, and a half-made thing stays
+  // half-made (docs/systemdocs/LESSONS.md, CRAFTING.md). An ACCEPTED lesson
+  // still resolves — it happened when it was accepted.
+  await cancelOffersForCharacter(prisma, character.id).catch((err) =>
+    console.error(`Failed to void offers on death for ${character.id}:`, err),
+  );
+  await prisma.craftProject
+    .updateMany({ where: { characterId: character.id, status: "ACTIVE" }, data: { status: "CANCELLED" } })
+    .catch((err) => console.error(`Failed to cancel craft projects on death for ${character.id}:`, err));
 
   // recordArchiveEvent already swallows its own failures (a lost transcript
   // line must never abort a death), so no catch here.

@@ -1,6 +1,6 @@
 import { bumpBlood } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
-import { moveParty, writeSiloRows, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { UserError } from "@/lib/actionResult";
 
 // Per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -17,39 +17,22 @@ export async function moveResources(tx, party, delta) {
     await moveParty(tx, party, delta);
   } catch (err) {
     if (!(err instanceof InsufficientResourcesError)) throw err;
-    if (party?.kind === "character") throw new UserError(`${party.name ?? "That character"} no longer has ${err.amount} ⬢.`);
     if (party?.kind === "room") throw new UserError(`${party.name ?? "That room"} no longer holds ${err.amount} ⬢. ‡`);
-    throw new UserError(`The ${party?.name ?? "faction"} Silo no longer has ${err.amount} ⬢.`);
+    throw new UserError(`${party?.name ?? "That character"} no longer has ${err.amount} ⬢.`);
   }
 }
 
-function ledgerFrom(ctx) {
-  return {
-    actorDiscordUserId: ctx.actorDiscordUserId,
-    actorCharacterId: ctx.actorCharacterId ?? null,
-    actorName: ctx.actorName,
-    note: ctx.note ?? null,
-    turnNumber: ctx.turnNumber ?? null,
-    turnPhase: ctx.turnPhase ?? null,
-    hidden: ctx.hidden ?? false,
-    cover: ctx.cover ?? null,
-  };
-}
-
-export async function creditResources(tx, party, amount, ctx) {
+// `ctx` used to feed the Silo ledger; it is accepted and ignored so the
+// call sites read the same. A party of a kind moveParty doesn't know (an old
+// row naming a faction Silo) is a silent no-op.
+export async function creditResources(tx, party, amount) {
   if (!party || !amount) return;
   await moveResources(tx, party, amount);
-  if (party.kind === "faction") {
-    await writeSiloRows(tx, { factionId: party.id, amount, ledger: ledgerFrom(ctx) });
-  }
 }
 
-export async function debitResources(tx, party, amount, ctx) {
+export async function debitResources(tx, party, amount) {
   if (!party || !amount) return;
   await moveResources(tx, party, -amount);
-  if (party.kind === "faction") {
-    await writeSiloRows(tx, { factionId: party.id, amount: -amount, ledger: ledgerFrom(ctx) });
-  }
 }
 
 async function moveBlood(tx, delta) {
@@ -179,7 +162,7 @@ export const REQUEST_EFFECTS = {
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
       if (delta !== 0) {
-        await moveResources(tx, { kind: "character", id: request.characterId }, -delta);
+        await moveResources(tx, effect.payer ?? { kind: "character", id: request.characterId }, -delta);
         notes.push(`Resource cost ${effect.resourcesSpent ?? 0} -> ${nextSpend}.`);
         effect.resourcesSpent = nextSpend;
       }
@@ -203,8 +186,8 @@ export const REQUEST_EFFECTS = {
 
       return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
-    async undo(tx, request, ctx) {
-      const { tagId, tagName, resourcesSpent, quantity, replaced = [] } = request.effect;
+    async undo(tx, request) {
+      const { tagId, tagName, resourcesSpent, quantity, replaced = [], payer = null, projectId = null } = request.effect;
       if (tagId && !request.effect.tagRemovedByGm) {
         await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
       }
@@ -213,17 +196,20 @@ export const REQUEST_EFFECTS = {
           await restoreCharacterTag(tx, request.characterId, snapshot);
         }
       }
+      // A Craft row names who paid (docs/systemdocs/CRAFTING.md); an older
+      // Add Tag row charged the character themselves.
       if (resourcesSpent) {
-        await tx.character.update({
-          where: { id: request.characterId },
-          data: { resources: { increment: resourcesSpent } },
-        });
+        await moveResources(tx, payer ?? { kind: "character", id: request.characterId }, resourcesSpent);
+      }
+      if (projectId) {
+        await tx.craftProject.updateMany({ where: { id: projectId }, data: { status: "CANCELLED" } });
       }
       const restoredNote =
         !request.effect.replacedRestored && replaced.length
           ? `, restored ${replaced.map((r) => r.tagName ?? "a replaced tier").join(", ")},`
           : "";
-      return `Removed ${formatStack(tagName, quantity)}${restoredNote} and refunded ${resourcesSpent ?? 0} ⬢.`;
+      const refundNote = resourcesSpent ? ` and refunded ${resourcesSpent} ⬢ to ${payer?.name ?? "them"}` : "";
+      return `Removed ${formatStack(tagName, quantity)}${restoredNote}${refundNote}.`;
     },
   },
 
@@ -256,7 +242,9 @@ export const REQUEST_EFFECTS = {
   },
 
   REMOVE_TAG: {
-    editableFields: ["resourcesSpent"],
+    // Destroy charges nothing; the edit path stays for rows filed when Remove
+    // Tag still took a ⬢ spend.
+    editableFields: [],
     async applyEdit(tx, request, edits) {
       const effect = { ...request.effect };
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);

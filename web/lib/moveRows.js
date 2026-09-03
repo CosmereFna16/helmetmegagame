@@ -163,7 +163,8 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     moveId: e.moveId,
     cavingRollId: e.cavingRollId,
     batchId: e.batchId,
-    // Nullable: a Silo -> Silo transfer has no character end.
+    // Nullable: an old, pre-Silo-removal faction-to-faction transfer has no
+    // character end.
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacterId ? (e.targetCharacter?.name ?? "(deleted)") : null,
     targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,

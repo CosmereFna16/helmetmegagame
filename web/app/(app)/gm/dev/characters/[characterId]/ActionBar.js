@@ -38,7 +38,6 @@ import {
   deleteCharacter,
   transferResources,
 } from "./actions";
-import QuietSiloFields, { EMPTY_QUIET } from "@/app/components/QuietSiloFields";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The microaction row. Verbs, not values.
@@ -61,7 +60,6 @@ export default function ActionBar({
   hasActed,
   openTurn,
   locations,
-  factions,
   transferRoster,
   tags,
   held,
@@ -87,7 +85,6 @@ export default function ActionBar({
   const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
-  const [transferQuiet, setTransferQuiet] = useState(EMPTY_QUIET);
   const [transferFromKey, setTransferFromKey] = useState("");
   const [transferToKey, setTransferToKey] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
@@ -96,18 +93,13 @@ export default function ActionBar({
   const heldIds = new Set(held.map((h) => h.tagId));
 
   // The Transfer dialog's party picker: this character plus every other
-  // ALIVE character, and every faction's Silo (Unaffiliated excluded — it
-  // isn't a real counterparty, same as resolveParty's own filter). Any
-  // party can be either end now — this panel just preselects the "To" side
-  // as this character.
+  // ALIVE character. This panel just preselects the "To" side as this
+  // character.
   const transferParties = useMemo(
     () => ({
       characters: (transferRoster ?? []).map((c) => ({ key: `character:${c.id}`, label: c.name })),
-      silos: (factions ?? [])
-        .filter((f) => f.name !== "Unaffiliated")
-        .map((f) => ({ key: `faction:${f.id}`, label: `${f.name} Silo · ${f.silo} ⬢` })),
     }),
-    [transferRoster, factions],
+    [transferRoster],
   );
 
   function transferPartyOptions() {
@@ -116,13 +108,6 @@ export default function ActionBar({
         <option value="">— Select… —</option>
         <optgroup label="Characters">
           {transferParties.characters.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.label}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Silos">
-          {transferParties.silos.map((p) => (
             <option key={p.key} value={p.key}>
               {p.label}
             </option>
@@ -282,7 +267,7 @@ export default function ActionBar({
           <IconButton
             icon={ResourcesIcon}
             label="Transfer ⬢"
-            disabled={pending || (!transferRoster?.length && !factions?.length)}
+            disabled={pending || !transferRoster?.length}
             onClick={openTransferDialog}
           />
         </div>
@@ -476,9 +461,9 @@ export default function ActionBar({
 
       {/* Immediate, not staged — the counterparty usually isn't this
           character's own pending diff, so half of it Cancel-ing with the
-          sheet edit would be incoherent. See web/lib/gmTransfer.js. Any
-          party can sit on either end (character or Silo); this panel just
-          preselects "To" as this character. */}
+          sheet edit would be incoherent. See web/lib/gmTransfer.js. Either
+          end is a character; this panel just preselects "To" as this
+          character. */}
       <RequestDialog
         modeless
         open={dialog === "transfer"}
@@ -500,7 +485,6 @@ export default function ActionBar({
               toKey: transferToKey,
               amount: transferAmount,
               reason,
-              ...transferQuiet,
             }),
           )
         }
@@ -535,9 +519,6 @@ export default function ActionBar({
             placeholder="0"
           />
         </label>
-        {(transferFromKey.startsWith("faction:") || transferToKey.startsWith("faction:")) && (
-          <QuietSiloFields value={transferQuiet} onChange={setTransferQuiet} disabled={pending} />
-        )}
       </RequestDialog>
 
       {dialog === "wound" && (

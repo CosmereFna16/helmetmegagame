@@ -16,6 +16,18 @@ const DISAPPOINTED_SLUG = "disappointed";
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
 
+// The Teaching tree (docs/systemdocs/LESSONS.md). Holding Teaching lets you
+// run a lesson; Lecturing widens one Routine to LECTURE_CAPACITY learners;
+// a Drill Instructor's students succeed on a 4 when the skill's group is
+// FIGHTING_GROUP_SLUG. Thresholds are the die's face after the modifier.
+const TEACHING_SLUG = "teaching";
+const LECTURING_SLUG = "teaching-lecturing";
+const DRILL_INSTRUCTOR_SLUG = "teaching-drill-instructor";
+const FIGHTING_GROUP_SLUG = "skills-fighting";
+const LECTURE_CAPACITY = 3;
+const LESSON_THRESHOLD = 5;
+const DRILL_THRESHOLD = 4;
+
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
 // Empathetic (`empathetic`), which is deliberately NOT here; nor is
@@ -57,6 +69,13 @@ module.exports = {
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
   OVERBURDENED_SLUG,
+  TEACHING_SLUG,
+  LECTURING_SLUG,
+  DRILL_INSTRUCTOR_SLUG,
+  FIGHTING_GROUP_SLUG,
+  LECTURE_CAPACITY,
+  LESSON_THRESHOLD,
+  DRILL_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
 };

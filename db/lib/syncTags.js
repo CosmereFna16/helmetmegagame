@@ -317,6 +317,8 @@ async function syncTagsFromYaml(prisma) {
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,
+      healable: entry.healable ?? false,
+      teachable: entry.teachable ?? false,
       consumable: entry.consumable ?? false,
       consumesIntoResources: entry.consumesIntoResources ?? null,
       expiresInto: normalizeExpiresInto(entry.expiresInto),

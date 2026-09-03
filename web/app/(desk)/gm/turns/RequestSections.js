@@ -100,13 +100,23 @@ export const SECTIONS = {
     ),
   },
 
+  // Craft (docs/systemdocs/CRAFTING.md). `payer` and `projectId` are on
+  // every row filed since; an older Add Tag row has neither.
   ADD_TAG: {
-    heading: "Add Tag",
+    heading: "Craft ‡",
     render: ({ effect, edits, setEdit, tagsById }) => (
       <>
-        <Line label="Tag added">
+        <Line label="Made ‡">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
+        {effect.payer && effect.payer.id !== effect.characterId && (
+          <Line label="Paid by ‡">{effect.payer.name}</Line>
+        )}
+        {effect.turnsNeeded > 1 && (
+          <Line label="Work ‡">
+            {effect.turnsNeeded} turns of Moves ‡
+          </Line>
+        )}
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <CheckField
           checked={Boolean(edits.removeTag)}
@@ -139,15 +149,14 @@ export const SECTIONS = {
   },
 
   REMOVE_TAG: {
-    heading: "Remove Tag",
-    render: ({ effect, edits, setEdit, tagsById }) => (
+    heading: "Destroy ‡",
+    render: ({ effect, tagsById }) => (
       <>
-        <Line label="Tag removed">
+        <Line label="Destroyed ‡">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
-        <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <p className="text-xs text-muted">
-          Undo puts the tag back with its original source and expiry, and refunds the cost.
+          Undo puts the tag back with its original source and expiry. ‡
         </p>
       </>
     ),

@@ -6,6 +6,7 @@ import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
+import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import {
   MAX_BIRD_BODY,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
+import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { isTradeable, addRequirementSatisfied } from "@/lib/tagRequests";
 import {
@@ -57,7 +59,10 @@ import {
   missingSkillsFor,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
-import { canReachParty, canReachSilo, outOfReachMessage } from "@/lib/transferReach";
+import { canReachParty, outOfReachMessage } from "@/lib/transferReach";
+import { isHere, notHereMessage } from "@/lib/peopleHere";
+import { applyBind, createBindOffer, needsNoConsent, isBound as isBoundTarget, requireBoundTag, BIND_SELECT } from "@lifeweb/db/lib/bind";
+import { createLessonOffer } from "@lifeweb/db/lib/lessons";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
@@ -118,121 +123,13 @@ function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
   return n;
 }
 
-// --- Resources --------------------------------------------------------
+// --- Parties ------------------------------------------------------------
 
-// "character:<id>" / "faction:<id>" on both ends. The SOURCE may be any
-// faction silo or any living player — see web/lib/transferReach.js for what
-// it may NOT be. Lives in db/lib/parties.js beside applyTransfer, so every
-// transfer surface resolves the same key; re-exported here (prisma bound).
+// "character:<id>" / "room:<id>" on both ends. Lives in db/lib/parties.js
+// beside applyTransfer, so every transfer surface resolves the same key;
+// re-exported here (prisma bound).
 function resolveParty(key, opts) {
   return dbResolveParty(prisma, key, opts);
-}
-
-async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount, direction: rawDirection, reason: rawReason }) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-  const direction = rawDirection === "LOOT" ? "LOOT" : "SEND";
-  const isLoot = direction === "LOOT";
-
-  const amount = parseCount(rawAmount, { min: 1 });
-  if (amount == null) throw new UserError("Amount must be a positive whole number.");
-
-  // Looting a corpse: source must be DEAD and in the same zone. Every other
-  // constraint (reach, balance-covers-amount, no-self-transfer) still applies.
-  const [from, to] = await Promise.all([
-    resolveParty(fromKey, { allowDead: isLoot }),
-    resolveParty(toKey),
-  ]);
-  if (!from) throw new UserError("Unknown source.");
-  if (!to) throw new UserError("Unknown recipient.");
-  if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
-
-  if (isLoot) {
-    if (from.kind !== "character" || from.status !== "DEAD") {
-      throw new UserError("You can only loot ⬢ from a corpse.");
-    }
-    if (from.buriedAt) throw new UserError("They're already in the ground.");
-    if (!character.zoneId || from.zoneId !== character.zoneId) {
-      throw new UserError("They aren't here.");
-    }
-    if (to.kind !== "character" || to.id !== character.id) {
-      throw new UserError("You can only loot ⬢ into your own pocket.");
-    }
-  }
-
-  // Both ends have to be somewhere you can stand — checked on submit, not by
-  // filtering the dropdowns, since a range-filtered menu would itself be a
-  // scouting tool. Loot has its own reach check above, so skip this for it.
-  if (!isLoot) {
-    for (const party of [from, to]) {
-      if (!(await canReachParty(character, party))) {
-        throw new UserError(outOfReachMessage(party, party.zoneName));
-      }
-    }
-  }
-
-  if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);
-
-  const openTurn = await getOpenTurn();
-  const ledger = {
-    actorDiscordUserId: session.discordUserId,
-    actorCharacterId: character.id,
-    actorName: character.name,
-    turnNumber: openTurn?.number ?? null,
-    turnPhase: openTurn?.phase ?? null,
-    note: reason,
-  };
-
-  // Ordered by (kind, id) rather than sender/recipient: two simultaneous
-  // opposite-direction transfers must take row locks in the same order or
-  // Postgres deadlocks one of them. applyTransfer does the ordering.
-  await prisma.$transaction(async (tx) => {
-    // applyTransfer throws InsufficientResourcesError (a bare Error) rather
-    // than UserError when a concurrent transfer already drained the balance;
-    // translated here since guarded() only understands UserError.
-    try {
-      await applyTransfer(tx, { from, to, amount, ledger });
-    } catch (err) {
-      if (!(err instanceof InsufficientResourcesError)) throw err;
-      throw new UserError(err.message);
-    }
-
-    const effect = {
-      amount,
-      from: { kind: from.kind, id: from.id, name: from.name },
-      to: { kind: to.kind, id: to.id, name: to.name },
-      direction,
-    };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "TRANSFER_RESOURCES",
-      reason,
-      payload: { fromKey, toKey, amount, direction },
-      effect,
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: isLoot ? "request_loot_resources" : "request_transfer_resources",
-      targetCharacterId: isLoot ? from.id : to.kind === "character" ? to.id : character.id,
-      reason,
-      details: effect,
-    });
-  });
-
-  // Carry caps (CARRY.md): ⬢ moved onto a character can push them over.
-  await afterInventoryChange([from, to].filter((p) => p.kind === "character"));
-
-  // Only a character on the receiving end learns anything — a Silo has no
-  // one to DM, and loot's "recipient" is the initiator, who already knows.
-  if (isLoot) {
-    if (from.kind === "character") notifyCharacter(from, `You were looted for ${amount} ⬢.`);
-  } else if (to.kind === "character") {
-    notifyCharacter(to, `You were given ${amount} ⬢.`);
-  }
-
-  revalidateAll();
-  return {};
 }
 
 // --- Tags -------------------------------------------------------------
@@ -258,35 +155,43 @@ async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
   }, 0);
 }
 
-async function addTagRequestImpl({
-  tagId,
-  quantity: rawQuantity,
-  resourcesSpent: rawSpend,
-  reason: rawReason,
-}) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
+// --- Craft (docs/systemdocs/CRAFTING.md) ------------------------------
 
-  const resourcesSpent = parseCount(rawSpend, { min: 0 }) ?? 0;
-  if (resourcesSpent > character.resources) throw new UserError("You don't have that many ⬢.");
-
+// The recipe, with everything the gates read.
+async function loadRecipe(tagId) {
   const tag = await prisma.tag.findUnique({
-    where: { id: tagId },
+    where: { id: tagId ?? "" },
     include: {
       group: { select: { requiredTagId: true } },
-      requirementSkills: { select: { slug: true } },
+      requirementSkills: { select: { id: true, slug: true, name: true } },
     },
   });
   if (!tag) throw new UserError("Unknown tag.");
   // Re-checked here because the client's filtered list is only advisory.
-  // See REQUESTS.md §3.
-  if (!tag.craftable) {
-    throw new UserError("That tag can't be added this way.");
-  }
+  if (!tag.craftable) throw new UserError("That isn't something you can make. ‡");
+  return tag;
+}
 
+// Every recipe skill, or a higher tier of it, held by the crafter.
+async function requireRecipeSkills(character, tag) {
+  if (!tag.requirementSkills.length) return;
+  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } });
+  const satisfied = satisfiedSkillIds(
+    character.tags.map((ct) => ct.tagId),
+    buildSkillAncestry(catalog),
+  );
+  const missing = tag.requirementSkills.filter((skill) => !satisfied.has(skill.id));
+  if (missing.length) {
+    throw new UserError(`Making that needs ${missing.map((t) => t.name).join("/")}. ‡`);
+  }
+}
+
+// Prerequisite chain, exclusivity, tier replacement, duplicates — the same
+// checks a purchase runs (web/lib/characterCreation.js). Returns the held
+// lower tiers a grant would replace, snapshotted for Undo.
+async function craftGrantChecks(character, tag) {
   // The whole catalog comes down so a chain walk never dead-ends on an
-  // ancestor the character doesn't hold. exclusiveConflict()/conflictingTag()
-  // read the extra fields off the held row for the checks below.
+  // ancestor the character doesn't hold.
   const chainRows = await prisma.tag.findMany({
     select: {
       id: true,
@@ -306,51 +211,24 @@ async function addTagRequestImpl({
   if (!addRequirementSatisfied(tag, chainById, heldIds)) {
     throw new UserError("You're missing a prerequisite for that tag.");
   }
-
   const conflict = exclusiveConflict(tag, heldIds, chainById);
   if (conflict) {
     throw new UserError(
       conflict.removable
-        ? `You already hold ${conflict.name}; drop it first to take ${tag.name}.`
+        ? `You already hold ${conflict.name}; destroy it first to make ${tag.name}. ‡`
         : `${tag.name} can't be held with ${conflict.name}.`,
     );
   }
-
   const namedConflict = conflictingTag(chainById.get(tag.id) ?? tag, heldIds, chainById);
-  if (namedConflict) {
-    throw new UserError(`${tag.name} conflicts with ${namedConflict.name}.`);
-  }
-
+  if (namedConflict) throw new UserError(`${tag.name} conflicts with ${namedConflict.name}.`);
   // A chain replaces upward and never re-opens downward.
   if (heldHigherTiers(tag, chainById, heldIds).length > 0) {
     throw new UserError(`You already hold a higher tier of ${tag.name}'s chain.`);
   }
-
-  const quantity = tag.stackable ? parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1 : 1;
   if (!tag.stackable && character.tags.some((ct) => ct.tagId === tag.id)) {
     throw new UserError("You already have that tag.");
   }
-
-  const openTurn = await getOpenTurn();
-
-  // At most DEAD_SIMPLE_PER_TURN Dead Simple UNITS per character per turn,
-  // since these recipes cost no turns and nothing else rations them. See
-  // docs/systemdocs/SMITHING.md §2. Checked twice: here for a fast fail, and
-  // again inside the transaction under a row lock, since two simultaneous
-  // Dead Simple requests would otherwise both read the same count and pass.
-  const deadSimple = Boolean(openTurn && isDeadSimple(tag));
-  if (deadSimple) {
-    const already = await deadSimpleUnitsThisTurn(prisma, character.id, openTurn.id);
-    if (already + quantity > DEAD_SIMPLE_PER_TURN) {
-      throw new UserError(
-        `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
-      );
-    }
-  }
-
-  // A chain replaces: the held lower tier comes off in the same transaction
-  // (TAGS.md §3), snapshotted so Undo restores exactly what came off.
-  const replaced = character.tags
+  return character.tags
     .filter((ct) => chainSiblingsToRemove(tag, chainById, heldIds).includes(ct.tagId))
     .map((ct) => ({
       tagId: ct.tagId,
@@ -359,76 +237,337 @@ async function addTagRequestImpl({
       expiresTurn: ct.expiresTurn,
       quantity: ct.quantity,
     }));
+}
 
-  await prisma.$transaction(async (tx) => {
+// Who pays: you, a room here, or a person here. Defaults to you.
+async function resolveCraftPayer(character, payerKey, cost) {
+  const key = payerKey || `character:${character.id}`;
+  const payer = await resolveParty(key);
+  if (!payer) throw new UserError("Unknown payer. ‡");
+  if (!(await canReachParty(character, payer))) throw new UserError(outOfReachMessage(payer));
+  if (cost > payer.balance) throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+  return payer;
+}
+
+// A craft with turns spends your Move (ADJUDICATION.md §2): one Action per
+// character per turn, filed by the same rules the modal uses.
+async function requireFreeMove(character, openTurn) {
+  if (!openTurn) throw new UserError("No turn is open. ‡");
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { autoTurnAdvanceDisabled: true } });
+  const { locked } = moveWindow(openTurn, { autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false });
+  if (locked) throw new UserError("Moves are locked for this turn. ‡");
+  const acted = await prisma.action.findFirst({
+    where: { characterId: character.id, turnId: openTurn.id },
+    select: { id: true },
+  });
+  if (acted) throw new UserError("You've already used your Move this turn. ‡");
+}
+
+// A Move the player never wrote: filed for them, already PASSED, so a GM sees
+// what happened without having to adjudicate it. Three callers now — Craft,
+// Bury and Engrave — which is why `gmNotes` is a parameter rather than the
+// hardcoded "auto:craft" this had while crafting was the only one.
+//
+// requireFreeMove() has usually run first, but the P2002 catch is what
+// actually holds: @@unique([characterId, turnId]) is the real gate, and two
+// tabs submitting at once get past a check that read the table a moment ago.
+async function fileAutoRoutine(tx, character, openTurn, description, gmNotes) {
+  try {
+    return await tx.action.create({
+      data: {
+        characterId: character.id,
+        turnId: openTurn.id,
+        type: "MOVE",
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        moveKind: "ROUTINE",
+        moveReviewStatus: "PASSED",
+        description,
+        appliedEffects: {},
+        zoneId: character.zoneId ?? null,
+        gmNotes,
+      },
+    });
+  } catch (err) {
+    if (err?.code === "P2002") throw new UserError("You've already used your Move this turn. ‡");
+    throw err;
+  }
+}
+
+function craftLabel(tag, quantity) {
+  return quantity > 1 ? `${quantity}× ${tag.name}` : tag.name;
+}
+
+// The finished thing lands on the sheet: the replaced tiers come off, the
+// tag goes on with its clock, and the ADD_TAG request records all of it.
+async function grantCrafted(tx, { session, character, tag, quantity, openTurn, replaced, payer, cost, project = null, action = null, reason }) {
+  for (const snapshot of replaced) await dropCharacterTag(tx, character.id, snapshot.tagId);
+  await addToStack(tx, character.id, tag.id, quantity, {
+    source: "CRAFT",
+    // Must arrive already stamped or it never expires — resolveNeeds()'s
+    // sweep matches on expiresTurn and nothing backfills it.
+    expiresTurn: await expiryForGrant(tx, tag, openTurn, { characterId: character.id, where: "craftRequest" }),
+    stackable: tag.stackable,
+  });
+  const payerParty = { kind: payer.kind, id: payer.id, name: payer.name };
+  const request = await createRequest(tx, {
+    characterId: character.id,
+    turnId: openTurn?.id ?? null,
+    type: "ADD_TAG",
+    reason,
+    payload: { tagId: tag.id, quantity, resourcesSpent: cost, payerKey: `${payer.kind}:${payer.id}` },
+    effect: {
+      tagId: tag.id,
+      tagName: tag.name,
+      quantity,
+      resourcesSpent: cost,
+      payer: payerParty,
+      ...(project ? { projectId: project.id, turnsNeeded: project.turnsNeeded } : {}),
+      ...(action ? { actionId: action.id } : {}),
+      ...(replaced.length ? { replaced } : {}),
+    },
+  });
+  await logRequest(tx, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: "request_craft_tag",
+    targetCharacterId: character.id,
+    reason,
+    details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent: cost, payer: payerParty, projectId: project?.id ?? null },
+  });
+  return request;
+}
+
+function payerNotice(character, payer, cost, tag) {
+  if (payer.kind !== "character" || payer.id === character.id || !cost) return;
+  notifyCharacter(payer, `${character.name} paid ${cost} ⬢ from your purse toward ${tag.name}. ‡`);
+}
+
+async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const tag = await loadRecipe(tagId);
+  await requireRecipeSkills(character, tag);
+  const replaced = await craftGrantChecks(character, tag);
+
+  const quantity = tag.stackable ? parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1 : 1;
+  const turns = tag.requirementTurns ?? 1;
+  const cost = (tag.requirementResources ?? 0) * quantity;
+  const payer = await resolveCraftPayer(character, payerKey, cost);
+  const openTurn = await getOpenTurn();
+
+  // Dead Simple: no Move, rationed per turn (docs/systemdocs/SMITHING.md §2).
+  // Checked twice: here for a fast fail, and again inside the transaction
+  // under a row lock, since two simultaneous requests would otherwise both
+  // read the same count and pass.
+  if (turns === 0) {
+    const deadSimple = Boolean(openTurn && isDeadSimple(tag));
     if (deadSimple) {
-      // Row lock held to commit, so the recount sees any concurrent request.
-      await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-      const already = await deadSimpleUnitsThisTurn(tx, character.id, openTurn.id);
+      const already = await deadSimpleUnitsThisTurn(prisma, character.id, openTurn.id);
       if (already + quantity > DEAD_SIMPLE_PER_TURN) {
         throw new UserError(
           `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
         );
       }
     }
-    for (const snapshot of replaced) {
-      await dropCharacterTag(tx, character.id, snapshot.tagId);
-    }
-    await addToStack(tx, character.id, tag.id, quantity, {
-      source: "EVENT",
-      // Must arrive already stamped or it never expires — resolveNeeds()'s
-      // sweep matches on expiresTurn and nothing backfills it.
-      expiresTurn: await expiryForGrant(tx, tag, openTurn, {
-        characterId: character.id,
-        where: "addTagRequest",
-      }),
-      stackable: tag.stackable,
+    await prisma.$transaction(async (tx) => {
+      if (deadSimple) {
+        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+        const already = await deadSimpleUnitsThisTurn(tx, character.id, openTurn.id);
+        if (already + quantity > DEAD_SIMPLE_PER_TURN) {
+          throw new UserError(
+            `You can only make ${DEAD_SIMPLE_PER_TURN} Dead Simple items per turn (${already} already this turn).`,
+          );
+        }
+      }
+      if (cost) await moveResources(tx, payer, -cost);
+      await grantCrafted(tx, { session, character, tag, quantity, openTurn, replaced, payer, cost, reason });
     });
-    if (resourcesSpent) {
-      await moveResources(tx, { kind: "character", id: character.id, name: character.name }, -resourcesSpent);
-    }
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "ADD_TAG",
-      reason,
-      payload: { tagId: tag.id, quantity, resourcesSpent },
-      effect: {
+    await afterInventoryChange([character.id, payer.kind === "character" ? payer.id : null]);
+    payerNotice(character, payer, cost, tag);
+    revalidateAll();
+    return { made: craftLabel(tag, quantity) };
+  }
+
+  // Real work: this turn's Move, and a project if it takes more than one.
+  await requireFreeMove(character, openTurn);
+  let done = false;
+  await prisma.$transaction(async (tx) => {
+    if (cost) await moveResources(tx, payer, -cost);
+    const project = await tx.craftProject.create({
+      data: {
+        characterId: character.id,
         tagId: tag.id,
-        tagName: tag.name,
         quantity,
-        resourcesSpent,
-        ...(replaced.length ? { replaced } : {}),
+        turnsNeeded: turns,
+        turnsDone: 1,
+        resourcesCost: cost,
+        payerKey: `${payer.kind}:${payer.id}`,
+        payerName: payer.name,
+        startedTurnId: openTurn.id,
+        lastTurnId: openTurn.id,
       },
     });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_add_tag",
-      targetCharacterId: character.id,
-      reason,
-      details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
-    });
+    done = turns === 1;
+    const action = await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      done ? `Crafted ${craftLabel(tag, quantity)}. ‡` : `Crafting ${craftLabel(tag, quantity)} (1/${turns}). ‡`,
+      "auto:craft",
+    );
+    if (done) {
+      const request = await grantCrafted(tx, { session, character, tag, quantity, openTurn, replaced, payer, cost, project, action, reason });
+      await tx.craftProject.update({ where: { id: project.id }, data: { status: "DONE", requestId: request.id } });
+    } else {
+      await logRequest(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "craft_started",
+        targetCharacterId: character.id,
+        reason,
+        details: { projectId: project.id, tagId: tag.id, tagName: tag.name, quantity, turnsNeeded: turns, resourcesCost: cost, payer: { kind: payer.kind, id: payer.id, name: payer.name }, actionId: action.id },
+      });
+    }
   });
-  await afterInventoryChange(character.id);
+  await afterInventoryChange([character.id, payer.kind === "character" ? payer.id : null]);
+  payerNotice(character, payer, cost, tag);
   revalidateAll();
-  return {};
+  return done ? { made: craftLabel(tag, quantity) } : { started: craftLabel(tag, quantity), turns };
 }
 
-async function removeTagRequestImpl({
-  tagId,
-  quantity: rawQuantity,
-  resourcesSpent: rawSpend,
-  reason: rawReason,
-}) {
+async function loadOwnProject(character, projectId) {
+  const project = await prisma.craftProject.findFirst({
+    where: { id: projectId ?? "", characterId: character.id, status: "ACTIVE" },
+    include: { tag: { include: { group: { select: { requiredTagId: true } }, requirementSkills: { select: { id: true, slug: true, name: true } } } } },
+  });
+  if (!project) throw new UserError("That project isn't yours, or it's finished. ‡");
+  return project;
+}
+
+// Another turn on a project. The recipe's gates are re-run: a skill lost
+// since the start stops the work where it stands.
+async function continueCraftImpl({ projectId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+  const project = await loadOwnProject(character, projectId);
+  const tag = project.tag;
+  await requireRecipeSkills(character, tag);
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+  if (project.lastTurnId === openTurn.id) throw new UserError("You've already worked on that this turn. ‡");
+
+  const payerKeyParts = (project.payerKey ?? "").split(":");
+  const payer = { kind: payerKeyParts[0] || "character", id: payerKeyParts[1] || character.id, name: project.payerName ?? character.name };
+  const next = project.turnsDone + 1;
+  const done = next >= project.turnsNeeded;
+  const replaced = done ? await craftGrantChecks(character, tag) : [];
+
+  await prisma.$transaction(async (tx) => {
+    const claim = await tx.craftProject.updateMany({
+      where: { id: project.id, status: "ACTIVE", turnsDone: project.turnsDone },
+      data: { turnsDone: next, lastTurnId: openTurn.id },
+    });
+    if (claim.count === 0) throw new UserError("That project moved on without you — reload. ‡");
+    const action = await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      done ? `Crafted ${craftLabel(tag, project.quantity)}. ‡` : `Crafting ${craftLabel(tag, project.quantity)} (${next}/${project.turnsNeeded}). ‡`,
+      "auto:craft",
+    );
+    if (done) {
+      const request = await grantCrafted(tx, {
+        session, character, tag, quantity: project.quantity, openTurn, replaced, payer, cost: project.resourcesCost, project, action, reason,
+      });
+      await tx.craftProject.update({ where: { id: project.id }, data: { status: "DONE", requestId: request.id } });
+    } else {
+      await logRequest(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "craft_continued",
+        targetCharacterId: character.id,
+        reason,
+        details: { projectId: project.id, tagId: tag.id, tagName: tag.name, turnsDone: next, turnsNeeded: project.turnsNeeded, actionId: action.id },
+      });
+    }
+  });
+  if (done) await afterInventoryChange(character.id);
+  revalidateAll();
+  return done ? { made: craftLabel(tag, project.quantity) } : { continued: craftLabel(tag, project.quantity), turnsDone: next, turns: project.turnsNeeded };
+}
+
+// Stopping keeps nothing: the ⬢ went into materials when the work began.
+async function cancelCraftImpl({ projectId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+  const project = await loadOwnProject(character, projectId);
+  await prisma.$transaction(async (tx) => {
+    await tx.craftProject.update({ where: { id: project.id }, data: { status: "CANCELLED" } });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "craft_cancelled",
+      targetCharacterId: character.id,
+      reason,
+      details: { projectId: project.id, tagId: project.tagId, tagName: project.tag.name, turnsDone: project.turnsDone, turnsNeeded: project.turnsNeeded, resourcesCost: project.resourcesCost },
+    });
+  });
+  revalidateAll();
+  return { cancelled: project.tag.name };
+}
+
+// --- Lessons (docs/systemdocs/LESSONS.md) ------------------------------
+
+// Learn and Teach are the same offer from opposite ends: the initiator's
+// Move slot is checked now, both sides' when the other accepts. Nothing is
+// filed until then — the offer row and one DM with two buttons.
+async function lessonOfferImpl({ teacherId, learnerId, tagId, reason }) {
+  const { session, character } = await requireCharacter();
+  const offer = await createLessonOffer(prisma, {
+    initiatorId: character.id,
+    teacherId,
+    learnerId,
+    tagId,
+    reason: requireReason(reason),
+  });
+  if (!offer.ok) throw new UserError(offer.reason);
+  after(() =>
+    sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components, source: "player_event" }).catch(
+      (err) => console.error(`Lesson offer DM for ${offer.offer.id} failed:`, err),
+    ),
+  );
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_lesson_offer",
+      targetCharacterId: offer.offer.responderId,
+      reason: offer.offer.reason,
+      details: { offerId: offer.offer.id, teacherId, learnerId, tagId },
+    },
+  });
+  revalidateAll();
+  return { pending: true };
+}
+
+async function learnRequestImpl({ teacherId, tagId, reason }) {
+  const { character } = await requireCharacter();
+  return lessonOfferImpl({ teacherId, learnerId: character.id, tagId, reason });
+}
+
+async function teachRequestImpl({ learnerId, tagId, reason }) {
+  const { character } = await requireCharacter();
+  return lessonOfferImpl({ teacherId: character.id, learnerId, tagId, reason });
+}
+
+// --- Destroy -------------------------------------------------------------
+
+// Drops a `removable` tag you hold. No refund and no ⬢ field: destroying is
+// throwing away, and a cure is Heal's job (docs/systemdocs/TAGS.md §5).
+async function destroyTagRequestImpl({ tagId, quantity: rawQuantity, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  const resourcesSpent = parseCount(rawSpend, { min: 0 }) ?? 0;
-  if (resourcesSpent > character.resources) throw new UserError("You don't have that many ⬢.");
-
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
-  if (!held.tag.removable) throw new UserError("That tag can't be removed this way.");
+  if (!held.tag.removable) throw new UserError("That isn't something you can destroy. ‡");
 
   const quantity = held.tag.stackable
     ? parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1
@@ -450,29 +589,20 @@ async function removeTagRequestImpl({
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, quantity);
     granted = await grantTagSlugs(tx, character.id, aftermathSlugs, openTurn?.number ?? null);
-    if (resourcesSpent) {
-      await moveResources(tx, { kind: "character", id: character.id, name: character.name }, -resourcesSpent);
-    }
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
       type: "REMOVE_TAG",
       reason,
-      payload: { tagId, quantity, resourcesSpent },
-      effect: { tagId, tagName: held.tag.name, quantity, resourcesSpent, restore, granted },
+      payload: { tagId, quantity },
+      effect: { tagId, tagName: held.tag.name, quantity, resourcesSpent: 0, restore, granted },
     });
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
-      actionType: "request_remove_tag",
+      actionType: "request_destroy_tag",
       targetCharacterId: character.id,
       reason,
-      details: {
-        tagId,
-        tagName: held.tag.name,
-        quantity,
-        resourcesSpent,
-        granted: granted.map((g) => g.tagName),
-      },
+      details: { tagId, tagName: held.tag.name, quantity, granted: granted.map((g) => g.tagName) },
     });
   });
   await afterInventoryChange(character.id);
@@ -563,162 +693,18 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   return {};
 }
 
-// SEND: hand one of the initiator's tradeable tags to someone in the same
-// zone. LOOT: pull it off a corpse in that zone instead. There is no
-// "request a tag from a living someone" — that direction stays send-only.
-async function transferTagRequestImpl({
-  tagId,
-  quantity: rawQuantity,
-  toCharacterId,
-  direction: rawDirection,
-  reason: rawReason,
-}) {
-  const { session, character } = await requireCharacter();
-  const reason = requireReason(rawReason);
-  const direction = rawDirection === "LOOT" ? "LOOT" : "SEND";
-  const isLoot = direction === "LOOT";
-
-  if (!character.zoneId) {
-    throw new UserError(
-      isLoot ? "You aren't anywhere you could pick that up." : "You aren't anywhere you could hand that over.",
-    );
-  }
-  if (toCharacterId === character.id) throw new UserError("That's you.");
-
-  let source;
-  if (isLoot) {
-    // Folded into the WHERE clause, so a corpse moved between page load and
-    // submit fails closed and nothing is written.
-    const corpse = await prisma.character.findFirst({
-      where: { id: toCharacterId ?? "", status: "DEAD", buriedAt: null, zoneId: character.zoneId },
-      select: {
-        id: true,
-        name: true,
-        discordUserId: true,
-        tags: {
-          where: { tagId },
-          select: {
-            tagId: true,
-            quantity: true,
-            source: true,
-            expiresTurn: true,
-            tag: { select: { name: true, category: true, stackable: true, tradeable: true } },
-          },
-        },
-      },
-    });
-    if (!corpse) throw new UserError("Nothing to loot here.");
-    const corpseHeld = corpse.tags[0] ?? null;
-    if (!corpseHeld) throw new UserError("They don't have that.");
-    source = {
-      id: corpse.id,
-      name: corpse.name,
-      discordUserId: corpse.discordUserId,
-      tag: corpseHeld.tag,
-      source: corpseHeld.source,
-      expiresTurn: corpseHeld.expiresTurn,
-      quantity: corpseHeld.quantity,
-    };
-  } else {
-    const held = character.tags.find((ct) => ct.tagId === tagId);
-    if (!held) throw new UserError("You don't have that tag.");
-    source = {
-      id: character.id,
-      name: character.name,
-      tag: held.tag,
-      source: held.source,
-      expiresTurn: held.expiresTurn,
-      quantity: held.quantity,
-    };
-  }
-
-  if (!isTradeable(source.tag)) {
-    throw new UserError(
-      isLoot
-        ? "That isn't something you can take off a body."
-        : "That isn't yours to hand over.",
-    );
-  }
-
-  const quantity = source.tag.stackable
-    ? parseCount(rawQuantity, { min: 1, max: source.quantity }) ?? 1
-    : source.quantity;
-
-  let recipient;
-  if (isLoot) {
-    recipient = { id: character.id, name: character.name };
-  } else {
-    // Same zone as ⬢, folded into the WHERE so a recipient who walks off
-    // between page load and submit fails closed rather than being handed
-    // whoever happens to be standing there.
-    recipient = await prisma.character.findFirst({
-      where: { id: toCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
-      select: { id: true, name: true, discordUserId: true },
-    });
-    if (!recipient) throw new UserError("They aren't here.");
-  }
-
-  const openTurn = await getOpenTurn();
-  const restore = { source: source.source, expiresTurn: source.expiresTurn, quantity };
-
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, source.id, tagId, quantity);
-    await addToStack(tx, recipient.id, tagId, quantity, {
-      source: "EVENT",
-      expiresTurn: source.expiresTurn,
-      stackable: source.tag.stackable,
-    });
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "TRANSFER_TAG",
-      reason,
-      payload: { tagId, quantity, toCharacterId, direction },
-      effect: {
-        tagId,
-        tagName: source.tag.name,
-        quantity,
-        fromCharacterId: source.id,
-        fromName: source.name,
-        toCharacterId: recipient.id,
-        toName: recipient.name,
-        direction,
-        restore,
-      },
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: isLoot ? "request_loot_tag" : "request_transfer_tag",
-      // For loot, the audit "target" is the corpse acted ON, not the receiver.
-      targetCharacterId: isLoot ? source.id : recipient.id,
-      reason,
-      details: { tagId, tagName: source.tag.name, quantity, fromName: source.name, toName: recipient.name, direction },
-    });
-  });
-
-  await afterInventoryChange([source.id, recipient.id]);
-
-  if (isLoot) {
-    notifyCharacter(source, `Something was taken off your body: ${formatStack(source.tag.name, quantity)}.`);
-  } else {
-    notifyCharacter(recipient, `You were handed ${formatStack(source.tag.name, quantity)}.`);
-  }
-
-  revalidateAll();
-  return {};
-}
-
 // --- Transfer (the merged dialog) -------------------------------------
 
 // One act that moves any number of tag lines and a ⬢ amount between two
-// parties: yourself, a living player, a Silo, or a Room stash at your
+// parties: yourself, a person standing here, or a Room stash at your
 // Location (docs/systemdocs/CARRY.md). Files one TRANSFER_TAG per tag line
 // and one TRANSFER_RESOURCES for the ⬢, all in one transaction, so a GM can
 // still undo any single piece from /gm/turns.
 //
-// Tags may only leave YOU or a room — browsing another player's inventory
-// is the abuse the send-only rule prevents (REQUESTS.md §3) — and a Silo
-// holds ⬢, not things. ⬢ keeps its old any-party-in-reach rule.
+// Things and ⬢ leave YOU or a room, never another person — you can't reach
+// into someone's pockets from here, and listing what's in them would show
+// their hidden tags. Loot is how you take from a person, and only a helpless
+// one (REQUESTS.md §5b).
 async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawAmount, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -739,20 +725,17 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
   if (!to) throw new UserError("Unknown recipient.");
   if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
 
-  // Both ends have to be somewhere you can stand — checked on submit, not by
-  // filtering the dropdowns, since a range-filtered menu would itself be a
-  // scouting tool. A room adds "and its door opens for you".
+  // The source is you or a room. Everything else is Loot's business.
+  if (from.kind === "character" && from.id !== character.id) {
+    throw new UserError("You can only hand over your own things. Loot is how you take from a person. ‡");
+  }
+  // Both ends have to be where you stand — re-checked here on the posted
+  // key, the same predicate that built the menu (web/lib/peopleHere.js). A
+  // room adds "and its door opens for you".
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   for (const party of [from, to]) {
     if (!(await canReachParty(character, party, { heldSlugs }))) {
-      throw new UserError(outOfReachMessage(party, party.zoneName));
-    }
-  }
-
-  if (lines.length) {
-    if (from.kind === "faction" || to.kind === "faction") throw new UserError("A Silo holds ⬢, not things. ‡");
-    if (from.kind === "character" && from.id !== character.id) {
-      throw new UserError("You can only hand over your own things. ‡");
+      throw new UserError(outOfReachMessage(party));
     }
   }
   if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);
@@ -903,9 +886,9 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
 
 // Treating someone else's affliction — the only request whose subject isn't
 // the filer, so most ids below are the TARGET's. Three gates, all
-// re-checked here: the medic holds a Medical skill, the patient is in the
-// medic's zone, and the affliction's own requirementSkills are satisfied.
-// The PAYER is ungated beyond being present, same bet as TRANSFER_RESOURCES.
+// re-checked here: the medic holds a Medical skill, the patient is standing
+// here (web/lib/peopleHere.js), and the affliction's own requirementSkills
+// are satisfied. The PAYER is ungated beyond being here, same bet as Craft.
 async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
@@ -915,7 +898,7 @@ async function healCharacterRequestImpl({
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId) {
+  if (!character.locationId) {
     throw new UserError("You aren't anywhere you could treat someone.");
   }
 
@@ -934,10 +917,10 @@ async function healCharacterRequestImpl({
 
   // No `id: { not: character.id }` — treating yourself is the ordinary case.
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
     include: { tags: { include: { tag: { include: { requirementSkills: true } } } } },
   });
-  if (!target) throw new UserError("They aren't here.");
+  if (!target || !isHere(character, target)) throw new UserError(notHereMessage(target));
 
   const held = target.tags.find((ct) => ct.tagId === tagId);
   if (!held || !isHealable(held.tag)) throw new UserError("That isn't something you can treat.");
@@ -949,14 +932,7 @@ async function healCharacterRequestImpl({
 
   const payer = await resolveParty(payerKey);
   if (!payer) throw new UserError("Unknown payer.");
-  if (payer.kind === "character") {
-    const present = await prisma.character.count({
-      where: { id: payer.id, status: "ALIVE", zoneId: character.zoneId },
-    });
-    if (!present) throw new UserError("They aren't here to pay for it.");
-  } else if (!(await canReachSilo(character, payer))) {
-    throw new UserError(outOfReachMessage(payer, payer.zoneName));
-  }
+  if (!(await canReachParty(character, payer))) throw new UserError(outOfReachMessage(payer));
 
   // Straight off the tag, never off the client.
   const cost = healCost(held.tag);
@@ -1019,9 +995,12 @@ async function healCharacterRequestImpl({
     });
   });
 
-  await afterInventoryChange(target.id);
+  await afterInventoryChange([target.id, payer.kind === "character" ? payer.id : null]);
   if (target.id !== character.id) {
     notifyCharacter(target, `Your ${held.tag.name} was treated.`);
+  }
+  if (payer.kind === "character" && payer.id !== character.id && cost > 0) {
+    notifyCharacter(payer, `${character.name} paid ${cost} ⬢ from your purse to treat ${target.id === character.id ? "themselves" : target.name}. ‡`);
   }
   revalidateAll();
   return { targetName: target.name, tagName: held.tag.name, cost };
@@ -1042,18 +1021,18 @@ async function lootCharacterRequestImpl({
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
     include: {
       tags: {
         include: { tag: { select: { name: true, category: true, stackable: true, slug: true, tradeable: true } } },
       },
     },
   });
-  if (!target) throw new UserError("They aren't here.");
-  if (target.buriedAt) throw new UserError("They're already in the ground.");
+  if (target?.buriedAt) throw new UserError("They're already in the ground.");
+  if (!target || !isHere(character, target, { allowDead: true })) throw new UserError(notHereMessage(target));
 
   // A corpse needs no further excuse; a living target has to be helpless —
   // otherwise it's a Gambit for a GM to adjudicate.
@@ -1151,25 +1130,25 @@ async function lootCharacterRequestImpl({
 
 // A character who follows the filer: a faction member the filer leads, or
 // anyone helpless (bound, dying, paralyzed, catatonic, or dead). Who you may
-// take is judged by ZONE — anyone standing anywhere in your zone — while
-// where you may take them is judged by the Location graph, the same edge an
-// ordinary walk uses. This does NOT spend a Move or file an Action, and no
+// take is judged by co-presence (web/lib/peopleHere.js — standing here, not
+// concealed, or a body), while where you may take them is judged by the
+// Location graph, the same edge an ordinary walk uses. This does NOT spend a Move or file an Action, and no
 // network call may run inside a $transaction (ARCHITECTURE.md §5), so the
 // Discord fan-out runs after commit.
 async function moveCharacterRequestImpl({ targetCharacterId, targetLocationId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId || !character.locationId) {
+  if (!character.locationId) {
     throw new UserError("You aren't anywhere you could do that.");
   }
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] }, zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
     include: { tags: { select: { tag: { select: { slug: true } } } } },
   });
-  if (!target) throw new UserError("They aren't here.");
-  if (target.buriedAt) throw new UserError("They're already in the ground.");
+  if (target?.buriedAt) throw new UserError("They're already in the ground.");
+  if (!target || !isHere(character, target, { allowDead: true })) throw new UserError(notHereMessage(target));
 
   // Dragging a corpse needs no authority over it. Same for anyone helpless,
   // using the same INCAPACITATING_SLUGS set LOOT_CHARACTER and
@@ -1190,14 +1169,15 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetLocationId, r
   if (targetLocation.id === target.locationId) throw new UserError("They're already there.");
 
   // The edge is read off the FILER's location, not the target's — you walk
-  // them out of your own doorway.
-  const currentLocation = await prisma.location.findUnique({
-    where: { id: character.locationId },
-    include: { connectsTo: { where: { id: targetLocation.id } } },
+  // them out of your own doorway — and gated against the FILER's tags, since
+  // they are the one opening the way. This is a server action, so it is a
+  // public endpoint: the picker already dropped everything impassable, and
+  // this is the check that actually holds when a client posts its own id.
+  const link = await linkBetween(prisma, character.locationId, targetLocation.id);
+  const gate = crossingCheck(link, {
+    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
   });
-  if (!currentLocation || currentLocation.connectsTo.length === 0) {
-    throw new UserError("You can't get there directly from here.");
-  }
+  if (!gate.passable) throw new UserError(gate.refusal);
 
   const openTurn = await getOpenTurn();
   const fromLocationId = target.locationId;
@@ -1257,68 +1237,51 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetLocationId, r
 // --- Binding and freeing -------------------------------------------------
 
 // Nothing else grants `bound`, and it's the one incapacitating state a
-// player can inflict on purpose. No gate beyond co-presence — the reason
-// field and GM review are the anti-abuse mechanism, same as elsewhere.
-async function requireBoundTag() {
-  const bound = await prisma.tag.findUnique({
-    where: { slug: "bound" },
-    select: { id: true, name: true, stackable: true, defaultDurationTurns: true },
-  });
-  if (!bound) throw new UserError("The Bound tag is missing from the catalog.");
-  return bound;
-}
-
+// player can inflict on purpose. Two doors (db/lib/bind.js): someone who
+// can't stop you — dead, or already helpless — is bound on the spot; anyone
+// else has to agree, so the target gets a DM with Accept / Decline and the
+// request fires only on Accept (docs/systemdocs/LESSONS.md).
 async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
   if (targetCharacterId === character.id) throw new UserError("You can't bind yourself.");
 
-  const bound = await requireBoundTag();
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
-    include: { tags: { where: { tagId: bound.id }, select: { tagId: true } } },
+    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
+    select: BIND_SELECT,
   });
-  if (!target) throw new UserError("They aren't here.");
-  if (target.tags.length) throw new UserError(`${target.name} is already bound.`);
+  if (!target || !isHere(character, target, { allowDead: true })) throw new UserError(notHereMessage(target));
+  if (isBoundTarget(target)) throw new UserError(`${target.name} is already bound.`);
 
   const openTurn = await getOpenTurn();
-  const expiresTurn = await expiryForGrant(prisma, bound, openTurn, {
-    characterId: target.id,
-    where: "bindCharacter",
-  });
+  if (!openTurn) throw new UserError("No turn is open. ‡");
 
-  await prisma.$transaction(async (tx) => {
-    await addToStack(tx, target.id, bound.id, 1, {
-      source: "EVENT",
-      expiresTurn,
-      stackable: bound.stackable,
-    });
-    const effect = {
-      targetCharacterId: target.id,
-      targetName: target.name,
-      tagId: bound.id,
-      tagName: bound.name,
-      expiresTurn,
-    };
-    await createRequest(tx, {
-      characterId: character.id,
-      turnId: openTurn?.id ?? null,
-      type: "BIND_CHARACTER",
-      reason,
-      payload: { targetCharacterId: target.id },
-      effect,
-    });
-    await logRequest(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_bind_character",
-      targetCharacterId: target.id,
-      reason,
-      details: effect,
-    });
-  });
+  const actor = { id: character.id, name: character.name, discordUserId: session.discordUserId };
 
+  if (!needsNoConsent(target)) {
+    const offer = await createBindOffer(prisma, { actor, target, turn: openTurn, reason });
+    if (!offer.ok) throw new UserError(offer.reason);
+    after(() =>
+      sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components, source: "player_event" }).catch(
+        (err) => console.error(`Bind offer DM to ${target.id} failed:`, err),
+      ),
+    );
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_bind_offer",
+        targetCharacterId: target.id,
+        reason,
+        details: { offerId: offer.offer.id, targetName: target.name },
+      },
+    });
+    revalidateAll();
+    return { pending: true, name: target.name };
+  }
+
+  await applyBind(prisma, { actor, target, turn: openTurn, reason });
   await afterInventoryChange(target.id);
   notifyCharacter(target, "Someone bound you.");
   revalidateAll();
@@ -1330,14 +1293,14 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
 
-  const bound = await requireBoundTag();
+  const bound = await requireBoundTag(prisma);
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
     include: { tags: { where: { tagId: bound.id } } },
   });
-  if (!target) throw new UserError("They aren't here.");
+  if (!target || !isHere(character, target)) throw new UserError(notHereMessage(target));
 
   const held = target.tags[0];
   if (!held) throw new UserError(`${target.name} isn't bound.`);
@@ -1395,7 +1358,7 @@ async function harmCharacterRequestImpl({
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
+  if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
   if (targetCharacterId === character.id) throw new UserError("Pick someone else.");
 
   const lethal = Boolean(rawLethal);
@@ -1403,10 +1366,10 @@ async function harmCharacterRequestImpl({
   if (!wantsTag && !lethal) throw new UserError("Pick an injury, tick Finish them, or both.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zoneId: character.zoneId },
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
     include: { tags: { include: { tag: { select: { slug: true } } } } },
   });
-  if (!target) throw new UserError("They aren't here.");
+  if (!target || !isHere(character, target)) throw new UserError(notHereMessage(target));
 
   const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
   if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
@@ -1811,20 +1774,28 @@ async function buryCharacterRequestImpl({ firstName: rawFirstName, reason: rawRe
 // Each action is wrapped so validation comes back as { ok: false, error }
 // instead of being thrown — see web/lib/actionResult.js.
 
-export async function transferResourcesRequest(input) {
-  return guarded(() => transferResourcesRequestImpl(input));
+export async function craftRequest(input) {
+  return guarded(() => craftRequestImpl(input));
 }
 
-export async function addTagRequest(input) {
-  return guarded(() => addTagRequestImpl(input));
+export async function continueCraft(input) {
+  return guarded(() => continueCraftImpl(input));
 }
 
-export async function removeTagRequest(input) {
-  return guarded(() => removeTagRequestImpl(input));
+export async function cancelCraft(input) {
+  return guarded(() => cancelCraftImpl(input));
 }
 
-export async function transferTagRequest(input) {
-  return guarded(() => transferTagRequestImpl(input));
+export async function destroyTagRequest(input) {
+  return guarded(() => destroyTagRequestImpl(input));
+}
+
+export async function learnRequest(input) {
+  return guarded(() => learnRequestImpl(input));
+}
+
+export async function teachRequest(input) {
+  return guarded(() => teachRequestImpl(input));
 }
 
 export async function transferRequest(input) {

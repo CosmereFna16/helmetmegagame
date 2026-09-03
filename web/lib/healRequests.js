@@ -21,28 +21,21 @@ export {
 
 export const HEAL_SKILL_SLUG = "medical-basic";
 
-// Health is its own category now, split out of Status — Status is the
-// needs/intoxication layer (Hungry, Drained, Tipsy) and afflictions are a system of
-// their own. Tag.category stores the display name, not the YAML slug (see
-// syncTags.js), which is why this is capitalised.
+// Health is its own category, split out of Status — Status is the
+// needs/intoxication layer (Hungry, Drained, Tipsy) and afflictions are a
+// system of their own. Tag.category stores the display name, not the YAML
+// slug (see syncTags.js), which is why this is capitalised. Harm's menu still
+// reads the category (isInflictable below); Heal's does not.
 export const HEALABLE_CATEGORY = "Health";
 
-// A Health tag with no requirement block at all is tier 0 of the cure ladder
-// (docs/systemdocs/TAGS.md §5c): something realistically untreatable that runs
-// its own short course — Vomiting, a Migraine, a Concussion. Priced ones are
-// the afflictions a doctor actually does something about.
-export function hasCureCost(tag) {
-  if (!tag) return false;
-  return Boolean(
-    tag.requirementTurns ||
-      tag.requirementResources ||
-      tag.requirementGambit ||
-      tag.requirementSkills?.length,
-  );
-}
-
+// What Heal lists: the catalog's own `healable` flag (docs/tags.yaml), set on
+// every affliction with a cure. A Health tag without it is tier 0 of the cure
+// ladder (docs/systemdocs/TAGS.md §5c): something realistically untreatable
+// that runs its own short course — Vomiting, a Migraine, a Concussion. It
+// used to be derived from the category plus a requirement block; the flag
+// replaced that so the menu is data, not a heuristic.
 export function isHealable(tag) {
-  return Boolean(tag) && tag.category === HEALABLE_CATEGORY && hasCureCost(tag);
+  return Boolean(tag?.healable);
 }
 
 // What one person can do to another with their hands. Harm used to offer the

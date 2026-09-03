@@ -1,7 +1,10 @@
-# Factions and the Silo
+# Factions
 
-Who belongs to what, who can spend the faction's Resources, and who can see
-that they exist.
+Who belongs to what, and who can see what a member is holding.
+
+Silos were removed in 9/2026. Leader/Treasurer now only gate seeing a
+member's ⬢ (§4a and below) — there is no faction treasury, no reach gate, and
+no quiet-adjustment machinery left to document.
 
 ## 1. Faction is game state, not a Discord role
 
@@ -10,24 +13,15 @@ concept, master-sourced from `docs/roles.yaml` (see `SYNC.md`) and editable by
 GMs on `/faction` and `/gm/dev/factions`. Discord's own roles — used for
 faction pings and the like — are independent and unmanaged by Bascinet.
 
-Factions nest: `Faction.parentFactionId` forms a hierarchy, and a parent's
-leadership reaches down into its subjects.
+Factions nest: `Faction.parentFactionId` forms a hierarchy.
 
 The nesting is **authored, then live**. `roles.yaml`'s `parent:` seeds it when
 a faction row is first created; after that it belongs to the game, and a GM
 re-parents or detaches a faction on `/gm/dev/factions` (cycle-guarded there).
 Re-running `db:sync-roles` does **not** undo that edit — see `SYNC.md`
-"Create-only fields". Detaching a subject is how a clan rebels: the former
-parent's Leader and Treasurer immediately lose Silo authority over it, the
-subject drops off their `/faction` "Subject Factions" table, and nothing else
-about the members changes.
-
-A Silo's **opening balance is computed, not authored**: the sum of the
-faction's role weights (`unlimited` counts 5, a single-seat role counts 1),
-scaled by `GameConfig.playerCount` and floored at 10 ⬢ —
-`db/lib/factionSilo.js`. Seeded at faction creation and by the Restart Game
-wipe (`SYNC.md` "Create-only fields"). Unaffiliated is excluded and holds no
-Silo.
+"Create-only fields". Detaching a subject is how a clan rebels: the subject
+drops off the GM overview's indentation, and nothing else about the members
+changes.
 
 ## 2. Leader and Treasurer are booleans, not tags
 
@@ -43,126 +37,29 @@ Assignment happens on `/faction`
 A role can also grant either at creation, via `leader:`/`treasurer:` booleans
 in `docs/roles.yaml`.
 
-## 3. Silo authority
-
-`db/lib/factionPermissions.js` answers the whole question. It lives in
-`db/lib` — taking `prisma` as its first parameter, the same convention as
-`db/lib/dm.js`, and deliberately **not** spread into the `@lifeweb/db` barrel —
-because both faces of the game ask it. `web/lib/factionPermissions.js` is a
-thin shim binding the singleton `prisma` so web call sites keep the shorter
-signature.
-
-Three functions:
-
-| Function | Answers |
-|---|---|
-| `getMyFactionRole(prisma, discordUserId, factionId)` | Am I Leader or Treasurer *of this faction*? Returns `canManageSilo`. |
-| `getFactionAncestorIds(prisma, factionId)` | The chain up to the root. **Cycle-guarded** with a `seen` set — a malformed parent chain must not hang the request. |
-| `getSiloAccess(prisma, discordUserId, targetFactionId)` | The real gate: own-faction authority, **or** authority at any ancestor. |
-
-Authority flows **downward only**. A parent faction's Leader or Treasurer can
-manage a subject faction's Silo; a subject's Leader has no reach upward.
-
-## 3b. Silo reach — a separate gate from authority
-
-Authority answers *may I*. **Reach** answers *can I get there*, and they are
-independent: a Leader has authority over their Silo from anywhere on the map,
-and that is not the same as being able to put anything into it.
-
-`web/lib/transferReach.js` owns reach. Two grains:
-
-| Moving | Gate |
-|---|---|
-| Person → person (⬢ or a tag) | Same **Zone** — since the zone rework a zone *is* the room, so this and the Silo gate are now the same grain |
-| Either end is a **Silo** | The actor's **seat** zone equals the faction's silo zone, `siloZoneId ?? zoneId`. Full stop. |
-
-The silo zone is a **seat** zone: presence is six zones, seats are four, and
-the whole cave system belongs to the Caves row (`GAMEMASTERS.md` §2a). That is
-why `canReachSilo` maps the actor's presence zone through `seatZoneIdFor`
-before comparing. So a Silo seated in the Caves is reachable from any cave
-level, which is the intent.
-
-**Where a faction banks is not always where it is grouped.** `Faction.zoneId`
-is the identity zone — it groups the character-creation picker and fills every
-`ZoneChip` — and it is the silo zone *by default*. `Faction.siloZoneId`
-overrides that when the two need to differ, and it is authored as `silo_zone:`
-on the faction block in `docs/roles.yaml`, so a `db:sync-roles` run writes it
-rather than undoing it. The two factions using it today are the Bastard's Camp
-and the Windrider Clan: both group as Windlands, both bank in Town. The Broken
-Spears Clan does not, so it still banks in the Windlands.
-
-Two rules on the override. It must name a **seat** zone — the sync throws
-otherwise, because a Silo on a cave level could never be reached. And a
-removed `silo_zone:` line puts the Silo back on `zoneId`, because the sync
-writes `null` when the key is absent.
-
-Readers resolve the fallback in one of two places, never at the call site.
-`db/lib/parties.js#resolveParty` collapses it into a Silo party's `zoneId` and
-`zoneName`, which covers every transfer surface and the out-of-reach message;
-`canReachSilo` does it again for the bare `Faction` rows `/faction` hands it.
-
-**The officer extension has been removed.** A Silo's reach used to also
-include any zone one of its Leaders or Treasurers happened to be standing in
-— the idea being that leadership could always walk toward the problem during
-a siege. In practice that ran backwards: it let an officer ride out to meet a
-payer and keep a besieged faction's treasury payable from outside its own
-walls, which is exactly the counterplay a siege is supposed to deny the
-defender. Treasury access is now tied to physically holding the seat zone,
-with no mobile extension of it — losing the seat zone freezes the Silo, full
-stop.
-
-**The party dropdowns are deliberately NOT filtered by reach.** A range-filtered
-menu would be a free "who is standing in my zone" scouting tool, which is a
-worse leak than the friction it saves. Every living player and every Silo stays
-listed and the gate fires on submit, with a clear rejection message instead of
-a hidden option.
-
-Same-Zone travel is free and creates no `Action` (`MAP.md` §3), so this costs a
-real Move only when the parties are genuinely far apart, and nothing at all in
-the ordinary in-town case.
-
-## 4. What Silo authority gates
-
-Not just spending — **seeing**. Three surfaces, all with the same
-absent-not-masked posture: if you don't have access, the field simply isn't
-there. A placeholder would advertise that there's something to go after.
-
-1. The Resources column on `/faction`'s roster, including the subject-faction
-   view a parent's Leader or Treasurer can open. The **Subject Factions** table
-   that links into those views is gated on `canManageSilo` — Leader *or*
-   Treasurer, the same question every other Silo surface asks. It asked
-   `isLeader` for a while, which left a parent's Treasurer holding the
-   authority with no way to reach it.
-2. The Resources field on the bot's 🔍 inspect embed
-   (`bot/src/events/messageReactionAdd.js`).
-3. The subject-faction view itself.
-
-A neighbouring inspect field follows the same posture but is gated on the
-**inspector's own tags** rather than the subject's Silo: Seductive reveals the
-subject's active Desire, resolved by `db/lib/inspectVision.js` (which also
-accepts the tag's discounted Demoness twin). That's bot-only — the web has no
-other-player character sheet.
-
-## 4a. Role is same-faction knowledge, not Silo authority
+## 4a. Role is same-faction knowledge, not officer authority
 
 Role (`Character.roleTitle`) is visible on both faces of the game, gated on
-**sharing a faction** — deliberately not on Silo authority, and not on the
-ancestor walk `getSiloAccess` does. A parent faction's Leader or Treasurer can
-manage a subject faction's Silo without knowing its org chart; only actually
-being a member of that faction does.
+**sharing a faction** — deliberately not on Leader/Treasurer status.
 
 - `/faction`'s roster carries an unconditional Role column, on both the
-  player and GM branches, and on the subject-faction view a parent's Leader
-  or Treasurer opens — that view already exposes Resources, so Role is not a
-  widening of what a parent can see there.
+  player and GM branches.
 - The bot's 🔍 inspect embed adds a `Role` field only when the viewer's own
   ALIVE character shares `factionId` with the subject (and neither is
-  Unaffiliated). Absent, never masked, same posture as Resources above. A
-  `/conceal`ed message never reaches this branch at all.
+  Unaffiliated). Absent, never masked. A `/conceal`ed message never reaches
+  this branch at all.
 - The **Who's here?** button (`zone:who:{zoneId}`, `db/lib/zoneAnchorRow.js`,
   `CHANNELS.md` §4) on each zone's Create-a-Topic anchor runs the same test:
   it lists every name in the zone, appending `, {roleTitle}` only for a
   character sharing the viewer's `factionId` (neither Unaffiliated).
+
+Resources works the same way but narrower: a faction's own Leader or
+Treasurer (`getMyFactionRole(prisma, discordUserId, factionId).isOfficer`,
+`db/lib/factionPermissions.js`) sees what each member is holding — on
+`/faction`'s roster and on the bot's 🔍 inspect embed
+(`bot/src/events/messageReactionAdd.js`). Absent, never masked, same posture
+as Role. `getMyFactionRole` only ever answers for the viewer's own faction —
+there is no ancestor walk any more.
 
 One more thing the player roster shows that fate never is: a **Catatonic**
 chip next to an AFK member's name. Death stays hidden there on purpose (the
@@ -173,103 +70,13 @@ guild-leave rework the chip can also mean the player has **left the server**
 and their character is on the death countdown (`CHARACTERS.md` §5) — the
 roster deliberately doesn't distinguish the two.
 
-## 5. Moving Resources out of a Silo
-
-**There is no direct player-facing transfer UI.** `/faction` had a "Transfer
-from Silo" panel and it was removed: it was a direct mutation with an
-optional note and no `Request` row, so a GM could neither review nor undo it.
-
-The one way out for a player is the `TRANSFER_RESOURCES` request on
-`/character` (the ⬢ button in the Actions grid, `RequestActionsProvider.js`),
-which demands a reason, appears in the Requests tab, and is undoable. See
-`REQUESTS.md`.
-
-It is also gated on **reach** (§3b): the acting character has to be
-physically standing in the Silo's seat zone. `HEAL_CHARACTER`'s Silo payer is
-gated the same way — it used to pay from anywhere, which became a laundering
-hole the moment transfers grew a reach gate.
-
-`SiloTransaction` rows are still written on **both** directions of that
-transfer, so `/faction`'s Silo history is unchanged.
-
-**A GM has a door the player-facing one deliberately lacks.** Before this, no
-ordinary GM could move ⬢ into or out of a Silo at all — the only editor was
-`/gm/dev/factions`'s absolute "set the Silo to N" field, gated
-superadmin-only. `/gm/players`' Factions tab now carries a "Move ⬢" control
-per faction row (`FactionsPanel.js`), open to any GM, applying immediately
-rather than through a `Request` (no reason review, no one-click Undo — the
-reverse transfer is the reversal). It covers every counterparty a Silo can
-trade with, including **Silo → Silo**, and skips the reach gate (a GM isn't
-standing anywhere on the map) while keeping the balance check. See
-`web/lib/gmTransfer.js`. The adjudication desk (`/gm/turns`) has the same
-transfer as a **staged** row instead — see `ADJUDICATION.md`. The
-superadmin-only absolute field on `/gm/dev/factions` is unchanged and stays
-the blunt correction tool for when the number itself is simply wrong.
-
-## 5a. Quiet adjustments, and the cover story
-
-A Silo row is visible to the faction's own Leader and Treasurer (§4), which
-made one thing impossible: adjudicating a **secret** move out of a Silo. A
-gambit steal used to announce itself to its victim, naming the turn, the exact
-amount, the thief, and the GM's own typed reason.
-
-Every GM Silo surface now carries a **Quiet adjustment** block
-(`web/app/components/QuietSiloFields.js`), and it writes two rows instead of
-one:
-
-- The **`HIDDEN`** row is the real one. It moves the balance and renders on GM
-  surfaces only — never on `/faction`.
-- The **`COVER`** row is a display-only fiction with the *same signed amount*,
-  and it is what the officers see. Equal amounts are the whole trick: their
-  visible column still adds up to the Silo total printed above it, so nothing
-  looks tampered with. Only the who and the why are false.
-
-Leaving "Shown as" empty writes no cover row at all — a clean hide. The balance
-still moves, so the officers get a gap they cannot explain. That is a choice,
-not an oversight.
-
-`normalizeQuiet` (`web/lib/siloCover.js`) trims the three cover strings for
-every surface, and `writeSiloRows` (`db/lib/resourceTransfer.js`) is the single
-writer that pairs the rows. One cover spec covers every faction leg of a
-transfer, so a quiet Silo → Silo move puts the same note on both ends.
-
-**The audit log always tells the truth.** `gm_transfer_resources` records the
-real parties, the amount, the GM's reason *and* the cover text. A quiet move is
-still a move a GM can be held to.
-
-The staged transfer on `/gm/turns` marks itself `· quiet ‡` on the tray row and
-in the push preview, so nobody pushes one by accident. `/gm/dev/factions`'
-absolute field offers the checkbox but **not** the cover fields — three more
-text inputs on every table row would drown it, and a quiet move that needs a
-plausible story is a transfer.
-
-## 6. `SiloTransaction` is a ledger, not a relation
-
-One row per change to a Silo — deposits, Dev Panel corrections, and
-Leader/Treasurer transfers to a member — so the faction panel can show
-"who took what, when, how much, to whom" rather than just a current total.
-
-`amount` is **signed**: positive grows the silo, negative shrinks it.
-
-`visibility` is `OPEN` (every ordinary row), `HIDDEN` or `COVER` — see §5a.
-`/faction` filters `HIDDEN` out on the player branch and shows the lot, badged,
-on the GM branch. `coverForId` points a `COVER` row at the `HIDDEN` one it
-fronts for, without a relation, for the same reason nothing else here has one.
-
-**No foreign keys.** `factionId`, `actorCharacterId` and `toCharacterId` are
-plain indexed columns, with `actorName`/`toName` snapshots alongside. Log rows
-have to survive a character or faction being deleted — the same reasoning as
-`AuditLog` and `ArchiveEntry` — and the snapshot is the more correct record
-anyway: who someone was known as *then*.
-
 ## 7. Where the code lives
 
 | File | Role |
 |---|---|
-| `db/lib/factionPermissions.js` | The three authority functions |
-| `web/lib/transferReach.js` | Silo/person **reach** — the separate gate (§3b) |
+| `db/lib/factionPermissions.js` | `getMyFactionRole`, `getFactionAncestorIds` |
 | `web/lib/factionPermissions.js` | Thin prisma-binding shim |
-| `web/app/(app)/faction/page.js` | The panel — roster, silo history, leadership |
+| `web/app/(app)/faction/page.js` | The panel — roster, leadership |
 | `web/app/(app)/faction/actions.js` | `setFactionLeader`, `setTreasurer` |
 | `web/app/(app)/gm/dev/factions/` | GM raw faction editing |
 | `docs/roles.yaml` | The master (`SYNC.md`) |

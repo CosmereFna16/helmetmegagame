@@ -10,8 +10,7 @@ import CharacterLink from "@/app/components/CharacterLink";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { getMyFactionRole, getSiloAccess } from "@/lib/factionPermissions";
-import { canReachSilo } from "@/lib/transferReach";
+import { getMyFactionRole } from "@/lib/factionPermissions";
 import {
   setFactionLeader,
   setTreasurer,
@@ -20,10 +19,6 @@ import {
 } from "./actions";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 
-// The Silo history table and the member rosters each have their own shape;
-// naming the counts keeps an added column from silently shortening the empty
-// row underneath it.
-const SILO_COL_COUNT = 5;
 const MEMBER_COL_COUNT = 7;
 
 async function loadFaction(factionId) {
@@ -31,13 +26,7 @@ async function loadFaction(factionId) {
     where: { id: factionId },
     include: {
       parentFaction: { select: { id: true, name: true } },
-      // For the zone chip in the header — the faction's identity zone, which
-      // is NOT necessarily where its Silo sits.
       zone: { select: { name: true } },
-      // Where the Silo actually is, when it differs. `include` already brings
-      // the siloZoneId scalar along; this is for naming the zone in the
-      // out-of-reach line below. See web/lib/transferReach.js.
-      siloZone: { select: { name: true } },
       characters: {
         orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
         select: {
@@ -47,7 +36,7 @@ async function loadFaction(factionId) {
           isLeader: true,
           isTreasurer: true,
           roleTitle: true,
-          // Only ever rendered behind a Silo-access check (viewCanManageSilo
+          // Only ever rendered behind the officer gate (viewCanSeeResources
           // below, or the GM branch) — a plain member never sees the column.
           resources: true,
           // Just the AFK marker, not the sheet: rows only when the member
@@ -62,23 +51,9 @@ async function loadFaction(factionId) {
   });
 }
 
-// A HIDDEN row is a quiet GM adjustment — the real, balance-affecting one — and
-// the faction's own Leader/Treasurer must not see it, or a secret move out of
-// the Silo announces itself to its victim. The COVER row written beside it
-// carries the same signed amount and IS shown, so the visible column still adds
-// up to the Silo total above it. A GM sees the lot, badged.
-async function loadSiloHistory(factionId, { forGm = false } = {}) {
-  return prisma.siloTransaction.findMany({
-    where: forGm ? { factionId } : { factionId, visibility: { not: "HIDDEN" } },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-}
-
-// Breadth-first over parentFactionId so a Leader's "Subject Factions" table
-// (and the GM overview's indentation) covers the whole subtree, not just
-// direct children — the hierarchy is one level deep today but this holds up
-// if that changes.
+// Breadth-first over parentFactionId so the GM overview's indentation covers
+// the whole subtree, not just direct children — the hierarchy is one level
+// deep today but this holds up if that changes.
 async function getDescendantFactions(rootId) {
   const result = [];
   const seen = new Set([rootId]);
@@ -106,11 +81,7 @@ async function getDescendantFactions(rootId) {
 // isGm defaults to false because this table renders on the player branch
 // too, and CharacterLink targets /gm/dev/characters/… — a member name must
 // stay plain text for a player.
-// `reachableIds`, when given, restricts the Silo figure to factions the
-// viewer can currently physically reach (canReachSilo) — null means
-// unrestricted, which is what the GM branch passes: a GM isn't standing
-// anywhere on the map, so reach doesn't apply to them.
-function FactionTable({ factions, showSilo, isGm = false, reachableIds = null }) {
+function FactionTable({ factions, isGm = false }) {
   return (
     <div className="panel overflow-x-auto">
       <table className="data-table">
@@ -119,7 +90,6 @@ function FactionTable({ factions, showSilo, isGm = false, reachableIds = null })
             <th>Name</th>
             <th>Members</th>
             <th>Leader</th>
-            {showSilo && <th>Silo</th>}
           </tr>
         </thead>
         <tbody>
@@ -136,58 +106,13 @@ function FactionTable({ factions, showSilo, isGm = false, reachableIds = null })
                 <td>
                   <CharacterLink characterId={leader?.id} name={leader?.name ?? "-"} isGm={isGm} />
                 </td>
-                {showSilo && (
-                  <td>{!reachableIds || reachableIds.has(f.id) ? `${f.silo} ⬢` : "-"}</td>
-                )}
               </tr>
             );
           })}
-          {factions.length === 0 && (
-            <EmptyRow cols={showSilo ? 4 : 3}>None.</EmptyRow>
-          )}
+          {factions.length === 0 && <EmptyRow cols={3}>None.</EmptyRow>}
         </tbody>
       </table>
     </div>
-  );
-}
-
-function SiloHistoryPanel({ history, showVisibility = false }) {
-  return (
-    <section className="panel overflow-x-auto p-4">
-      <h2 className="panel-header">Silo History</h2>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Turn</th>
-            <th>Amount</th>
-            <th>By</th>
-            <th>To</th>
-            <th>Note</th>
-          </tr>
-        </thead>
-        <tbody>
-          {history.map((t) => (
-            <tr key={t.id}>
-              <td className="whitespace-nowrap">
-                {t.turnNumber != null ? `#${t.turnNumber} (${t.turnPhase})` : "-"}
-              </td>
-              <td>{`${t.amount > 0 ? "+" : ""}${t.amount} ⬢`}</td>
-              <td>
-                {t.actorName}
-                {showVisibility && t.visibility !== "OPEN" && (
-                  <span className="chip ml-2">{t.visibility === "HIDDEN" ? "hidden ‡" : "cover ‡"}</span>
-                )}
-              </td>
-              <td>{t.toName ?? "-"}</td>
-              <td className="max-w-xs truncate">{t.note ?? ""}</td>
-            </tr>
-          ))}
-          {history.length === 0 && (
-            <EmptyRow cols={SILO_COL_COUNT}>No Silo activity yet.</EmptyRow>
-          )}
-        </tbody>
-      </table>
-    </section>
   );
 }
 
@@ -218,28 +143,12 @@ export default async function FactionPage({ searchParams }) {
 
     const ownRole = await getMyFactionRole(session.discordUserId, myCharacter.factionId);
 
-    // A parent faction's Leader/Treasurer can look into a subject faction's
-    // roster and Silo — getSiloAccess walks the ancestor chain, so this only
-    // succeeds when that's actually true. Anything else falls back to their
-    // own faction rather than exposing factions outside their reach.
-    let viewFactionId = myCharacter.factionId;
-    let viewCanManageSilo = ownRole.canManageSilo;
-    let viewingSubject = false;
-    if (requestedFactionId && requestedFactionId !== myCharacter.factionId) {
-      const access = await getSiloAccess(session.discordUserId, requestedFactionId);
-      if (access.canManageSilo) {
-        viewFactionId = requestedFactionId;
-        viewCanManageSilo = true;
-        viewingSubject = true;
-      }
-    }
-
-    const faction = await loadFaction(viewFactionId);
+    const faction = await loadFaction(myCharacter.factionId);
     if (!faction) return null;
 
     // Unaffiliated is the DB's placeholder home for characters with no real
     // faction — players should experience it identically to having none at
-    // all: no title, no member roster, no Silo.
+    // all: no title, no member roster.
     if (faction.name === "Unaffiliated") {
       return (
         <PageShell width="narrow">
@@ -250,54 +159,17 @@ export default async function FactionPage({ searchParams }) {
 
     const leader = faction.characters.find((c) => c.isLeader);
 
-    // Authority says who MAY see the Silo; this is whether they can right
-    // now — physically standing in its silo seat zone, the same reach
-    // TRANSFER_RESOURCES already requires to spend it. Applies to the
-    // headline figure for every member, not just Leader/Treasurer: knowing
-    // the faction's total from anywhere on the map is the leak this closes.
-    const canSeeSilo = await canReachSilo(myCharacter, faction);
-    const canSeeSiloDetail = viewCanManageSilo && canSeeSilo;
-    const siloHistory = canSeeSiloDetail ? await loadSiloHistory(faction.id) : [];
+    // A faction's Leader or Treasurer is who sees what each member carries —
+    // isOfficer covers both.
+    const canSeeResources = ownRole.isOfficer;
 
-    // Membership administration (Assign/Revoke Treasurer) never extends to
-    // subject factions — only Silo access does.
-    const canManageMembers = !viewingSubject && ownRole.isLeader;
-
-    // canManageSilo, not isLeader. Silo authority is Leader OR Treasurer
-    // everywhere else in the game — getSiloAccess says so, the subject view
-    // itself already lets a Treasurer in, and FACTIONS.md §4 describes the
-    // table as "the subject-faction view a parent's Leader or Treasurer can
-    // open". This was the one place still asking the narrower question, which
-    // left a Treasurer with the authority but no way to reach it: the table is
-    // where the links into the subject views come from.
-    const subjectFactions =
-      !viewingSubject && ownRole.canManageSilo ? await getDescendantFactions(myCharacter.factionId) : [];
-    const subjectReachableIds = new Set(
-      (
-        await Promise.all(
-          subjectFactions.map(async (f) => ((await canReachSilo(myCharacter, f)) ? f.id : null)),
-        )
-      ).filter(Boolean),
-    );
+    const canManageMembers = ownRole.isLeader;
 
     return (
       <PageShell width="narrow">
-        {viewingSubject && (
-          <Link href="/faction" className="btn-quiet">
-            &larr; Back to your faction
-          </Link>
-        )}
-
         <PageHeader
           title={faction.name}
-          subtitle={
-            <span className="flex items-center gap-2">
-              <ZoneChip zoneName={faction.zone?.name ?? ""} />
-              {viewingSubject && faction.parentFaction ? (
-                <span>Subject of {faction.parentFaction.name}</span>
-              ) : null}
-            </span>
-          }
+          subtitle={<ZoneChip zoneName={faction.zone?.name ?? ""} />}
         />
 
         <section className="panel p-4">
@@ -305,13 +177,7 @@ export default async function FactionPage({ searchParams }) {
             <li>
               Leader: <CharacterLink characterId={leader?.id} name={leader?.name ?? "None"} isGm={gm} />
             </li>
-            <li>
-              Faction Silo:{" "}
-              {canSeeSilo
-                ? `${faction.silo} ⬢`
-                : `you have to be in ${faction.siloZone?.name ?? faction.zone?.name ?? "its zone"} to see it.`}
-            </li>
-            {!viewingSubject && <li>Your Resources: {myCharacter.resources} ⬢</li>}
+            <li>Your Resources: {myCharacter.resources} ⬢</li>
           </ul>
         </section>
 
@@ -322,16 +188,12 @@ export default async function FactionPage({ searchParams }) {
               <tr>
                 <th>Name</th>
                 {/* Role is same-faction knowledge — this whole roster is
-                    already scoped to your faction (or a subject faction you
-                    have Silo access into), so it renders unconditionally,
-                    unlike Resources below. */}
+                    already scoped to your faction, so it renders
+                    unconditionally, unlike Resources below. */}
                 <th>Role</th>
-                {/* Silo authority — a faction's Leader/Treasurer, or an
-                    ancestor faction's — is exactly who may see what each
-                    member is holding, same gate as the Silo panels below.
-                    Reach applies here too: standing outside the seat zone
-                    hides it same as the headline figure above. */}
-                {canSeeSiloDetail && <th>Resources</th>}
+                {/* Leader/Treasurer are exactly who may see what each member
+                    is holding. */}
+                {canSeeResources && <th>Resources</th>}
                 {canManageMembers && <th></th>}
               </tr>
             </thead>
@@ -360,7 +222,7 @@ export default async function FactionPage({ searchParams }) {
                       )}
                     </td>
                     <td>{c.roleTitle ?? "—"}</td>
-                    {canSeeSiloDetail && <td>{c.resources} ⬢</td>}
+                    {canSeeResources && <td>{c.resources} ⬢</td>}
                     {canManageMembers && (
                       <td>
                         <form action={setTreasurer}>
@@ -379,15 +241,6 @@ export default async function FactionPage({ searchParams }) {
             </tbody>
           </table>
         </section>
-
-        {canSeeSiloDetail && <SiloHistoryPanel history={siloHistory} />}
-
-        {subjectFactions.length > 0 && (
-          <div>
-            <h2 className="panel-header">Subject Factions</h2>
-            <FactionTable factions={subjectFactions} showSilo reachableIds={subjectReachableIds} />
-          </div>
-        )}
       </PageShell>
     );
   }
@@ -408,7 +261,6 @@ export default async function FactionPage({ searchParams }) {
   if (!faction) redirect("/gm/players?tab=factions");
 
   const isUnaffiliated = faction.name === "Unaffiliated";
-  const siloHistory = !isUnaffiliated ? await loadSiloHistory(faction.id, { forGm: true }) : [];
   const subjectFactions = await getDescendantFactions(faction.id);
 
   return (
@@ -456,7 +308,6 @@ export default async function FactionPage({ searchParams }) {
               isGm
             />
           </li>
-          {!isUnaffiliated && <li>Faction Silo: {faction.silo} ⬢</li>}
         </ul>
       </section>
 
@@ -535,12 +386,10 @@ export default async function FactionPage({ searchParams }) {
         </table>
       </section>
 
-      {!isUnaffiliated && <SiloHistoryPanel history={siloHistory} showVisibility />}
-
       {subjectFactions.length > 0 && (
         <div>
           <h2 className="panel-header">Subject Factions</h2>
-          <FactionTable factions={subjectFactions} showSilo isGm />
+          <FactionTable factions={subjectFactions} isGm />
         </div>
       )}
 

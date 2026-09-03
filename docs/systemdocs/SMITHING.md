@@ -43,13 +43,20 @@ not — its steel prod and lock are `smithing-skilled` work.
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
 gate is what it takes to *use* it. Character creation and `/store` enforce
 the Combat gate (`requiredTag`) — you can't buy a Crossbow at creation
-without Ranged (Basic). The **Add Tag menu enforces neither** — it's the
-honor-system door (`addRequirementSatisfied()`, `web/lib/tagRequests.js`,
-[`TAGS.md`](TAGS.md) §3b): the picker's "To make: …" line shows the Skill
-gate as guidance, and the GM reviewing the pushed request holds players to
-it. A smith with `Smithing (Skilled)` and no `Melee (Basic)` can forge a
-sword they can't swing; a fighter pulling a sword from their clan's armoury
-files the same request with the fiction as their justification.
+without Ranged (Basic). The **Craft menu enforces the Skill gate, not the
+Combat gate** (`db/lib/medicalVision.js#satisfiedSkillIds`,
+[`CRAFTING.md`](CRAFTING.md) §2, [`TAGS.md`](TAGS.md) §3b): the picker's "To
+make: …" line shows the Skill gate as a requirement, checked server-side, not
+just guidance. Nothing checks the Combat gate at craft time, so a smith with
+`Smithing (Skilled)` and no `Melee (Basic)` can still forge a sword they
+can't swing; a fighter pulling a sword from their clan's armoury still files
+the same request with the fiction as their justification — that half of the
+honor system stands, it's just the Skill half that's now enforced.
+
+Crafting is always filed as a Routine now, never a Gambit — the Craft button
+(the old Add Tag) enforces a recipe's skills server-side, and Dead Simple
+recipes still need no Move at all, just the per-turn unit cap below
+(`CRAFTING.md`).
 
 **Dead Simple is capped at 4 items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The cap counts *units*,

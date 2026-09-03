@@ -8,12 +8,12 @@ documents:
     name: Courtier
     public: false
     tags: []
-    description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+    description: As a member of the Baron’s retinue, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don’t steal. If you’d like to steal, arrange it with a GM). ‡
   church:
     name: Church
     public: false
     tags: []
-    description: As a member of the Church, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don’t steal. If you’d like to steal, arrange it with a GM). ‡
   independent:
     name: Independent
     public: false
@@ -52,13 +52,11 @@ documents:
       - Treasurer
       - Leader
     description: |-
-      As Treasurer or Leader, you can control your faction's Silo.
-
-      You can see every deposit and withdrawal, in addition to each member's Resources.
+      As Treasurer or Leader, you can see each faction member's Resources.
 
       **Transferring Resources**
 
-      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends. For a Silo, stand in that faction's Zone. For a player, stand in the same Zone as them. Being a Treasurer or Leader does not extend that reach — if you lose your Zone, the Silo is frozen.
+      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends — stand in the same Zone as them. ‡
   medical:
     name: Medical
     public: true
@@ -137,19 +135,10 @@ documents:
 
       Traditionally, in part due to the cost of medical procedures, the Esculap only treats people that can pay or people of noble blood. So try not to get hurt — you should only expect to get medical treatment if you can pay for it, unless the Esculap is feeling generous.
   teachingskills:
-    name: Teaching Skills
-    public: true
-    tags: []
-    description: "You can teach almost any skill. The person learning has to make a Gambit, but must be in the same Zone as someone who has that skill and is willing to teach them. The tutor doesn't have to use a Move. If the student rolls a six, they gain the skill."
-  production:
-    name: Producing Resources
-    public: true
-    tags:
-      - Laborer (Basic)
-      - Laborer (Skilled)
-      - Laborer (Farming)
-    description: |-
-      Everyone can use Routine Moves to produce Resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
+  name: Teaching Skills
+  public: true
+  tags: []
+  description: "Skills can be taught. Find someone standing where you are who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is the teacher's Routine for the turn; learning is your Gambit. Roll a 5 or a 6 and the skill is yours when the turn ends. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill. ‡"
 
       To produce, simply enable **Labor** on your Move. Your skills are automatically applied. Laboring can be flavored in any way, from herding to hunting and foraging.
 
@@ -193,7 +182,7 @@ documents:
     public: false
     tags: []
     description: |-
-      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to have the Silo drained.
+      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to be squeezed for it. ‡
 
       Last week, Thomas Ciobanu — a respectable tradesman — was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry — when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
   fortressstarting:
@@ -242,8 +231,8 @@ documents:
       The Baron's rule is absolute. He has a small council including the Hand, the Meister, the Captain, and any other courtier he might assign.
 
       The Hand's the voice, the organizer, the executor, the Hand. He outranks everyone except the Baron.
-      The Meister collects taxes, keeps an eye on the Silo, and provides medical attention.
-      The Captain commands the Watch.
+      The Meister collects taxes and provides medical attention.
+      The Captain commands the Watch. ‡
 
       The rest of the court, the Baron's family included, live their lives.
   watchman:

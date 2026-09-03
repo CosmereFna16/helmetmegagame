@@ -40,11 +40,11 @@ export function StagedEffectRow({
 
   const state = effectState(effect);
   const frozen = effect.applied || Boolean(effect.appliedError);
-  // A Silo -> Silo transfer has no character end — targetCharacterId is null
-  // — so there's nothing for the row's name/avatar button to open in the
-  // inspector. It also isn't editable in place: it's 1:1 by nature, not a
-  // fit for EffectComposer's multi-target/multi-field form, so Delete and
-  // re-stage stands in for Edit.
+  // A transfer with no character end — targetCharacterId is null, which can
+  // still happen for an old pre-removal faction-to-faction row — has nothing
+  // for the row's name/avatar button to open in the inspector. It also isn't
+  // editable in place: it's 1:1 by nature, not a fit for EffectComposer's
+  // multi-target/multi-field form, so Delete and re-stage stands in for Edit.
   const isTransfer = Boolean(effect.transfer);
 
   async function onDelete() {
@@ -54,7 +54,7 @@ export function StagedEffectRow({
       title: batch ? "Delete this mass apply?" : "Delete this staged effect?",
       message: batch
         ? `Drops the effect for all ${batchCount ?? "its"} targets — ${effectSummary(effect, tagNames)}.`
-        : `${effect.targetName ?? "Silo transfer"} — ${effectSummary(effect, tagNames)}. It won't apply at the push.`,
+        : `${effect.targetName ?? "Transfer"} — ${effectSummary(effect, tagNames)}. It won't apply at the push.`,
       confirmLabel: "Delete",
       cancelLabel: "Keep it",
     });
@@ -89,7 +89,7 @@ export function StagedEffectRow({
               {effect.targetName}
             </button>
           ) : (
-            <span className="desk-name">Silo transfer</span>
+            <span className="desk-name">Transfer</span>
           )}{" "}
           <span className="mono">{effectSummary(effect, tagNames)}</span>
         </p>

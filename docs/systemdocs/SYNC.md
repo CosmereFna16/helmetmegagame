@@ -14,14 +14,13 @@ running the sync is the only way these rows change.
 |---|---|---|---|---|
 | `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5) |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
-| `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members, roles, or a non-zero silo is left in place and reported |
+| `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 
 **Run order matters:** zones → tags → roles → desires → documents. Roles
 resolve a `starting_zone` and an optional `starting_location` by slug, and a
-Faction's zone — plus its optional `silo_zone:` override, which must name a
-**seat** zone (`FACTIONS.md` §3b) — by name, and validate
+Faction's zone by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags,
@@ -60,30 +59,13 @@ provisioned from scratch, losing its Discord objects. Rename by editing `name`.
 
 ### Create-only fields
 
-`Faction.silo` is **computed** — the sum of the faction's role weights,
-scaled by `GameConfig.playerCount` (`db/lib/factionSilo.js`) — and seeded
-**on CREATE only**. An existing faction's silo is live game state and an
-ordinary re-sync must never overwrite it. The one deliberate exception is
-`seedSilos: true` (`db:sync-roles -- --seed-silos`, and the Restart Game
-wipe), which re-seeds every silo at its computed opening balance — without
-it, a wipe would leave every silo at the 0 it was zeroed to, since no
-faction row is ever *created* again after the first sync. Unaffiliated is
-excluded and stays silo-less.
-
-`Faction.siloZoneId` is the opposite case: written on **every** sync, `null`
-included. It is pure authored configuration, not game state, and writing the
-null is what makes a removed `silo_zone:` line put the Silo back on the
-faction's own zone. See `FACTIONS.md` §3b.
-
-`Faction.parentFactionId` is create-only for the same reason. The hierarchy is
-authored in `roles.yaml` (`parent:`), but once a faction row exists its parent
-is **live game state** — a clan can break away mid-game, or be absorbed by
-another, and that is a GM edit on `/gm/dev/factions`. An ordinary re-sync
-leaves it alone, so it can't quietly re-parent a faction under the one it
-rebelled against. `seedSilos: true` (`--seed-silos`, and the Restart Game
-wipe) reasserts the authored hierarchy along with the authored silos — so
-editing `parent:` in the YAML for a *future* game is still the right move, it
-just doesn't reach a game already in progress.
+`Faction.parentFactionId` is create-only. The hierarchy is authored in
+`roles.yaml` (`parent:`), but once a faction row exists its parent is **live
+game state** — a clan can break away mid-game, or be absorbed by another, and
+that is a GM edit on `/gm/dev/factions`. An ordinary re-sync leaves it alone,
+so it can't quietly re-parent a faction under the one it rebelled against —
+so editing `parent:` in the YAML for a *future* game is still the right move,
+it just doesn't reach a game already in progress.
 
 ### One-time vs every-run
 
@@ -235,7 +217,7 @@ channel doctor.
 
 **This flow has been bitten by foreign-key ordering before.** Anything deleted
 there has to come out in dependency order, and it's the main reason new log-ish
-tables (`ArchiveEntry`, `SiloTransaction`, `AuditLog`, `SystemReport`)
+tables (`ArchiveEntry`, `AuditLog`, `SystemReport`)
 deliberately use plain indexed id columns rather than real relations — see
 `ARCHIVE.md`.
 
@@ -307,7 +289,7 @@ pre-launch wipe rebuilds everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). `-- --seed-silos` also re-seeds every faction Silo. |
+| `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
 | `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags, then any TagGroup absent from `docs/taggroups.yaml` once no surviving tag sits in it. |
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |

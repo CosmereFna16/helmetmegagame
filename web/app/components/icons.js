@@ -313,6 +313,19 @@ export function TrashIcon(props) {
   );
 }
 
+// Craft. A hammer over an anvil-line: the recipe door on the action grid
+// (actionRegistry.js).
+export function HammerIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M13.5 6.5l4 4" strokeLinecap="round" />
+      <path d="M9.5 5.5l5-1.5 4.5 4.5-1.5 5-3-3" strokeLinejoin="round" />
+      <path d="M12.5 10.5L5 18a1.6 1.6 0 0 0 2.3 2.3l7.5-7.5" strokeLinejoin="round" />
+      <path d="M4 21.5h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

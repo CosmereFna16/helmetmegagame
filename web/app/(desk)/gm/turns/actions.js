@@ -11,7 +11,6 @@ import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
-import { normalizeQuiet } from "@/lib/siloCover";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -354,19 +353,15 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   return { count: created.length, batchId };
 }
 
-// A staged party-to-party transfer (character or faction Silo on either end).
-// Separate from createStagedEffectsImpl because the balance check runs
-// against live balances at stage time, not a mint/burn delta.
+// A staged character-to-character transfer. Separate from
+// createStagedEffectsImpl because the balance check runs against live
+// balances at stage time, not a mint/burn delta.
 async function createStagedTransferImpl({
   fromKey,
   toKey,
   amount: rawAmount,
   moveId,
   cavingRollId,
-  quiet,
-  coverActorName,
-  coverToName,
-  coverNote,
 }) {
   const session = await requireGm();
   const amount = Number.parseInt(rawAmount, 10);
@@ -384,14 +379,11 @@ async function createStagedTransferImpl({
   const openTurn = await requireOpenTurn();
   const targetCharacterId = to.kind === "character" ? to.id : from.kind === "character" ? from.id : null;
   // Snapshotted into the payload, never re-derived at push time.
-  const { hidden, cover } = normalizeQuiet({ quiet, coverActorName, coverToName, coverNote });
   const payload = {
     transfer: {
       from: { kind: from.kind, id: from.id, name: from.name },
       to: { kind: to.kind, id: to.id, name: to.name },
       amount,
-      hidden,
-      cover,
     },
   };
 
@@ -733,8 +725,11 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
 
+  // A lesson's partner Moves may go with this one (db/lib/lessons.js); the
+  // learners it strands are told after commit.
+  let lessonDms = [];
   await prisma.$transaction(async (tx) => {
-    await deleteActionRestoringTurn(tx, action);
+    lessonDms = await deleteActionRestoringTurn(tx, action);
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
@@ -749,6 +744,9 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
         },
       },
     });
+  for (const dm of lessonDms) {
+    after(() => sendDm(dm.discordUserId, dm.content).catch((err) => console.error("Lesson cancel DM failed:", err)));
+  }
   });
 
   // Sent directly, not deferred to the push — a freed turn the player

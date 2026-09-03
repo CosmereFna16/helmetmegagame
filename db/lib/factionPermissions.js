@@ -1,5 +1,6 @@
-// Faction Leader/Treasurer authority — who may manage a faction's Silo, and
-// (the same thing) who may see how many Resources its members are holding.
+// Faction Leader/Treasurer authority — who may see how many Resources a
+// faction's members are holding. (Until 9/2026 the same pair managed the
+// faction's Silo; Silos are gone, and this is what's left of the seat.)
 //
 // This lives in db/lib rather than web/lib because both faces of the game ask
 // the question: the web app on /faction, and the bot on the 🔍 inspect
@@ -11,8 +12,7 @@
 // as dm.js/turnAnnouncement.js — and is deliberately NOT spread into the
 // db/index.js barrel; require it by path.
 
-// Silo management (viewing withdrawal history, transferring resources out,
-// seeing member Resources) is available to a faction's Leader and Treasurer —
+// Seeing member Resources is available to a faction's Leader and Treasurer —
 // plain booleans on Character (see faction/actions.js#setFactionLeader /
 // setTreasurer), so a Treasurer without the isLeader flag still qualifies.
 async function getMyFactionRole(prisma, discordUserId, factionId) {
@@ -28,11 +28,11 @@ async function getMyFactionRole(prisma, discordUserId, factionId) {
   });
 
   if (!character || character.factionId !== factionId) {
-    return { character, isLeader: false, isTreasurer: false, canManageSilo: false };
+    return { character, isLeader: false, isTreasurer: false, isOfficer: false };
   }
 
   const { isLeader, isTreasurer } = character;
-  return { character, isLeader, isTreasurer, canManageSilo: isLeader || isTreasurer };
+  return { character, isLeader, isTreasurer, isOfficer: isLeader || isTreasurer };
 }
 
 // Walks parentFactionId up to the root, returning ancestor faction IDs
@@ -55,28 +55,4 @@ async function getFactionAncestorIds(prisma, factionId) {
   return ids;
 }
 
-// Silo access for a *target* faction, which may not be the character's own —
-// a parent faction's Leader or Treasurer can manage a subject faction's Silo
-// (one-directional: only ancestors of the target qualify, never siblings or
-// descendants), matching getMyFactionRole's same-faction Leader-or-Treasurer
-// rule for the character's own faction.
-async function getSiloAccess(prisma, discordUserId, targetFactionId) {
-  const own = await getMyFactionRole(prisma, discordUserId, targetFactionId);
-  if (!own.character) return { character: null, canManageSilo: false, isOwnFaction: false };
-
-  if (own.character.factionId === targetFactionId) {
-    return { character: own.character, canManageSilo: own.canManageSilo, isOwnFaction: true };
-  }
-
-  if (!own.character.factionId) return { character: own.character, canManageSilo: false, isOwnFaction: false };
-
-  const ancestorIds = await getFactionAncestorIds(prisma, targetFactionId);
-  if (!ancestorIds.includes(own.character.factionId)) {
-    return { character: own.character, canManageSilo: false, isOwnFaction: false };
-  }
-
-  const atAncestor = await getMyFactionRole(prisma, discordUserId, own.character.factionId);
-  return { character: own.character, canManageSilo: atAncestor.canManageSilo, isOwnFaction: false };
-}
-
-module.exports = { getMyFactionRole, getFactionAncestorIds, getSiloAccess };
+module.exports = { getMyFactionRole, getFactionAncestorIds };

@@ -28,7 +28,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   if (!character) return null;
 
   const [
-    factions,
     locations,
     roles,
     allTags,
@@ -43,9 +42,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     pendingStaged,
     transferRoster,
   ] = await Promise.all([
-    // silo rides along for the ActionBar's Transfer dialog — showing the
-    // Silo's current balance beside its name in the party picker.
-    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, silo: true } }),
     // The place picker's options. A character stands in a Location, never on
     // a zone row, so this is the whole Location table grouped by zone.
     // Authoring order both ways, so the list reads like docs/zones.yaml
@@ -79,6 +75,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         equippable: true,
         consumable: true,
         removable: true,
+        healable: true,
+        teachable: true,
         custom: true,
         defaultDurationTurns: true,
         parentTagId: true,
@@ -152,9 +150,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       where: { targetCharacterId: characterId, appliedAt: null },
       select: { payload: true },
     }),
-    // The "Characters" side of the Transfer dialog's party picker — every
-    // other ALIVE character, so a GM can move ⬢ between any two parties, not
-    // just this one and a Silo. Same ALIVE filter resolveParty applies.
+    // The Transfer dialog's party picker — every other ALIVE character, so a
+    // GM can move ⬢ between any two characters, not just this one. Same
+    // ALIVE filter resolveParty applies.
     prisma.character.findMany({
       where: { status: "ALIVE" },
       orderBy: { name: "asc" },
@@ -281,7 +279,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // which propagates to all three of his family.
     lastNameLocked: isDynastyMember(character.role?.slug),
     canDelete: isSuperadmin(actingDiscordUserId),
-    factions,
     transferRoster,
     locations: locations.map((l) => ({
       id: l.id,
@@ -301,6 +298,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       equippable: t.equippable,
       consumable: t.consumable,
       removable: t.removable,
+      teachable: t.teachable,
       custom: t.custom,
       defaultDurationTurns: t.defaultDurationTurns,
       parentTagId: t.parentTagId,

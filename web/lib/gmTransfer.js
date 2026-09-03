@@ -5,29 +5,16 @@ import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { UserError } from "@/lib/actionResult";
 import { requireReason } from "@/lib/requests";
-import { normalizeQuiet } from "@/lib/siloCover";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 
-// The immediate GM transfer — moves ⬢ between any two parties (a character
-// or a faction Silo) right now, from the Dev Panel and from the FactionsPanel
-// Silo control. Any GM, not just a superadmin (the absolute "set the Silo to
-// N" field in `/gm/dev/factions` stays superadmin-only as the blunt tool).
-// Apply-first like every other Dev Panel verb — no Request row, no one-click
-// Undo, the reverse transfer is the reversal — and skips the reach gate
+// The immediate GM transfer — moves ⬢ between any two characters right now,
+// from the Dev Panel. Any GM, not just a superadmin. Apply-first like every
+// other Dev Panel verb — no Request row, no one-click Undo, the reverse
+// transfer is the reversal — and skips the reach gate
 // (web/lib/transferReach.js) a player transfer enforces, but not the balance
-// check. `quiet`/`cover*` hide the move from the faction's own
-// Leader/Treasurer; the AuditLog row always records the truth AND the cover.
-export async function gmTransferResources({
-  fromKey,
-  toKey,
-  amount: rawAmount,
-  reason: rawReason,
-  quiet = false,
-  coverActorName,
-  coverToName,
-  coverNote,
-}) {
+// check.
+export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, reason: rawReason }) {
   const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId || !gm) throw new UserError("Not authorized.");
   const reason = requireReason(rawReason);
@@ -41,17 +28,10 @@ export async function gmTransferResources({
   if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
   if (amount > from.balance) throw new UserError(`${partyLabel(from)} only has ${from.balance} ⬢.`);
 
-  const { hidden, cover } = normalizeQuiet({ quiet, coverActorName, coverToName, coverNote });
-
   const openTurn = await getOpenTurn();
   const ledger = {
-    hidden,
-    cover,
     actorDiscordUserId: session.discordUserId,
     actorCharacterId: null,
-    // Matches the "GM (Dev Panel)" convention updateFaction already uses for
-    // a manual Silo correction — the audit row's actorDiscordUserId is the
-    // real per-GM identity; this is just the ledger's plain-language label.
     actorName: "GM (Transfer)",
     turnNumber: openTurn?.number ?? null,
     turnPhase: openTurn?.phase ?? null,
@@ -75,8 +55,6 @@ export async function gmTransferResources({
           amount,
           from: { kind: from.kind, id: from.id, name: from.name },
           to: { kind: to.kind, id: to.id, name: to.name },
-          hidden,
-          cover,
         },
       },
     });

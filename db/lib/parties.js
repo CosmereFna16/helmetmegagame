@@ -1,15 +1,16 @@
-// A "party" is either a character or a faction Silo, resolved to one uniform
+// A "party" is either a character or a Room stash, resolved to one uniform
 // shape so a transfer never has to branch on which side of it it's looking
 // at. Promoted out of web/app/(app)/character/requestActions.js so the
 // turn-end push (db/lib/stagedPush.js, CommonJS, no Next.js request context)
 // and every GM transfer surface can resolve the same key the player-facing
-// TRANSFER_RESOURCES request does.
+// TRANSFER_RESOURCES request does. Faction Silos used to be the third kind;
+// they were removed in 9/2026 (FACTIONS.md).
 //
 // Takes `prisma` as the first parameter, same reason as db/lib/dm.js:
 // db/index.js is the one importing this module, so requiring it back would
 // resolve to a partial (prisma-less) exports object.
 
-// "character:<id>" / "faction:<id>". A posted key of just "character" (no
+// "character:<id>" / "room:<id>". A posted key of just "character" (no
 // colon, no id) used to leave `id` undefined — Prisma DELETES an undefined
 // field from a where clause rather than matching nothing, so "find the
 // character with this id" quietly became "find any living character". `?? ""`
@@ -20,8 +21,8 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
   if (kind === "character") {
     // Looting is the one caller that walks past the ALIVE filter — a corpse
     // is still a "party" whose ⬢ someone else can pull. Every other caller
-    // (SEND transfer, healing payer, faction silo authority, every GM
-    // transfer) leaves the flag off and gets the original ALIVE-only lookup.
+    // (SEND transfer, healing payer, every GM transfer) leaves the flag off
+    // and gets the original ALIVE-only lookup.
     const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
     const c = await prisma.character.findFirst({
       where: { id: id ?? "", status: statusFilter },
@@ -30,11 +31,15 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
         name: true,
         resources: true,
         zoneId: true,
+        locationId: true,
         status: true,
+        concealed: true,
         buriedAt: true,
         discordUserId: true,
       },
     });
+    // locationId/concealed/status/buriedAt are what web/lib/peopleHere.js#isHere
+    // judges reach on.
     return c
       ? {
           kind,
@@ -42,44 +47,17 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
           name: c.name,
           balance: c.resources,
           zoneId: c.zoneId,
+          locationId: c.locationId,
           status: c.status,
+          concealed: c.concealed,
           buriedAt: c.buriedAt,
           discordUserId: c.discordUserId,
         }
       : null;
   }
-  if (kind === "faction") {
-    const f = await prisma.faction.findUnique({
-      where: { id: id ?? "" },
-      select: {
-        id: true,
-        name: true,
-        silo: true,
-        zoneId: true,
-        zone: { select: { name: true } },
-        siloZoneId: true,
-        siloZone: { select: { name: true } },
-      },
-    });
-    if (!f || f.name === "Unaffiliated") return null;
-    // A Silo party's zone is its SEAT, not the faction's grouping zone — a
-    // faction can group under one and bank in another (schema.prisma,
-    // FACTIONS.md §3b). Resolving it here means every transfer surface gets
-    // the right zone, and the right zone name in the rejection message,
-    // without repeating the fallback.
-    return {
-      kind,
-      id: f.id,
-      name: f.name,
-      balance: f.silo,
-      zoneId: f.siloZoneId ?? f.zoneId,
-      zoneName: (f.siloZone ?? f.zone)?.name ?? null,
-    };
-  }
-  // A Room's stash (docs/systemdocs/CARRY.md). Location-grain where the
-  // other two are zone-grain: reach is "standing in this Location, and
-  // admitted to this room", decided by web/lib/transferReach.js with
-  // db/lib/roomAccess.js#accessibleRooms.
+  // A Room's stash (docs/systemdocs/CARRY.md): reach is "standing in this
+  // Location, and admitted to this room", decided by web/lib/transferReach.js
+  // with db/lib/roomAccess.js#accessibleRooms.
   if (kind === "room") {
     const r = await prisma.room.findUnique({
       where: { id: id ?? "" },
@@ -117,8 +95,7 @@ function partyKey(party) {
 }
 
 function partyLabel(party) {
-  if (!party) return "Unknown";
-  return party.kind === "faction" ? `${party.name} Silo` : party.name;
+  return party?.name ?? "Unknown";
 }
 
 module.exports = { resolveParty, partyKey, partyLabel };

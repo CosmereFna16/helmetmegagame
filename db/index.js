@@ -31,6 +31,7 @@ const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
 const { runCavingPass } = require("./lib/cavingPass");
 const { runDefaultMovePass } = require("./lib/defaultMovePass");
 const { runStagedPushPass } = require("./lib/stagedPush");
+const { runLessonPass } = require("./lib/lessonPass");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
@@ -131,6 +132,7 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
 // (posts/DMs) for the caller's runSideEffects() rather than sending it here.
 const TURN_PASSES = [
   "defaultMoves",
+  "lessons",
   "stagedPush",
   "tagExpiry",
   "dyingDeath",
@@ -192,6 +194,24 @@ async function resolveNeeds(turn, config) {
         data: { actorDiscordUserId: "system", actionType: "default_moves_resolved", details: defaultSummary },
       })
       .catch((err) => console.error("Default Move audit log failed:", err));
+  }
+
+  // Lessons (db/lib/lessonPass.js): the learner's Gambit is SOLVED here,
+  // before the push closes it, and PENDING offers expire. After defaultMoves
+  // only so a learner who never accepted still gets their Default Move.
+  let lessons = null;
+  if (!done.has("lessons")) {
+    lessons = await runLessonPass(prisma, turn).catch(async (err) => {
+      await passFailed("Lessons", err);
+      return null;
+    });
+    if (lessons) await markDone("lessons");
+  }
+  const { dms: lessonDms = [], ...lessonSummary } = lessons ?? {};
+  if (lessons && (lessons.resolved || lessons.expired || lessons.failed)) {
+    await prisma.auditLog
+      .create({ data: { actorDiscordUserId: "system", actionType: "lessons_resolved", details: lessonSummary } })
+      .catch((err) => console.error("Lessons audit log failed:", err));
   }
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
@@ -441,6 +461,7 @@ async function resolveNeeds(turn, config) {
     disappointedNotices,
     defaultMovePosts,
     defaultMoveDms,
+    lessonDms,
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
@@ -480,6 +501,7 @@ async function advanceTurn() {
   let disappointedNotices = [];
   let defaultMovePosts = [];
   let defaultMoveDms = [];
+  let lessonDms = [];
   let tagExpiryDms = [];
   let catatonicDms = [];
   let catatonicRoleUpdates = [];
@@ -514,7 +536,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
@@ -564,7 +586,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -657,6 +679,12 @@ async function advanceTurn() {
     for (const dm of defaultMoveDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Default Move DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    for (const dm of lessonDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Lesson DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

@@ -49,6 +49,38 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   });
 }
 
+// A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee
+// (Basic) off the sheet. Drops every held ancestor of `tagId` — the tiers
+// below it in its own parentTagId chain — and returns snapshots of what came
+// off so a caller can record them for Undo. Reads the catalog itself, so a
+// caller with no chain map (the lesson pass, Craft) needs nothing loaded.
+async function replaceLowerTiers(tx, characterId, tagId) {
+  const catalog = await tx.tag.findMany({ select: { id: true, name: true, parentTagId: true } });
+  const byId = new Map(catalog.map((t) => [t.id, t]));
+  const below = new Set();
+  let cursor = byId.get(tagId)?.parentTagId ?? null;
+  while (cursor && !below.has(cursor)) {
+    below.add(cursor);
+    cursor = byId.get(cursor)?.parentTagId ?? null;
+  }
+  if (below.size === 0) return [];
+  const held = await tx.characterTag.findMany({
+    where: { characterId, tagId: { in: [...below] } },
+  });
+  const replaced = [];
+  for (const ct of held) {
+    replaced.push({
+      tagId: ct.tagId,
+      tagName: byId.get(ct.tagId)?.name ?? null,
+      source: ct.source,
+      expiresTurn: ct.expiresTurn,
+      quantity: ct.quantity,
+    });
+    await tx.characterTag.delete({ where: { id: ct.id } });
+  }
+  return replaced;
+}
+
 // Grants a list of tag SLUGS to one character — what a consumed tag turns
 // into (Tag.consumesInto: a meal becoming Ate Meal, a crate unpacking into
 // its contents), and what a removed one leaves behind (Tag.removesInto: the
@@ -186,4 +218,4 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
   return true;
 }
 
-module.exports = { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag };
+module.exports = { addToStack, dropCharacterTag, replaceLowerTiers, grantTagSlugs, addToRoomStack, dropRoomTag };

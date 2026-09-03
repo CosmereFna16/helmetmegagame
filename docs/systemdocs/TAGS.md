@@ -179,27 +179,33 @@ A fourth field, `Tag.desireLocks` (YAML: `desires: { locks: [...] }`), is
 catalog* shut for whoever holds it. Full writeup, including the clause
 grammar and how several held tags' locks union together: `DESIRES.md` §3.
 
-## 3b. The Add Tag menu asks a different question
+## 3b. The Craft menu asks a different question
 
 `requirementSatisfied()` answers "can you **use** this" — the right question
 for creation and `/store`, where the whole catalog is bought outright. The
-Add Tag menu is the **honor-system** door instead: crafting, and taking gear
-the fiction already puts in a character's hands (a clan armoury, a found
-cache) — situations no skill check can see. So it asks almost nothing, and
-the pushed request's GM review is the real enforcement.
+Craft menu (Add Tag, renamed and reworked — `CRAFTING.md`) asks "can you
+**make** this" instead, and now it actually checks: the recipe's
+`requirement.skills` must be held, or a higher tier of one, the same walk Heal
+uses (`db/lib/medicalVision.js#satisfiedSkillIds`). This replaced an earlier
+honor-system door where the menu asked almost nothing and the pushed request's
+GM review was the only enforcement — that version was a deliberate choice at
+the time (a smith with no combat skill forging weapons to sell, a fighter
+pulling gear from an armoury the fiction gives them, situations no skill check
+could see), but it also meant nothing stopped a player who held no relevant
+skill at all. The recipe check now runs server-side; the picker's "To make: …"
+line still shows the recipe, but it's the gate, not just advice.
 
-The Add Tag picker and `addTagRequest` therefore don't call
+The Craft picker and `craftRequest` therefore don't call
 `requirementSatisfied`. They call
 `addRequirementSatisfied(tag, tagsById, heldTagIds)` in
 `web/lib/tagRequests.js`, which is now **one route onto a tag**:
 
-- **Make it** — `craftable`, and that's the whole test. Neither the recipe's
-  `requirementSkills` nor the item's own `requiredTagId` is checked. The
-  picker's "To make: …" line shows what the recipe formally expects, and the
-  GM reviewing the pushed request holds players to it — the skills are
-  advice on this surface, not a gate. (An enforced version existed briefly
-  and locked non-crafters out of the armoury play entirely; it was removed
-  on purpose.)
+- **Make it** — `craftable`, plus the recipe's `requirement.skills`
+  (`CRAFTING.md` §2). The picker's `knownRecipeIds` shows only recipes whose
+  skills you hold; `craftRequest` re-derives the same check before writing
+  anything. `resourceCost` is charged up front to a payer (yourself, a Room
+  stash here, or a person here); `turnsCost` decides Dead Simple / Routine /
+  multi-turn `CraftProject`.
 
 There used to be a second route — **buy it**, `purchasable &&
 purchasableAfterStart`, gated on the item's own `requiredTagId`. It is gone.
@@ -339,14 +345,15 @@ and that belt-and-braces line was what made the Addictions unbuyable despite
 their flag. A negative cart total is credited rather than debited (the write
 guards on `totalPoints !== 0`, not `> 0`). The drawback POINT cap (§4a) is a
 creation rule only — `/store` passes no cap at all. `/store` is therefore the
-**only** menu `purchasableAfterStart` still governs: the **Add Tag request**,
-the other mid-game path, no longer reads the flag at all. `addableTags()` (and
-`addTagRequestImpl` server-side) test `craftable` and nothing else, which is
-why most craftables being deliberately `purchasableAfterStart: false` (43 of
-58 — meals, tonics, explosives) costs them nothing. They are made rather than
-bought, and their `requirement` block is honor-system guidance the GM review
-holds players to, not a code gate (§3b). No drawback is craftable, so no
-drawback can arrive through Add Tag.
+**only** menu `purchasableAfterStart` still governs: the **Craft request**
+(Add Tag, renamed), the other mid-game path, no longer reads the flag at all.
+`addableTags()` test `craftable` and the recipe's `requirement.skills`
+(`craftRequest` server-side re-checks both — §3b), which is why most
+craftables being deliberately `purchasableAfterStart: false` (43 of 58 —
+meals, tonics, explosives) costs them nothing. They are made rather than
+bought, and their `requirement` block is the recipe Craft now enforces, not
+just GM-review guidance (§3b). No drawback is craftable, so no drawback can
+arrive through Craft.
 
 The two mid-game paths deal in different currencies and coexist on purpose:
 the store spends Tag Points against catalog prices with no GM in the loop
@@ -398,7 +405,11 @@ reason to price one at 5.
 without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
-the carry caps landed (`CARRY.md`).
+the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
+at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of
+deliberate outlier as Pack Mule; don't read a pattern into it. Teaching and
+Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
+(`LESSONS.md` §1).
 
 **At character creation, a character may buy at most
 `GameConfig.maxDrawbackTags` drawback TAGS — 5 by default, live on
@@ -560,8 +571,8 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   Note it is a property of the tag being *seen*. The tag that widens what an
   inspect shows is read off the **inspector** instead: Seductive reveals the
   subject's active Desire, resolved by `db/lib/inspectVision.js`, which also
-  accepts the discounted Demoness twin. Like the Silo-gated Resources field,
-  an unseen field is absent rather than placeholdered — a placeholder
+  accepts the discounted Demoness twin. Like the officer-gated Resources
+  field (`FACTIONS.md`), an unseen field is absent rather than placeholdered — a placeholder
   advertises that there is something to go after.
 - `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
@@ -699,13 +710,24 @@ convention as `buildNickname`. Change both copies together; don't collapse them
 (the web copies must stay dependency-free so client components can import
 them).
 - `removable` — whether a player can strip this tag off themselves mid-game
-  without a GM. Live: it is the whole filter behind the Remove Tag menu
-  (`removableTags()`, `web/lib/tagRequests.js`) and is re-checked by
-  `removeTagRequest`.
+  without a GM. Live: it is the whole filter behind the Destroy menu (Remove
+  Tag, renamed — `CRAFTING.md`) (`removableTags()`, `web/lib/tagRequests.js`)
+  and is re-checked by `destroyTagRequest`. Never true on a Health tag any
+  more — a wound is healed, not destroyed; see `healable` below.
 - `craftable` — whether this tag represents something a player can
   craft/make, as opposed to one that only ever arrives via role, GM grant,
-  or automatic game logic. Live too: `addableTags()` offers Purchasable *or*
-  Craftable tags in the Add Tag menu.
+  or automatic game logic. Live: `addableTags()` offers Craftable tags in the
+  Craft menu (Add Tag, renamed), and Craft now enforces the recipe's
+  `requirement.skills` server-side rather than leaving them as GM-review
+  guidance — see §3b and `CRAFTING.md` §2.
+- `healable` — whether the Heal menu offers this tag. Replaced an older
+  heuristic (any Health-category tag with a `requirement:` block); the flag
+  is what `web/lib/healRequests.js#isHealable` reads now, and it's what's set
+  `true` on every health tag with a cure, `false` everywhere else — see §5c.
+- `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
+  offer. Set `true` on every entry in the `skills` category, not derived from
+  the category itself; the one rule is `db/lib/lessons.js#teachableSkills`
+  (`LESSONS.md` §2).
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
@@ -943,11 +965,21 @@ learns it once and can then read any affliction they meet.
 | 7 | Complex surgery | 8 | 1 | Expert | yes |
 
 The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
-puts a Health tag **on** somebody — the same category, offered from the same
-list — so every rung you price is also an injury a player can inflict on
-someone already helpless. Nothing extra is needed on the tag to allow that: any
-non-`custom` Health tag is inflictable, exactly as any Health tag with a
-requirement block is treatable. A rung priced carelessly is now wrong twice.
+puts a Health tag **on** somebody — offered from `isInflictable()`'s curated
+list of `health-wounds` / `health-maiming` plus four of `health-mind` — so
+every rung you price there is also an injury a player can inflict on someone
+already helpless. Treatable is a separate question now: a Health tag is
+offered to Heal when `Tag.healable` is `true`, not by category or by the
+presence of a `requirement:` block (§5, `isHealable`). A rung priced
+carelessly can still be wrong twice, on both surfaces — just remember they're
+two different flags now, not one inference.
+
+**Remove/Destroy no longer cures anything.** Before `healable` existed, the
+old Remove Tag door doubled as a rough cure for some conditions — stripping a
+tag off yourself with no medic involved. `removable` and `healable` are
+disjoint on every Health tag now: something a doctor treats is `healable`,
+never `removable`; nothing in Health can be self-stripped through Destroy any
+more. Healing is the only door.
 
 Four things about it are deliberate.
 
@@ -969,11 +1001,11 @@ rather than of the injury.
 
 **Tier 0 is a rung, not an omission.** Something realistically untreatable,
 quick, and harmless — Vomiting, a Migraine, a Concussion, being Hungover —
-gets **no `requirement:` block at all**. `hasCureCost()`
-(`web/lib/healRequests.js`) keys off exactly that, so a tier-0 tag never
-appears in the Heal picker and the action refuses it. This is a design rule
-before it is a mechanic: charging a player 2 ⬢ and a doctor's afternoon to
-shorten a bout of vomiting is silly, and pretending medicine can do it is
+gets **no `requirement:` block at all**, and `healable` stays `false`.
+`isHealable()` (`web/lib/healRequests.js`) keys off the flag, so a tier-0 tag
+never appears in the Heal picker and the action refuses it. This is a design
+rule before it is a mechanic: charging a player 2 ⬢ and a doctor's afternoon
+to shorten a bout of vomiting is silly, and pretending medicine can do it is
 worse.
 
 **Above your tier is still possible.** Nothing about the skill requirement
@@ -1212,7 +1244,9 @@ of who is qualified; `healRequests.js` re-exports it.
 
 1. Pick the group by what kind of medicine it wants.
 2. Pick a ladder rung by what the work would really take, and copy its block
-   verbatim. Tier 0 means no `requirement:` at all.
+   verbatim. Tier 0 means no `requirement:` at all, and `healable: false`.
+   Any rung above 0 gets `healable: true` — and `removable: false`; Health
+   tags are cured, not destroyed.
 3. Set `visible` by whether a bystander could tell.
 4. If it worsens, give it `durationTurns` and `expiresInto` — **and say so in
    the description**, naming what it becomes. The tooltip's "Becomes" row is

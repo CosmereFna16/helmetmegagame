@@ -80,8 +80,8 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
       snapshot.resources = await addResources(tx, row.targetCharacterId, resources);
     }
 
-    // A party-to-party transfer, staged from the tray's composer or the
-    // FactionsPanel's Silo control. Mutually exclusive with `resources`.
+    // A party-to-party transfer, staged from the tray's composer. Mutually
+    // exclusive with `resources`.
     // Applied blind from the snapshot taken at staging time: if the party was
     // deleted since, InsufficientResourcesError stands in and stamps the row
     // Errored rather than silently dropping the ⬢.
@@ -98,10 +98,6 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
           turnNumber: turn.number,
           turnPhase: turn.phase,
           note: `Staged transfer, turn ${turn.number}`,
-          // A quiet transfer hides the real Silo row from the faction's own
-          // officers and puts the cover story there instead.
-          hidden: transfer.hidden === true,
-          cover: transfer.cover ?? null,
         },
       });
       snapshot.transfer = transfer;
@@ -253,8 +249,11 @@ async function runStagedPushPass(prisma, turn, config) {
   // Independent of the routine-closing logic below: the die was already
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.
+  // A lesson's Gambit is excluded: the lesson pass (db/lib/lessonPass.js)
+  // already told the learner the die AND what it did, in one line.
   const gambitRollNotices = [];
   for (const action of unapplied) {
+    if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,

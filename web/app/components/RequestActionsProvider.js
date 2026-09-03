@@ -21,8 +21,8 @@ import {
   hasPrerequisite,
 } from "@/lib/characterCreation";
 import {
-  addableTags,
-  removableTags,
+  craftableTags,
+  destroyableTags,
   transferableTags,
   consumableTags,
   addRequirementSatisfied,
@@ -31,6 +31,8 @@ import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
 import TransferDialog from "./TransferDialog";
+import CraftDialog from "./CraftDialog";
+import { titleFor } from "./actionRegistry";
 import Select from "./Select";
 import ChipText from "./ChipText";
 import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
@@ -40,8 +42,12 @@ import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import {
-  addTagRequest,
-  removeTagRequest,
+  craftRequest,
+  continueCraft,
+  cancelCraft,
+  destroyTagRequest,
+  learnRequest,
+  teachRequest,
   transferRequest,
   consumeTagRequest,
   healCharacterRequest,
@@ -65,8 +71,8 @@ export function useRequestActions() {
   return useContext(RequestActionsContext);
 }
 
-// The tag menu. Add Tag reuses PointBuy's category-tab layout without
-// PointBuy's budget/tier-chain math. `byId`/`heldIds` (Add menu only) gate
+// The tag menu. Craft reuses PointBuy's category-tab layout without
+// PointBuy's budget/tier-chain math. `byId`/`heldIds` (Craft menu only) gate
 // prerequisites; the other menus just list what's already held.
 function TagPicker({
   tags,
@@ -78,14 +84,15 @@ function TagPicker({
 }) {
   const [query, setQuery] = useState("");
 
-  // The Add menu (byId set) sorts chain-aware so tier rungs read in order;
+  // The Craft menu (byId set) sorts chain-aware so tier rungs read in order;
   // held-tag menus keep flat cost-then-name sort.
   const offered = useMemo(
     () => (byId ? sortForMode(tags, "group", byId) : sortTagsForMenu(tags)),
     [tags, byId],
   );
   // Gate first, derive tabs from what survives — a hidden category gets no
-  // tab at all. Add-gate only (honor-system); not requirementSatisfied().
+  // tab at all. Craft-gate only (recipe skills were already checked server-
+  // side — the page hands down `knownRecipeIds`); not requirementSatisfied().
   const unlocked = useMemo(
     () =>
       byId
@@ -204,21 +211,21 @@ function TagPicker({
                     Requires: {prerequisiteNames(tag).join(", ")}
                   </span>
                 )}
-                {/* Honor-system guidance, not a gate: the Add menu never
-                    blocks on recipe skills, so this line is how a player
-                    knows what the recipe formally expects of them before
-                    they file the request. Add-menu only (byId). */}
-                {byId &&
-                  tag.craftable &&
-                  (tag.requirementSkills ?? []).length > 0 && (
-                    <span
-                      className="mt-1 block text-xs"
-                      style={{ color: "var(--accent-text)" }}
-                    >
-                      To make:{" "}
-                      {tag.requirementSkills.map((s) => s.name).join(" or ")}
-                    </span>
-                  )}
+                {/* The recipe: what it costs and what it needs. Everything
+                    listed already passed the skill check server-side, so
+                    this is the price tag, not a warning. Craft menu only. */}
+                {byId && tag.craftable && (
+                  <span className="mt-1 block text-xs" style={{ color: "var(--accent-text)" }}>
+                    {[
+                      `${tag.requirementTurns ?? 1} ${(tag.requirementTurns ?? 1) === 1 ? "turn" : "turns"}`,
+                      `${tag.requirementResources ?? 0} ⬢`,
+                      ...((tag.requirementSkills ?? []).length
+                        ? [tag.requirementSkills.map((s) => s.name).join(", ")]
+                        : []),
+                    ].join(" · ")}{" "}
+                    ‡
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -252,21 +259,6 @@ function QuantityField({ value, onChange, max, label }) {
   );
 }
 
-function ResourceCostField({ value, onChange, max }) {
-  return (
-    <label className="field" style={{ width: "10rem" }}>
-      <span className="field-label">Does this cost any Resources?</span>
-      <input
-        type="number"
-        min="0"
-        max={max}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </label>
-  );
-}
-
 // "Nobody qualifies" line — never used to hide the action itself; see
 // ActionGrid.js on why a greyed button would be its own leak.
 function NobodyHere({ children }) {
@@ -276,69 +268,9 @@ function NobodyHere({ children }) {
 // Maps a "kind:id" party key back to a name for the confirm prompt.
 function payerLabel(parties, key) {
   const [kind, id] = (key ?? "").split(":");
-  const pool = kind === "faction" ? parties?.factions : parties?.characters;
-  const match = pool?.find((p) => p.id === id);
-  if (!match) return "They";
-  return kind === "faction" ? `${match.name}'s Silo` : match.name;
+  const pool = kind === "room" ? parties?.rooms : parties?.characters;
+  return pool?.find((p) => p.id === id)?.name ?? "They";
 }
-
-export const ACTION_HELP = {
-  add:
-    "To save the GMs time, you can add or remove tags at will, but you're " +
-    "expected to subtract the appropriate amount of resources / spend the " +
-    "amount of turns. They'll review the action later, but it'll push " +
-    "immediately. This is for crafting, taking gear, or building houses. Use " +
-    "the Spend Tag Points to point buy instead.",
-  heal: "Works on others nearby too. Gated by your Medical skill.",
-  consume:
-    "Use something up. You can also just click on the tag on your sheet.",
-  loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",
-  move:
-    "Forcibly move someone with the Bound tag, from anywhere in your zone to " +
-    "somewhere next door to you. Use this before moving yourself. If you're a " +
-    "Leader, you can also move people within your own faction. It does not " +
-    "spend their turn. Bodies can be dragged by anyone. ‡",
-  bind: "Tie up anyone standing where you are. Once they're Bound you can loot them or march them somewhere.",
-  free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
-  harm: "Further injure someone who is bound or incapacitated.",
-  bird:
-    "Send a bird to someone. You have to guess their zone. If they are " +
-    "illiterate, they'll need help reading it.",
-  read:
-    "Decode a letter someone showed you. Paste the script and it turns back " +
-    "into words. Nobody is told you read it.",
-  bury:
-    "Write the person's name letter by letter—be precise!—or they won't be buried.",
-  transfer: (
-    <>
-      <p>Hand over things and ⬢, or stash them in a room and pick them up later. ‡</p>
-      <p>
-        <strong>To a person</strong> Be in the same zone.
-      </p>
-      <p>
-        <strong>To or from a Silo</strong> Be in the faction&apos;s zone.
-      </p>
-      <p>
-        <strong>To or from a room</strong> Be standing in it. Anyone who can get in can take what&apos;s there. ‡
-      </p>
-    </>
-  ),
-};
-
-const TITLES = {
-  add: "Add Tag",
-  remove: "Remove Tag",
-  transfer: "Transfer ‡",
-  consume: "Consume Tag",
-  heal: "Heal",
-  loot: "Loot",
-  move: "Move Player",
-  bind: "Bind",
-  free: "Free",
-  harm: "Harm",
-  bury: "Bury Person",
-  bird: "Send Bird",
-};
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
@@ -357,13 +289,23 @@ export default function RequestActionsProvider({
   catalog = [],
   characterTags = [],
   resources = 0,
-  otherCharacters = [],
   transferParties = null,
   // Load vs caps for the Transfer dialog's projection line (CARRY.md).
   carry = null,
   canHeal = false,
   healTargets = [],
+  // Who can pay for a treatment or a craft: you, anyone here, rooms here.
   healParties = null,
+  // Craft (CRAFTING.md): the recipe ids whose skills you hold, decided
+  // server-side, and your projects in progress.
+  knownRecipeIds = [],
+  craftProjects = [],
+  // Lessons (LESSONS.md): who could teach you what, and whom you could teach.
+  canTeach = false,
+  teachers = [],
+  learners = [],
+  // Whether a Move is already filed this turn — a craft with turns needs one.
+  hasMoved = false,
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
   moveTargets = [],
@@ -380,8 +322,10 @@ export default function RequestActionsProvider({
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
-  const [spend, setSpend] = useState("0");
   const [quantity, setQuantity] = useState("1");
+  // Craft: a project in progress, and what to do with it.
+  const [projectId, setProjectId] = useState("");
+  const [projectChoice, setProjectChoice] = useState("continue");
   const [recipient, setRecipient] = useState("");
   const [patientId, setPatientId] = useState("");
   const [payerKey, setPayerKey] = useState("");
@@ -420,17 +364,17 @@ export default function RequestActionsProvider({
       ]),
     [catalog, characterTags],
   );
-  // heldHigherTiers hides rungs below a held chain tier — addTagRequest
+  // heldHigherTiers hides rungs below a held chain tier — craftRequest
   // rejects the same thing server-side.
-  const addable = useMemo(
+  const craftable = useMemo(
     () =>
-      addableTags(catalog, heldIds).filter(
+      craftableTags(catalog, heldIds, knownRecipeIds).filter(
         (t) => heldHigherTiers(t, gateById, heldIds).length === 0,
       ),
-    [catalog, heldIds, gateById],
+    [catalog, heldIds, knownRecipeIds, gateById],
   );
   const removable = useMemo(
-    () => removableTags(characterTags),
+    () => destroyableTags(characterTags),
     [characterTags],
   );
   const transferable = useMemo(
@@ -463,22 +407,30 @@ export default function RequestActionsProvider({
   );
 
   const chosen = useMemo(() => {
-    // heal/harm's tagId isn't a tag this character holds, so both opt out.
+    // heal/harm/learn/teach's tagId isn't a tag this character holds, so
+    // they opt out.
     const pool =
-      mode === "add"
-        ? addable
-        : mode === "remove"
+      mode === "craft"
+        ? craftable
+        : mode === "destroy"
           ? removable
           : mode === "consume"
             ? consumable
-            : mode === "heal" || mode === "harm"
+            : mode === "heal" || mode === "harm" || mode === "learn" || mode === "teach"
               ? []
               : transferable;
     return pool.find((t) => t.id === tagId) ?? null;
-  }, [mode, tagId, addable, removable, transferable, consumable]);
+  }, [mode, tagId, craftable, removable, transferable, consumable]);
   // Consume always takes one, so it opts out of the quantity field.
   const stacking = Boolean(chosen?.stackable) && mode !== "consume";
-  const heldCount = mode === "add" ? undefined : (chosen?.quantity ?? 1);
+  const heldCount = mode === "craft" ? undefined : (chosen?.quantity ?? 1);
+
+  // Lessons: the counterpart picked, and the skills on offer with them.
+  const lessonPeople = mode === "teach" ? learners : teachers;
+  const lessonPartner = useMemo(
+    () => lessonPeople.find((p) => p.id === targetId) ?? null,
+    [lessonPeople, targetId],
+  );
 
   // Slug -> name for "Becomes:". A consumesIntoOneOf position isn't resolved
   // via resolveConsumeGrants here (that rolls a real pick); rendered as
@@ -529,8 +481,9 @@ export default function RequestActionsProvider({
     (next, presetTagId = null) => {
       setMode(next);
       setTagId(presetTagId);
-      setSpend("0");
       setQuantity("1");
+      setProjectId("");
+      setProjectChoice("continue");
       setRecipient("");
       setPatientId("");
       setPayerKey(selfId ? `character:${selfId}` : "");
@@ -551,9 +504,48 @@ export default function RequestActionsProvider({
     [selfId],
   );
 
-  // Heal-someone-else and Harm's lethal branch ask twice. Confirm is
-  // awaited OUTSIDE startTransition, or the dialog never renders.
+  // Heal-someone-else, Harm's lethal branch, Destroy and any Craft that
+  // spends ⬢ or a Move ask twice. Confirm is awaited OUTSIDE
+  // startTransition, or the dialog never renders.
   async function submit(reason) {
+    if (mode === "craft" && !projectId && chosen) {
+      const turns = chosen.requirementTurns ?? 1;
+      const qty = chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1;
+      const cost = (chosen.requirementResources ?? 0) * qty;
+      const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
+      if (turns > 0 || cost > 0) {
+        const ok = await confirm({
+          title: turns > 1 ? "Start the work?" : "Make it?",
+          message: [
+            turns > 1 ? `${what} takes ${turns} turns of work.` : `Make ${what}?`,
+            cost > 0 ? `${cost} ⬢ are paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.` : null,
+            turns > 0 ? "This is your Move for the turn." : null,
+            "‡",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          confirmLabel: turns > 1 ? "Start ‡" : "Make it ‡",
+        });
+        if (!ok) return;
+      }
+    }
+    if (mode === "craft" && projectId && projectChoice === "cancel") {
+      const name = craftProjects.find((p) => p.id === projectId)?.tagName ?? "the work";
+      const ok = await confirm({
+        title: "Give it up?",
+        message: `${name} stays unfinished and whatever you paid for it is gone. ‡`,
+        confirmLabel: "Give it up ‡",
+      });
+      if (!ok) return;
+    }
+    if (mode === "destroy" && chosen) {
+      const ok = await confirm({
+        title: "Destroy it?",
+        message: `${chosen.name} is gone for good. Nothing comes back. ‡`,
+        confirmLabel: "Destroy ‡",
+      });
+      if (!ok) return;
+    }
     if (mode === "heal" && payerKey !== `character:${selfId}`) {
       const payerName = payerLabel(healParties, payerKey);
       const ok = await confirm({
@@ -583,21 +575,18 @@ export default function RequestActionsProvider({
 
   function runAction(reason) {
     switch (mode) {
-      case "add":
+      case "craft":
+        if (projectId) {
+          return projectChoice === "cancel" ? cancelCraft({ projectId, reason }) : continueCraft({ projectId, reason });
+        }
         // Always sent; the server pins it to 1 for a non-stackable tag anyway.
-        return addTagRequest({
-          tagId,
-          quantity,
-          resourcesSpent: spend,
-          reason,
-        });
-      case "remove":
-        return removeTagRequest({
-          tagId,
-          quantity,
-          resourcesSpent: spend,
-          reason,
-        });
+        return craftRequest({ tagId, quantity, payerKey, reason });
+      case "destroy":
+        return destroyTagRequest({ tagId, quantity, reason });
+      case "learn":
+        return learnRequest({ teacherId: targetId, tagId, reason });
+      case "teach":
+        return teachRequest({ learnerId: targetId, tagId, reason });
       case "consume":
         return consumeTagRequest({ tagId, reason });
       case "heal":
@@ -683,6 +672,19 @@ export default function RequestActionsProvider({
         return Boolean(targetId && (tagId || lethal));
       case "bury":
         return Boolean(buryName.trim());
+      case "craft": {
+        if (projectId) {
+          const project = craftProjects.find((p) => p.id === projectId);
+          if (!project) return false;
+          return projectChoice === "cancel" || (!hasMoved && !project.workedThisTurn);
+        }
+        if (!chosen) return false;
+        const cost = (chosen.requirementResources ?? 0) * (chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1);
+        return Boolean(cost === 0 || payerKey) && ((chosen.requirementTurns ?? 1) === 0 || !hasMoved);
+      }
+      case "learn":
+      case "teach":
+        return Boolean(targetId && tagId);
       default:
         return Boolean(tagId);
     }
@@ -691,10 +693,12 @@ export default function RequestActionsProvider({
   // What the grid needs to grey a button out — this character's sheet only.
   const pools = useMemo(
     () => ({
-      canAdd: addable.length > 0,
-      canRemove: removable.length > 0,
+      canCraft: craftable.length > 0 || craftProjects.length > 0,
+      canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
+      canLearn: teachers.length > 0,
+      canTeach,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
@@ -702,10 +706,13 @@ export default function RequestActionsProvider({
       canSendBirdToday: !birdSentToday,
     }),
     [
-      addable,
+      craftable,
+      craftProjects,
       removable,
       consumable,
       canHeal,
+      teachers,
+      canTeach,
       hasBird,
       isLiterate,
       birdSentToday,
@@ -717,9 +724,9 @@ export default function RequestActionsProvider({
     [enabled, open, pools],
   );
 
-  const title = TITLES[mode] ?? "Request";
+  const title = titleFor(mode);
   const dialogWidth =
-    mode === "add" || mode === "harm" || mode === "loot" || mode === "transfer" ? "wide" : undefined;
+    mode === "craft" || mode === "harm" || mode === "loot" || mode === "transfer" ? "wide" : undefined;
 
   return (
     <RequestActionsContext.Provider value={value}>
@@ -745,49 +752,42 @@ export default function RequestActionsProvider({
             onCancel={() => !pending && setMode(null)}
             onConfirm={submit}
           >
-            {mode === "add" && (
-              <>
-                <TagPicker
-                  tags={addable}
-                  selectedId={tagId}
-                  onSelect={pick}
-                  byId={gateById}
-                  heldIds={heldIds}
-                />
-                {stacking && (
-                  <QuantityField
-                    value={quantity}
-                    onChange={setQuantity}
-                    max={99}
-                    label="How many?"
+            {mode === "craft" && (
+              <CraftDialog
+                projects={craftProjects}
+                projectId={projectId}
+                onProject={(id) => {
+                  setProjectId(id);
+                  setProjectChoice("continue");
+                }}
+                projectChoice={projectChoice}
+                onProjectChoice={setProjectChoice}
+                picker={
+                  <TagPicker
+                    tags={craftable}
+                    selectedId={tagId}
+                    onSelect={pick}
+                    byId={gateById}
+                    heldIds={heldIds}
+                    emptyLabel="You don't know any recipes you could make right now. ‡"
                   />
-                )}
-                {chosen?.requirementTurns === 0 &&
-                  (chosen.requirementSkills ?? []).some(
-                    (s) =>
-                      s.slug === "crafting" ||
-                      (s.slug ?? "").startsWith("smithing"),
-                  ) && (
-                    // Mirrors web/lib/requests.js#isDeadSimple's slug list
-                    // (server-enforced) — matched by slug so this can't
-                    // silently drift, without importing Prisma here.
-                    <p className="text-sm text-muted">
-                      Dead Simple recipes: up to 4 items per turn, counted
-                      across your requests.
-                    </p>
-                  )}
-                <ResourceCostField
-                  value={spend}
-                  onChange={setSpend}
-                  max={resources}
-                />
-              </>
+                }
+                chosen={chosen}
+                stacking={stacking}
+                quantity={quantity}
+                onQuantity={setQuantity}
+                payerKey={payerKey}
+                onPayer={setPayerKey}
+                parties={healParties}
+                selfId={selfId}
+                hasMoved={hasMoved}
+              />
             )}
 
-            {mode === "remove" && (
+            {mode === "destroy" && (
               <>
                 <label className="field">
-                  <span className="field-label">Tag to remove</span>
+                  <span className="field-label">What are you destroying? ‡</span>
                   <Select
                     value={tagId ?? ""}
                     onChange={(e) => pick(e.target.value || null)}
@@ -812,11 +812,69 @@ export default function RequestActionsProvider({
                     label={`How many? (you have ${heldCount})`}
                   />
                 )}
-                <ResourceCostField
-                  value={spend}
-                  onChange={setSpend}
-                  max={resources}
-                />
+                <p className="text-xs text-muted">
+                  Gone for good, and nothing is refunded. A wound isn&apos;t destroyed — that&apos;s Heal. ‡
+                </p>
+              </>
+            )}
+
+            {(mode === "learn" || mode === "teach") && (
+              <>
+                {lessonPeople.length === 0 ? (
+                  <NobodyHere>
+                    {mode === "learn"
+                      ? "Nobody here can teach you anything right now. ‡"
+                      : "There's nobody here you could teach anything. ‡"}
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">
+                        {mode === "learn" ? "Who are you learning from? ‡" : "Who are you teaching? ‡"}
+                      </span>
+                      <Select
+                        value={targetId}
+                        onChange={(e) => {
+                          setTargetId(e.target.value);
+                          setTagId(null);
+                        }}
+                        required
+                      >
+                        <option value="" disabled>
+                          Choose someone here…
+                        </option>
+                        {lessonPeople.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+                    {lessonPartner && (
+                      <label className="field">
+                        <span className="field-label">Which skill? ‡</span>
+                        <Select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value || null)} required>
+                          <option value="" disabled>
+                            Choose a skill… ‡
+                          </option>
+                          {lessonPartner.skills.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                    )}
+                  </>
+                )}
+                <p className="text-xs text-muted">
+                  {mode === "learn"
+                    ? "They get a DM and have to accept. Once they do, learning is your Gambit for the turn — a 5 or 6 and the skill is yours when the turn ends. ‡"
+                    : "They get a DM and have to accept. Once they do, teaching is your Routine for the turn. With Lecturing you can take up to three students on it. ‡"}
+                  {hasMoved && !canTeach
+                    ? " You've already used your Move this turn, so this will have to wait. ‡"
+                    : ""}
+                </p>
               </>
             )}
 
@@ -909,7 +967,8 @@ export default function RequestActionsProvider({
                       onChange={setPayerKey}
                       hint="Choose who pays…"
                       characters={healParties?.characters ?? []}
-                      factions={healParties?.factions ?? []}
+                      rooms={healParties?.rooms ?? []}
+                      selfId={selfId}
                     />
                     <p className="text-xs text-muted">
                       Costs <span className="mono">{affliction.cost} ⬢</span>.
@@ -1090,9 +1149,9 @@ export default function RequestActionsProvider({
                     </label>
                     <p className="text-xs text-muted">
                       You can move someone you lead, someone you&apos;ve bound,
-                      or a body — anyone standing anywhere in your zone. It does
-                      not spend their turn, and it does not move you, so go
-                      there yourself afterwards. ‡
+                      or a body — anyone standing where you are. It does not
+                      spend their turn, and it does not move you, so go there
+                      yourself afterwards. ‡
                     </p>
                   </>
                 )}

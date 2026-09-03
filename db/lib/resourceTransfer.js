@@ -16,11 +16,11 @@ class InsufficientResourcesError extends Error {
 
 // Which model and column hold each party kind's balance. A table rather
 // than a branch so applyTransfer's (kind, id) lock ordering keeps working
-// unchanged as kinds are added — a Room's stash (docs/systemdocs/CARRY.md)
-// is the third.
+// unchanged as kinds are added. (A faction Silo was the second kind until
+// 9/2026 — old TRANSFER_RESOURCES rows may still name one; moveParty ignores
+// a kind it doesn't know, so their Undo is a no-op on that end.)
 const BALANCE = {
   character: ["character", "resources"],
-  faction: ["faction", "silo"],
   room: ["room", "resources"],
 };
 
@@ -47,53 +47,11 @@ async function moveParty(tx, party, delta) {
   throw new InsufficientResourcesError(party, amount);
 }
 
-// The one place that knows the shape of a SiloTransaction row. `ledger`
-// carries the actor/turn/note fields every row needs, plus two optional
-// fields for a quiet GM adjustment: `hidden: true` writes the real row as
-// GM-only (never shown on /faction); `cover: { actorName, toName?, note? }`
-// additionally writes a display-only COVER row with the same signed amount,
-// so the Leader/Treasurer's visible total still sums correctly. `cover` is
-// ignored unless `hidden` is set.
-async function writeSiloRows(tx, { factionId, amount, toCharacterId = null, toName = null, ledger }) {
-  const { hidden = false, cover = null, ...base } = ledger ?? {};
-
-  const real = await tx.siloTransaction.create({
-    data: {
-      factionId,
-      amount,
-      toCharacterId,
-      toName,
-      ...base,
-      visibility: hidden ? "HIDDEN" : "OPEN",
-    },
-  });
-
-  if (!hidden || !cover) return real;
-
-  await tx.siloTransaction.create({
-    data: {
-      factionId,
-      amount,
-      toCharacterId: null,
-      toName: cover.toName || null,
-      actorDiscordUserId: base.actorDiscordUserId,
-      actorCharacterId: null,
-      actorName: cover.actorName,
-      note: cover.note || null,
-      turnNumber: base.turnNumber ?? null,
-      turnPhase: base.turnPhase ?? null,
-      visibility: "COVER",
-      coverForId: real.id,
-    },
-  });
-
-  return real;
-}
-
-// Moves `amount` from `from` to `to`, writing Silo rows for each end that's a
-// faction. Legs are sorted by (kind, id), not by sender, so a total order
-// over participants avoids a lock-order deadlock between concurrent transfers.
-async function applyTransfer(tx, { from, to, amount, ledger }) {
+// Moves `amount` from `from` to `to`. Legs are sorted by (kind, id), not by
+// sender, so a total order over participants avoids a lock-order deadlock
+// between concurrent transfers. `ledger` is accepted and ignored: it fed the
+// Silo rows, and callers still pass it.
+async function applyTransfer(tx, { from, to, amount }) {
   const legs = [
     [from, -amount],
     [to, amount],
@@ -101,16 +59,7 @@ async function applyTransfer(tx, { from, to, amount, ledger }) {
 
   for (const [party, delta] of legs) {
     await moveParty(tx, party, delta);
-    if (party.kind === "faction") {
-      await writeSiloRows(tx, {
-        factionId: party.id,
-        amount: delta,
-        toCharacterId: to.kind === "character" ? to.id : null,
-        toName: to.name,
-        ledger,
-      });
-    }
   }
 }
 
-module.exports = { moveParty, applyTransfer, writeSiloRows, InsufficientResourcesError };
+module.exports = { moveParty, applyTransfer, InsufficientResourcesError };

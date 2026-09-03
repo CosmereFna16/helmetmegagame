@@ -5,20 +5,15 @@ import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
-import QuietSiloFields, { EMPTY_QUIET } from "@/app/components/QuietSiloFields";
 import { createStagedTransfer } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
-// Stage a party-to-party ⬢ transfer — a character or a faction Silo on
-// either end, including Silo -> Silo, which EffectComposer's mint/burn
-// `resources` field can't express (it has no counterparty). 1:1 by nature,
-// so it's its own composer rather than another field bolted onto the
-// multi-target one.
-export default function TransferComposer({ roster, factions, defaultFromKey = "", onDone, onCancel }) {
+// Stage a character-to-character ⬢ transfer. 1:1 by nature, so it's its own
+// composer rather than another field bolted onto the multi-target one.
+export default function TransferComposer({ roster, defaultFromKey = "", onDone, onCancel }) {
   const [fromKey, setFromKey] = useState(defaultFromKey);
   const [toKey, setToKey] = useState("");
   const [amount, setAmount] = useState("");
-  const [quiet, setQuiet] = useState(EMPTY_QUIET);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
@@ -26,9 +21,8 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
   const parties = useMemo(
     () => ({
       characters: roster.map((c) => ({ key: `character:${c.id}`, label: c.name })),
-      silos: factions.map((f) => ({ key: `faction:${f.id}`, label: `${f.name} Silo · ${f.silo} ⬢` })),
     }),
-    [roster, factions],
+    [roster],
   );
 
   function partyOptions() {
@@ -37,13 +31,6 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
         <option value="">— pick one —</option>
         <optgroup label="Characters">
           {parties.characters.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.label}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Silos">
-          {parties.silos.map((p) => (
             <option key={p.key} value={p.key}>
               {p.label}
             </option>
@@ -62,7 +49,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
     if (!amountValid) return setError("Amount must be a positive whole number.");
     startTransition(async () => {
       try {
-        const res = await createStagedTransfer({ fromKey, toKey, amount, ...quiet });
+        const res = await createStagedTransfer({ fromKey, toKey, amount });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone();
@@ -113,17 +100,6 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
             placeholder="0"
           />
         </label>
-
-        {(fromKey.startsWith("faction:") || toKey.startsWith("faction:")) && (
-          <QuietSiloFields
-            value={quiet}
-            onChange={(next) => {
-              setQuiet(next);
-              markDirty();
-            }}
-            disabled={pending}
-          />
-        )}
 
         <FormError>{error}</FormError>
 

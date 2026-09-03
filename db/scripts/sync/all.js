@@ -4,7 +4,6 @@
 // exist), desires, documents last. Same sequence as wipeGameData's re-sync.
 //
 //   npm run db:sync                    # all six
-//   npm run db:sync -- --seed-silos    # also re-seed every faction Silo
 //
 // sync-zones and sync-documents delete rows dropped from their YAML; see
 // SYNC.md §1 before running against a live game.
@@ -24,8 +23,6 @@ async function main() {
     console.error("DISCORD_GUILD_ID and DISCORD_TOKEN must be set.");
     process.exit(1);
   }
-  const seedSilos = process.argv.includes("--seed-silos");
-
   const steps = [
     ["zones", async () => {
       const s = await syncZonesFromYaml(prisma);
@@ -40,11 +37,10 @@ async function main() {
       return `groups +${s.groupsCreated}/~${s.groupsUpdated}, tags +${s.tagsCreated}/~${s.tagsUpdated}, links ${s.linksUpdated}`;
     }],
     ["roles", async () => {
-      const s = await syncRolesFromYaml(prisma, { seedSilos });
+      const s = await syncRolesFromYaml(prisma);
       const pruned = [...s.rolesPruned, ...s.factionsPruned];
       return `factions +${s.factionsCreated}/~${s.factionsUpdated}, roles +${s.rolesCreated}/~${s.rolesUpdated}` +
-        (pruned.length ? `, pruned ${pruned.join(", ")}` : "") +
-        (seedSilos ? `, silos seeded ${s.seededSilos.length}` : "");
+        (pruned.length ? `, pruned ${pruned.join(", ")}` : "");
     }],
     ["desires", async () => {
       const s = await syncDesiresFromYaml(prisma);

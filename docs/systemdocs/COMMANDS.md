@@ -176,6 +176,8 @@ parsed by literal `startsWith` + `slice`.
 | `heal:pick:{characterId}` | Select | Clear the chosen afflictions |
 | `edit:open:{messageId}` | Button | Show the Edit-message modal, prefilled |
 | `edit:send:{messageId}` | Modal | Rewrite a proxied message |
+| `offer:accept:{offerId}` | Button | Accept a Lesson or Bind `Offer` |
+| `offer:decline:{offerId}` | Button | Decline a Lesson or Bind `Offer` |
 
 Retired with the zone rework: `zone:place`, `zone:confirm:{zoneId}`,
 `zone:cancel`, `zone:who:{zoneId}`, `topic:new:{zoneId}`,
@@ -186,6 +188,13 @@ Retired with the zone rework: `zone:place`, `zone:confirm:{zoneId}`,
 `.member` are null there, so both handlers resolve the author from
 `recentProxies` rather than from the guild — and `edit:open:` opens a modal, so
 it is one of the handlers that must **not** ack first.
+
+**The two `offer:` ids also arrive in a DM**, on the message `db/lib/offerRow.js`
+builds for a Lesson or Bind `Offer`'s responder (`LESSONS.md` §3). Handled by
+`bot/src/lib/offers.js`, routed in `interactionCreate.js` alongside the `edit:`
+namespace. The click's acknowledgement is `interaction.update()`: the buttons
+come off the message and the outcome is written under it in place, so nothing
+can be clicked twice and no message id needs to be stored elsewhere.
 
 **The travel flow lives in `bot/src/lib/locationTravel.js`, all
 `loc:`-namespaced** (`bot/src/events/interactionCreate.js`). The console

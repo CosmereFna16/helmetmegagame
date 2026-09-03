@@ -53,10 +53,10 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 | `ravenheart-red` | 4 | 1 | — | `tipsy` |
 | `distilled-coca` | 4 | 1 | coca leaves | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | poppy | `pain-immunity` |
-| `phrygian-tears` | 4 | 2 | **Gambit** | — |
+| `phrygian-tears` | 4 | 2 | — | — |
 | `gunpowder-grenade` | 6 | 1 | saltpeter | — |
 | `purifier` | 6 | 1 | cave fungus | — |
-| `dreamers-draught` | 6 | 1 | a skinless brain, **Gambit** | — |
+| `dreamers-draught` | 6 | 1 | a skinless brain | — |
 | `forgiveness` | 8 | 1 | someone's tears | — |
 | `flawless-skin` | 8 | 1 | a lock of Nobility hair | `otherworldly-beauty` |
 
@@ -108,6 +108,10 @@ column instead, phrased the same way every time — "yields up to N per turn":
 **The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
 6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip
 saying so, since the table itself has no room to.
+
+Brewing files its Routine through the Craft button, same as any other
+craftable tag — `phrygian-tears` and `dreamers-draught` no longer carry
+`gambit: true`, since crafting is never a Gambit (`CRAFTING.md`).
 
 ## 6. Where a player reads this
 

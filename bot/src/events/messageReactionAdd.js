@@ -1,6 +1,6 @@
 const { EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
-const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
+const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
 const { inspectVision, isInscrutable } = require("@lifeweb/db/lib/inspectVision");
 const {
   HEALTH_CATEGORY,
@@ -468,8 +468,7 @@ module.exports = {
           });
         }
 
-        // Role is same-faction knowledge, not Silo authority — no ancestor
-        // walk, unlike getSiloAccess below.
+        // Role is same-faction knowledge, not officer authority.
         if (
           character.factionId &&
           character.faction?.name !== "Unaffiliated" &&
@@ -479,11 +478,11 @@ module.exports = {
           embed.addFields({ name: "Role", value: character.roleTitle, inline: true });
         }
 
-        // Silo authority (Leader/Treasurer, or an ancestor faction's) gates
-        // Resources visibility, same as /faction's roster column.
+        // A Leader/Treasurer of the character's OWN faction sees member
+        // Resources, same as /faction's roster column.
         if (character.factionId && character.faction?.name !== "Unaffiliated") {
-          const access = await getSiloAccess(prisma, user.id, character.factionId);
-          if (access.canManageSilo) {
+          const role = await getMyFactionRole(prisma, user.id, character.factionId);
+          if (role.isOfficer) {
             embed.addFields({ name: "Resources", value: `${character.resources} ⬢`, inline: true });
           }
         }

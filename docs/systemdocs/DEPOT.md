@@ -262,8 +262,8 @@ Two things this is **not**:
   other players, and those are a conversation plus an ordinary
   `TRANSFER_RESOURCES`. Usury is his best business and it is entirely
   unmechanised, which is what makes it interesting.
-- It is not the Company's Silo. `Faction.silo` is the faction's money and is
-  untouched by any of this; the line is advanced to him personally.
+- It is not a faction treasury. The credit line is advanced to him
+  personally, and it is untouched by anything faction-scoped.
 
 ## 6. Retail
 

@@ -1,5 +1,5 @@
-// Which tags a player may pick in each of the three tag-request menus.
-// See docs/systemdocs/REQUESTS.md §3.
+// Which tags a player may pick in each of the tag-request menus. Each menu
+// is one catalog flag (docs/systemdocs/TAGS.md §5), re-checked server-side.
 
 import { holdsRequirement } from "./characterCreation";
 
@@ -8,25 +8,29 @@ export function isTradeable(tag) {
   return Boolean(tag?.tradeable);
 }
 
-// Add Tag is the CRAFTING door: `craftable` is the whole test. A stackable
-// tag stays on offer once held; an ordinary one drops off the menu.
-export function addableTags(tags, heldTagIds = []) {
+// Craft's recipe list: `craftable`, and every recipe skill held — the page
+// hands the client the ids it already checked (docs/systemdocs/CRAFTING.md).
+// A stackable tag stays on offer once held; an ordinary one drops off.
+export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
   const held = new Set(heldTagIds);
-  return tags.filter((tag) => tag.craftable && (tag.stackable || !held.has(tag.id)));
+  const known = knownRecipeIds ? new Set(knownRecipeIds) : null;
+  return tags.filter(
+    (tag) => tag.craftable && (!known || known.has(tag.id)) && (tag.stackable || !held.has(tag.id)),
+  );
 }
 
-// The Add Tag menu's gate: the group's hidden-category check, plus
-// `craftable`. Recipe skills are deliberately not enforced here — it's an
-// honor-system door, reviewed by a GM on the pushed request. Character
-// creation and /store use requirementSatisfied() instead, not this.
+// The Craft menu's gate: the group's hidden-category check, plus
+// `craftable`. Recipe skills are checked separately (satisfiedSkillIds), in
+// the page and again in craftRequest. Character creation and /store use
+// requirementSatisfied() instead, not this.
 export function addRequirementSatisfied(tag, tagsById, heldTagIds) {
   if (!holdsRequirement(tag.group?.requiredTagId, tagsById, heldTagIds)) return false;
   return Boolean(tag.craftable);
 }
 
-// Carries the held count onto the returned tag, so the menu can cap a
-// quantity field at what the character actually has.
-export function removableTags(characterTags = []) {
+// Destroy's list: `removable`. Carries the held count onto the returned tag,
+// so the menu can cap a quantity field at what the character actually has.
+export function destroyableTags(characterTags = []) {
   return characterTags
     .filter((ct) => ct.tag?.removable)
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));

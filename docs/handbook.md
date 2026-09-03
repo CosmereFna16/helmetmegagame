@@ -22,7 +22,6 @@
     - [Transferring Resources](#transferring-resources)  
     - [Upkeep](#upkeep)  
     - [Hunger](#hunger)  
-    - [The Silo](#the-silo)  
 8. [Submitting A Move](#submitting-a-move)  
     - [Routine vs Gambit](#routine-vs-gambit)  
     - [Labor](#labor)  
@@ -90,7 +89,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Page | Content |
 |---|---|
 | **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, Default Move, your bio and portrait, all requests functions. ‡ |
-| **Faction** | Faction roster, Silo balance, ledger, and leadership. |
+| **Faction** | Faction roster and leadership. ‡ |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
 | **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
@@ -250,13 +249,11 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 
 Resources in Bascinet are shown with the ⬢ symbol. They represent your access to food, coin, and bulk goods.
 
-Resources are kept either on your character or in your faction's Silo.
-
 ### Transferring & Storage
 
-**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: to a person in your Zone, to or from your faction's Silo, or into and out of any **room** you're standing in. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names. ‡
+**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names. ‡
 
-The source of ⬢ can be anyone within your Zone. Yes, this means **you can take ⬢ from another character**. You'll be prompted to provide a reason, which the GMs will see. This is a mugging and should be played out accordingly in the roleplay channels. Items are give-only: you can hand over your own, or pick up what's lying in a room, never reach into someone else's pack. ‡
+Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer. ‡
 
 The **Storage** button on a room's first post lists what's there. ‡
 
@@ -273,12 +270,6 @@ Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a
 Eating removes **one turn's worth** of Hunger, not all of it. If you've gone several turns without eating, one meal only brings the penalty down by 1 — you need to eat every turn to fully recover, the same number of turns it took you to build the penalty up.
 
 After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review your situation to determine what happens next.
-
-### The Silo
-
-Resources can be stockpiled by your faction in the Silo, saving them for later use or distribution. Faction leaders and treasurers can transfer Resources to or from the Silo by using the **Transfer Resources** button on the [Character](https://ravenheart.quest/character) page.
-
-Silo transfers can only take place from within the faction's Home Zone.
 
 
 ## Submitting A Move
@@ -360,10 +351,10 @@ You can spend Tag Points, using the option on your character sheet, to acquire n
 
 Tags are gained, used, and removed via options on your [Character](https://ravenheart.quest/character) page. Each is a *request*. It applies immediately, but prompts for a reason which a GM will review.
 
-- **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**.
-- **Remove Tag** drops items or otherwise removes applicable tags.
+- **Craft** picks a recipe you know the skills for and pays its ⬢ cost right away — from you, a room stash, or someone standing with you who agrees to pay. It files as your Move. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**. A long recipe becomes a project you can keep working on from the same button, turn after turn, or cancel with no refund. ‡
+- **Destroy** drops items or otherwise removes applicable tags. Health tags aren't included — a wound gets healed, not destroyed. ‡
 - **Consume** removes item tags that can be eaten, drunk, or otherwise used.
-- **Transfer** hands a tag to someone else in your Zone, or stashes it in the room you're in. Give only, no take. ‡
+- **Transfer** hands a tag from you or a room stash you're in, to someone standing with you or to a room stash. Give only — taking from a person is Loot's job, not Transfer's. ‡
 - **Heal** heals injuries and ailments based on your Medical skill.
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
@@ -376,7 +367,7 @@ Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is
 
 **Durations:** Some tags run out (`· 2t` on the chip). Some get *worse* instead of running out.
 
-**Teaching:** Most skills can be taught by those who hold them, without the teacher needing to use a Move. The learner submits a Gambit Move to try and pick up the skill. If they roll a 6, they successfully gain the tag.
+**Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine. ‡
 
 ### Examining Tags
 
@@ -412,22 +403,37 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 
 **Actions:** This is the grid of buttons next to your Status. Each button opens a dialogue that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 
+**You**
+
 | Button | Effect | When You Can Use |
 |---|---|---|
-| **Add Tag** | Add a tag by crafting or similar means. Required Resources will be subtracted automatically. | Always, but ensure you use your Move accordingly. |
-| **Remove Tag** | Removes a tag. | When holding something you could reasonably drop or remove. |
-| **Transfer Tag** | Hands something you're carrying to someone else in your Zone. Giving only, no taking. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
-| **Transfer Resources** | Transfer ⬢ between people or Silos within reach (same Zone for people, faction Home Zone for Silos). | Always. |
+| **Craft** | Pick a recipe you know the skills for and pay its ⬢ cost right away, from your own purse, a Room stash you're in, or someone standing with you who agrees to pay (they get a DM naming what it's for). Files as your Routine. A long recipe becomes a project you can keep working on turn after turn from the same button (Continue), or cancel — no refund. A Dead Simple recipe needs no Move at all, just a cap per turn. ‡ | Always, but ensure you use your Move accordingly. |
+| **Destroy** | Drops a tag you're allowed to throw away. Health tags aren't on this list — a wound gets healed, not destroyed. ‡ | When holding something you could reasonably drop or remove. |
 | **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
+| **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you or to a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. ‡ | When holding something you can transfer. |
+| **Learn Skill** | Ask someone standing with you who teaches a skill to teach it to you. Files as your Gambit if they accept. ‡ | Always. |
+| **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept. ‡ | When holding the skill. |
+
+**People here**
+
+| Button | Effect | When You Can Use |
+|---|---|---|
 | **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
-| **Loot** | Search a dead or incapacitated person in your Zone and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always, the game will reject invalid targets. |
-| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. ‡ | Always. |
-| **Bind** | Tie up someone within reach. | Always. |
+| **Loot** | Search a dead or incapacitated person standing with you and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always, the game will reject invalid targets. |
+| **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. ‡ | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
 | **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This will never instantly kill, a GM will verify first. | Always. |
+| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. ‡ | Always. |
 | **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
 
-The menus will always list all characters, to avoid making it obvious when someone is dead, tied up, or otherwise nearby. Act on information your character actually has, don't guess.
+**Letters**
+
+| Button | Effect | When You Can Use |
+|---|---|---|
+| **Send Bird** | Send a letter by Bird. | Always. |
+| **Read** | Read a letter you've received. | Always. |
+
+The menus list the people standing where you are who haven't hidden their face, and the rooms you can get into. Act on information your character actually has, don't guess. ‡
 
 **Tags:** Every tag your character currently has, grouped by category. Hover over them for details, and click on an item tag to consume it.
 

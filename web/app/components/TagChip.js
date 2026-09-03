@@ -111,7 +111,9 @@ export default function TagChip({
             it is the recipe to make one, and "Cure" read wrong over every brew
             and blade in the catalog. */}
         {requirement && (
-          <Meta label={tag.craftable ? "Recipe" : "Cure"}>{requirement}</Meta>
+          <Meta label={tag.craftable ? "Recipe" : tag.healable ? "Cure" : "Requirement"}>
+            {requirement}
+          </Meta>
         )}
         {/* Tag.inspectVisibility — whether another player sees this on the 🔍
             inspect embed. Only the affirmative renders; hidden is the default,

@@ -47,7 +47,8 @@ export async function setFactionLeader(formData) {
 
 // Grants or revokes Treasurer for a faction member — callable by the
 // faction's own Leader (checked via getMyFactionRole, not just GMs) since
-// delegating Silo access is meant to be a Leader's call, not a GM errand.
+// delegating officer authority is meant to be a Leader's call, not a GM
+// errand.
 export async function setTreasurer(formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");

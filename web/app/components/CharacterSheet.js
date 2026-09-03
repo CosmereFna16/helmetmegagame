@@ -38,7 +38,6 @@ export default function CharacterSheet({
   transferParties,
   carry = null,
   tagCatalog,
-  otherCharacters,
   desireSlots = 2,
   desireSlotLockTurns = 2,
   desireSlotStates = [],
@@ -49,6 +48,14 @@ export default function CharacterSheet({
   desireAddiction = null,
   desiresEnabled = true,
   canHeal = false,
+  // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
+  hasMoved = false,
+  canTeach = false,
+  knownRecipeIds = [],
+  craftProjects = [],
+  teachers = [],
+  learners = [],
+  pendingOffers = [],
   hasBird = false,
   isLiterate = false,
   birdSentToday = false,
@@ -118,10 +125,15 @@ export default function CharacterSheet({
             catalog={tagCatalog ?? []}
             characterTags={character.tags}
             resources={character.resources}
-            otherCharacters={otherCharacters ?? []}
             transferParties={transferParties}
             carry={carry}
             canHeal={canHeal}
+            hasMoved={hasMoved}
+            canTeach={canTeach}
+            knownRecipeIds={knownRecipeIds}
+            craftProjects={craftProjects}
+            teachers={teachers}
+            learners={learners}
             hasBird={hasBird}
             isLiterate={isLiterate}
             birdSentToday={birdSentToday}
@@ -137,7 +149,7 @@ export default function CharacterSheet({
             harmTags={harmTags}
           >
             <div className="flex flex-col gap-6">
-              <StatusPanel character={character} isSelf={isSelf} currentAction={currentAction} openTurn={openTurn} carry={carry} />
+              <StatusPanel character={character} isSelf={isSelf} currentAction={currentAction} openTurn={openTurn} carry={carry} pendingOffers={pendingOffers} />
 
               <TagsPanel
                 characterTags={character.tags}

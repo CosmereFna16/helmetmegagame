@@ -63,6 +63,8 @@ const FLAG_LABELS = [
   ["consumable", "Consumable"],
   ["removable", "Removable"],
   ["tradeable", "Tradeable"],
+  ["healable", "Healable ‡"],
+  ["teachable", "Teachable ‡"],
 ];
 
 // Tag.inspectVisibility isn't a flag, so it can't ride in FLAG_LABELS — but it

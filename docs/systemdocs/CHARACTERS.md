@@ -88,7 +88,7 @@ the proxy webhook username — and Prisma cannot concatenate columns in
 `OR`-over-three-columns for correctness nobody can see.
 
 Keeping it also means the never-backfilled name snapshots
-(`Note.characterName`, `SiloTransaction.actorName`/`toName`,
+(`Note.characterName`,
 `ArchiveEntry.characterName`, `AuditLog.details`) capture the titled form with
 no code change — correct, since those record who did something *as they were
 known then*.

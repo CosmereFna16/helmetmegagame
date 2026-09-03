@@ -58,18 +58,22 @@
 #                     one: a medic sees what they could treat whatever this
 #                     says, so an internal illness can be `false` without
 #                     becoming undiagnosable (TAGS.md §5c).
-#   removable       - whether a player can strip this tag off themselves
-#                     mid-game without a GM. Live: it fills the Remove Tag
-#                     menu (web/lib/tagRequests.js#removableTags) and is
-#                     re-checked server-side by removeTagRequest. Removing
-#                     refunds resources, never Tag Points. Default false.
-#   craftable       - whether this tag represents something a player can
-#                     craft/make, vs. one that only ever arrives via role, GM
-#                     grant, or automatic game logic. Live, and load-bearing:
-#                     it is the WHOLE gate on the Add Tag menu
-#                     (web/lib/tagRequests.js#addableTags), re-checked
-#                     server-side by addTagRequest. Setting it true puts the
-#                     tag in every player's crafting menu. Default false.
+#   removable       - the Destroy menu: whether a player can strip this tag
+#                     off themselves mid-game without a GM
+#                     (web/lib/tagRequests.js#destroyableTags, re-checked by
+#                     destroyTagRequest). Destroying refunds nothing. Not for
+#                     health tags — a cure is `healable`. Default false.
+#   craftable       - the Craft menu (docs/systemdocs/CRAFTING.md): whether a
+#                     player can make this tag. The recipe is the
+#                     `requirement:` block below, and every listed skill must
+#                     be held. Setting it true puts the tag in the Craft menu
+#                     of everyone who holds its skills. Default false.
+#   healable        - the Heal menu (HEAL_CHARACTER): a cure exists. Its cost
+#                     is the `requirement:` block and the medic must hold its
+#                     skills. Default false.
+#   teachable       - Learn / Teach can move this tag between characters
+#                     (docs/systemdocs/LESSONS.md). Every skill sets it.
+#                     Default false.
 #   stackable       - whether a character can hold more than one at a time
 #                     (meals, ammunition, anything a crafting Move makes in a
 #                     batch). Default false. A stack is one CharacterTag row
@@ -102,17 +106,18 @@
 #                     Both halves are validated against this file, and the
 #                     condition is applied identically by the grant itself and
 #                     by the "Becomes:" preview a player sees first.
-#   requirement:    - what it costs a character to add or remove this tag in
-#                     play (GM adjudication reference, also shown to
-#                     players; not automated/enforced by any code). One
-#                     shared block covers whichever direction is
-#                     narratively relevant to a given tag - e.g. crafting a
-#                     sword only cares about the cost to add it, curing
-#                     Arthritis only cares about the cost to remove it.
-#     turnsCost     - turns of in-game time
-#     resourceCost  - resource cost
+#   requirement:    - what it costs a character to add (craftable) or remove
+#                     (healable) this tag in play. Enforced by Craft and Heal.
+#                     One shared block covers whichever direction applies to
+#                     a given tag - e.g. crafting a sword only cares about the
+#                     cost to add it, curing Arthritis only about removing it.
+#     turnsCost     - Moves spent. For a craft, 0 means Dead Simple (no Move,
+#                     rationed per turn), 1 means this turn's Routine, more
+#                     means a multi-turn project.
+#     resourceCost  - ⬢, charged up front by Craft, per unit
 #     skills        - list of skill tag slugs required; multiple accepted
-#     gambit        - whether a Gambit roll is needed
+#     gambit        - cures only: whether the medic rolls a Gambit. Crafting
+#                     is always a Routine and ignores this.
 #   expiresInto     - what this tag turns INTO when its durationTurns runs
 #                     out, instead of simply being swept away. This is the
 #                     untreated-wound chain: Infected festers, Festering goes
@@ -277,6 +282,31 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
+
+  # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
+  # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
+  # widens one Routine to three students; the Drill Instructor rung lives in
+  # general-watch. Bascinet's words, unmarked.
+  teaching:
+    name: Teaching
+    category: general
+    group: general-traits
+    description: "Can train someone in a skill you have. It's a routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
+    pointCost: 5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  teaching-lecturing:
+    name: Teaching (Lecturing)
+    category: general
+    group: general-traits
+    parentTag: teaching
+    description: "Can train up to three people at the same time. It's a routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
+    pointCost: 5
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
 
   disgraced:
     name: Disgraced
@@ -1403,12 +1433,16 @@ tags:
 
   # Reads against the Teaching Skills document (docs/documents.yaml), which
   # sets the teaching baseline at a 6. Change one and change the other.
-  drillmaster:
-    name: Drillmaster
+  # Teaching (Drill Instructor) replaced the old Drillmaster here in 9/2026.
+  # The tree itself sits under general-traits; this rung is the Watch's.
+  teaching-drill-instructor:
+    name: Teaching (Drill Instructor)
     category: general
     group: general-watch
-    description: "You train the Squires. Whenever one of them rolls a 5 or 6 on a Gambit, you may raise their Fighting skill a tier."
-    pointCost: 2
+    requiredTag: teaching
+    description: "When someone tries to learn a fighting skill from you, they succeed on a 4, 5, or a 6. Stacks with Lecturing."
+    pointCost: 3
+    visible: false
     purchasable: true
     purchasableAfterStart: true
 
@@ -1476,6 +1510,7 @@ tags:
   artist:
     name: Artist
     category: skills
+    teachable: true
     description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these… You can craft a {tag:painting}, but it takes 4 turns."
     pointCost: 5
     purchasable: true
@@ -1485,6 +1520,7 @@ tags:
     name: Laborer (Basic)
     category: skills
     group: skills-labor
+    teachable: true
     description: "When laboring, you make {resource:labor:basic} per turn."
     pointCost: 7
     purchasable: true
@@ -1494,6 +1530,7 @@ tags:
     name: Laborer (Skilled)
     category: skills
     group: skills-labor
+    teachable: true
     description: "When laboring, you make {resource:labor:skilled} per turn."
     pointCost: 5
     parentTag: laborer-basic
@@ -1503,6 +1540,7 @@ tags:
   laborer-farming:
     name: Laborer (Farming)
     category: skills
+    teachable: true
     description: "When you farm, you make {resource:labor:farming}. Only works in the Town."
     pointCost: 5
     requiredTag: laborer-skilled
@@ -1512,6 +1550,7 @@ tags:
   intercom:
     name: Intercom
     category: skills
+    teachable: true
     description: "Can send announcements to all of Ravenheart. You have access to #intercom."
     pointCost: 0
     purchasable: false
@@ -1520,6 +1559,7 @@ tags:
   forester:
     name: Forester
     category: skills
+    teachable: true
     description: "You are at home in the woods, gaining an advantage in finding food, water, or shelter."
     pointCost: 5
     purchasable: true
@@ -1528,6 +1568,7 @@ tags:
   musician:
     name: Musician
     category: skills
+    teachable: true
     description: "You sing or play instruments. People love your musical talents."
     pointCost: 2
     purchasable: true
@@ -1540,6 +1581,7 @@ tags:
     name: Smithing
     category: skills
     group: skills-crafting
+    teachable: true
     description: "Basic smithing."
     pointCost: 5
     purchasable: true
@@ -1549,6 +1591,7 @@ tags:
     name: Smithing (Skilled)
     category: skills
     group: skills-crafting
+    teachable: true
     description: "Skilled smithing—the Moderate and higher recipes."
     pointCost: 5
     parentTag: smithing
@@ -1560,6 +1603,7 @@ tags:
     name: Crafting
     category: skills
     group: skills-crafting
+    teachable: true
     description: "Lets you tailor, craft, woodwork, and any other form of miscellaneous production. Also fulfills requirements for Dead Simple smithing recipes."
     pointCost: 5
     purchasable: true
@@ -1568,6 +1612,7 @@ tags:
   butcher:
     name: Butcher
     category: skills
+    teachable: true
     description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 ⬢ when Laboring, unless you are Farming."
     pointCost: 2
     purchasable: true
@@ -1576,6 +1621,7 @@ tags:
   lockpicking:
     name: Lockpicking
     category: skills
+    teachable: true
     description: "Nothing on one… little click on two… click on three… aha! You can pick locks."
     pointCost: 7
     purchasable: true
@@ -1584,6 +1630,7 @@ tags:
   climbing:
     name: Climbing
     category: skills
+    teachable: true
     description: "You used to go up the mountains as a child."
     pointCost: 5
     purchasable: true
@@ -1592,6 +1639,7 @@ tags:
   navigating:
     name: Navigating
     category: skills
+    teachable: true
     description: "The universally applicable ability to use compasses, maps, and in general know your location. Broadly useful, but less particular than caving or forestry skills."
     pointCost: 5
     purchasable: true
@@ -1600,6 +1648,7 @@ tags:
   stealth:
     name: Stealth
     category: skills
+    teachable: true
     description: "You know how to step lightly."
     pointCost: 5
     purchasable: true
@@ -1609,6 +1658,7 @@ tags:
     name: Smithing (Gunpowder)
     category: skills
     group: skills-crafting
+    teachable: true
     description: "{tag:saltpeter} is your best friend. Requires Skilled smithing."
     pointCost: 9
     requiredTag: smithing-skilled
@@ -1634,6 +1684,7 @@ tags:
     name: Melee (Basic)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You can hold a weapon and defend yourself in a pinch."
     pointCost: 7
     visible: false
@@ -1644,6 +1695,7 @@ tags:
     name: Melee (Trained)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You have been trained how to fight."
     pointCost: 7
     parentTag: melee-basic
@@ -1655,6 +1707,7 @@ tags:
     name: Melee (Skilled)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
     pointCost: 7
     parentTag: melee-trained
@@ -1666,6 +1719,7 @@ tags:
     name: Melee (Expert)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You've survived many fights. Almost no one matches you."
     pointCost: 7
     parentTag: melee-skilled
@@ -1677,6 +1731,7 @@ tags:
     name: Melee (Legendary)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "The peak of your generation."
     pointCost: 0
     parentTag: melee-expert
@@ -1688,6 +1743,7 @@ tags:
     name: Ranged (Basic)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You can hold a weapon and defend yourself in a pinch."
     pointCost: 7
     visible: false
@@ -1698,6 +1754,7 @@ tags:
     name: Ranged (Trained)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You have been trained how to fight."
     pointCost: 7
     parentTag: ranged-basic
@@ -1709,6 +1766,7 @@ tags:
     name: Ranged (Skilled)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
     pointCost: 7
     parentTag: ranged-trained
@@ -1720,6 +1778,7 @@ tags:
     name: Ranged (Expert)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You've survived many fights. Almost no one matches you."
     pointCost: 7
     parentTag: ranged-skilled
@@ -1731,6 +1790,7 @@ tags:
     name: Ranged (Legendary)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "The peak of your generation."
     pointCost: 14
     parentTag: ranged-expert
@@ -1742,6 +1802,7 @@ tags:
     name: Melee (Shield Wall)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You have practiced this drill. When standing within reach of 2 or more other Watchmen, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
@@ -1753,6 +1814,7 @@ tags:
     name: Melee (Duelist)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You're particularly good at fighting people one-on-one — especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
@@ -1764,6 +1826,7 @@ tags:
     name: Melee (Polearms)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "While using polearms, your fighting skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
@@ -1775,6 +1838,7 @@ tags:
     name: Melee (Swords)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your fighting skill counts as 2 tiers higher while using swords."
     pointCost: 10
     requiredTag: melee-basic
@@ -1787,6 +1851,7 @@ tags:
     name: Melee (Clubs)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "While using clubs, your fighting skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: melee-basic
@@ -1798,6 +1863,7 @@ tags:
     name: Melee (Flamboyant)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "While fighting without armor, your melee skill counts as 2 tiers higher."
     pointCost: 7
     requiredTag: melee-basic
@@ -1809,6 +1875,7 @@ tags:
     name: Ranged (Archer)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "When using bows, your ranged skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: ranged-basic
@@ -1820,6 +1887,7 @@ tags:
     name: Ranged (Firearms)
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You're a master with firearms and disablers. When using them, your ranged skill counts as 2 tiers higher."
     pointCost: 10
     requiredTag: ranged-basic
@@ -1831,6 +1899,7 @@ tags:
     name: Grappler
     category: skills
     group: skills-fighting
+    teachable: true
     description: "You can grapple enemies bare handed. Useful for regular weapon fighting too—lots of fights end up on the ground."
     pointCost: 5
     visible: false
@@ -1841,6 +1910,7 @@ tags:
     name: Guerrilla
     category: skills
     group: skills-fighting
+    teachable: true
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
     pointCost: 10
     visible: false
@@ -1852,6 +1922,7 @@ tags:
     name: Builder (Skilled)
     category: skills
     group: skills-crafting
+    teachable: true
     description: "You can build more complex things than the average person, like a cart, a palisade, or a staircase."
     pointCost: 5
     visible: false
@@ -1862,6 +1933,7 @@ tags:
     name: Builder (Expert)
     category: skills
     group: skills-crafting
+    teachable: true
     description: "You have an architect's mind. You could design things as complex as a cathedral, a bridge, or a water mill."
     pointCost: 5
     parentTag: builder-skilled
@@ -1874,6 +1946,7 @@ tags:
     name: Medical (Basic)
     category: skills
     group: skills-medical
+    teachable: true
     description: "Allows you to treat very minor and minor injuries as routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
     pointCost: 5
     visible: false
@@ -1884,6 +1957,7 @@ tags:
     name: Medical (Skilled)
     category: skills
     group: skills-medical
+    teachable: true
     description: "Allows you to treat moderate and severe cases as routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
     pointCost: 5
     parentTag: medical-basic
@@ -1895,6 +1969,7 @@ tags:
     name: Medical (Expert)
     category: skills
     group: skills-medical
+    teachable: true
     description: "Allows you to treat almost everything as routine, difficult surgery included. Only the most complex work counts as a Gambit."
     pointCost: 5
     parentTag: medical-skilled
@@ -1907,6 +1982,7 @@ tags:
     name: Brewing (Basic)
     category: skills
     group: skills-brewing
+    teachable: true
     description: "Can brew basic alcohol (beer, ale, mead) and basic tonics."
     pointCost: 5
     visible: false
@@ -1917,6 +1993,7 @@ tags:
     name: Brewing (Skilled)
     category: skills
     group: skills-brewing
+    teachable: true
     description: "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
     pointCost: 5
     parentTag: brewing-basic
@@ -1929,6 +2006,7 @@ tags:
     name: Cooking (Basic)
     category: skills
     group: skills-cooking
+    teachable: true
     description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
     pointCost: 5
     visible: false
@@ -1939,6 +2017,7 @@ tags:
     name: Cooking (Skilled)
     category: skills
     group: skills-cooking
+    teachable: true
     description: "Can cook Lavish Meals — 3 ⬢ and 1 exotic ingredient each, up to 3 in one Routine Move."
     pointCost: 5
     parentTag: cooking-basic
@@ -2367,9 +2446,9 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [festering]
+    healable: true
     requirement:
       resourceCost: 2
       skills: [medical-basic]
@@ -2383,10 +2462,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 1
     expiresInto: [feverish, necrosis]
     removesInto: [recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2401,10 +2480,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 1
     expiresInto: [sepsis]
     removesInto: [recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -2419,11 +2498,11 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto:
       - oneOf: [missing-leg, missing-arm]
     removesInto: [cauterized]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -2438,10 +2517,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 1
     expiresInto: [dying]
     removesInto: [recovering, drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2457,13 +2536,13 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     # The one duration in the catalog that is a countdown to death rather than
     # to recovery. Nothing turns Dying into anything (no expiresInto): the
     # Dying death pass reads this clock and kills at the close instead. See
     # db/lib/dyingDeathPass.js and TAGS.md §5c.
     durationTurns: 1
     removesInto: [recovering, drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2480,8 +2559,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
+    healable: true
     requirement:
       resourceCost: 1
       skills: [medical-basic]
@@ -2495,9 +2574,9 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 4
     removesInto: [recovering]
+    healable: true
     requirement:
       resourceCost: 2
       skills: [medical-basic]
@@ -2511,11 +2590,11 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto:
       - oneOf: [infected, scarred]
     removesInto: [bandaged]
+    healable: true
     requirement:
       resourceCost: 2
       skills: [medical-basic]
@@ -2529,10 +2608,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [infected]
     removesInto: [bandaged, scarred]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2547,9 +2626,9 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 3
     expiresInto: [drained]
+    healable: true
     requirement:
       resourceCost: 0
       skills: [medical-basic]
@@ -2563,10 +2642,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [infected]
     removesInto: [stitched-up]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2581,10 +2660,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 3
     expiresInto: [dying]
     removesInto: [stitched-up, drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -2599,10 +2678,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 1
     expiresInto: [dying]
     removesInto: [stitched-up, drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -2617,8 +2696,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     removesInto: [splinted]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2632,8 +2711,8 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     removesInto: [recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2648,9 +2727,9 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 4
     removesInto: [recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2665,7 +2744,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
+    healable: true
     requirement:
       resourceCost: 0
       skills: [medical-basic]
@@ -2679,10 +2758,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [necrosis]
     removesInto: [bandaged]
+    healable: true
     requirement:
       turnsCost: 0
       resourceCost: 2
@@ -2697,10 +2776,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [dying]
     removesInto: [stitched-up, recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2715,10 +2794,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [sepsis]
     removesInto: [stitched-up, recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2733,8 +2812,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     removesInto: [wired-jaw]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2749,10 +2828,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [missing-fingers]
     removesInto: [splinted]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2767,10 +2846,10 @@ tags:
     pointCost: -11
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [sepsis]
     removesInto: [stitched-up]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2785,8 +2864,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     removesInto: [persistent-cough]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2800,10 +2879,10 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 3
     expiresInto: [drained]
     removesInto: [drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -2818,10 +2897,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [drained]
     removesInto: [drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2836,10 +2915,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [sepsis]
     removesInto: [drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2854,10 +2933,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 3
     expiresInto: [scarred]
     removesInto: [scarred]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 4
@@ -2883,8 +2962,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     removesInto: [persistent-cough]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -2901,7 +2980,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [dying]
 
@@ -2914,10 +2992,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [drained]
     removesInto: [drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -2935,7 +3013,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   persistent-cough:
     name: Persistent Cough
@@ -2946,7 +3023,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
 
   # Stuffed -> Exploded Chest. Tier 5 ("very minor surgery") is the rung that
   # buys you out before the larva matures; ignore it for four turns and it
@@ -2961,10 +3037,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 4
     expiresInto: [exploded-chest]
     removesInto: [stitched-up]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -2979,10 +3055,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [dying]
     removesInto: [stitched-up, recovering]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3043,7 +3119,6 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
 
   blind:
@@ -3055,8 +3130,8 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     removesInto: [night-blind]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3130,8 +3205,8 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    removable: true
     removesInto: [scarred]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3158,8 +3233,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     removesInto: [limp]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -3254,8 +3329,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
+    healable: true
     requirement:
       resourceCost: 1
       skills: [medical-basic]
@@ -3269,8 +3344,8 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 1
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -3286,9 +3361,9 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [dying]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 2
@@ -3303,10 +3378,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 1
     expiresInto: [dying]
     removesInto: [drained]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -5985,7 +6060,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The perfect silent killer. Requires 2 turns and a Gambit to make. Failures are dangerous. Inflicts {tag:phrygian-toxin}."
+    description: "The perfect silent killer. Two turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5999,7 +6074,6 @@ tags:
       turnsCost: 2
       resourceCost: 4
       skills: [brewing-skilled]
-      gambit: true
     sellable: true
     sellablePrice: 20
     depotPrice: 36
@@ -6352,7 +6426,6 @@ tags:
       turnsCost: 1
       resourceCost: 6
       skills: [brewing-skilled]
-      gambit: true
     sellable: true
     sellablePrice: 16
 
@@ -6861,10 +6934,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 2
     expiresInto: [infected]
     removesInto: [stitched-up]
+    healable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -6882,10 +6955,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    removable: true
     durationTurns: 3
     expiresInto:
       - oneOf: [infected, recovering]
+    healable: true
     requirement:
       resourceCost: 2
       skills: [medical-basic]

@@ -213,10 +213,12 @@ you pick the right doc — they are never enough to change code with.
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
-| [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, the Silo, or Leader/Treasurer authority |
+| [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
 | [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
+| [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
+| [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
@@ -294,13 +296,11 @@ npm run db:backup                    # Railway volume backup, now. Needs
 # individual scripts exist for one master at a time. See SYNC.md.
 npm run db:sync                      # zones, narrowcast channels, tags,
                                      #   roles, desires, documents.
-                                     #   `-- --seed-silos` re-seeds every Silo.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   Locations, Rooms, their channels/
                                      #   threads + roles)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
-npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced;
-                                     #   `-- --seed-silos` re-seeds every Silo)
+npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
 npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
                                      #   retires a template absent from the
                                      #   YAML — see DESIRES.md §10)
@@ -567,7 +567,7 @@ they're mixed with other formatting (zone, dice roll) that doesn't go through
 it**. This applies everywhere text is written: the YAML masters, bot/DM
 strings, and the web UI.
 
-- Prose that names Resources (or the Silo) **as a concept** uses the plain
+- Prose that names Resources **as a concept** uses the plain
   word and no glyph: "you are only limited by your Resources".
 - Anywhere a **quantity** is shown, drop the word and write `{number} ⬢`:
   `0–4 ⬢`, `3 ⬢`, `+5 ⬢`, `30 ⬢ flat`. Never `3 Resources ⬢`.

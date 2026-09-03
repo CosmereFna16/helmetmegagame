@@ -54,6 +54,8 @@ const { ack, respond, scheduleDismiss } = require("../lib/respond");
 const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
 const { BIRD_REPLY_PREFIX, BIRD_REPLY_MODAL_PREFIX } = require("@lifeweb/db/lib/bird");
 const { handleBirdReplyOpen, handleBirdReplySubmit } = require("../lib/birdReply");
+const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
+const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
 const {
   OPEN_PREFIX: EDIT_OPEN_PREFIX,
   MODAL_PREFIX: EDIT_MODAL_PREFIX,
@@ -1077,6 +1079,14 @@ module.exports = {
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
+        // Arrive in a DM on a consent offer (docs/systemdocs/LESSONS.md), so
+        // guild/member are null. Not acked: interaction.update() is the ack.
+        if (interaction.customId.startsWith(OFFER_ACCEPT_PREFIX)) {
+          return void (await handleOfferAccept(interaction, interaction.customId.slice(OFFER_ACCEPT_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(OFFER_DECLINE_PREFIX)) {
+          return void (await handleOfferDecline(interaction, interaction.customId.slice(OFFER_DECLINE_PREFIX.length)));
+        }
         // Arrives in a DM on a Bird's letter, so guild/member are null.
         if (interaction.customId.startsWith(BIRD_REPLY_PREFIX)) {
           return void (await handleBirdReplyOpen(interaction, interaction.customId.slice(BIRD_REPLY_PREFIX.length)));

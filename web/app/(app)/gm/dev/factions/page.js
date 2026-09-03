@@ -22,7 +22,6 @@ export default async function DevFactionsPage() {
     name: f.name,
     zoneName: f.zone?.name ?? "",
     parentFactionId: f.parentFactionId,
-    silo: f.silo,
     deletable: f.name !== "Unaffiliated",
   }));
 

@@ -29,8 +29,6 @@ import {
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
-import { writeSiloRows } from "@lifeweb/db/lib/resourceTransfer";
-import { normalizeQuiet } from "@/lib/siloCover";
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -261,8 +259,7 @@ export async function wipeGameData(formData) {
       prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
       // Room stashes (CARRY.md): the rows cascade from nothing the wipe
-      // deletes, so they go explicitly, and the ⬢ column is zeroed like the
-      // Silos below.
+      // deletes, so they go explicitly and the ⬢ column is zeroed.
       prisma.roomTag.deleteMany({}),
       prisma.room.updateMany({ data: { resources: 0 } }),
       prisma.auditLog.deleteMany({}),
@@ -272,12 +269,10 @@ export async function wipeGameData(formData) {
       prisma.stagedMessage.deleteMany({}),
       prisma.stagedEffect.deleteMany({}),
       prisma.turn.deleteMany({}),
-      prisma.siloTransaction.deleteMany({}),
       prisma.directMessage.deleteMany({}),
       // The transcript: no foreign keys (snapshot columns only), so it must
       // be wiped explicitly or a restart leaves the last game readable.
       prisma.archiveEntry.deleteMany({}),
-      prisma.faction.updateMany({ data: { silo: 0 } }),
       prisma.gameConfig.update({
         where: { id: 1 },
         data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
@@ -377,9 +372,7 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
   await step("zone sync", () => syncZonesFromYaml(prisma));
   await step("special channels sync", () => syncSpecialChannels(prisma));
   await step("tag sync", () => syncTagsFromYaml(prisma));
-  // seedSilos: true, since Faction rows persist across the wipe and an
-  // ordinary sync only seeds silo on CREATE.
-  await step("role sync", () => syncRolesFromYaml(prisma, { seedSilos: true }));
+  await step("role sync", () => syncRolesFromYaml(prisma));
   await step("desire sync", () => syncDesiresFromYaml(prisma));
   await step("document sync", () => syncDocumentsFromYaml(prisma));
 
@@ -413,16 +406,13 @@ async function finishGameWipe(actorDiscordUserId, characters, cursedMemberIds, f
 }
 
 export async function updateFaction(formData) {
-  const session = await requireSuperadmin();
+  await requireSuperadmin();
 
   const factionId = str(formData, "factionId");
   if (!factionId) return;
 
   const before = await prisma.faction.findUnique({ where: { id: factionId } });
   if (!before) return;
-
-  const newSilo = intOrZero(formData, "silo");
-  const siloDelta = newSilo - before.silo;
 
   const parentFactionId = str(formData, "parentFactionId").trim() || null;
   if (parentFactionId) {
@@ -436,37 +426,9 @@ export async function updateFaction(formData) {
     where: { id: factionId },
     data: {
       name: str(formData, "name").trim(),
-      silo: newSilo,
       parentFactionId,
     },
   });
-
-  if (siloDelta !== 0) {
-    const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-    const { hidden, cover } = normalizeQuiet({
-      quiet: formData.get("siloQuiet") === "on",
-      coverActorName: str(formData, "siloCoverActorName"),
-      coverToName: str(formData, "siloCoverToName"),
-      coverNote: str(formData, "siloCoverNote"),
-    });
-    // One transaction so the hidden row and its cover never come apart.
-    await prisma.$transaction((tx) =>
-      writeSiloRows(tx, {
-        factionId,
-        amount: siloDelta,
-        ledger: {
-          actorDiscordUserId: session.discordUserId,
-          actorCharacterId: null,
-          actorName: "GM (Dev Panel)",
-          note: "Manual Dev Panel adjustment",
-          turnNumber: openTurn?.number ?? null,
-          turnPhase: openTurn?.phase ?? null,
-          hidden,
-          cover,
-        },
-      }),
-    );
-  }
 
   revalidatePath("/gm/dev/factions");
   revalidatePath("/faction");

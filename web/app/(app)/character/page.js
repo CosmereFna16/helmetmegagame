@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { peopleHere } from "@/lib/peopleHere";
+import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/lib/lessons";
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
 import { accessibleRooms } from "@lifeweb/db/lib/roomAccess";
+import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
@@ -182,8 +185,6 @@ export default async function CharacterPage() {
 
   const [
     openTurn,
-    otherCharacters,
-    factions,
     tagCatalog,
     tierRows,
     desireHistory,
@@ -192,16 +193,6 @@ export default async function CharacterPage() {
     { action: currentAction },
   ] = await Promise.all([
     getOpenTurn(),
-    prisma.character.findMany({
-        where: { status: "ALIVE", id: { not: character.id } },
-        orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-        select: { id: true, name: true },
-      }),
-      prisma.faction.findMany({
-        where: { name: { not: "Unaffiliated" } },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
       // getVisibleTags doesn't select purchasable/craftable, so this comes
       // down as its own props, same as the creation wizard.
       prisma.tag.findMany({
@@ -230,9 +221,11 @@ export default async function CharacterPage() {
               requiredTag: { select: { name: true } },
             },
           },
-          // Recipe skills are advice here, not a gate (TAGS.md §3b).
-          requirementSkills: { select: { name: true, slug: true } },
+          // Craft enforces recipe skills (CRAFTING.md); `knownRecipeIds`
+          // below is the server's verdict per recipe.
+          requirementSkills: { select: { id: true, name: true, slug: true } },
           requirementTurns: true,
+          requirementResources: true,
           conflictsWith: { select: { id: true } },
         },
       }),
@@ -355,13 +348,41 @@ export default async function CharacterPage() {
   const storeHeldTags = storeTags
     .filter((t) => heldSet.has(t.id))
     .map((t) => ({ id: t.id, name: t.name }));
-  // Both ends of a transfer list every Silo and every living player,
-  // including yourself. See REQUESTS.md §"the source can be anyone".
+  // The people a sheet can act on: standing at this Location, alive and
+  // unconcealed (web/lib/peopleHere.js). One roster for every picker, so
+  // the menus can't disagree — and the server re-checks the same predicate.
+  // `here` carries what Heal and Learn need; `bodiesAndHelpless` is the
+  // roster for the actions that also work on a corpse.
+  const here = await peopleHere(character, {
+    select: {
+      id: true,
+      name: true,
+      // No `resources` — a balance is nobody else's business.
+      tags: {
+        select: {
+          tagId: true,
+          tag: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              healable: true,
+              requirementTurns: true,
+              requirementResources: true,
+              requirementGambit: true,
+              requirementSkills: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+    },
+  });
   const selfEntry = { id: character.id, name: character.name };
+  const peopleParties = [selfEntry, ...here.map(({ id, name }) => ({ id, name }))];
+
   // Plus every Room stash at this Location the character can get into
   // (CARRY.md) — with its contents, since pulling out of one means seeing
-  // what's there. Filtered here, unlike the two lists above: a room you
-  // can't enter isn't a scouting target, it's a locked door.
+  // what's there. A room you can't enter isn't listed: it's a locked door.
   const heldSlugsForRooms = new Set(character.tags.map((ct) => ct.tag.slug));
   const roomsHere = character.locationId
     ? await prisma.room.findMany({
@@ -386,11 +407,8 @@ export default async function CharacterPage() {
     resources: r.resources,
     tags: r.tags.map((rt) => ({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity, stackable: rt.tag.stackable })),
   }));
-  const transferParties = {
-    characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
-    factions,
-    rooms,
-  };
+  // From is you or a room; To is anyone here or a room (TransferDialog.js).
+  const transferParties = { characters: peopleParties, rooms };
   const carry = carryStatus(character, gameConfig);
   // Healing. The medical gate is resolved here, server-side, so no
   // tier-chain math reaches the client bundle.
@@ -402,6 +420,40 @@ export default async function CharacterPage() {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
+  // Craft (CRAFTING.md): the recipes whose every skill this character holds
+  // (or a higher tier of), decided here and re-checked by craftRequest. The
+  // client filters its picker to these ids and nothing else.
+  const knownRecipeIds = tagCatalog
+    .filter((t) => t.craftable && (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)))
+    .map((t) => t.id);
+  const craftProjects = (
+    await prisma.craftProject.findMany({
+      where: { characterId: character.id, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        quantity: true,
+        turnsNeeded: true,
+        turnsDone: true,
+        resourcesCost: true,
+        payerName: true,
+        lastTurnId: true,
+        tag: { select: { id: true, name: true } },
+      },
+    })
+  ).map((p) => ({
+    id: p.id,
+    tagId: p.tag.id,
+    tagName: p.tag.name,
+    quantity: p.quantity,
+    turnsNeeded: p.turnsNeeded,
+    turnsDone: p.turnsDone,
+    resourcesCost: p.resourcesCost,
+    payerName: p.payerName,
+    // Advanced this turn already — Continue greys until the next one.
+    workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id),
+  }));
+
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const hasBird = holdsBirdAndLetters(character.tags);
@@ -411,38 +463,15 @@ export default async function CharacterPage() {
   const birdSentToday =
     Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
 
-  // Skipped for the majority who aren't medics, and for anyone unplaced.
-  const coLocated =
-    canHeal && character.zoneId
-      ? await prisma.character.findMany({
-          where: { status: "ALIVE", zoneId: character.zoneId },
-          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-          select: {
-            id: true,
-            name: true,
-            // No `resources` — a balance stays behind Silo authority.
-            tags: {
-              select: {
-                tag: {
-                  select: {
-                    id: true,
-                    name: true,
-                    category: true,
-                    requirementTurns: true,
-                    requirementResources: true,
-                    requirementGambit: true,
-                    requirementSkills: { select: { id: true, name: true } },
-                  },
-                },
-              },
-            },
-          },
-        })
-      : [];
-
-  // Filtered to treatable tags HERE, not the client, so nobody else's full
-  // sheet crosses the wire.
-  const healTargets = coLocated
+  // Patients: yourself and everyone here, filtered to treatable tags HERE,
+  // not the client, so nobody else's full sheet crosses the wire. Skipped for
+  // the majority who aren't medics.
+  const selfAsPatient = {
+    id: character.id,
+    name: character.name,
+    tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
+  };
+  const healTargets = (canHeal ? [selfAsPatient, ...here] : [])
     .map((t) => ({
       id: t.id,
       name: t.name,
@@ -459,33 +488,75 @@ export default async function CharacterPage() {
     }))
     .filter((t) => t.healable.length > 0);
 
-  // Everyone here, plus every faction Silo, per REQUESTS.md.
-  const healParties = { characters: coLocated.map(({ id, name }) => ({ id, name })), factions };
+  // Who can pay: you, anyone here, or a room stash here (same as Craft).
+  const healParties = { characters: peopleParties, rooms };
 
   // ONE roster for every action on somebody standing here (Loot, Move,
-  // Bind, Free, Harm), so the menus can't disagree.
-  const zoneRoster = character.zoneId
-    ? await prisma.character.findMany({
-        where: {
-          zoneId: character.zoneId,
-          // A buried body has left the world (BURY_CHARACTER) and stops appearing.
-          OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }],
-          id: { not: character.id },
-        },
-        orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+  // Bind, Free, Harm), including the unburied dead.
+  const zoneRoster = await peopleHere(character, {
+    includeDead: true,
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      resources: true,
+      tags: {
         select: {
-          id: true,
-          name: true,
-          status: true,
-          resources: true,
-          tags: {
-            select: {
-              tagId: true,
-              quantity: true,
-              tag: { select: { name: true, slug: true, category: true, stackable: true, tradeable: true } },
-            },
-          },
+          tagId: true,
+          quantity: true,
+          tag: { select: { name: true, slug: true, category: true, stackable: true, tradeable: true } },
         },
+      },
+    },
+  });
+
+  // Lessons (LESSONS.md). `teachers`: everyone here who can teach, each with
+  // the skills they could teach ME — computed server-side so only skills I
+  // could learn cross the wire, never their sheet. `learners`: when I hold
+  // Teaching, everyone here with what I could teach them. Both empty lists
+  // otherwise. `pendingOffers`: the handshakes I'm part of this turn.
+  const lessonCatalog = await prisma.tag.findMany({ select: LESSON_CATALOG_SELECT });
+  const meForLessons = { id: character.id, tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })) };
+  const hereForLessons = here.map((c) => ({ id: c.id, name: c.name, tags: c.tags }));
+  const teachers = hereForLessons
+    .filter((c) => isTeacher(c))
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      skills: teachableSkills(c, meForLessons, lessonCatalog).map((t) => ({ id: t.id, name: t.name })),
+    }))
+    .filter((c) => c.skills.length > 0);
+  const canTeach = isTeacher(meForLessons);
+  const learners = canTeach
+    ? hereForLessons
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          skills: teachableSkills(meForLessons, c, lessonCatalog).map((t) => ({ id: t.id, name: t.name })),
+        }))
+        .filter((c) => c.skills.length > 0)
+    : [];
+  const pendingOffers = openTurn
+    ? (
+        await prisma.offer.findMany({
+          where: {
+            turnId: openTurn.id,
+            status: "PENDING",
+            OR: [{ initiatorId: character.id }, { responderId: character.id }],
+          },
+          orderBy: { createdAt: "asc" },
+          select: { id: true, kind: true, initiatorId: true, responderId: true, tag: { select: { name: true } } },
+        })
+      ).map((o) => {
+        const otherId = o.initiatorId === character.id ? o.responderId : o.initiatorId;
+        const other = [...here, ...zoneRoster].find((c) => c.id === otherId);
+        return {
+          id: o.id,
+          kind: o.kind,
+          mine: o.initiatorId === character.id,
+          otherName: other?.name ?? "someone",
+          tagName: o.tag?.name ?? null,
+        };
       })
     : [];
 
@@ -512,34 +583,27 @@ export default async function CharacterPage() {
       })),
   }));
 
-  // Deliberately unfiltered: narrowing to who you may actually move would
-  // give away who's tied up. The server's own gate rejects the rest.
+  // Everyone here, not just who you may move: the server's own gate says
+  // who follows, and a menu that narrowed to the bound would announce them.
   const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
 
   // Where you may walk someone: the neighbours of YOUR OWN location, the same
-  // edge an ordinary walk uses. Each option carries its zone so the dialog can
-  // warn that the hop crosses one.
+  // edge an ordinary walk uses, gated the same way. travelOptions drops the
+  // hidden ways this character holds no key to, and `passable` drops the
+  // locked and the shut — a walk-someone dialog has no room to explain a
+  // refusal, so it only ever offers a hop that will actually work. Each
+  // option carries its zone so the dialog can warn that the hop crosses one.
   const moveLocations = character.locationId
-    ? (
-        (
-          await prisma.location.findUnique({
-            where: { id: character.locationId },
-            select: {
-              connectsTo: {
-                select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
-                orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
-              },
-            },
-          })
-        )?.connectsTo ?? []
-      ).map((l) => ({
-        id: l.id,
-        name: l.name,
-        zoneName: l.zone?.name ?? null,
-        // The UI says "crosses into Fortress" only for an edge that leaves
-        // the zone you're standing in.
-        crossesZone: l.zoneId !== character.zoneId,
-      }))
+    ? (await travelOptions(prisma, character, character.locationId))
+        .filter((row) => row.passable)
+        .map((row) => ({
+          id: row.location.id,
+          name: row.location.name,
+          zoneName: row.location.zone?.name ?? null,
+          // The UI says "crosses into Fortress" only for an edge that leaves
+          // the zone you're standing in.
+          crossesZone: row.crossesZone,
+        }))
     : [];
 
   // Only fetched for someone who holds a bird. Recipient list is EVERY
@@ -633,7 +697,6 @@ export default async function CharacterPage() {
       transferParties={transferParties}
       carry={carry}
       tagCatalog={tagCatalog}
-      otherCharacters={otherCharacters}
       desireSlots={desireSlots}
       desireSlotLockTurns={desireSlotLockTurns}
       desireAddiction={desireAddiction}
@@ -644,6 +707,13 @@ export default async function CharacterPage() {
       desireLockNotes={desireLockNotes}
       desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
+      hasMoved={Boolean(currentAction)}
+      canTeach={canTeach}
+      knownRecipeIds={knownRecipeIds}
+      craftProjects={craftProjects}
+      teachers={teachers}
+      learners={learners}
+      pendingOffers={pendingOffers}
       hasBird={hasBird}
       isLiterate={isLiterate}
       birdSentToday={birdSentToday}

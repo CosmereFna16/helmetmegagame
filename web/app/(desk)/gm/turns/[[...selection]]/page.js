@@ -49,7 +49,7 @@ function summarize(request) {
     case "FULFILL_DESIRE":
       return `+${e.pointsAwarded ?? 0} Tag Points — ${truncate(e.desireText, 60)}`;
     case "ADD_TAG":
-      return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
+      return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢${e.payer?.name ? ` (${e.payer.name})` : ""}` : ""}`;
     case "BUY_TAGS":
       return `${(e.items ?? []).map((i) => i.tagName).join(", ")} for ${e.totalPoints ?? 0} Tag Points`;
     case "REMOVE_TAG":
@@ -167,7 +167,6 @@ export default async function TurnsWorkspacePage({ params }) {
     members,
     myZones,
     gmProfiles,
-    factions,
     resolvedTurns,
     catatonicTagRows,
   ] = await Promise.all([
@@ -254,14 +253,6 @@ export default async function TurnsWorkspacePage({ params }) {
     // Moves are fetched on demand by getMoveHistory when a GM actually
     // opens the lens, so the open turn's desk never pays for history it
     // isn't looking at (and neither does the 45s router.refresh()).
-    // The transfer composer's Silo picker. Unaffiliated has no Silo worth
-    // moving ⬢ into or out of — same exclusion db/lib/parties.js#resolveParty
-    // applies.
-    prisma.faction.findMany({
-      where: { name: { not: "Unaffiliated" } },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, silo: true },
-    }),
     prisma.turn.findMany({
       where: { status: "RESOLVED" },
       orderBy: { number: "desc" },
@@ -427,7 +418,6 @@ export default async function TurnsWorkspacePage({ params }) {
       }))}
       presenceZones={presenceZones}
       stagingLocations={locationRows}
-      factions={factions}
       moves={moves}
       requests={requestRows}
       cavingRolls={cavingRows}

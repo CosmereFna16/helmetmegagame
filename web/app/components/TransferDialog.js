@@ -8,11 +8,11 @@ import CheckField from "./CheckField";
 // lives in RequestActionsProvider like every other mode — this component is
 // the form, not the owner.
 //
-// Tags are listed only when the source is YOU or a Room. Any other source
-// offers ⬢ alone: browsing another player's inventory is the abuse the
-// send-only rule prevents (REQUESTS.md §3), and a Silo holds ⬢, not things.
-// The party lists are unfiltered on purpose — the server is the gate, and a
-// range-filtered menu would be a scouting tool.
+// The source is YOU or a Room here — never another person. You can't reach
+// into someone's pockets, and listing what's in them would show their hidden
+// tags; Loot is how you take from a (helpless) person. The destination is
+// anyone standing here and unconcealed, or a Room here
+// (web/lib/peopleHere.js); the server re-checks the same predicate.
 //
 // `rooms` carries each stash's contents, so pulling out of a Room shows
 // what's there; `carry` is this character's load and caps for the projection
@@ -39,6 +39,9 @@ export default function TransferDialog({
 }) {
   const selfKey = selfId ? `character:${selfId}` : "";
   const rooms = parties?.rooms ?? [];
+  const people = parties?.characters ?? [];
+  const self = people.filter((c) => c.id === selfId);
+  const others = people.filter((c) => c.id !== selfId);
   const fromRoom = fromKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === fromKey) : null;
   const toRoom = toKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === toKey) : null;
   const toIsCharacter = toKey.startsWith("character:");
@@ -79,17 +82,16 @@ export default function TransferDialog({
           value={fromKey}
           onChange={onFrom}
           hint="Choose a source… ‡"
-          characters={parties?.characters ?? []}
-          factions={parties?.factions ?? []}
+          characters={self}
           rooms={rooms}
+          selfId={selfId}
         />
         <PartySelect
           label="To ‡"
           value={toKey}
           onChange={onTo}
           hint="Choose a destination… ‡"
-          characters={parties?.characters ?? []}
-          factions={parties?.factions ?? []}
+          characters={others}
           rooms={rooms}
         />
       </div>
@@ -142,13 +144,6 @@ export default function TransferDialog({
               })}
             </div>
           ))}
-        {!canOfferTags && fromKey && (
-          <p className="text-xs text-muted">
-            {toRoom || toIsCharacter
-              ? "Only ⬢ can move from there. To hand over a thing, it has to be yours or lying in a room. ‡"
-              : "Only ⬢ can move from there. ‡"}
-          </p>
-        )}
       </div>
 
       {projected && (
@@ -159,8 +154,9 @@ export default function TransferDialog({
         </p>
       )}
       <p className="text-xs text-muted">
-        A person has to share your zone; a Silo, its faction&apos;s zone; a room, the spot you&apos;re
-        standing in. ‡
+        {toRoom
+          ? "Anyone who can get into that room can take what you leave there. ‡"
+          : "Only people standing where you are, with their face showing, are listed. ‡"}
       </p>
     </>
   );

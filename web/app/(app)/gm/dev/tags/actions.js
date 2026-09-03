@@ -124,6 +124,8 @@ function scalarsFrom(input) {
     consumable: Boolean(input.consumable),
     removable: Boolean(input.removable),
     tradeable: Boolean(input.tradeable),
+    healable: Boolean(input.healable),
+    teachable: Boolean(input.teachable),
     purchasable: Boolean(input.purchasable),
     purchasableAfterStart: Boolean(input.purchasableAfterStart),
     sellable,

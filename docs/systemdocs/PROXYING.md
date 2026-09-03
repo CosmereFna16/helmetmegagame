@@ -226,7 +226,10 @@ the character sends — typed into a channel or through the Speak modal — is
 reposted under an anonymous alias instead of the name, and **Who's here?** on
 a Location's anchor lists them under that alias too (`CHANNELS.md` §4). The
 old per-message `/conceal` text prefix and the Speak modal's checkbox are
-gone: a player who wants to be unnamed is unnamed until they say otherwise.
+gone: a player who wants to be unnamed is unnamed until they say otherwise. A
+concealed character is also excluded from every people-picker on
+`/character` (Heal, Loot, Move Player, Bind, Free, Harm, Transfer) and
+cannot be targeted through those menus (`db/lib/presence.js`).
 
 **It is open to everyone** — nothing equipped, no tag required. A player
 decides for themselves when to go unnamed. `Tag.concealsIdentity` still exists

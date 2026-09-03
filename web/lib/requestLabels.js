@@ -11,9 +11,9 @@
 
 export const REQUEST_TYPE_LABELS = {
   FULFILL_DESIRE: "Fulfill Desire",
-  ADD_TAG: "Add Tag",
+  ADD_TAG: "Craft ‡",
   BUY_TAGS: "Store Purchase",
-  REMOVE_TAG: "Remove Tag",
+  REMOVE_TAG: "Destroy ‡",
   CONSUME_TAG: "Consume Tag",
   TRANSFER_RESOURCES: "Transfer Resources",
   TRANSFER_TAG: "Transfer Tag",

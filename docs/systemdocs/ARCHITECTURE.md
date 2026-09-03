@@ -44,7 +44,7 @@ exceptions, all requiring by path instead:
   `web/lib/factionPermissions.js` as a thin shim binding the singleton so web
   callers keep the shorter signature.
 - **`db/lib/parties.js`** and **`db/lib/resourceTransfer.js`** — the shared
-  "move ⬢ between a character or a faction Silo" primitive
+  "move ⬢ between two parties" primitive
   (`resolveParty`/`partyKey`/`partyLabel`, `moveParty`/`applyTransfer`), same
   prisma-first-parameter convention. Promoted out of the player-facing
   `TRANSFER_RESOURCES` request (`web/app/(app)/character/requestActions.js`,
@@ -146,6 +146,8 @@ back to the caller** rather than doing it.
 - `advanceTurn()` returns a `runSideEffects` thunk (`TURN-ENGINE.md` §3).
 - `runHungerPass` returns `starvedDiscordUserIds`.
 - `runDefaultMovePass` returns `posts` and `dms`.
+- `runLessonPass` (`db/lib/lessonPass.js`, `LESSONS.md`) returns `dms`, run
+  between `defaultMoves` and `stagedPush`.
 - `performTravel` returns `oldZone` so each caller runs its own access twin.
 
 Two reasons, both load-bearing:
@@ -199,7 +201,7 @@ success for messages nobody received.
 
 ## 6. Snapshot columns, not foreign keys
 
-`AuditLog`, `SiloTransaction` and `ArchiveEntry` all store plain indexed id
+`AuditLog` and `ArchiveEntry` both store plain indexed id
 columns plus **name snapshots**, with no relations. Two reasons:
 
 - `syncZonesFromYaml` destructively deletes Zones, and `wipeGameData` clears
@@ -225,7 +227,7 @@ and `MAP.md`.
 | `REQUESTS.md` | Act-first/review-after player actions |
 | `ADJUDICATION.md` | The `/gm/turns` GM surface |
 | `MAP.md` | Geography, travel, the map panel |
-| `FACTIONS.md` | Factions, the Silo, Leader/Treasurer |
+| `FACTIONS.md` | Factions, Leader/Treasurer |
 | `PRODUCTION.md` | The Labor checkbox and the payout table |
 | `COMMANDS.md` | Every slash command, button, modal and reaction |
 | `ARCHIVE.md` | The transcript |

@@ -311,8 +311,11 @@ async function restoreTurnImpl({ characterId, reason }) {
     throw new UserError("Another GM is adjudicating that Move right now.");
   }
 
+  // A lesson's partner Moves may go with this one (db/lib/lessons.js); the
+  // learners it strands are told after commit.
+  let lessonDms = [];
   await prisma.$transaction(async (tx) => {
-    await deleteActionRestoringTurn(tx, action);
+    lessonDms = await deleteActionRestoringTurn(tx, action);
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
@@ -327,6 +330,9 @@ async function restoreTurnImpl({ characterId, reason }) {
         },
       },
     });
+  for (const dm of lessonDms) {
+    after(() => sendDm(dm.discordUserId, dm.content).catch((err) => console.error("Lesson cancel DM failed:", err)));
+  }
   });
 
   // Always DM'd — a freed turn they don't know about is a wasted day.
@@ -377,26 +383,14 @@ async function spendTurnImpl({ characterId, description }) {
   return { actionId: created.id };
 }
 
-// Generic party-to-party transfer; gmTransferResources/resolveParty reject a
+// Character-to-character transfer; gmTransferResources/resolveParty reject a
 // malformed or unknown key. Same balance check as a player transfer, minus
 // the player-side reach gate.
-async function transferResourcesImpl({ fromKey, toKey, amount, reason, quiet, coverActorName, coverToName, coverNote }) {
-  const result = await gmTransferResources({
-    fromKey,
-    toKey,
-    amount,
-    reason,
-    quiet,
-    coverActorName,
-    coverToName,
-    coverNote,
-  });
+async function transferResourcesImpl({ fromKey, toKey, amount, reason }) {
+  const result = await gmTransferResources({ fromKey, toKey, amount, reason });
   for (const key of [fromKey, toKey]) {
     const [kind, id] = (key ?? "").split(":");
     if (kind === "character" && id) repaint(id);
-  }
-  if (fromKey?.startsWith("faction:") || toKey?.startsWith("faction:")) {
-    revalidatePath("/faction");
   }
   return result;
 }

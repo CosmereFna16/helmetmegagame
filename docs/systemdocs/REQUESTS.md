@@ -76,7 +76,7 @@ the check — a conditional `updateMany` matching only while the balance still
 covers the amount. The friendly `amount > from.balance` checks in the request
 actions stay for their better wording, but they are a separate statement from
 the write and two tabs firing at once both passed them: ten sent twice left
-the sender at −10 and the recipient up 20, and it worked on faction Silos too.
+the sender at −10 and the recipient up 20.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
@@ -93,21 +93,21 @@ reason.
 
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
-| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach — a player, a Silo, or a Room stash at your Location (`CARRY.md`). `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
-| `ADD_TAG` | Makes a Craftable tag, optionally paying ⬢. Craftable is the whole gate — the point-priced half of the menu is gone, and lives in `/store`. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
+| `TRANSFER_RESOURCES` | Moves ⬢ from you or a Room stash at your Location to a person at your Location or a Room stash there (`CARRY.md`). Nothing is ever pulled off a living person — Loot is the only way to take from someone. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
+| `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` 0 is Dead Simple (no Move, rationed per turn); 1 is this turn's Routine; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
-| `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c) | cost | Restores the tag and its count, takes back the aftermath it granted, refunds the cost |
+| `REMOVE_TAG` | Destroy: drops one of their own `removable` tags, no ⬢ field and nothing refunded, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Health tags are no longer `removable` — a wound is healed, not thrown away. Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, or into or out of a Room stash at your Location, in a quantity if it stacks. The merged Transfer dialog files one of these per tag line (`CARRY.md` §6). `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back to where they came from |
+| `TRANSFER_TAG` | Hands an Item or Asset from you or a Room stash to a person at your Location or a Room stash there, in a quantity if it stacks. Nothing is ever taken from another person this way. The merged Transfer dialog files one of these per tag line (`CARRY.md` §6). `direction: "LOOT"` lifts one off a corpse at your Location | — | Moves that many back to where they came from |
 | `FULFILL_DESIRE` | Claims one active, slotted Desire (`desireId`, not "the" active one — a character can hold several at once, one per slot) | Tag Points awarded | Revokes the points and reopens the *row*. Because a GM Fulfil/Cancel operates on a specific `desireId` rather than "whatever's in the slot now," an Undo is safe even after a new Desire has since been set in that same slot — it only ever touches the row it snapshotted, never the slot's current occupant |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
-| `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
+| `HEAL_CHARACTER` | Treats a `healable` affliction on anyone at their Location who isn't concealed, on whoever's tab they choose, billed to a payer — yourself, a Room stash here, or a person here. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
 | `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
-| `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
+| `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
 | `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
@@ -153,31 +153,24 @@ what you can't, not to pretend the handler is a full inverse.
 
 Three notes on deliberate choices:
 
-- **Transfer Resources has a source, and the source can be anyone in reach.**
-  The dropdown lists every faction Silo and every living player, on both ends.
-  A player really can pull ⬢ out of another player's pocket and explain
-  themselves afterwards. This is the Requests bet taken to its logical end,
-  and it was chosen over the safer factions-only reading.
-
-  What it is *not* is action at a distance. Every party has to be somewhere the
-  filer can stand: a person in the same zone, a Silo in its own seat zone — a
-  besieged Silo is only reachable by physically holding its seat zone
-  (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
-  Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
-  stay unfiltered on purpose — filtering them to who's in range would make the
-  dialog a free scouting tool for who is standing in your zone. Correctness
-  lives entirely in the server-side gate: a transfer to/from someone out of
-  reach is rejected with a clear error, not hidden from the picker.
+- **Transfer never takes from another person.** From is you or a Room stash at
+  your Location; To is a person at your Location (who isn't concealed) or a
+  Room stash there. Pulling ⬢ or an item out of someone else's pocket is no
+  longer a Transfer at all — Loot is the only way to take from somebody, and
+  only from the helpless or dead. This replaced an earlier design where the
+  source could be anyone in reach; that let a player pick another player's
+  pocket with nothing but a written reason, which was more of the fiction's
+  "action at a distance" than Bascinet wanted once the menus went
+  Location-scoped (see §6).
 - **Transfer Tag is send-only for the living, plus a LOOT direction for
   corpses.** There is no "request a tag from a live someone", because
   browsing another player's inventory to pick something is the abuse the
   one-way flow prevents. But a dead character is a lootable pile: filing a
-  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse in the same zone as
-  the counterparty and pulls the item OFF it. Being in the same place is folded
-  into the same `WHERE` clause in both directions — the same co-presence rule
-  `canReachCharacter` enforces elsewhere, just inlined into the query.
-  `TRANSFER_RESOURCES` mirrors this: a `LOOT` request pulls ⬢ off a corpse and
-  can only credit the initiator. See `CHARACTERS.md` §5.
+  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse at the same Location
+  as the counterparty and pulls the item OFF it. Being in the same place is
+  folded into the same `WHERE` clause in both directions. `TRANSFER_RESOURCES`
+  mirrors this: a `LOOT` request pulls ⬢ off a corpse and can only credit the
+  initiator. See `CHARACTERS.md` §5.
 - **Every request whose subject is a different character notifies that
   character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
   `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
@@ -212,18 +205,20 @@ Three notes on deliberate choices:
   Butcher, Horse, Stealth, Literate, Ranged (Basic), Workshop, Game Master.
   The help text asking them not to was the tell that the option should never
   have been on the menu. The two economies are now split at the door —
-  `/store` spends points against catalog prices, Add Tag spends turns and ⬢
-  against a recipe.
-- **What survives is the hidden-category group gate, and nothing else.**
+  `/store` spends points against catalog prices, Add Tag (Craft) spends turns
+  and ⬢ against a recipe.
+- **The recipe's `requirement.skills` is enforced now, not honor-system.**
   A Longbow's `requiredTag: ranged-basic` says who can *shoot* it; its
   `requirement.skills: [crafting]` says who can *make* it. Creation and
-  `/store` enforce the former; Add Tag enforces neither — it's honor-system
-  (`addRequirementSatisfied()` in `web/lib/tagRequests.js`, `TAGS.md` §3b),
-  with the recipe shown as the picker's "To make: …" hint and the GM review
-  as the backstop. A smith with no combat skill can forge weapons to sell; a
-  fighter can pull one from an armoury the fiction gives them. The
-  group gate stays unconditional, so a craftable in a hidden category is
-  still invisible outside it.
+  `/store` always enforced the former. Craft used to leave the latter to the
+  picker's "To make: …" hint and the GM review as the backstop
+  (`TAGS.md` §3b); it now checks server-side that the crafter holds every
+  listed skill or a higher tier, the same walk Heal uses
+  (`CRAFTING.md` §2). A smith with no combat skill can still forge weapons to
+  sell; a fighter still pulls one from an armoury the fiction gives them, but
+  only by actually holding the skill. The hidden-category group gate stays
+  unconditional on top of that, so a craftable in a hidden category is still
+  invisible outside it.
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
@@ -518,12 +513,18 @@ long time nothing in the game **granted** Bound. A GM had to place it by hand,
 which is the day of real time §1 exists to save, so `BIND_CHARACTER` and its
 counterpart `FREE_CHARACTER` close the loop.
 
-**Neither one is gated beyond co-presence.** Tying somebody up is an act with
-consequences, not a permission. Anyone standing there can do it, and anyone
-standing there can cut them loose again — a captor who wants their prisoner
-kept has to keep other people out of the room, which is a fiction problem
-rather than a permissions one. The reason field and the GM's review are the
-anti-abuse mechanism, exactly as everywhere else.
+**Neither one is gated beyond co-presence — but Bind now needs consent unless
+the target is already helpless.** A conscious target who holds no
+`INCAPACITATING_SLUGS` tag gets an Offer (kind `BIND`), not an instant bind: a
+DM asking "Accept?", answered from the same handshake Learn/Teach uses
+(`LESSONS.md` §3b). A dead or already-incapacitated target is bound on the
+spot, as before. Free is unchanged — anyone standing there can cut somebody
+loose again, no consent asked — so a captor who wants their prisoner kept has
+to keep other people out of the room, which is a fiction problem rather than a
+permissions one. Co-presence for all four of these is now **Location**-grain,
+not zone-grain (`db/lib/presence.js` / `web/lib/peopleHere.js`): the target
+has to be standing in the same Location and not concealed. The reason field
+and the GM's review are the anti-abuse mechanism, exactly as everywhere else.
 
 **Binding someone also cancels their standing Default Move.** All four
 `INCAPACITATING_SLUGS` are read on the *afflicted* character's own side too:
@@ -582,11 +583,15 @@ over it, so the leader gate is skipped and no Discord role is swapped — and
 neither does anyone helpless, so a Catatonic, Dying or Paralyzed character can
 be carried as well as robbed.
 
-**The target menus are deliberately unfiltered.** Every one of these lists
-names people a player might not be allowed to act on, and the server rejects
-the rest with its own wording. Narrowing the menu to who you *may* move would
-turn it into a readout of who is tied up. See §6 on why the buttons don't grey
-out either.
+**The target menus list who is at your Location and not concealed — a corpse
+still shows for Loot and Move.** That's a change from the earlier design,
+where every one of these listed every living player so nobody learned who was
+nearby just by opening a menu; the game now filters by co-presence
+(`web/lib/peopleHere.js`, `db/lib/presence.js`), so a menu can show a name a
+player isn't actually allowed to act on (Bound already, out of reach by the
+time of submit) and the server rejects the rest with its own wording. See §6
+on why the buttons themselves don't grey out for who's near you — that rule is
+unrelated and still holds.
 
 ## 5c. Healing
 
@@ -596,7 +601,8 @@ owns rather than the player.
 
 **Three gates, all re-checked server-side.** The button only renders for a
 character holding `medical-basic`; the patient must share the healer's
-`zoneId`; and the affliction's own `requirementSkills` must be satisfied —
+Location and not be concealed; and the affliction's own `requirementSkills`
+must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
 sees it in the menu, greyed, reading "needs Medical (Skilled)". The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
@@ -613,13 +619,18 @@ used to sit) because the bot asks the same question: the doctor's eye on 🔍
 inspect shows a medic the hidden afflictions they are qualified for, and the
 two faces must not drift on who counts as qualified. See `TAGS.md` §5c.
 
-**What counts as treatable** is data, not a slug list: a held tag in the
-`Health` category that carries *any* requirement field. A Health tag with no
-requirement block is tier 0 of the cure ladder — Vomiting, a Migraine, a
-Concussion: realistically untreatable, quick, harmless, and deliberately not
-something a doctor bills for. Adding a `requirement:` block to a Health tag in
-`docs/tags.yaml` is the whole of "make this curable", and `TAGS.md` §5c has the
-eight rungs to copy rather than invent.
+**What counts as treatable** is data, not a heuristic: `Tag.healable`, a flag
+in `docs/tags.yaml` (`CRAFTING.md` §1), re-checked by
+`web/lib/healRequests.js#isHealable`. This replaced the old rule — a held tag
+in the `Health` category that carried *any* requirement field — which
+conflated "curable" with "has a cure cost" closely enough that it worked, but
+the flag is the thing actually read now, not the inference. A Health tag with
+`healable: false` and no requirement block is tier 0 of the cure ladder —
+Vomiting, a Migraine, a Concussion: realistically untreatable, quick,
+harmless, and deliberately not something a doctor bills for. Setting
+`healable: true` (with a `requirement:` block) on a Health tag in
+`docs/tags.yaml` is the whole of "make this curable", and `TAGS.md` §5c has
+the eight rungs to copy rather than invent.
 
 **The cost is `Tag.requirementResources`, and a payer is demanded even at
 zero.** `schema.prisma` documents the requirement block as covering whichever
@@ -631,19 +642,17 @@ as reference and enforced by nobody — which is what makes "you may always
 attempt something above your tier, as a Gambit" a rule a GM adjudicates rather
 than one the button blocks.
 
-**Who pays is anyone in reach.** Every co-located living player including the
-healer, plus every faction Silo in reach regardless of Silo authority — the
-same reach `TRANSFER_RESOURCES` has, for the same reason (see "the source can
-be anyone in reach" in §3). The Silo half used to be "from anywhere", which
-became a laundering hole the moment transfers grew a reach gate: billing a
-distant Silo for a cure moves ⬢ across the map with nobody carrying it. Billing someone other than yourself asks twice: the reason dialog,
-then a `useConfirm()` naming the payer and the amount. Treating another
-character does not, which is the opposite of the Lifeweb rule below and
-deliberate — a cure is not a harm, and being charged for one is.
+**Who pays is yourself, a Room stash at your Location, or a person there** —
+the same payer choice Craft offers (`CRAFTING.md` §2), and a person picked
+this way is DM'd what they were charged. Billing someone other than yourself
+asks twice: the reason dialog, then a `useConfirm()` naming the payer and the
+amount. Treating another character does not, which is the opposite of the
+Lifeweb rule below and deliberate — a cure is not a harm, and being charged
+for one is.
 
-The shared zone is re-validated inside the target's `WHERE` clause rather than
-by a second read, so a patient who walked out between page load and submit fails
-closed with "They aren't here" and nothing is written.
+The shared Location is re-validated inside the target's `WHERE` clause rather
+than by a second read, so a patient who walked out between page load and
+submit fails closed with "They aren't here" and nothing is written.
 
 It is also the one type whose subject is a different character from the one
 who filed it: `request.characterId` is the medic, `effect.targetCharacterId`
@@ -785,6 +794,16 @@ a whole "Bodies here" panel for looting corpses. It is a grid rather than a
 vertical strip because eleven icons in one column would run far past the
 four `<dl>` rows next to them and drag the panel's height with them.
 
+`actionRegistry.js` now lays the grid out as three captioned rows rather than
+one undifferentiated block, grouped by who the action touches: **You** (Craft,
+Destroy, Consume, Transfer, Learn Skill, Teach Skill), **People here** (Heal,
+Loot, Bind, Free, Harm, Move Player, Bury Person), **Letters** (Send Bird,
+Read). The caption is presentation only — every button still greys or opens
+its dialog by the same per-action rule as before; grouping them by subject
+just makes the "acts on you" / "acts on someone else" split legible at a
+glance, which matters more now that co-presence actually filters who shows up
+in the dialog (§5b).
+
 **The state had to move up to make that work.** `TagRequestButtons.js` used to
 own both the buttons and the dialogs, and handed its opener up to `TagsPanel`
 through an `onReady` callback so a chip click could open Consume. The buttons
@@ -800,8 +819,9 @@ who is standing near you. A greyed-out Loot icon would announce "nobody here
 is helpless" to anyone who glanced at their own sheet, and a live one would
 announce the opposite: free scouting, on every page load, without anyone
 choosing to look. So the co-presence actions are always lit and you learn who
-is here only by opening the dialog. Same reasoning as the unfiltered transfer
-dropdowns in §3.
+is here only by opening the dialog. §3 covers the corresponding rule for the
+target *menus* themselves — Location-filtered now, not unfiltered — which is
+a separate concern from button greying and doesn't change it.
 
 The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
 `PointBuy.js`, so the in-play menu and the creation menu find the same tags
@@ -822,9 +842,6 @@ header (`.table-scroll`) over 50 rows a page — the same shell every other
 list in the app uses, though `/gm/audit` is the one that pages server-side,
 over the URL, so a filtered view stays linkable.
 
-Faction Silos additionally get a `SiloTransaction` row on **both** directions
-of a transfer. Deposits into a Silo previously left no ledger entry at all.
-
 ## 8. Where the code lives
 
 | Concern | File |
@@ -839,10 +856,13 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | The Actions icon grid | `web/app/components/ActionGrid.js`, `IconButton.js`, `icons.js` |
 | Which held tags each menu offers | `web/lib/tagRequests.js` |
 | Who is standing in your zone (one roster, five menus) | `web/app/(app)/character/page.js` |
+| Co-presence at Location-grain (web / db) | `web/lib/peopleHere.js`, `db/lib/presence.js` |
+| Bind, both doors (instant vs. consent Offer) | `db/lib/bind.js` (`LESSONS.md` §3b) |
+| Action-grid rows and per-action entries | `web/app/components/actionRegistry.js` |
 | Who counts as helpless, and who can be finished off | `db/lib/incapacitation.js` |
-| Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
-| One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
-| Reach gate — same zone / same Silo seat zone | `web/lib/transferReach.js` |
+| Heal gate, tier chain, `healable` filter | `web/lib/healRequests.js` |
+| One end of a resource movement | `web/app/components/PartySelect.js` |
+| Reach gate — same zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires — panel shell, catalog picker, GM surface, gate evaluator | `web/app/components/GoalsPanel.js`, `DesirePanel.js`, `DesireCatalog.js`; `gm/dev/characters/[characterId]/GoalsTab.js`; `db/lib/desireGates.js`. Full file map: `DESIRES.md` §11 |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |

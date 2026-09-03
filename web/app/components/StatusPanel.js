@@ -51,12 +51,27 @@ function MoveCutoff({ window: moveWindow }) {
 // bot's DM confirms, just left standing where they can check it later
 // instead of scrolling Discord. Player-facing wording, not the GM workflow
 // enums (moveReviewStatus's "Passed"/"Open" mean nothing to a player).
-function ThisTurn({ currentAction, openTurn }) {
+function ThisTurn({ currentAction, openTurn, pendingOffers = [] }) {
   if (!openTurn) return <span className="text-muted">No turn is open.</span>;
   const cutoff = <MoveCutoff window={openTurn.moveWindow} />;
+  // A handshake still waiting on the other side (docs/systemdocs/LESSONS.md).
+  // Shown above the Move line either way: an offer you made is why your Move
+  // isn't filed yet, and one made to you is waiting in your DMs.
+  const waiting = pendingOffers.map((o) => (
+    <span key={o.id} className="text-muted">
+      {o.mine
+        ? o.kind === "BIND"
+          ? `Waiting for ${o.otherName} to agree to be bound. ‡`
+          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}. ‡`
+        : o.kind === "BIND"
+          ? `${o.otherName} wants to bind you — answer in your DMs. ‡`
+          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""} — answer in your DMs. ‡`}
+    </span>
+  ));
   if (!currentAction)
     return (
       <>
+        {waiting}
         <span className="text-muted">Not filed yet.</span>
         {cutoff}
       </>
@@ -102,6 +117,7 @@ function ThisTurn({ currentAction, openTurn }) {
 
   return (
     <>
+      {waiting}
       <span className="field-label">{moveKindLabel(currentAction.moveKind, currentAction.gmNotes)}</span>
       <ExpandableText text={currentAction.description} lines={3} />
       {stateLine}
@@ -110,7 +126,7 @@ function ThisTurn({ currentAction, openTurn }) {
   );
 }
 
-export default function StatusPanel({ character, isSelf, currentAction, openTurn, carry = null }) {
+export default function StatusPanel({ character, isSelf, currentAction, openTurn, carry = null, pendingOffers = [] }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
   // exactly what gets applied.
@@ -219,7 +235,7 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
           </Row>
 
           <Row label="This turn" stacked>
-            <ThisTurn currentAction={currentAction} openTurn={openTurn} />
+            <ThisTurn currentAction={currentAction} openTurn={openTurn} pendingOffers={pendingOffers} />
           </Row>
         </dl>
 

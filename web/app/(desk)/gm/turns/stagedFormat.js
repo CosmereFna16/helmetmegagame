@@ -15,20 +15,19 @@ export function tagNameLookup(tagCatalog) {
   return new Map(tagCatalog.map((t) => [t.id, t.name]));
 }
 
+// A staged row created before Silos were removed can still carry a
+// "faction" party — render it plainly, same as any other party.
 function partyLabel(party) {
   if (!party) return "?";
-  return party.kind === "faction" ? `${party.name} Silo` : party.name;
+  return party.name;
 }
 
 // "+3 ⬢ · +Explosion Burns · −Fine Meal ×2"
 export function effectSummary(effect, tagNames) {
   const parts = [];
   if (effect.transfer) {
-    const { from, to, amount, hidden } = effect.transfer;
-    // A quiet transfer hides its Silo row from the faction's own officers, and
-    // that is exactly the kind of thing a GM must not push by accident — so it
-    // is called out on the staged row, before the push.
-    parts.push(`${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢${hidden ? " · quiet ‡" : ""}`);
+    const { from, to, amount } = effect.transfer;
+    parts.push(`${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢`);
   }
   if (effect.resources) parts.push(`${effect.resources > 0 ? "+" : ""}${effect.resources} ⬢`);
   if (effect.tagPoints) parts.push(`${effect.tagPoints > 0 ? "+" : "−"}${Math.abs(effect.tagPoints)} tp`);

@@ -3,7 +3,6 @@
 import SubmitButton from "@/app/components/SubmitButton";
 import Select from "@/app/components/Select";
 import ZoneChip from "@/app/components/ZoneChip";
-import CheckField from "@/app/components/CheckField";
 import { EmptyRow } from "@/app/components/EmptyState";
 import {
   useTableState,
@@ -16,11 +15,11 @@ import Pager from "@/app/components/Pager";
 // pattern (ConversationPane.js does the same with its own actions module).
 import { updateFaction, deleteFaction } from "../actions";
 
-const COL_COUNT = 6;
+const COL_COUNT = 5;
 
 const SEARCH_FIELDS = [(f) => f.name];
 
-// Modest by design: name search and name/silo sort, nothing more — the row
+// Modest by design: name search and name sort, nothing more — the row
 // itself is the interesting part (the inline-edit form below), not the list
 // mechanics around it.
 export default function FactionsTable({ rows }) {
@@ -51,7 +50,6 @@ export default function FactionsTable({ rows }) {
             <SortHeader label="Name" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
             <th scope="col">Zone</th>
             <th scope="col">Parent</th>
-            <SortHeader label="Silo" sortKey="silo" sort={table.sort} onSort={table.toggleSort} />
             <th scope="col" aria-label="Save" />
             <th scope="col" aria-label="Delete" />
           </tr>
@@ -86,23 +84,6 @@ export default function FactionsTable({ rows }) {
                       </option>
                     ))}
                 </Select>
-              </td>
-              <td>
-                <input
-                  type="number"
-                  name="silo"
-                  defaultValue={f.silo}
-                  form={`faction-${f.id}`}
-                  className="control w-24"
-                />
-                {/* The checkbox only, no cover-story fields — three more text
-                    inputs on every row would drown the table, and this is the
-                    blunt correction tool. A quiet move that needs a plausible
-                    cover story is a transfer, and every transfer dialog offers
-                    the full block (web/app/components/QuietSiloFields.js). */}
-                <CheckField name="siloQuiet" form={`faction-${f.id}`}>
-                  Quiet ‡
-                </CheckField>
               </td>
               <td>
                 {/* Outside its <form> (wired by form={...}), so useFormStatus
