@@ -136,6 +136,20 @@ enum TagVisibility {
   WORN
 }
 
+// Who may see a tag in the /documents Tag Catalog (`catalog:` in
+// docs/tags.yaml, required on every entry — db/lib/syncTags.js throws
+// without it). SECRET is cave/antagonist content hidden from everyone, GMs
+// included (/gm/dev/tags stays the unfiltered view). GM is visible to GMs
+// always and to a player once their character relates to it — they hold it,
+// their role's starting kit includes it, they hold its group's key tag, or
+// (for Depot wares) they hold the Merchant's License. ALL is fully public,
+// character or not. Read by web/lib/tagCatalog.js only.
+enum CatalogVisibility {
+  SECRET
+  GM
+  ALL
+}
+
 enum TagSource {
   POINT_BUY
   DESIRE_REWARD
@@ -1583,6 +1597,11 @@ model Tag {
   // only, for a future store to read.
   purchasable           Boolean @default(false)
   purchasableAfterStart Boolean @default(true)
+
+  // Tag Catalog tier (see the CatalogVisibility enum above). Defaults GM,
+  // not ALL, so a row the sync never touches — a GM-authored tag, a minted
+  // headstone — can never land fully public by omission.
+  catalogVisibility CatalogVisibility @default(GM)
 
   // Role slugs (docs/roles.yaml) that may NOT buy this tag, authored in
   // docs/tags.yaml as `excludedRoles:`. Devoted Follower is the first user:

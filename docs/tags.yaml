@@ -37,6 +37,22 @@
 # can't be clobbered by a bulk overwrite.
 #
 # Per-tag fields not covered elsewhere in this file:
+#   catalog         - REQUIRED on every tag (the sync throws without it):
+#                     who may see this tag in the /documents Tag Catalog.
+#                     secret | gm | all.
+#                       secret - cave/antagonist content. Hidden from
+#                                everyone there, GMs included; /gm/dev/tags
+#                                stays the unfiltered view.
+#                       gm     - class/role-specific kit, Depot wares, loot,
+#                                statuses. GMs always see it; a player sees
+#                                it once their character relates to it (they
+#                                hold it, their role's starting_tags grant
+#                                it, they hold its group's key tag, or - for
+#                                Depot-priced wares - they hold the
+#                                Merchant's License).
+#                       all    - fully public, character or not.
+#                     Unrelated to `visible` below, which is about the in-
+#                     game 🔍 inspect, not the catalog page.
 #   durationTurns   - default turns-to-expire once granted, for tags that
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
 #                     expire on their own.
@@ -237,6 +253,7 @@ categories:
 tags:
   # --- Meta ---------------------------------------------------------------
   hungerless:
+    catalog: gm
     name: Hungerless
     category: meta
     description: "Never flagged hungry, even with insufficient resources."
@@ -244,6 +261,7 @@ tags:
     purchasable: false
 
   turn-ping:
+    catalog: gm
     description: "You are pinged in Discord when the turn advances. Toggled from /character; carries no weight in play."
     name: Turn Ping
     category: meta
@@ -251,6 +269,7 @@ tags:
     purchasable: false
 
   demoness:
+    catalog: secret
     name: Demoness
     category: general
     description: '"Pleasure is so painful — ah~! I don''t care!" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you — and then sealing it with a (voluntary) kiss. If people want more after that, that''s your business, not mine.'
@@ -267,6 +286,7 @@ tags:
   # exceptFamilies only subtracts), so the tier-1 lock is data and the cheap-
   # food restriction below is a prose line, GM-adjudicated.
   nobility:
+    catalog: gm
     name: Nobility
     category: general
     group: general-personality
@@ -282,6 +302,7 @@ tags:
         - tiers: [1]
 
   ravenhearter:
+    catalog: gm
     name: Ravenhearter
     category: general
     description: "You live in Ravenheart."
@@ -290,6 +311,7 @@ tags:
     visible: false
 
   mortus:
+    catalog: gm
     name: Mortus
     category: general
     description: "One of the Mortii. Tends to the dead and the Lifeweb."
@@ -298,6 +320,7 @@ tags:
     visible: false
 
   courtier:
+    catalog: gm
     name: Courtier
     category: general
     group: general-traits
@@ -309,6 +332,7 @@ tags:
   # same idiom as general-watch/general-brigand, so none of these need their
   # own requiredTag.
   knighted:
+    catalog: gm
     name: Knighted
     category: general
     group: general-court
@@ -323,6 +347,7 @@ tags:
   # widens one Routine to three students; the Drill Instructor rung lives in
   # general-watch. Bascinet's words, unmarked.
   teaching:
+    catalog: all
     name: Teaching
     category: general
     group: general-traits
@@ -333,6 +358,7 @@ tags:
     purchasableAfterStart: true
 
   teaching-lecturing:
+    catalog: all
     name: Teaching (Lecturing)
     category: general
     group: general-traits
@@ -344,6 +370,7 @@ tags:
     purchasableAfterStart: true
 
   disgraced:
+    catalog: gm
     name: Disgraced
     category: general
     group: general-court
@@ -354,6 +381,7 @@ tags:
     purchasableAfterStart: false
 
   old-blood:
+    catalog: gm
     name: Old Blood
     category: general
     group: general-court
@@ -363,6 +391,7 @@ tags:
     purchasableAfterStart: false
 
   dancer:
+    catalog: gm
     name: Dancer
     category: general
     group: general-court
@@ -372,6 +401,7 @@ tags:
     purchasableAfterStart: true
 
   soft-hands:
+    catalog: gm
     name: Soft Hands
     category: general
     group: general-court
@@ -383,6 +413,7 @@ tags:
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.
   vain:
+    catalog: all
     name: Vain
     category: general
     group: general-addictions
@@ -403,6 +434,7 @@ tags:
   # NEW (2026-08-31, Desires rework). The one Addiction that closes tiers
   # 5 and 7 too — compensated by food being the largest family.
   glutton:
+    catalog: all
     name: Glutton
     category: general
     group: general-addictions
@@ -428,6 +460,7 @@ tags:
   # allowed to do both (DESIRES.md §5). Superstitious/Desperate/Hypochondriac/
   # Combative/Corrupt/Fundamentalist above came in with the same sign flip.
   mad-doctor:
+    catalog: all
     name: Mad Doctor
     category: general
     group: general-personality
@@ -438,6 +471,7 @@ tags:
     purchasableAfterStart: true
 
   esoteric:
+    catalog: all
     name: Esoteric
     category: general
     group: general-personality
@@ -447,6 +481,7 @@ tags:
     purchasableAfterStart: true
 
   adventurer:
+    catalog: all
     name: Adventurer
     category: general
     group: general-personality
@@ -456,6 +491,7 @@ tags:
     purchasableAfterStart: true
 
   cruel:
+    catalog: all
     name: Cruel
     category: general
     group: general-personality
@@ -465,6 +501,7 @@ tags:
     purchasableAfterStart: true
 
   charitable:
+    catalog: all
     name: Charitable
     category: general
     group: general-personality
@@ -475,6 +512,7 @@ tags:
 
   # Lock-free by design (F-18): an Interest, not a Restriction.
   death-wish:
+    catalog: all
     name: "Death Wish"
     category: general
     group: general-personality
@@ -484,6 +522,7 @@ tags:
     purchasableAfterStart: true
 
   schemer:
+    catalog: all
     name: Schemer
     category: general
     group: general-personality
@@ -493,6 +532,7 @@ tags:
     purchasableAfterStart: true
 
   chaplain:
+    catalog: gm
     name: Chaplain
     category: general
     description: "Ordained to the Church. May take confession, read the rites over the dead, and remove people's negative mental traits."
@@ -500,6 +540,7 @@ tags:
     purchasable: false
 
   pious:
+    catalog: gm
     name: Pious
     category: general
     group: general-traits
@@ -508,6 +549,7 @@ tags:
     purchasable: false
 
   insightful:
+    catalog: all
     name: Insightful
     category: general
     group: general-traits
@@ -520,6 +562,7 @@ tags:
   # The 5 and 6 bands were nearly empty, and the design doc names "giant" as
   # its own 6-point example.
   giant:
+    catalog: all
     name: Giant
     category: general
     group: general-traits
@@ -534,6 +577,7 @@ tags:
   # (TAGS.md §4a). {carry:pack-mule} renders the exact bonus from the live
   # config, so the number never drifts from what the caps actually are.
   pack-mule:
+    catalog: all
     name: Pack Mule
     category: general
     group: general-traits
@@ -545,6 +589,7 @@ tags:
     carryMultiplier: 1.5
 
   old:
+    catalog: all
     name: Old
     category: general
     group: general-traits
@@ -555,6 +600,7 @@ tags:
     purchasableAfterStart: false
 
   frail:
+    catalog: all
     name: Frail
     category: general
     group: general-traits
@@ -574,6 +620,7 @@ tags:
   # are simply part of you: untradeable, unremovable, and not purchasable at
   # any price.
   holoparasite:
+    catalog: secret
     name: Holoparasite
     category: general
     group: general-traits
@@ -586,6 +633,7 @@ tags:
     tradeable: false
 
   time-stop:
+    catalog: secret
     name: Time Stop
     category: general
     group: general-traits
@@ -598,6 +646,7 @@ tags:
     tradeable: false
 
   tracking:
+    catalog: all
     name: Tracking
     category: general
     group: general-traits
@@ -608,6 +657,7 @@ tags:
     purchasableAfterStart: true
 
   literate:
+    catalog: all
     name: Literate
     category: general
     group: general-traits
@@ -617,6 +667,7 @@ tags:
     purchasableAfterStart: true
 
   light-sleeper:
+    catalog: all
     name: Light Sleeper
     category: general
     group: general-traits
@@ -628,6 +679,7 @@ tags:
   # A drawback, so it GIVES a point back rather than costing one — same
   # posture as Frail and Old above.
   heavy-sleeper:
+    catalog: all
     name: Heavy Sleeper
     category: general
     group: general-traits
@@ -637,6 +689,7 @@ tags:
     purchasableAfterStart: false
 
   depressed:
+    catalog: all
     name: Depressed
     category: general
     group: general-personality
@@ -651,6 +704,7 @@ tags:
         - all: true
 
   alcoholic:
+    catalog: all
     name: Alcoholic
     category: general
     group: general-addictions
@@ -675,6 +729,7 @@ tags:
   # is paying its extra point for. Deliberately not `visible` — being able to
   # read people is not something people should be able to read off you.
   empathetic:
+    catalog: all
     name: Empathetic
     category: general
     group: general-social
@@ -690,6 +745,7 @@ tags:
   # read as "Nothing you can read.", the same line an empty Desire gets, so
   # holding it never announces itself.
   inscrutable:
+    catalog: all
     name: Inscrutable
     category: general
     group: general-social
@@ -699,6 +755,7 @@ tags:
     purchasableAfterStart: true
 
   iron-constitution:
+    catalog: all
     name: Iron Constitution
     category: general
     group: general-traits
@@ -711,6 +768,7 @@ tags:
   # only a GM grants it, and only a GM takes it away. It does not expire: the
   # whole point is that it is permanent.
   broken:
+    catalog: secret
     name: Broken
     category: general
     group: general-traits
@@ -722,6 +780,7 @@ tags:
     removable: false
 
   broken-enslaved:
+    catalog: secret
     name: Broken (Enslaved)
     category: general
     group: general-traits
@@ -733,6 +792,7 @@ tags:
     removable: false
 
   spotter:
+    catalog: all
     name: Spotter
     category: general
     group: general-traits
@@ -743,6 +803,7 @@ tags:
     purchasableAfterStart: true
 
   rough-camper:
+    catalog: all
     name: Rough Camper
     category: general
     group: general-traits
@@ -752,6 +813,7 @@ tags:
     purchasableAfterStart: true
 
   game-master:
+    catalog: all
     name: Game Master
     category: general
     group: general-traits
@@ -761,6 +823,7 @@ tags:
     purchasableAfterStart: true
 
   brave:
+    catalog: all
     name: Brave
     category: general
     group: general-traits
@@ -772,6 +835,7 @@ tags:
   # Granted as a starting tag to the Captain. Left purchasable so anyone
   # else can buy their way into the trait too.
   tactician:
+    catalog: all
     name: Tactician
     category: general
     group: general-traits
@@ -781,6 +845,7 @@ tags:
     purchasableAfterStart: true
 
   tactician-defending:
+    catalog: all
     name: Tactician (Defending)
     category: general
     group: general-traits
@@ -791,6 +856,7 @@ tags:
     purchasableAfterStart: true
 
   strong:
+    catalog: all
     name: Strong
     category: general
     group: general-traits
@@ -803,6 +869,7 @@ tags:
     purchasableAfterStart: true
 
   intelligent:
+    catalog: all
     name: Intelligent
     category: general
     group: general-traits
@@ -812,6 +879,7 @@ tags:
     purchasableAfterStart: true
 
   keen-hearing:
+    catalog: all
     name: Keen Hearing
     category: general
     group: general-traits
@@ -821,6 +889,7 @@ tags:
     purchasableAfterStart: false
 
   eagle-eyes:
+    catalog: all
     name: Eagle Eyes
     category: general
     group: general-traits
@@ -830,6 +899,7 @@ tags:
     purchasableAfterStart: false
 
   ambidextrous:
+    catalog: all
     name: Ambidextrous
     category: general
     group: general-traits
@@ -839,6 +909,7 @@ tags:
     purchasableAfterStart: false
 
   iron-liver:
+    catalog: all
     name: Iron Liver
     category: general
     group: general-traits
@@ -848,6 +919,7 @@ tags:
     purchasableAfterStart: true
 
   poison-sense:
+    catalog: all
     name: Poison Sense
     category: general
     group: general-traits
@@ -857,6 +929,7 @@ tags:
     purchasableAfterStart: true
 
   tunnel-rat:
+    catalog: all
     name: Tunnel Rat
     category: general
     group: general-traits
@@ -866,6 +939,7 @@ tags:
     purchasableAfterStart: true
 
   tough:
+    catalog: all
     name: Tough
     category: general
     group: general-traits
@@ -875,6 +949,7 @@ tags:
     purchasableAfterStart: true
 
   thick-skull:
+    catalog: all
     name: Thick Skull
     category: general
     group: general-traits
@@ -884,6 +959,7 @@ tags:
     purchasableAfterStart: true
 
   sixth-sense:
+    catalog: all
     name: Sixth Sense
     category: general
     group: general-traits
@@ -893,6 +969,7 @@ tags:
     purchasableAfterStart: true
 
   strong-swimmer:
+    catalog: all
     name: Strong Swimmer
     category: general
     group: general-traits
@@ -902,6 +979,7 @@ tags:
     purchasableAfterStart: true
 
   animal-friend:
+    catalog: all
     name: Animal Friend
     category: general
     group: general-traits
@@ -911,6 +989,7 @@ tags:
     purchasableAfterStart: true
 
   escape-artist:
+    catalog: all
     name: Escape Artist
     category: general
     group: general-traits
@@ -924,6 +1003,7 @@ tags:
   # never hold both. Deliberately named apart from the Otherworldly Beauty
   # status and the Flawless Skin tonic — documents.yaml matches tags by NAME.
   pretty:
+    catalog: all
     name: Pretty
     category: general
     group: general-traits
@@ -934,6 +1014,7 @@ tags:
     purchasableAfterStart: true
 
   beautiful:
+    catalog: all
     name: Beautiful
     category: general
     group: general-traits
@@ -947,6 +1028,7 @@ tags:
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
   craven:
+    catalog: all
     name: Craven
     category: general
     group: general-personality
@@ -960,6 +1042,7 @@ tags:
         - families: [bravery, violence, adventure]
 
   dwarf:
+    catalog: all
     name: Dwarf
     category: general
     group: general-traits
@@ -972,6 +1055,7 @@ tags:
 
   # More drawbacks — same posture as Craven/Dwarf above.
   clumsy:
+    catalog: all
     name: Clumsy
     category: general
     group: general-traits
@@ -981,6 +1065,7 @@ tags:
     purchasableAfterStart: false
 
   kleptomaniac:
+    catalog: all
     name: Kleptomaniac
     category: general
     group: general-personality
@@ -994,6 +1079,7 @@ tags:
         - families: [wealth]
 
   bad-liar:
+    catalog: all
     name: Bad Liar
     category: general
     group: general-traits
@@ -1006,6 +1092,7 @@ tags:
   # Interest. Existing holders are grandfathered — they keep it free, no
   # clawback.
   superstitious:
+    catalog: all
     name: Superstitious
     category: general
     group: general-personality
@@ -1015,6 +1102,7 @@ tags:
     purchasableAfterStart: true
 
   nearsighted:
+    catalog: all
     name: Nearsighted
     category: general
     group: general-traits
@@ -1025,6 +1113,7 @@ tags:
     removable: false
 
   hard-of-hearing:
+    catalog: all
     name: Hard of Hearing
     category: general
     group: general-traits
@@ -1036,6 +1125,7 @@ tags:
     conflictsWith: [deaf]
 
   insomniac:
+    catalog: all
     name: Insomniac
     category: general
     group: general-traits
@@ -1045,6 +1135,7 @@ tags:
     purchasableAfterStart: false
 
   glass-jaw:
+    catalog: all
     name: Glass Jaw
     category: general
     group: general-traits
@@ -1057,6 +1148,7 @@ tags:
   # Slug kept deliberately (see this file's header) — it now covers what
   # coca-habit used to (that tag is retired below, folded in at par).
   drug-habit:
+    catalog: all
     name: "Drug Habit"
     category: general
     group: general-addictions
@@ -1075,6 +1167,7 @@ tags:
           slot: bottom
 
   slave-brand:
+    catalog: all
     name: Slave Brand
     category: general
     group: general-traits
@@ -1086,6 +1179,7 @@ tags:
     removable: false
 
   pacifist:
+    catalog: all
     name: Pacifist
     category: general
     group: general-personality
@@ -1103,6 +1197,7 @@ tags:
   # rest of the catalog stays wide open to a Eunuch. Not `visible`: a stranger
   # looking you over does not learn this, which is the whole point of it.
   eunuch:
+    catalog: all
     name: Eunuch
     category: general
     group: general-personality
@@ -1116,6 +1211,7 @@ tags:
         - families: [romance]
 
   fat:
+    catalog: all
     name: Fat
     category: general
     group: general-traits
@@ -1127,6 +1223,7 @@ tags:
     removable: false
 
   pale:
+    catalog: gm
     name: Pale
     category: general
     group: general-traits
@@ -1140,6 +1237,7 @@ tags:
 
   # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
   desperate:
+    catalog: all
     name: Desperate
     category: general
     group: general-personality
@@ -1149,6 +1247,7 @@ tags:
     purchasableAfterStart: true
 
   vow-of-silence:
+    catalog: all
     name: Vow of Silence
     category: general
     group: general-traits
@@ -1161,6 +1260,7 @@ tags:
 
   # Slug kept deliberately (see this file's header) — renamed Gambler.
   gambler:
+    catalog: all
     name: "Gambler"
     category: general
     group: general-addictions
@@ -1179,6 +1279,7 @@ tags:
           slot: bottom
 
   devoted-follower:
+    catalog: all
     name: Devoted Follower
     category: general
     group: general-personality
@@ -1202,6 +1303,7 @@ tags:
   # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
   # No longer a drawback, so removable now.
   hypochondriac:
+    catalog: all
     name: Hypochondriac
     category: general
     group: general-personality
@@ -1213,6 +1315,7 @@ tags:
     removable: true
 
   prudish:
+    catalog: all
     name: Prudish
     category: general
     group: general-personality
@@ -1227,6 +1330,7 @@ tags:
         - families: [alcohol, drugs, gambling, romance]
 
   ugly:
+    catalog: all
     name: Ugly
     category: general
     group: general-traits
@@ -1238,6 +1342,7 @@ tags:
     removable: false
 
   unhygienic:
+    catalog: all
     name: Unhygienic
     category: general
     group: general-traits
@@ -1249,6 +1354,7 @@ tags:
     removable: false
 
   tremor:
+    catalog: all
     name: Tremor
     category: general
     group: general-traits
@@ -1260,6 +1366,7 @@ tags:
     removable: false
 
   relentless:
+    catalog: all
     name: Relentless
     category: general
     group: general-traits
@@ -1270,6 +1377,7 @@ tags:
     purchasableAfterStart: true
 
   quick-footed:
+    catalog: all
     name: Quick-Footed
     category: general
     group: general-traits
@@ -1281,6 +1389,7 @@ tags:
 
   # Sign flip 2026-08-31 (Desires rework); text unchanged.
   hot-headed:
+    catalog: all
     name: Hot-Headed
     category: general
     group: general-personality
@@ -1316,6 +1425,7 @@ tags:
   # looking, and docs/tag-design.md sets that flag by whether a bystander
   # actually could. A belief is meant to come out in play, not off a inspect.
   post-christian:
+    catalog: all
     name: Post-Christian
     category: general
     group: general-beliefs
@@ -1327,6 +1437,7 @@ tags:
     exclusive: true
 
   atheist:
+    catalog: all
     name: Atheist
     category: general
     group: general-beliefs
@@ -1338,6 +1449,7 @@ tags:
     exclusive: true
 
   existentialist:
+    catalog: all
     name: Existentialist
     category: general
     group: general-beliefs
@@ -1352,6 +1464,7 @@ tags:
   # same slug as a +2 Interest rather than a -2 drawback. Existing holders
   # are grandfathered — they keep it free, no clawback.
   fundamentalist:
+    catalog: all
     name: Fundamentalist
     category: general
     group: general-beliefs
@@ -1364,6 +1477,7 @@ tags:
     exclusive: true
 
   old-ways-eusoch:
+    catalog: all
     name: Old Ways (Eusoch)
     category: general
     group: general-beliefs
@@ -1375,6 +1489,7 @@ tags:
     exclusive: true
 
   old-ways-sylvia:
+    catalog: all
     name: Old Ways (Sylvia)
     category: general
     group: general-beliefs
@@ -1386,6 +1501,7 @@ tags:
     exclusive: true
 
   old-ways-thoth:
+    catalog: all
     name: Old Ways (Thoth)
     category: general
     group: general-beliefs
@@ -1398,6 +1514,7 @@ tags:
 
   #Unrelated to the formal bacchus cult
   old-ways-bacchus:
+    catalog: all
     name: Old Ways (Bacchus)
     category: general
     group: general-beliefs
@@ -1410,6 +1527,7 @@ tags:
 
   # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
   pilgrim:
+    catalog: all
     name: Pilgrim
     category: general
     group: general-beliefs
@@ -1419,6 +1537,7 @@ tags:
     purchasableAfterStart: true
 
   saint:
+    catalog: all
     name: Saint
     category: general
     group: general-beliefs
@@ -1433,6 +1552,7 @@ tags:
 
   # --- The Watch ------------------------------------------------------------
   watchman:
+    catalog: gm
     name: Watchman
     category: general
     group: general-traits
@@ -1447,6 +1567,7 @@ tags:
   # Desires (take-a-bribe), not on the tag itself. Text unchanged.
   # Grandfathered — see Superstitious.
   corrupt:
+    catalog: all
     name: Corrupt
     category: general
     group: general-personality
@@ -1457,6 +1578,7 @@ tags:
     purchasableAfterStart: true
 
   kennelmaster:
+    catalog: gm
     name: Kennelmaster
     category: general
     group: general-watch
@@ -1466,6 +1588,7 @@ tags:
     purchasableAfterStart: true
 
   sergeant:
+    catalog: gm
     name: Sergeant
     category: general
     group: general-watch
@@ -1480,6 +1603,7 @@ tags:
   # Teaching (Drill Instructor) replaced the old Drillmaster here in 9/2026.
   # The tree itself sits under general-traits; this rung is the Watch's.
   teaching-drill-instructor:
+    catalog: gm
     name: Teaching (Drill Instructor)
     category: general
     group: general-watch
@@ -1491,6 +1615,7 @@ tags:
     purchasableAfterStart: true
 
   green:
+    catalog: gm
     name: Green
     category: general
     group: general-watch
@@ -1503,6 +1628,7 @@ tags:
 
   # --- Brigands -------------------------------------------------------------
   brigand:
+    catalog: gm
     name: Brigand
     category: general
     group: general-traits
@@ -1513,6 +1639,7 @@ tags:
     purchasableAfterStart: false
 
   forger:
+    catalog: gm
     name: Forger
     category: general
     group: general-brigand
@@ -1522,6 +1649,7 @@ tags:
     purchasableAfterStart: true
 
   pickpocket:
+    catalog: gm
     name: Pickpocket
     category: general
     group: general-brigand
@@ -1533,6 +1661,7 @@ tags:
   # The new general `climbing` skill overlaps this brigand-gated trait.
   # Gunboat to decide whether one of them should go.
   acrobat:
+    catalog: gm
     name: Acrobat
     category: general
     group: general-brigand
@@ -1542,6 +1671,7 @@ tags:
     purchasableAfterStart: true
 
   wanted:
+    catalog: gm
     name: Wanted
     category: general
     group: general-brigand
@@ -1552,6 +1682,7 @@ tags:
     purchasableAfterStart: false
 
   mountaineering:
+    catalog: all
     name: Mountaineering
     category: skills
     teachable: true
@@ -1561,6 +1692,7 @@ tags:
     purchasableAfterStart: true
 
   caving:
+    catalog: all
     name: Caving
     category: skills
     teachable: true
@@ -1570,6 +1702,7 @@ tags:
     purchasableAfterStart: true
 
   artist:
+    catalog: all
     name: Artist
     category: skills
     teachable: true
@@ -1579,6 +1712,7 @@ tags:
     purchasableAfterStart: true
 
   laboring-basic:
+    catalog: all
     name: Laboring (Basic)
     category: skills
     group: skills-labor
@@ -1589,6 +1723,7 @@ tags:
     purchasableAfterStart: true
 
   laboring-skilled:
+    catalog: all
     name: Laboring (Skilled)
     category: skills
     group: skills-labor
@@ -1604,6 +1739,7 @@ tags:
   # block), and holding several is fine — a Labor pays the best one you
   # qualify for, so there is nothing to switch and nothing to forget.
   laboring-hunting:
+    catalog: all
     name: Laboring (Hunting)
     category: skills
     group: skills-labor
@@ -1615,6 +1751,7 @@ tags:
     purchasableAfterStart: true
 
   laboring-farming:
+    catalog: all
     name: Laboring (Farming)
     category: skills
     group: skills-labor
@@ -1626,6 +1763,7 @@ tags:
     purchasableAfterStart: true
 
   laboring-fishing:
+    catalog: all
     name: Laboring (Fishing)
     category: skills
     group: skills-labor
@@ -1637,6 +1775,7 @@ tags:
     purchasableAfterStart: true
 
   forester:
+    catalog: all
     name: Forester
     category: skills
     teachable: true
@@ -1646,6 +1785,7 @@ tags:
     purchasableAfterStart: true
 
   musician:
+    catalog: all
     name: Musician
     category: skills
     teachable: true
@@ -1658,6 +1798,7 @@ tags:
   # against the Moderate / High Quality / Exceptional ones. Full price and
   # resource table in SMITHING.md.
   smithing:
+    catalog: all
     name: Smithing
     category: skills
     group: skills-crafting
@@ -1668,6 +1809,7 @@ tags:
     purchasableAfterStart: true
 
   smithing-skilled:
+    catalog: all
     name: Smithing (Skilled)
     category: skills
     group: skills-crafting
@@ -1680,6 +1822,7 @@ tags:
     purchasableAfterStart: true
 
   crafting:
+    catalog: all
     name: Crafting
     category: skills
     group: skills-crafting
@@ -1690,6 +1833,7 @@ tags:
     purchasableAfterStart: true
 
   butcher:
+    catalog: all
     name: Butcher
     category: skills
     teachable: true
@@ -1700,6 +1844,7 @@ tags:
     purchasableAfterStart: true
 
   lockpicking:
+    catalog: all
     name: Lockpicking
     category: skills
     teachable: true
@@ -1709,6 +1854,7 @@ tags:
     purchasableAfterStart: true
 
   climbing:
+    catalog: all
     name: Climbing
     category: skills
     teachable: true
@@ -1718,6 +1864,7 @@ tags:
     purchasableAfterStart: true
 
   navigating:
+    catalog: all
     name: Navigating
     category: skills
     teachable: true
@@ -1727,6 +1874,7 @@ tags:
     purchasableAfterStart: true
 
   stealth:
+    catalog: all
     name: Stealth
     category: skills
     teachable: true
@@ -1736,6 +1884,7 @@ tags:
     purchasableAfterStart: true
 
   smithing-gunpowder:
+    catalog: all
     name: Smithing (Gunpowder)
     category: skills
     group: skills-crafting
@@ -1762,6 +1911,7 @@ tags:
   # "either tree".
 
   melee-basic:
+    catalog: all
     name: Melee (Basic)
     category: skills
     group: skills-fighting
@@ -1773,6 +1923,7 @@ tags:
     purchasableAfterStart: true
 
   melee-trained:
+    catalog: all
     name: Melee (Trained)
     category: skills
     group: skills-fighting
@@ -1785,6 +1936,7 @@ tags:
     purchasableAfterStart: true
 
   melee-skilled:
+    catalog: all
     name: Melee (Skilled)
     category: skills
     group: skills-fighting
@@ -1797,6 +1949,7 @@ tags:
     purchasableAfterStart: true
 
   melee-expert:
+    catalog: all
     name: Melee (Expert)
     category: skills
     group: skills-fighting
@@ -1809,6 +1962,7 @@ tags:
     purchasableAfterStart: true
 
   melee-legendary:
+    catalog: gm
     name: Melee (Legendary)
     category: skills
     group: skills-fighting
@@ -1821,6 +1975,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-basic:
+    catalog: all
     name: Ranged (Basic)
     category: skills
     group: skills-fighting
@@ -1832,6 +1987,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-trained:
+    catalog: all
     name: Ranged (Trained)
     category: skills
     group: skills-fighting
@@ -1844,6 +2000,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-skilled:
+    catalog: all
     name: Ranged (Skilled)
     category: skills
     group: skills-fighting
@@ -1856,6 +2013,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-expert:
+    catalog: all
     name: Ranged (Expert)
     category: skills
     group: skills-fighting
@@ -1868,6 +2026,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-legendary:
+    catalog: gm
     name: Ranged (Legendary)
     category: skills
     group: skills-fighting
@@ -1880,6 +2039,7 @@ tags:
     purchasableAfterStart: true
 
   melee-shield-wall:
+    catalog: all
     name: Melee (Shield Wall)
     category: skills
     group: skills-fighting
@@ -1892,6 +2052,7 @@ tags:
     purchasableAfterStart: true
 
   melee-duelist:
+    catalog: all
     name: Melee (Duelist)
     category: skills
     group: skills-fighting
@@ -1904,6 +2065,7 @@ tags:
     purchasableAfterStart: true
 
   melee-polearms:
+    catalog: all
     name: Melee (Polearms)
     category: skills
     group: skills-fighting
@@ -1916,6 +2078,7 @@ tags:
     purchasableAfterStart: true
 
   melee-swords:
+    catalog: all
     name: Melee (Swords)
     category: skills
     group: skills-fighting
@@ -1929,6 +2092,7 @@ tags:
 
   # PLACEHOLDER: Gunboat to write
   melee-clubs:
+    catalog: all
     name: Melee (Clubs)
     category: skills
     group: skills-fighting
@@ -1941,6 +2105,7 @@ tags:
     purchasableAfterStart: true
 
   melee-flamboyant:
+    catalog: all
     name: Melee (Flamboyant)
     category: skills
     group: skills-fighting
@@ -1953,6 +2118,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-archer:
+    catalog: all
     name: Ranged (Archer)
     category: skills
     group: skills-fighting
@@ -1965,6 +2131,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-firearms:
+    catalog: all
     name: Ranged (Firearms)
     category: skills
     group: skills-fighting
@@ -1977,6 +2144,7 @@ tags:
     purchasableAfterStart: true
 
   grappler:
+    catalog: all
     name: Grappler
     category: skills
     group: skills-fighting
@@ -1988,6 +2156,7 @@ tags:
     purchasableAfterStart: true
 
   guerrilla:
+    catalog: all
     name: Guerrilla
     category: skills
     group: skills-fighting
@@ -2000,6 +2169,7 @@ tags:
 
   # Construction
   builder-skilled:
+    catalog: all
     name: Builder (Skilled)
     category: skills
     group: skills-crafting
@@ -2011,6 +2181,7 @@ tags:
     purchasableAfterStart: true
 
   builder-expert:
+    catalog: all
     name: Builder (Expert)
     category: skills
     group: skills-crafting
@@ -2024,6 +2195,7 @@ tags:
 
   # Medical
   medical-basic:
+    catalog: all
     name: Medical (Basic)
     category: skills
     group: skills-medical
@@ -2035,6 +2207,7 @@ tags:
     purchasableAfterStart: true
 
   medical-skilled:
+    catalog: all
     name: Medical (Skilled)
     category: skills
     group: skills-medical
@@ -2047,6 +2220,7 @@ tags:
     purchasableAfterStart: true
 
   medical-expert:
+    catalog: all
     name: Medical (Expert)
     category: skills
     group: skills-medical
@@ -2060,6 +2234,7 @@ tags:
 
   #Brewing
   brewing-basic:
+    catalog: all
     name: Brewing (Basic)
     category: skills
     group: skills-brewing
@@ -2071,6 +2246,7 @@ tags:
     purchasableAfterStart: true
 
   brewing-skilled:
+    catalog: all
     name: Brewing (Skilled)
     category: skills
     group: skills-brewing
@@ -2084,6 +2260,7 @@ tags:
 
   #Cooking
   cooking-basic:
+    catalog: all
     name: Cooking (Basic)
     category: skills
     group: skills-cooking
@@ -2095,6 +2272,7 @@ tags:
     purchasableAfterStart: true
 
   cooking-skilled:
+    catalog: all
     name: Cooking (Skilled)
     category: skills
     group: skills-cooking
@@ -2108,6 +2286,7 @@ tags:
 
   # --- Status -----------------------------------------------------------
   ate-meal:
+    catalog: gm
     name: Ate Meal
     category: status
     group: status-food
@@ -2116,6 +2295,7 @@ tags:
     purchasable: false
 
   hungry:
+    catalog: gm
     name: Hungry
     category: status
     group: status-debuffs
@@ -2130,6 +2310,7 @@ tags:
   # noble who didn't eat a Fine/Lavish Meal that turn, cleared the moment
   # they consume one (anything that consumesInto ate-meal).
   disappointed:
+    catalog: gm
     name: Disappointed
     category: status
     group: status-debuffs
@@ -2141,6 +2322,7 @@ tags:
     removable: false
 
   catatonic-afk:
+    catalog: gm
     name: Catatonic (AFK)
     category: status
     group: status-debuffs
@@ -2153,6 +2335,7 @@ tags:
 
   # GMs can assign this
   bound:
+    catalog: gm
     name: Bound
     category: status
     group: status-debuffs
@@ -2164,6 +2347,7 @@ tags:
     removable: true
 
   tipsy:
+    catalog: gm
     name: Tipsy
     category: status
     group: status-debuffs
@@ -2186,6 +2370,7 @@ tags:
   # none is removable by hand: you get these by drinking something, and they
   # run out on their own clock.
   night-vision:
+    catalog: gm
     name: Night Vision
     category: status
     group: status-buffs
@@ -2198,6 +2383,7 @@ tags:
     durationTurns: 2
 
   opium-high:
+    catalog: gm
     name: Opium High
     category: status
     group: status-debuffs
@@ -2210,6 +2396,7 @@ tags:
     durationTurns: 2
 
   pain-immunity:
+    catalog: gm
     name: Pain Immunity
     category: status
     group: status-buffs
@@ -2222,6 +2409,7 @@ tags:
     durationTurns: 2
 
   brutish-strength:
+    catalog: gm
     name: Brutish Strength
     category: status
     group: status-buffs
@@ -2234,6 +2422,7 @@ tags:
     durationTurns: 2
 
   increased-accuracy:
+    catalog: gm
     name: Increased Accuracy
     category: status
     group: status-buffs
@@ -2246,6 +2435,7 @@ tags:
     durationTurns: 2
 
   increased-recovery:
+    catalog: gm
     name: Increased Recovery
     category: status
     group: status-buffs
@@ -2258,6 +2448,7 @@ tags:
     durationTurns: 2
 
   stimulant-high:
+    catalog: gm
     name: Stimulant High
     category: status
     group: status-buffs
@@ -2270,6 +2461,7 @@ tags:
     durationTurns: 2
 
   mindreading:
+    catalog: gm
     name: Mindreading
     category: status
     group: status-buffs
@@ -2282,6 +2474,7 @@ tags:
     durationTurns: 2
 
   invisible:
+    catalog: gm
     name: Invisible
     category: status
     group: status-buffs
@@ -2294,6 +2487,7 @@ tags:
     durationTurns: 2
 
   aberrant-luck:
+    catalog: gm
     name: Aberrant Luck
     category: status
     group: status-buffs
@@ -2306,6 +2500,7 @@ tags:
     durationTurns: 3
 
   pheromones:
+    catalog: secret
     name: Pheromones
     category: status
     group: status-buffs
@@ -2319,6 +2514,7 @@ tags:
 
   # For targets of Mesmer Glass, GM applied
   flashed:
+    catalog: gm
     name: Flashed
     category: status
     group: status-debuffs
@@ -2332,6 +2528,7 @@ tags:
 
   # A caves tag. Something down there has your scent and is following it.
   hunted:
+    catalog: gm
     name: Hunted
     category: status
     group: status-debuffs
@@ -2346,6 +2543,7 @@ tags:
   # The two fear states, granted by a GM. Can be applied by Demoness
 
   afraid:
+    catalog: gm
     name: Afraid
     category: status
     group: status-debuffs
@@ -2358,6 +2556,7 @@ tags:
     durationTurns: 2
 
   panic:
+    catalog: gm
     name: Panic
     category: status
     group: status-debuffs
@@ -2371,6 +2570,7 @@ tags:
 
   # For Disabler
   disabled-slowed:
+    catalog: gm
     name: Disabled (Slowed)
     category: status
     group: status-debuffs
@@ -2382,6 +2582,7 @@ tags:
     removable: false
 
   disabled-shocked:
+    catalog: gm
     name: Disabled (Shocked)
     category: status
     group: status-debuffs
@@ -2394,6 +2595,7 @@ tags:
     durationTurns: 1
 
   high:
+    catalog: gm
     name: High
     category: status
     group: status-debuffs
@@ -2409,6 +2611,7 @@ tags:
   # Like High it carries no mechanical effect — it is a roleplaying state and a
   # thing a GM may weigh, nothing more.
   euphoric:
+    catalog: gm
     name: Euphoric
     category: status
     group: status-debuffs
@@ -2427,6 +2630,7 @@ tags:
   # bottle so the two don't collide: docs/documents.yaml matches tags by NAME,
   # and two rows called Flawless Skin would be a coin toss.
   otherworldly-beauty:
+    catalog: gm
     name: Otherworldly Beauty
     category: status
     group: status-buffs
@@ -2439,6 +2643,7 @@ tags:
     durationTurns: 3
 
   drained:
+    catalog: gm
     name: Drained
     category: status
     group: status-debuffs
@@ -2452,6 +2657,7 @@ tags:
   # every other turn. durationTurns: 1 is what makes the clock work: granted
   # while turn T closes, it blocks turn T+1 and is swept when T+1 closes.
   exhausted:
+    catalog: gm
     name: Exhausted
     category: status
     group: status-debuffs
@@ -2464,6 +2670,7 @@ tags:
   # never by a player, never on a clock — and read by the zone-crossing gate
   # in db/lib/locationTravel.js. Description is Bascinet's own wording.
   overburdened:
+    catalog: gm
     name: Overburdened
     category: status
     group: status-debuffs
@@ -2479,6 +2686,7 @@ tags:
   # consumes into, and Asleep is what a Soporific does to whoever drinks it —
   # so both live here with the other tonic effects rather than in Items.
   caffeinated:
+    catalog: gm
     name: Caffeinated
     category: status
     group: status-buffs
@@ -2491,6 +2699,7 @@ tags:
     durationTurns: 2
 
   asleep:
+    catalog: gm
     name: Asleep
     category: status
     group: status-debuffs
@@ -2519,6 +2728,7 @@ tags:
 
   # --- Infection ---------------------------------------------------------
   infected:
+    catalog: all
     name: Infected
     category: health
     group: health-infection
@@ -2535,6 +2745,7 @@ tags:
       skills: [medical-basic]
 
   festering:
+    catalog: all
     name: Festering
     category: health
     group: health-infection
@@ -2553,6 +2764,7 @@ tags:
       skills: [medical-skilled]
 
   feverish:
+    catalog: all
     name: Feverish
     category: health
     group: health-infection
@@ -2571,6 +2783,7 @@ tags:
       skills: [medical-skilled]
 
   necrosis:
+    catalog: all
     name: Necrosis
     category: health
     group: health-infection
@@ -2590,6 +2803,7 @@ tags:
       skills: [medical-skilled]
 
   sepsis:
+    catalog: all
     name: Sepsis
     category: health
     group: health-infection
@@ -2609,6 +2823,7 @@ tags:
       gambit: true
 
   dying:
+    catalog: all
     name: Dying
     category: health
     group: health-infection
@@ -2632,6 +2847,7 @@ tags:
 
   # --- Wounds ------------------------------------------------------------
   bruised:
+    catalog: all
     name: Bruised
     category: health
     group: health-wounds
@@ -2647,6 +2863,7 @@ tags:
       skills: [medical-basic]
 
   sprained-ankle:
+    catalog: all
     name: Sprained Ankle
     category: health
     group: health-wounds
@@ -2663,6 +2880,7 @@ tags:
       skills: [medical-basic]
 
   burned:
+    catalog: all
     name: Burned
     category: health
     group: health-wounds
@@ -2681,6 +2899,7 @@ tags:
       skills: [medical-basic]
 
   severe-burns:
+    catalog: all
     name: Severe Burns
     category: health
     group: health-wounds
@@ -2699,6 +2918,7 @@ tags:
       skills: [medical-skilled]
 
   minor-bleeding:
+    catalog: all
     name: Minor Bleeding
     category: health
     group: health-wounds
@@ -2715,6 +2935,7 @@ tags:
       skills: [medical-basic]
 
   deep-wound:
+    catalog: all
     name: Deep Wound
     category: health
     group: health-wounds
@@ -2733,6 +2954,7 @@ tags:
       skills: [medical-skilled]
 
   severe-bleeding:
+    catalog: all
     name: Severe Bleeding
     category: health
     group: health-wounds
@@ -2751,6 +2973,7 @@ tags:
       skills: [medical-skilled]
 
   arterial-bleed:
+    catalog: all
     name: Arterial Bleed
     category: health
     group: health-wounds
@@ -2769,6 +2992,7 @@ tags:
       skills: [medical-skilled]
 
   broken-bone:
+    catalog: all
     name: Broken Bone
     category: health
     group: health-wounds
@@ -2785,6 +3009,7 @@ tags:
       skills: [medical-skilled]
 
   cracked-ribs:
+    catalog: all
     name: Cracked Ribs
     category: health
     group: health-wounds
@@ -2800,6 +3025,7 @@ tags:
       skills: [medical-skilled]
 
   blunt-force-trauma:
+    catalog: all
     name: Blunt Force Trauma
     category: health
     group: health-wounds
@@ -2817,6 +3043,7 @@ tags:
       skills: [medical-skilled]
 
   dislocated-shoulder:
+    catalog: all
     name: Dislocated Shoulder
     category: health
     group: health-wounds
@@ -2831,6 +3058,7 @@ tags:
       skills: [medical-basic]
 
   frostbite:
+    catalog: all
     name: Frostbite
     category: health
     group: health-wounds
@@ -2849,6 +3077,7 @@ tags:
       skills: [medical-skilled]
 
   punctured-lung:
+    catalog: all
     name: Punctured Lung
     category: health
     group: health-wounds
@@ -2867,6 +3096,7 @@ tags:
       skills: [medical-expert]
 
   gut-wound:
+    catalog: all
     name: Gut Wound
     category: health
     group: health-wounds
@@ -2885,6 +3115,7 @@ tags:
       skills: [medical-expert]
 
   broken-jaw:
+    catalog: all
     name: Broken Jaw
     category: health
     group: health-wounds
@@ -2901,6 +3132,7 @@ tags:
       skills: [medical-skilled]
 
   mangled-hand:
+    catalog: all
     name: Mangled Hand
     category: health
     group: health-wounds
@@ -2920,6 +3152,7 @@ tags:
 
   # --- Illness -----------------------------------------------------------
   appendicitis:
+    catalog: all
     name: Appendicitis
     category: health
     group: health-illness
@@ -2937,6 +3170,7 @@ tags:
       skills: [medical-expert]
 
   rot-lung:
+    catalog: all
     name: Rot Lung
     category: health
     group: health-illness
@@ -2953,6 +3187,7 @@ tags:
       skills: [medical-skilled]
 
   parasites:
+    catalog: all
     name: Parasites
     category: health
     group: health-illness
@@ -2970,6 +3205,7 @@ tags:
       skills: [medical-skilled]
 
   poisoned:
+    catalog: all
     name: Poisoned
     category: health
     group: health-illness
@@ -2988,6 +3224,7 @@ tags:
       skills: [medical-skilled]
 
   envenomated:
+    catalog: all
     name: Envenomated
     category: health
     group: health-illness
@@ -3006,6 +3243,7 @@ tags:
       skills: [medical-expert]
 
   pox:
+    catalog: all
     name: Pox
     category: health
     group: health-illness
@@ -3024,6 +3262,7 @@ tags:
       skills: [medical-skilled]
 
   arthritis:
+    catalog: all
     name: Arthritis
     category: health
     group: health-illness
@@ -3035,6 +3274,7 @@ tags:
     removable: false
 
   consumptive:
+    catalog: all
     name: Consumptive
     category: health
     group: health-illness
@@ -3053,6 +3293,7 @@ tags:
       gambit: true
 
   hypothermia:
+    catalog: all
     name: Hypothermia
     category: health
     group: health-illness
@@ -3065,6 +3306,7 @@ tags:
     expiresInto: [dying]
 
   heatstroke:
+    catalog: all
     name: Heatstroke
     category: health
     group: health-illness
@@ -3086,6 +3328,7 @@ tags:
   # so onlookers see *something*, and remove it when the real condition
   # clears.
   ill:
+    catalog: all
     name: Ill
     category: health
     group: health-illness
@@ -3096,6 +3339,7 @@ tags:
     purchasableAfterStart: false
 
   persistent-cough:
+    catalog: all
     name: Persistent Cough
     category: health
     group: health-illness
@@ -3110,6 +3354,7 @@ tags:
   # becomes tier 7, the rung even Esculap rolls for, which then expires into
   # Dying the same way Sepsis does. See TAGS.md §5c for the ladder.
   stuffed:
+    catalog: secret
     name: Stuffed
     category: health
     group: health-illness
@@ -3128,6 +3373,7 @@ tags:
       skills: [medical-skilled]
 
   exploded-chest:
+    catalog: secret
     name: Exploded Chest
     category: health
     group: health-illness
@@ -3148,6 +3394,7 @@ tags:
 
   # --- Mind --------------------------------------------------------------
   concussed:
+    catalog: all
     name: Concussed
     category: health
     group: health-mind
@@ -3160,6 +3407,7 @@ tags:
     durationTurns: 3
 
   shell-shocked:
+    catalog: all
     name: Shell Shocked
     category: health
     group: health-mind
@@ -3170,6 +3418,7 @@ tags:
     removable: false
 
   amnesiac:
+    catalog: all
     name: Amnesiac
     category: health
     group: health-mind
@@ -3180,6 +3429,7 @@ tags:
     removable: false
 
   paralyzed:
+    catalog: all
     name: Paralyzed
     category: health
     group: health-mind
@@ -3192,6 +3442,7 @@ tags:
     durationTurns: 1
 
   hallucinating:
+    catalog: all
     name: Hallucinating
     category: health
     group: health-mind
@@ -3203,6 +3454,7 @@ tags:
     durationTurns: 2
 
   blind:
+    catalog: all
     name: Blind
     category: health
     group: health-mind
@@ -3220,6 +3472,7 @@ tags:
       gambit: true
 
   stutter:
+    catalog: all
     name: Stutter
     category: health
     group: health-mind
@@ -3231,6 +3484,7 @@ tags:
     removable: false
 
   mute:
+    catalog: all
     name: Mute
     category: health
     group: health-mind
@@ -3245,6 +3499,7 @@ tags:
   # --- Maiming -----------------------------------------------------------
 
   missing-leg:
+    catalog: all
     name: Missing Leg
     category: health
     group: health-maiming
@@ -3256,6 +3511,7 @@ tags:
     removable: false
 
   missing-arm:
+    catalog: all
     name: Missing Arm
     category: health
     group: health-maiming
@@ -3267,6 +3523,7 @@ tags:
     removable: false
 
   peg-leg:
+    catalog: all
     name: Peg Leg
     category: health
     group: health-maiming
@@ -3279,6 +3536,7 @@ tags:
 
   # The severe, purchasable end of what `scarred` records for free.
   disfigured:
+    catalog: all
     name: Disfigured
     category: health
     group: health-maiming
@@ -3296,6 +3554,7 @@ tags:
       gambit: false
 
   missing-fingers:
+    catalog: all
     name: Missing Fingers
     category: health
     group: health-maiming
@@ -3307,6 +3566,7 @@ tags:
     removable: false
 
   crippled-leg:
+    catalog: all
     name: Crippled Leg
     category: health
     group: health-maiming
@@ -3324,6 +3584,7 @@ tags:
       gambit: true
 
   limp:
+    catalog: all
     name: Limp
     category: health
     group: health-maiming
@@ -3335,6 +3596,7 @@ tags:
     removable: false
 
   deaf:
+    catalog: all
     name: Deaf
     category: health
     group: health-maiming
@@ -3345,6 +3607,7 @@ tags:
     removable: false
 
   missing-eye:
+    catalog: all
     name: Missing Eye
     category: health
     group: health-maiming
@@ -3356,6 +3619,7 @@ tags:
     removable: false
 
   night-blind:
+    catalog: all
     name: Night Blind
     category: health
     group: health-mind
@@ -3368,6 +3632,7 @@ tags:
     conflictsWith: [blind]
 
   scarred:
+    catalog: all
     name: Scarred
     category: health
     group: health-maiming
@@ -3381,6 +3646,7 @@ tags:
   # --- Ailments ----------------------------------------------------------
 
   vomiting:
+    catalog: all
     name: Vomiting
     category: health
     group: health-minor
@@ -3394,6 +3660,7 @@ tags:
 
   # --- Pain ---------------------------------------------------------------
   aching:
+    catalog: all
     name: Aching
     category: health
     group: health-minor
@@ -3406,6 +3673,7 @@ tags:
     durationTurns: 3
 
   severe-pain:
+    catalog: all
     name: Severe Pain
     category: health
     group: health-minor
@@ -3421,6 +3689,7 @@ tags:
       skills: [medical-basic]
 
   pain-shock:
+    catalog: all
     name: Pain Shock
     category: health
     group: health-minor
@@ -3438,6 +3707,7 @@ tags:
 
   #Caused by nightshade
   choking:
+    catalog: all
     name: Choking
     category: health
     group: health-illness
@@ -3455,6 +3725,7 @@ tags:
       gambit: false
 
   phrygian-toxin:
+    catalog: all
     name: Phrygian Toxin
     category: health
     group: health-illness
@@ -3474,6 +3745,7 @@ tags:
       gambit: true
 
   hungover:
+    catalog: all
     name: Hungover
     category: health
     group: health-minor
@@ -3485,6 +3757,7 @@ tags:
     durationTurns: 1
 
   migraine:
+    catalog: all
     name: Migraine
     category: health
     group: health-minor
@@ -3497,6 +3770,7 @@ tags:
     expiresInto: [no-migraine]
 
   no-migraine:
+    catalog: all
     name: No Migraine
     category: health
     group: health-minor
@@ -3513,6 +3787,7 @@ tags:
   # rather than the tag simply blinking out. All tier 0 — there is nothing to
   # treat about getting better.
   splinted:
+    catalog: all
     name: Splinted
     category: health
     group: health-recovery
@@ -3525,6 +3800,7 @@ tags:
     durationTurns: 4
 
   stitched-up:
+    catalog: all
     name: Stitched Up
     category: health
     group: health-recovery
@@ -3538,6 +3814,7 @@ tags:
     expiresInto: [scarred]
 
   cauterized:
+    catalog: all
     name: Cauterized
     category: health
     group: health-recovery
@@ -3551,6 +3828,7 @@ tags:
     expiresInto: [scarred]
 
   recovering:
+    catalog: all
     name: Recovering
     category: health
     group: health-recovery
@@ -3563,6 +3841,7 @@ tags:
     durationTurns: 2
 
   bandaged:
+    catalog: all
     name: Bandaged
     category: health
     group: health-recovery
@@ -3575,6 +3854,7 @@ tags:
     durationTurns: 3
 
   wired-jaw:
+    catalog: all
     name: Wired Jaw
     category: health
     group: health-recovery
@@ -3593,6 +3873,7 @@ tags:
   # anyone can lead them away. Real property does not — you cannot carry a house
   # off a corpse — and neither does the Drone, which belongs to itself.
   horse:
+    catalog: all
     name: Horse
     category: assets
     group: assets-companions
@@ -3606,6 +3887,7 @@ tags:
     removable: true
 
   bird:
+    catalog: all
     name: Bird
     category: assets
     group: assets-companions
@@ -3618,6 +3900,7 @@ tags:
     removable: true
 
   rat:
+    catalog: all
     name: Rat
     category: assets
     group: assets-companions
@@ -3630,6 +3913,7 @@ tags:
     removable: true
 
   kitty-cat:
+    catalog: all
     name: Kitty Cat
     category: assets
     group: assets-companions
@@ -3642,6 +3926,7 @@ tags:
     removable: true
 
   manor:
+    catalog: all
     name: Manor
     category: assets
     group: assets-property
@@ -3654,6 +3939,7 @@ tags:
     removable: true
 
   cart:
+    catalog: all
     name: Cart
     category: assets
     group: assets-property
@@ -3675,6 +3961,7 @@ tags:
       gambit: false
 
   dog:
+    catalog: all
     name: Dog
     category: assets
     group: assets-companions
@@ -3687,6 +3974,7 @@ tags:
     removable: true
 
   drone:
+    catalog: gm
     name: Drone
     category: assets
     group: assets-companions
@@ -3700,6 +3988,7 @@ tags:
     removable: true
 
   house:
+    catalog: all
     name: House
     category: assets
     group: assets-property
@@ -3712,6 +4001,7 @@ tags:
     removable: true
 
   shack:
+    catalog: all
     name: Shack
     category: assets
     group: assets-property
@@ -3729,6 +4019,7 @@ tags:
   # Assets below, not here.
 
   graga-sac:
+    catalog: gm
     name: Graga Sac
     category: items
     group: items-gear
@@ -3750,6 +4041,7 @@ tags:
   # not the holder drinking it. Priced above a Graga Sac: a Graga is slow and
   # easily escaped, while the Skinless travel in packs and used to be people.
   skinless-brain:
+    catalog: gm
     name: Skinless Brain
     category: items
     group: items-gear
@@ -3787,6 +4079,7 @@ tags:
   # Monster corpses never rot: no durationTurns, so nothing ever fires
   # db/lib/corpseRotPass.js at them. Only a person stinks.
   nekker-corpse:
+    catalog: secret
     name: Nekker Corpse
     category: items
     group: items-corpse
@@ -3802,6 +4095,7 @@ tags:
     sellable: false
 
   graga-corpse:
+    catalog: secret
     name: Graga Corpse
     category: items
     group: items-corpse
@@ -3817,6 +4111,7 @@ tags:
     sellable: false
 
   skinless-corpse:
+    catalog: secret
     name: Skinless Corpse
     category: items
     group: items-corpse
@@ -3832,6 +4127,7 @@ tags:
     sellable: false
 
   saltpeter:
+    catalog: gm
     name: Saltpeter
     category: items
     group: items-gear
@@ -3850,6 +4146,7 @@ tags:
   # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
   # See docs/systemdocs/CAVING.md.
   radio-system-watch:
+    catalog: all
     name: Radio System (Watch)
     category: items
     group: items-gear
@@ -3864,6 +4161,7 @@ tags:
     purchasableAfterStart: true
 
   radio-bracelet-watch:
+    catalog: gm
     name: Radio Bracelet (Watch)
     category: items
     group: items-gear
@@ -3878,6 +4176,7 @@ tags:
     purchasableAfterStart: false
 
   bear-trap:
+    catalog: all
     name: Bear Trap
     category: items
     group: items-gear
@@ -3898,6 +4197,7 @@ tags:
       gambit: false
 
   skeleton-wedge:
+    catalog: all
     name: Skeleton Wedge
     category: items
     group: items-gear
@@ -3913,6 +4213,7 @@ tags:
     consumable: true
 
   jester-outfit:
+    catalog: all
     name: Jester Outfit
     category: items
     group: items-gear
@@ -3934,6 +4235,7 @@ tags:
       gambit: false
 
   spyglass:
+    catalog: all
     name: Spyglass
     category: items
     group: items-gear
@@ -3948,6 +4250,7 @@ tags:
     removable: true
 
   disguise-kit:
+    catalog: all
     name: Disguise Kit
     category: items
     group: items-gear
@@ -3968,6 +4271,7 @@ tags:
       gambit: false
 
   jewelry:
+    catalog: all
     name: Jewelry
     category: items
     group: items-gear
@@ -4002,6 +4306,7 @@ tags:
   # Painting would be the best deal in the point economy by an order of
   # magnitude — Jewelry is the going rate at 1 point for 8 ⬢.
   painting:
+    catalog: all
     name: Painting
     category: items
     group: items-gear
@@ -4030,6 +4335,7 @@ tags:
   # docs/systemdocs/CAVING.md for the table itself and db/lib/cavingLoot.js
   # for how a tier resolves to one of these.
   old-coin:
+    catalog: gm
     name: Old Coin
     category: items
     group: items-gear
@@ -4046,6 +4352,7 @@ tags:
     sellablePrice: 1
 
   purse:
+    catalog: gm
     name: Purse
     category: items
     group: items-gear
@@ -4063,6 +4370,7 @@ tags:
     consumesIntoResources: 3
 
   skinned-cave-rat:
+    catalog: gm
     name: Skinned Cave Rat
     category: items
     group: items-food
@@ -4080,6 +4388,7 @@ tags:
       - oneOf: [ate-meal, vomiting]
 
   supply-kit:
+    catalog: gm
     name: Supply Kit
     category: items
     group: items-gear
@@ -4098,6 +4407,7 @@ tags:
     consumesIntoResources: 8
 
   gas-mask:
+    catalog: gm
     name: Gas Mask
     category: items
     group: items-gear
@@ -4113,6 +4423,7 @@ tags:
     removable: true
 
   smoke-grenade:
+    catalog: gm
     name: Smoke Grenade
     category: items
     group: items-gear
@@ -4129,6 +4440,7 @@ tags:
   # Visible on purpose — the user wanted this one to read as an active thing
   # on the sheet, not sit hidden like the rest of the loot.
   autocannon-shell:
+    catalog: gm
     name: Autocannon Shell
     category: items
     group: items-special
@@ -4143,6 +4455,7 @@ tags:
     removable: true
 
   military-autoinjector:
+    catalog: gm
     name: Military Autoinjector
     category: items
     group: items-gear
@@ -4163,6 +4476,7 @@ tags:
   # in this file's header). Not tradeable or stackable — there's nothing to
   # hand over, and buying two would just collapse into one.
   starting-wares:
+    catalog: all
     name: Starting Wares
     category: items
     group: items-gear
@@ -4196,6 +4510,7 @@ tags:
       - sweets
 
   ridiculous-hat:
+    catalog: all
     name: Ridiculous Hat
     category: items
     group: items-gear
@@ -4217,6 +4532,7 @@ tags:
       gambit: false
 
   spectacles:
+    catalog: all
     name: Spectacles
     category: items
     group: items-gear
@@ -4235,6 +4551,7 @@ tags:
     depotPrice: 30
 
   suspicious-game-set:
+    catalog: all
     name: Suspicious Game Set
     category: items
     group: items-gear
@@ -4248,6 +4565,7 @@ tags:
     requiredTag: brigand
 
   sewer-key:
+    catalog: gm
     name: Sewer Key
     category: items
     group: items-gear
@@ -4258,6 +4576,7 @@ tags:
     purchasable: false
 
   elevator-key:
+    catalog: gm
     name: Elevator Key
     category: items
     group: items-gear
@@ -4268,6 +4587,7 @@ tags:
     purchasable: false
 
   the-barons-key:
+    catalog: gm
     name: "The Baron's Key"
     category: items
     group: items-gear
@@ -4279,6 +4599,7 @@ tags:
 
   #Uncraftable
   neoclassic-rw10:
+    catalog: all
     name: Neoclassic R&W10
     category: items
     group: items-weapons
@@ -4301,6 +4622,7 @@ tags:
 
   #Cave weapons
   cracked-bone-club:
+    catalog: gm
     name: Cracked Bone Club
     category: items
     group: items-weapons
@@ -4316,6 +4638,7 @@ tags:
     removable: true
 
   neoclassic-duelista:
+    catalog: gm
     name: Neoclassic Duelista
     category: items
     group: items-weapons
@@ -4347,6 +4670,7 @@ tags:
   # ─── Dead Simple ───────────────────────────────────────────────────────────
 
   work-knife:
+    catalog: all
     name: Work Knife
     category: items
     group: items-weapons
@@ -4370,6 +4694,7 @@ tags:
     sellablePrice: 4
 
   hatchet:
+    catalog: all
     name: Hatchet
     category: items
     group: items-weapons
@@ -4397,6 +4722,7 @@ tags:
   # Priced against docs/systemdocs/TAGS.md 4a: minor edges at 2, the Plow at 5
   # because it needs a horse behind it to do anything at all.
   fishing-rod:
+    catalog: all
     name: Fishing Rod
     category: items
     group: items-gear
@@ -4422,6 +4748,7 @@ tags:
     depotPrice: 12
 
   trapping-gear:
+    catalog: all
     name: Trapping Gear
     category: items
     group: items-gear
@@ -4451,6 +4778,7 @@ tags:
   # also why it is an Asset rather than an Item, so it never weighs on your
   # back (docs/systemdocs/CARRY.md §1).
   plow:
+    catalog: all
     name: Plow
     category: assets
     group: assets-property
@@ -4473,6 +4801,7 @@ tags:
     sellablePrice: 14
 
   sling:
+    catalog: all
     name: Sling
     category: items
     group: items-weapons
@@ -4497,6 +4826,7 @@ tags:
     sellablePrice: 4
 
   quarterstaff:
+    catalog: all
     name: Quarterstaff
     category: items
     group: items-weapons
@@ -4520,6 +4850,7 @@ tags:
     sellablePrice: 4
 
   cudgel:
+    catalog: all
     name: Cudgel
     category: items
     group: items-weapons
@@ -4543,6 +4874,7 @@ tags:
     sellablePrice: 4
 
   pitchfork:
+    catalog: all
     name: Pitchfork
     category: items
     group: items-weapons
@@ -4566,6 +4898,7 @@ tags:
     sellablePrice: 4
 
   shortbow:
+    catalog: all
     name: Shortbow
     category: items
     group: items-weapons
@@ -4591,6 +4924,7 @@ tags:
 
   # ─── Simple ────────────────────────────────────────────────────────────────
   spear:
+    catalog: all
     name: Spear
     category: items
     group: items-weapons
@@ -4615,6 +4949,7 @@ tags:
     sellablePrice: 9
 
   dagger:
+    catalog: all
     name: Dagger
     category: items
     group: items-weapons
@@ -4639,6 +4974,7 @@ tags:
     sellablePrice: 9
 
   silver-knife:
+    catalog: all
     name: Silver Knife
     category: items
     group: items-weapons
@@ -4663,6 +4999,7 @@ tags:
     sellablePrice: 9
 
   gladius:
+    catalog: all
     name: Gladius
     category: items
     group: items-weapons
@@ -4687,6 +5024,7 @@ tags:
     sellablePrice: 9
 
   phrygian-spear:
+    catalog: all
     name: Phrygian Spear
     category: items
     group: items-weapons
@@ -4711,6 +5049,7 @@ tags:
     sellablePrice: 9
 
   longbow:
+    catalog: all
     name: Longbow
     category: items
     group: items-weapons
@@ -4736,6 +5075,7 @@ tags:
     sellablePrice: 9
 
   mace:
+    catalog: all
     name: Mace
     category: items
     group: items-weapons
@@ -4760,6 +5100,7 @@ tags:
     sellablePrice: 9
 
   battle-axe:
+    catalog: all
     name: Battle Axe
     category: items
     group: items-weapons
@@ -4785,6 +5126,7 @@ tags:
 
   # ─── Moderate ──────────────────────────────────────────────────────────────
   knuckle-duster:
+    catalog: all
     name: Knuckle Duster
     category: items
     group: items-weapons
@@ -4809,6 +5151,7 @@ tags:
 
   # Renamed from Bardiche in the Combat Update, slug and all.
   halberd:
+    catalog: all
     name: Halberd
     category: items
     group: items-weapons
@@ -4833,6 +5176,7 @@ tags:
     sellablePrice: 22
 
   broadsword:
+    catalog: all
     name: Broadsword
     category: items
     group: items-weapons
@@ -4857,6 +5201,7 @@ tags:
     sellablePrice: 22
 
   war-hammer:
+    catalog: all
     name: War Hammer
     category: items
     group: items-weapons
@@ -4882,6 +5227,7 @@ tags:
 
   # ─── High Quality ──────────────────────────────────────────────────────────
   bastard-sword:
+    catalog: all
     name: Bastard Sword
     category: items
     group: items-weapons
@@ -4906,6 +5252,7 @@ tags:
     sellablePrice: 42
 
   rapier:
+    catalog: all
     name: Rapier
     category: items
     group: items-weapons
@@ -4930,6 +5277,7 @@ tags:
     sellablePrice: 42
 
   sabre:
+    catalog: all
     name: Sabre
     category: items
     group: items-weapons
@@ -4954,6 +5302,7 @@ tags:
     sellablePrice: 42
 
   katana:
+    catalog: all
     name: Katana
     category: items
     group: items-weapons
@@ -4978,6 +5327,7 @@ tags:
     sellablePrice: 42
 
   silver-spear:
+    catalog: all
     name: Silver Spear
     category: items
     group: items-weapons
@@ -5002,6 +5352,7 @@ tags:
     sellablePrice: 42
 
   lucerne:
+    catalog: all
     name: Lucerne
     category: items
     group: items-weapons
@@ -5026,6 +5377,7 @@ tags:
     sellablePrice: 42
 
   zweihander:
+    catalog: all
     name: Zweihander
     category: items
     group: items-weapons
@@ -5050,6 +5402,7 @@ tags:
     sellablePrice: 42
 
   crossbow:
+    catalog: all
     name: Crossbow
     category: items
     group: items-weapons
@@ -5076,6 +5429,7 @@ tags:
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
   musketoon:
+    catalog: all
     name: Musketoon
     category: items
     group: items-weapons
@@ -5101,6 +5455,7 @@ tags:
     sellablePrice: 59
 
   bore-pistol:
+    catalog: all
     name: Bore Pistol
     category: items
     group: items-weapons
@@ -5126,6 +5481,7 @@ tags:
     sellablePrice: 45
 
   bomb:
+    catalog: all
     name: Bomb
     category: items
     group: items-weapons
@@ -5152,6 +5508,7 @@ tags:
   # ─── Special / concealed ───────────────────────────────────────────────────
   # A gentleman's sidearm, sold complete — no smithing recipe attached.
   sword-cane:
+    catalog: all
     name: Sword Cane
     category: items
     group: items-weapons
@@ -5174,6 +5531,7 @@ tags:
   # the other found-not-bought weapons above (Cracked Bone Club, Neoclassic
   # Duelista).
   disabler:
+    catalog: gm
     name: Disabler
     category: items
     group: items-weapons
@@ -5207,6 +5565,7 @@ tags:
   # right by the catalog rule: a wrapped parcel of meat is not something a
   # stranger looking you over can identify.
   human-flesh:
+    catalog: gm
     name: Human Flesh
     category: items
     group: items-food
@@ -5225,6 +5584,7 @@ tags:
     sellable: false
 
   fine-meal:
+    catalog: all
     name: Fine Meal
     category: items
     group: items-food
@@ -5246,6 +5606,7 @@ tags:
       skills: [cooking-basic]
       gambit: false
   lavish-meal:
+    catalog: all
     name: Lavish Meal
     category: items
     group: items-food
@@ -5273,6 +5634,7 @@ tags:
   # Location (db/lib/equipmentReach.js), which is what lets a Sanctuary
   # operating theatre or a Factory floor serve everyone standing in it.
   workshop-equipment:
+    catalog: all
     name: Workshop Equipment
     category: items
     group: items-gear
@@ -5297,6 +5659,7 @@ tags:
     depotPrice: 68
 
   surgical-equipment:
+    catalog: all
     name: Surgical Equipment
     category: items
     description: |-
@@ -5319,6 +5682,7 @@ tags:
   # `consumable` with no `consumesInto`, which is exactly what that flag is
   # for: consuming spends one and the effect happens in the fiction.
   mesmer-glass:
+    catalog: secret
     name: Mesmer Glass
     category: items
     group: items-special
@@ -5334,6 +5698,7 @@ tags:
     consumable: true
 
   power-fist:
+    catalog: gm
     name: Power Fist
     category: items
     group: items-special
@@ -5348,6 +5713,7 @@ tags:
     removable: true
 
   emp-grenade:
+    catalog: gm
     name: EMP Grenade
     category: items
     group: items-special
@@ -5364,6 +5730,7 @@ tags:
   # Courtier starting picks:
 
   heirloom:
+    catalog: all
     name: Heirloom
     category: items
     group: items-special
@@ -5380,6 +5747,7 @@ tags:
     sellablePrice: 12
 
   compromising-letters:
+    catalog: all
     name: Compromising Letters
     category: items
     group: items-special
@@ -5396,6 +5764,7 @@ tags:
   #Artifacts
 
   flamethrower:
+    catalog: gm
     name: Flamethrower
     category: items
     group: items-special
@@ -5416,6 +5785,7 @@ tags:
     depotPrice: 237
 
   dark-eye-lenses:
+    catalog: secret
     name: Dark-Eye Lenses
     category: items
     group: items-special
@@ -5430,6 +5800,7 @@ tags:
     removable: true
 
   stepstone:
+    catalog: secret
     name: Stepstone
     category: items
     group: items-special
@@ -5445,6 +5816,7 @@ tags:
     consumable: true
 
   quickened-nerve-braid:
+    catalog: secret
     name: Quickened Nerve-Braid
     category: items
     group: items-special
@@ -5457,6 +5829,7 @@ tags:
     removable: false
 
   motorcycle:
+    catalog: gm
     name: Motorcycle
     category: items
     group: items-special
@@ -5474,6 +5847,7 @@ tags:
     depotPrice: 209
 
   sawn-off-double-barrel:
+    catalog: gm
     name: Sawn-Off Double Barrel
     category: items
     group: items-special
@@ -5489,6 +5863,7 @@ tags:
     removable: true
 
   golden-arrow:
+    catalog: secret
     name: Golden Arrow
     category: items
     group: items-special
@@ -5506,6 +5881,7 @@ tags:
       - holoparasite
 
   codex-supprimata:
+    catalog: secret
     name: Codex Supprimata
     category: items
     group: items-special
@@ -5532,6 +5908,7 @@ tags:
   # second field and a migration, not a change here. See TAGS.md §5.
 
   bastards-garb:
+    catalog: secret
     name: "Bastard's Garb"
     category: items
     group: items-gear
@@ -5547,6 +5924,7 @@ tags:
     removable: true
 
   bishops-mitre:
+    catalog: gm
     name: Bishop's Mitre
     category: items
     group: items-special
@@ -5560,6 +5938,7 @@ tags:
     purchasableAfterStart: false
 
   barons-scepter:
+    catalog: gm
     name: Baron's Scepter
     category: items
     group: items-special
@@ -5573,6 +5952,7 @@ tags:
     purchasableAfterStart: false
 
   watch-badge:
+    catalog: gm
     name: Watch Badge
     category: items
     group: items-special
@@ -5586,6 +5966,7 @@ tags:
     purchasableAfterStart: false
 
   mortus-rags:
+    catalog: gm
     name: Mortus Rags
     category: items
     group: items-special
@@ -5599,6 +5980,7 @@ tags:
     purchasableAfterStart: false
 
   merchants-garb:
+    catalog: gm
     name: Merchant's Garb
     category: items
     group: items-special
@@ -5619,6 +6001,7 @@ tags:
   # carrying the Merchant's way off this rock.
   # See docs/systemdocs/DEPOT.md §2.
   merchants-license:
+    catalog: gm
     name: Merchant's License
     category: items
     group: items-special
@@ -5632,6 +6015,7 @@ tags:
     removable: true
 
   incarns-key:
+    catalog: gm
     name: Incarn's Key
     category: items
     group: items-special
@@ -5645,6 +6029,7 @@ tags:
     purchasableAfterStart: false
 
   sheriffs-badge:
+    catalog: gm
     name: Sheriff's Badge
     category: items
     group: items-special
@@ -5658,6 +6043,7 @@ tags:
     purchasableAfterStart: false
 
   headmans-cap:
+    catalog: gm
     name: Headman's Cap
     category: items
     group: items-special
@@ -5671,6 +6057,7 @@ tags:
     purchasableAfterStart: false
 
   esculaps-vest:
+    catalog: gm
     name: Esculap's Vest
     category: items
     group: items-special
@@ -5684,6 +6071,7 @@ tags:
     purchasableAfterStart: false
 
   hands-pin:
+    catalog: gm
     name: Hand's Pin
     category: items
     group: items-special
@@ -5697,6 +6085,7 @@ tags:
     purchasableAfterStart: false
 
   inquisitors-longcoat:
+    catalog: gm
     name: Inquisitor's Longcoat
     category: items
     group: items-special
@@ -5710,6 +6099,7 @@ tags:
     purchasableAfterStart: false
 
   practiciis-robes:
+    catalog: gm
     name: Practicii's Robes
     category: items
     group: items-special
@@ -5723,6 +6113,7 @@ tags:
     purchasableAfterStart: false
 
   broken-spears-banner:
+    catalog: gm
     name: Broken Spears Banner
     category: items
     group: items-special
@@ -5736,6 +6127,7 @@ tags:
     purchasableAfterStart: false
 
   windrider-banner:
+    catalog: gm
     name: Windrider Banner
     category: items
     group: items-special
@@ -5776,6 +6168,7 @@ tags:
   # Comforts. Cheap, harmless, and the reason ordinary people have any reason
   # at all to walk down to Customs.
   tea:
+    catalog: gm
     name: Tea
     category: items
     group: items-drink
@@ -5795,6 +6188,7 @@ tags:
     consumesInto: []
 
   coffee:
+    catalog: gm
     name: Coffee
     category: items
     group: items-drink
@@ -5815,6 +6209,7 @@ tags:
       - caffeinated
 
   firecracker:
+    catalog: gm
     name: Firecracker
     category: items
     group: items-gear
@@ -5834,6 +6229,7 @@ tags:
     consumesInto: []
 
   sweets:
+    catalog: gm
     name: Sweets
     category: items
     group: items-food
@@ -5854,6 +6250,7 @@ tags:
       - ate-meal
 
   honey:
+    catalog: gm
     name: Honey
     category: items
     group: items-food
@@ -5874,6 +6271,7 @@ tags:
       - ate-meal
 
   sky-lantern:
+    catalog: gm
     name: Sky Lantern
     category: items
     group: items-gear
@@ -5893,6 +6291,7 @@ tags:
     consumesInto: []
 
   sake:
+    catalog: gm
     name: Sake
     category: items
     group: items-drink
@@ -5917,6 +6316,7 @@ tags:
 
   # Gear. The band where a working person might actually save up for one.
   boombox:
+    catalog: gm
     name: Boombox
     category: items
     group: items-gear
@@ -5933,6 +6333,7 @@ tags:
     removable: true
 
   whip:
+    catalog: gm
     name: Whip
     category: items
     group: items-weapons
@@ -5950,6 +6351,7 @@ tags:
     removable: true
 
   censer:
+    catalog: gm
     name: Censer
     category: items
     group: items-gear
@@ -5971,6 +6373,7 @@ tags:
   # Its ⬢ price stays steep so that buying one off the Merchant mid-game is a
   # real decision rather than the obvious move.
   poison-snooper:
+    catalog: all
     name: Poison Snooper
     category: items
     group: items-gear
@@ -5987,6 +6390,7 @@ tags:
     removable: true
 
   black-body-bag:
+    catalog: gm
     name: Black Body Bag
     category: items
     group: items-gear
@@ -6004,6 +6408,7 @@ tags:
     removable: true
 
   microscope:
+    catalog: gm
     name: Microscope
     category: items
     group: items-gear
@@ -6020,6 +6425,7 @@ tags:
     removable: true
 
   light-infantry-armour:
+    catalog: gm
     name: Light Infantry Armour
     category: items
     group: items-armor
@@ -6038,6 +6444,7 @@ tags:
 
   # Companions. Live cargo, which is why they cost what they do.
   monkey:
+    catalog: gm
     name: Monkey
     category: assets
     group: assets-companions
@@ -6053,6 +6460,7 @@ tags:
     removable: true
 
   hound:
+    catalog: gm
     name: Hound
     category: assets
     group: assets-companions
@@ -6069,6 +6477,7 @@ tags:
 
   # Potent goods. Past this line a purchase is a season's work for most people.
   soporific:
+    catalog: gm
     name: Soporific
     category: items
     group: items-drink
@@ -6088,6 +6497,7 @@ tags:
     consumesInto: []
 
   amoeba-vial:
+    catalog: gm
     name: Amoeba Vial
     category: items
     group: items-gear
@@ -6107,6 +6517,7 @@ tags:
     consumesInto: []
 
   illusion-crystal:
+    catalog: gm
     name: Illusion Crystal
     category: items
     group: items-gear
@@ -6123,6 +6534,7 @@ tags:
     removable: true
 
   homunculus:
+    catalog: gm
     name: Homunculus
     category: items
     group: items-special
@@ -6139,6 +6551,7 @@ tags:
     removable: true
 
   antibiotics:
+    catalog: gm
     name: Antibiotics
     category: items
     group: items-drink
@@ -6162,6 +6575,7 @@ tags:
   # caveats — web/lib/tagRequests.js#FAST_TRAVEL_SLUGS is what implements it,
   # and this description is what that implements.
   steam-automobile:
+    catalog: gm
     name: Steam Automobile
     category: assets
     group: assets-property
@@ -6178,6 +6592,7 @@ tags:
     removable: true
 
   ml-23:
+    catalog: gm
     name: ML-23
     category: items
     group: items-weapons
@@ -6198,6 +6613,7 @@ tags:
   # --- Tonics -------------------------------------------------------------
   # Alcohol, drugs and tonics, and the recipes for them. Split into Basic and Skilled brewing. Some need special ingredients.
   cave-fungus:
+    catalog: all
     name: Cave Fungus
     category: items
     group: items-drink
@@ -6221,6 +6637,7 @@ tags:
     sellablePrice: 3
 
   alcohol:
+    catalog: all
     name: Alcohol
     category: items
     group: items-drink
@@ -6250,6 +6667,7 @@ tags:
     depotPrice: 5
 
   bliss:
+    catalog: all
     name: Bliss
     category: items
     group: items-drink
@@ -6276,6 +6694,7 @@ tags:
     sellablePrice: 3
 
   ravenheart-red:
+    catalog: all
     name: Ravenheart Red
     category: items
     group: items-drink
@@ -6306,6 +6725,7 @@ tags:
 
   # --- Basic tonics — Brewing (Basic) --------------------------------------
   miasma:
+    catalog: all
     name: Miasma
     category: items
     group: items-drink
@@ -6335,6 +6755,7 @@ tags:
     sellablePrice: 5
 
   feces:
+    catalog: all
     name: Feces
     category: items
     group: items-drink
@@ -6355,6 +6776,7 @@ tags:
       gambit: false
 
   cleaning-powder:
+    catalog: all
     name: Cleaning Powder
     category: items
     group: items-drink
@@ -6378,6 +6800,7 @@ tags:
     sellablePrice: 4
 
   cat:
+    catalog: all
     name: Cat
     category: items
     group: items-drink
@@ -6404,6 +6827,7 @@ tags:
     sellablePrice: 7
 
   poppy:
+    catalog: all
     name: Poppy
     category: items
     group: items-drink
@@ -6429,6 +6853,7 @@ tags:
     sellablePrice: 4
 
   molotov-cocktail:
+    catalog: all
     name: Molotov Cocktail
     category: items
     group: items-drink
@@ -6451,6 +6876,7 @@ tags:
     sellablePrice: 4
 
   nightshade:
+    catalog: all
     name: Nightshade
     category: items
     group: items-drink
@@ -6475,6 +6901,7 @@ tags:
 
   # --- Advanced tonics — Brewing (Skilled) ---------------------------------
   gunpowder-grenade:
+    catalog: all
     name: Gunpowder Grenade
     category: items
     group: items-drink
@@ -6498,6 +6925,7 @@ tags:
     sellablePrice: 14
 
   phrygian-tears:
+    catalog: all
     name: Phrygian Tears
     category: items
     group: items-drink
@@ -6521,6 +6949,7 @@ tags:
     depotPrice: 36
 
   advanced-poppy:
+    catalog: all
     name: Advanced Poppy
     category: items
     group: items-drink
@@ -6546,6 +6975,7 @@ tags:
     sellablePrice: 10
 
   graga-sweat:
+    catalog: all
     name: Graga Sweat
     category: items
     group: items-drink
@@ -6571,6 +7001,7 @@ tags:
     sellablePrice: 6
 
   purifier:
+    catalog: all
     name: Purifier
     category: items
     group: items-drink
@@ -6594,6 +7025,7 @@ tags:
     sellablePrice: 14
 
   white-honey:
+    catalog: all
     name: White Honey
     category: items
     group: items-drink
@@ -6617,6 +7049,7 @@ tags:
     sellablePrice: 6
 
   deadeye-drops:
+    catalog: all
     name: Deadeye Drops
     category: items
     group: items-drink
@@ -6642,6 +7075,7 @@ tags:
     sellablePrice: 5
 
   mercy:
+    catalog: all
     name: Mercy
     category: items
     group: items-drink
@@ -6667,6 +7101,7 @@ tags:
     sellablePrice: 4
 
   distilled-coca:
+    catalog: all
     name: Distilled Coca
     category: items
     group: items-drink
@@ -6693,6 +7128,7 @@ tags:
     depotPrice: 11
 
   mindbreaker-toxin:
+    catalog: all
     name: Mindbreaker Toxin
     category: items
     group: items-drink
@@ -6723,6 +7159,7 @@ tags:
   # `consumesInto`, so drinking it simply spends the tag and leaves a
   # CONSUME_TAG request in the GM's queue to act on.
   mulligan-potion:
+    catalog: all
     name: Mulligan Potion
     category: items
     group: items-drink
@@ -6739,6 +7176,7 @@ tags:
     requiredTag: brigand
 
   invisibility-potion:
+    catalog: all
     name: Invisibility Potion
     category: items
     group: items-drink
@@ -6764,6 +7202,7 @@ tags:
     sellablePrice: 8
 
   nekker-pheromones:
+    catalog: secret
     name: Nekker Pheromones
     category: items
     group: items-drink
@@ -6783,6 +7222,7 @@ tags:
     sellablePrice: 5
 
   succubus-draught:
+    catalog: all
     name: Succubus Draught
     category: items
     group: items-drink
@@ -6808,6 +7248,7 @@ tags:
     sellablePrice: 7
 
   raven-draught:
+    catalog: all
     name: Raven Draught
     category: items
     group: items-drink
@@ -6831,6 +7272,7 @@ tags:
     sellablePrice: 6
 
   pure-luck:
+    catalog: all
     name: Pure Luck
     category: items
     group: items-drink
@@ -6859,6 +7301,7 @@ tags:
   # named in its description — that ingredient is the actual gate, and getting
   # hold of it is meant to be a scene rather than a purchase.
   dreamers-draught:
+    catalog: all
     name: Dreamer's Draught
     category: items
     group: items-drink
@@ -6885,6 +7328,7 @@ tags:
     sellablePrice: 60
 
   forgiveness:
+    catalog: all
     name: Forgiveness
     category: items
     group: items-drink
@@ -6908,6 +7352,7 @@ tags:
     sellablePrice: 18
 
   flawless-skin:
+    catalog: all
     name: Flawless Skin
     category: items
     group: items-drink
@@ -6936,6 +7381,7 @@ tags:
 
   # ─── Dead Simple (1 pt / 3 ⬢ / 0 turns) ───
   padded-armor:
+    catalog: all
     name: Padded Armor
     category: items
     group: items-armor
@@ -6956,6 +7402,7 @@ tags:
     sellablePrice: 4
 
   padded-cap:
+    catalog: all
     name: Padded Cap
     category: items
     group: items-armor
@@ -6976,6 +7423,7 @@ tags:
     sellablePrice: 4
 
   buckler:
+    catalog: all
     name: Buckler
     category: items
     group: items-armor
@@ -6997,6 +7445,7 @@ tags:
 
   # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
   simple-helm:
+    catalog: all
     name: Simple Helm
     category: items
     group: items-armor
@@ -7017,6 +7466,7 @@ tags:
     sellablePrice: 9
 
   mail-coif:
+    catalog: all
     name: Mail Coif
     category: items
     group: items-armor
@@ -7037,6 +7487,7 @@ tags:
     sellablePrice: 9
 
   shield:
+    catalog: all
     name: Shield
     category: items
     group: items-armor
@@ -7058,6 +7509,7 @@ tags:
     sellablePrice: 9
 
   pavise:
+    catalog: all
     name: Pavise
     category: items
     group: items-armor
@@ -7079,6 +7531,7 @@ tags:
 
   # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
   mail-shirt:
+    catalog: all
     name: Mail Shirt
     category: items
     group: items-armor
@@ -7100,6 +7553,7 @@ tags:
 
   # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
   knights-helmet:
+    catalog: all
     name: Knight's Helmet
     category: items
     group: items-armor
@@ -7120,6 +7574,7 @@ tags:
     sellablePrice: 42
 
   brigandine:
+    catalog: all
     name: Brigandine
     category: items
     group: items-armor
@@ -7140,6 +7595,7 @@ tags:
     sellablePrice: 42
 
   breastplate:
+    catalog: all
     name: Breastplate
     category: items
     group: items-armor
@@ -7161,6 +7617,7 @@ tags:
 
   # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
   plate-armor:
+    catalog: all
     name: Plate Armor
     category: items
     group: items-armor
@@ -7183,6 +7640,7 @@ tags:
   # --- Setting-specific --------------------------------------------------
 
   salvage-plate:
+    catalog: all
     name: Salvage Plate
     category: items
     group: items-armor
@@ -7202,6 +7660,7 @@ tags:
     sellablePrice: 3
 
   energy-shield:
+    catalog: gm
     name: Energy Shield
     category: items
     group: items-armor
@@ -7214,6 +7673,7 @@ tags:
     purchasableAfterStart: false
 
   silver-cross:
+    catalog: gm
     name: Silver Cross
     category: items
     group: items-special
@@ -7228,6 +7688,7 @@ tags:
   #-------------Demoness---------------
 
   slavemaster:
+    catalog: secret
     name: Slavemaster
     category: demoness
     group: demoness
@@ -7237,6 +7698,7 @@ tags:
     purchasableAfterStart: true
 
   demoness-seductive:
+    catalog: secret
     name: Seductive
     category: demoness
     group: demoness
@@ -7246,6 +7708,7 @@ tags:
     purchasableAfterStart: true
 
   true-form-serpent:
+    catalog: secret
     name: "True Form: Serpent"
     category: demoness
     group: demoness
@@ -7255,6 +7718,7 @@ tags:
     purchasableAfterStart: true
 
   true-form-spider:
+    catalog: secret
     name: "True Form: Spider"
     category: demoness
     group: demoness
@@ -7264,6 +7728,7 @@ tags:
     purchasableAfterStart: true
 
   true-form-siren:
+    catalog: secret
     name: "True Form: Siren"
     category: demoness
     group: demoness
@@ -7273,6 +7738,7 @@ tags:
     purchasableAfterStart: true
 
   apex-form:
+    catalog: secret
     name: Apex Form
     category: demoness
     group: demoness
@@ -7285,6 +7751,7 @@ tags:
     removable: false
 
   terrifying:
+    catalog: secret
     name: Terrifying
     category: demoness
     group: demoness
@@ -7294,6 +7761,7 @@ tags:
     purchasableAfterStart: true
 
   love-in-the-air:
+    catalog: secret
     name: Love in the Air
     category: demoness
     group: demoness
@@ -7304,6 +7772,7 @@ tags:
     purchasableAfterStart: true
 
   borrowed-face:
+    catalog: secret
     name: Borrowed Face
     category: demoness
     group: demoness
@@ -7313,6 +7782,7 @@ tags:
     purchasableAfterStart: true
 
   beguiling:
+    catalog: secret
     name: Beguiling
     category: demoness
     group: demoness
@@ -7322,6 +7792,7 @@ tags:
     purchasableAfterStart: true
 
   silver-callus:
+    catalog: secret
     name: Silver Callus
     category: demoness
     group: demoness
@@ -7331,6 +7802,7 @@ tags:
     purchasableAfterStart: true
 
   demoness-heal:
+    catalog: secret
     name: Heal
     category: demoness
     group: demoness
@@ -7340,6 +7812,7 @@ tags:
     purchasableAfterStart: true
 
   shriek:
+    catalog: secret
     name: Shriek
     category: demoness
     group: demoness
@@ -7349,6 +7822,7 @@ tags:
     purchasableAfterStart: true
 
   claws:
+    catalog: secret
     name: Claws
     category: demoness
     group: demoness
@@ -7365,6 +7839,7 @@ tags:
   # by tag NAME, so two rows sharing one would be a coin toss. Hence a third
   # name that gives nothing away.
   peerless-beauty:
+    catalog: secret
     name: Peerless Beauty
     category: demoness
     group: demoness
@@ -7379,6 +7854,7 @@ tags:
   # start like every other item (TAGS.md §4a: items are never
   # purchasableAfterStart).
   instant-camera:
+    catalog: all
     name: Instant Camera
     category: items
     group: items-gear
@@ -7398,6 +7874,7 @@ tags:
   # --- Health: Grievous Wound ---------------------------------------------
   # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.
   grievous-wound:
+    catalog: all
     name: Grievous Wound
     category: health
     group: health-wounds
@@ -7419,6 +7896,7 @@ tags:
   # --- Health: Minor Wound ------------------------------------------------
   # Tier 2 (Minor) on the cure ladder — TAGS.md §5c.
   minor-wound:
+    catalog: all
     name: Minor Wound
     category: health
     group: health-wounds

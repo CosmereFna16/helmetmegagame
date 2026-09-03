@@ -16,7 +16,7 @@ import IconButton from "@/app/components/IconButton";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { EditIcon, TrashIcon } from "@/app/components/icons";
 import { formatCost, costColor } from "@/lib/characterCreation";
-import TagDetailSheet from "./TagDetailSheet";
+import TagDetailSheet from "@/app/components/TagDetailSheet";
 import { updateCustomTag, deleteCustomTag } from "./actions";
 
 const FILTER_DEFS = [

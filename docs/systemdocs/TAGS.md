@@ -545,6 +545,18 @@ has since been deleted outright along with the channel it opened.
 
 ## 5. Other fields
 
+- `catalog` (`Tag.catalogVisibility`) — who may see this tag in the
+  `/documents` Tag Catalog tab. **Required on every tag**, like `pointCost`;
+  `db:sync-tags` throws without it. `secret` is cave/antagonist content,
+  hidden there from everyone — GMs included; `/gm/dev/tags` stays the
+  unfiltered view. `gm` shows to GMs always, and to a player once their
+  character relates to it: they hold it, their role's `starting_tags` grant
+  it, they hold its group's `requiredTag` key, or — for Depot-priced wares —
+  they hold the Merchant's License. `all` is fully public, character or not.
+  Read only by `web/lib/tagCatalog.js`; unrelated to `visible` below, which
+  is about the in-game 🔍 inspect. Rows the sync never touches (GM-authored
+  tags, minted corpses/headstones) default to `GM`, so nothing lands fully
+  public by omission.
 - `visible` (`Tag.inspectVisibility`) — whether another player who 🔍-reacts
   to this character's proxied messages sees the tag
   (`bot/src/events/messageReactionAdd.js`). **Three states**, and the YAML
@@ -1326,7 +1338,11 @@ of who is qualified; `healRequests.js` re-exports it.
    reinforcement; the sentence is what makes someone act in time.
 5. Negative `pointCost` (a drawback bought at creation) requires
    `purchasableAfterStart: false`, per §4.
-6. `npm run db:sync-tags`.
+6. Set `catalog:` — `secret` if it is cave- or antagonist-related (hidden
+   from everyone on the /documents Tag Catalog, GMs included), `all` if it
+   is public knowledge, `gm` otherwise. The field is required on every tag;
+   the sync throws without it.
+7. `npm run db:sync-tags`.
 
 ## 5d. GM-authored tags
 

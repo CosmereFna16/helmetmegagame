@@ -16,16 +16,41 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 // Read-only on purpose, YAML row or not: this is the designer's reading
 // view. Editing stays where it was — the pencil for custom tags, the YAML
 // for everything else.
+//
+// Shared by the GM catalog (/gm/dev/tags) and the player-facing Tag Catalog
+// tab on /documents. The GM caller ships `held` and `custom`; the player
+// payload (web/lib/tagCatalog.js) ships neither, so the rows below that
+// depend on them are conditional rather than assumed.
 
 // Tag.expiresInto / Tag.removesInto entries are normalised to
 // { oneOf: [...] } by db/lib/syncTags.js — same rendering TagChip gives them.
-function chainTokens(chain) {
+// `bySlug` is the sheet's own shipped-tag map: a token is only emitted for a
+// slug present in it, so a chain into a tag the viewer wasn't sent (a
+// withheld/secret tag) renders nothing instead of naming it via the
+// app-wide {tag:…} provider ChipText resolves against.
+function chainTokens(chain, bySlug) {
   const entries = Array.isArray(chain) ? chain : null;
   if (!entries?.length) return null;
   return entries
-    .map((entry) => (entry?.oneOf ?? []).map((slug) => `{tag:${slug}}`).join(" or "))
+    .map((entry) =>
+      (entry?.oneOf ?? [])
+        .filter((slug) => bySlug.has(slug))
+        .map((slug) => `{tag:${slug}}`)
+        .join(" or "),
+    )
     .filter(Boolean)
     .join(" and ");
+}
+
+// The group-peers row label: "All Tonics", "All Buffs". Already-plural names
+// (Traits, Wounds) pass through; "The Watch" / "The Court" read as
+// "All of The Watch" rather than growing a bad plural.
+function allOfGroupLabel(name) {
+  if (!name) return "All";
+  if (name.startsWith("The ")) return `All of ${name}`;
+  if (name.endsWith("s")) return `All ${name}`;
+  if (name.endsWith("y")) return `All ${name.slice(0, -1)}ies`;
+  return `All ${name}s`;
 }
 
 function Row({ label, children }) {
@@ -110,8 +135,8 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
   const consumesInto = (tag.consumesInto ?? [])
     .map((slug) => bySlug.get(slug))
     .filter(Boolean);
-  const becomes = chainTokens(tag.expiresInto);
-  const treated = chainTokens(tag.removesInto);
+  const becomes = chainTokens(tag.expiresInto, bySlug);
+  const treated = chainTokens(tag.removesInto, bySlug);
   const flags = [
     ...FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label),
     VISIBILITY_CHIP[tag.inspectVisibility],
@@ -133,7 +158,8 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
             </h2>
             <p className="mono text-xs text-muted">
               {tag.slug} · {tag.category}
-              {tag.groupName ? ` · ${tag.groupName}` : ""} · {tag.custom ? "GM-created" : "docs/tags.yaml"}
+              {tag.groupName ? ` · ${tag.groupName}` : ""}
+              {tag.custom != null ? ` · ${tag.custom ? "GM-created" : "docs/tags.yaml"}` : ""}
             </p>
           </div>
           <button type="button" className="btn-quiet" onClick={onClose} aria-label="Close">
@@ -215,7 +241,7 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
             </Row>
           )}
           {siblings.length > 0 && (
-            <Row label={`${tag.groupName ?? "Group"} peers`}>
+            <Row label={allOfGroupLabel(tag.groupName)}>
               <span className="flex flex-wrap gap-1">
                 {siblings.map((t) => (
                   <TagButton key={t.id} tag={t} onOpen={onOpen} />
@@ -223,7 +249,11 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
               </span>
             </Row>
           )}
-          <Row label="Held by">{tag.held ? `${tag.held} character${tag.held === 1 ? "" : "s"}` : "Nobody"}</Row>
+          {tag.held != null && (
+            <Row label="Held by">
+              {tag.held ? `${tag.held} character${tag.held === 1 ? "" : "s"}` : "Nobody"}
+            </Row>
+          )}
         </div>
       </div>
     </Modal>

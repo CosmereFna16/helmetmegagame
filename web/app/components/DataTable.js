@@ -217,8 +217,10 @@ export function FilterBar({
           placeholder={searchPlaceholder ?? "Name, text…"}
         />
       </label>
+      {/* def.minWidth (opt-in) keeps a dropdown readable when its resting
+          value ("All") is much shorter than the names it offers. */}
       {filterDefs.map((def) => (
-        <label className="field" key={def.key}>
+        <label className="field" key={def.key} style={def.minWidth ? { minWidth: def.minWidth } : undefined}>
           <span className="field-label">{def.label}</span>
           <Select
             value={filters[def.key] ?? ""}
