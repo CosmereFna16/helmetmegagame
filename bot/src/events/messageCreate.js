@@ -20,16 +20,21 @@ const MAX_MENTION_RELAYS = 10;
 module.exports = {
   name: "messageCreate",
   async execute(message) {
-    // Discord drops a "started a thread" line into the parent channel every
-    // time a thread is made, and the sync makes one per Room — 36 of them on a
-    // fresh provision, in the channels players actually read. Delete them.
+    // Discord narrates the bot's own housekeeping into the channels players
+    // read: a "pinned a message" line for every Location anchor (57 of them on
+    // a fresh provision, plus one per Room thread) and a "started a thread"
+    // line wherever a thread is made from a message. Neither is for anybody.
     //
-    // This sits ABOVE the bot guard on purpose: the bot is what creates every
-    // Room and Conversation, so the system message is bot-authored and the
-    // guard below would return before ever seeing it.
-    if (message.type === MessageType.ThreadCreated) {
+    // Scoped to notices the BOT itself caused, so a human pinning something in
+    // #general still leaves the usual trace. And placed ABOVE the bot guard on
+    // purpose: these are bot-authored by definition, so the guard below would
+    // return before ever seeing them.
+    if (
+      (message.type === MessageType.ChannelPinnedMessage || message.type === MessageType.ThreadCreated) &&
+      message.author?.id === message.client.user.id
+    ) {
       await message.delete().catch((err) =>
-        console.error(`Failed to clear a thread-created notice in ${message.channelId}:`, err.message),
+        console.error(`Failed to clear a system notice in ${message.channelId}:`, err.message),
       );
       return;
     }
