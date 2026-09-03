@@ -372,8 +372,8 @@ except 🌫️, 🌬️ and ⭐. Each is stripped back off after being processed
 `resolveChannelContext` (`bot/src/lib/channels.js`) reports `channelKind`
 `summary` or `location`: a zone's `#summary`, a Location channel, and (since a
 thread's context is its **parent's**) a Room or Conversation thread under one
-too. `#watch`, `#intercom` and `#mindlink` refuse it, even though ghosts can
-*read* most of them. Since the rework a ghost sees **every** zone, cave levels
+too. `#watch` and `#intercom` refuse it, even though ghosts can
+*read* both. Since the rework a ghost sees **every** zone, cave levels
 included (`db/lib/cursedAccess.js`, `CHANNELS.md` §5). One press per ghost per
 **12 real hours**, tracked
 in `GhostWhisper` and enforced by `db/lib/ghostWhisper.js#claimGhostWhisper`.

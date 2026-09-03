@@ -39,7 +39,9 @@ Five things about it are load-bearing:
 
   The place columns are **`zoneId`/`zoneName`** — a row records the zone it
   was said in, and the Room or Conversation it was said in is `threadName`.
-  `channelKind` reads `summary | location | watch | intercom | mindlink`.
+  `channelKind` reads `summary | location | watch | intercom` (a plain
+  string field, not a Prisma enum, so old rows can still say `mindlink`
+  from before the Cult of Bacchus was archived).
 - **Restart Game clears the table.** `wipeGameData` deletes every
   `ArchiveEntry` inside the same transaction as Characters and Turns, so a
   restart starts on an empty transcript. It is the one thing here that is not

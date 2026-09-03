@@ -21,7 +21,7 @@ system.
 |---|---|---|
 | A zone's `#summary` | yes | yes — adjudication results and Default Move summaries post here |
 | A Location channel (surface or cave level) | yes | no |
-| `#watch`, `#intercom`, `#mindlink` | yes | no — none is tied to a place, so there is no adjudication result to post there |
+| `#watch`, `#intercom` | yes | no — neither is tied to a place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -31,8 +31,9 @@ Keep them in sync if the rule changes.
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
 locationId, locationName, channelKind }`, so the proxy can stamp an archive
 row with where a message was said without a DB round trip per message.
-`channelKind` is one of `summary | location | watch | intercom | mindlink`
-(`ARCHIVE.md`). A Room thread or a Conversation reports its parent Location
+`channelKind` is one of `summary | location | watch | intercom` (a plain
+string field, not a Prisma enum — see `ARCHIVE.md`). A Room thread or a
+Conversation reports its parent Location
 channel's context and keeps its own name as the scene.
 
 ## 2. Zone and Location channel layout
@@ -344,6 +345,11 @@ and an old woman are whispering…" — built from `ArchiveEntry` rows in the la
 15 minutes (up to 5 named, then "and others"), aliased the same way a
 concealed message is, so the Room never learns who's actually inside.
 
+**Who's here?** names the characters standing in the Location: the concealed
+ones only as what a stranger could tell at a glance, and anyone wearing a
+forced identity (`Tag.forcedName`, `PROXYING.md` §5) under that name with no
+Role.
+
 ### What's gone
 
 Persistence, the three forum tags, `/persistent`, quest posts
@@ -412,7 +418,7 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#watch`, `#intercom`, `#mindlink`)
+## 7. Special channels (`#watch`, `#intercom`)
 
 Standing channels outside the zone system, under one `radio` category (id on
 `GameConfig.radioCategoryId`). `db/lib/specialChannels.js` is a **registry**:
@@ -431,10 +437,9 @@ two access twins and the wipe.
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
 | `#intercom` | **every zone role except the Windlands** — five presence zones, a static `roleViewZones` grant; the hurricane winds drown the PA out there | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
-| `#mindlink` | any **Cultist of Bacchus** (`cultist`) holder (per-member overwrite) | **Mindlink** tag holders only |
 
-Both tags are transferable, so possession is what matters — a bracelet handed
-to a non-Watch character still opens `#watch`.
+The Radio and Intercom tags are transferable, so possession is what matters —
+a bracelet handed to a non-Watch character still opens `#watch`.
 
 `#intercom`'s role-based view is the fix for a real scaling problem: its old
 per-member view overwrite spanned a whole Zone and was drifting toward
@@ -447,11 +452,11 @@ all. The sync enforces both halves: it grants the listed zone roles view
 *and* deletes any zone-role grant the registry no longer lists, so dropping a
 zone from `roleViewZones` really silences the channel there on the next run.
 
-`#mindlink` is Bacchus's own telepathy — every Cultist reads it, but only a
-Cultist holding the **Mindlink** tag can post. It carries a `slowmode` of
-1800 seconds (30 minutes), the first special channel to set one; nothing else
-in the registry does, so `entry.slowmode` is optional and only applied when
-present.
+`#mindlink` used to be the Cult of Bacchus's own telepathy channel, and set
+the `slowmode` field — `entry.slowmode` is still optional on a registry
+entry and only applied when present, but nothing currently in the registry
+uses it. `#mindlink` is gone along with the Cult, archived in
+`docs/archive/bacchus.yaml`.
 
 `db/lib/syncSpecialChannels.js` provisions and **reconciles every run** (topic,
 slowmode, `@everyone` deny, GM allow, spectator, ghost, and the

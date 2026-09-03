@@ -39,8 +39,8 @@ The wizard has five steps:
    the character sheet shows it disabled with a "make your case to a GM"
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
-4. **Antagonists** — twelve checkboxes, all off, naming the antagonist seats a
-   GM hands out in secret (Succubus, Cultist, the Judge…). Pure consent data:
+4. **Antagonists** — eleven checkboxes, all off, naming the antagonist seats a
+   GM hands out in secret (Succubus, the Judge…). Pure consent data:
    nothing in the game reads `Character.antagonistOptIns`, grants from it or
    gates on it — it exists so a GM choosing who receives one can tell who is
    willing. Also **optional** — ticking nothing is a real answer, so
@@ -327,8 +327,8 @@ Worth knowing because it was written and synced for every role and **rendered
 nowhere at all** until that card existed — an edit to `description` used to
 reach no one.
 
-**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Cult of
-Bacchus, the Judge, the NPC monsters, the Brigands — those seats are assigned
+**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Judge,
+the NPC monsters, the Brigands — those seats are assigned
 by hand by a GM and must never appear in the player-facing picker, so they are
 prose in `docs/threats.md` rather than data. They used to sit in
 `zones[].threats[]`, carrying a full role's worth of fields that no sync ever
@@ -417,19 +417,23 @@ row still enforces it.
 ### Playtest mode
 
 `GameConfig.playtestModeEnabled` is a second Dev Panel switch, **off** by
-default, that holds part of the roster back for a short test: the **Merchant**
-(unfinished) and **every role in the Windlands**. Their cards still render, just
-disabled, carrying a "closed for this playtest" chip — a locked role is still
-worth reading. Nothing is removed from `docs/roles.yaml`, so flipping the switch
-off restores the roster with no sync.
+default, that can hold part of the roster back for a short test: any role
+matched by slug, plus any role standing in a named zone. Its card still
+renders, just disabled, carrying a "closed for this playtest" chip — a
+locked role is still worth reading. Nothing is removed from
+`docs/roles.yaml`, so flipping the switch off restores the roster with no
+sync.
 
 Which roles it covers lives in `web/lib/characterCreation.js`
 (`PLAYTEST_LOCKED_ROLE_SLUGS`, `PLAYTEST_LOCKED_ZONE_NAMES`), not in the
-database. The Merchant is matched by `Role.slug`; the Windlands are matched by
-**zone name**, because nothing marks a role as a Windlander one — `Role` and
-`Faction` carry no availability column, and the zone holds three separate clan
-factions. `Zone` has no slug, so renaming the zone in `roles.yaml` means moving
-that list with it.
+database — a role is matched by `Role.slug`, a zone by **zone name**,
+because nothing marks a role as belonging to a zone — `Role` and `Faction`
+carry no availability column. `Zone` has no slug, so renaming the zone in
+`roles.yaml` means moving the list with it. `PLAYTEST_LOCKED_ZONE_NAMES`
+currently still names `["Windlands"]` from the last playtest, but the
+Windlander factions and roles are gone (archived in
+`docs/archive/windlander.yaml`), so it matches nothing right now — the
+mechanism is live, it just has no target until a role locks back in there.
 
 Same presentation/enforcement split as everything else here: the card is a
 hint, `createCharacter` re-checks. One difference — **a superadmin does not

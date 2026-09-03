@@ -237,8 +237,8 @@ breath (Ruling R7).
 
 ## 4. Hidden templates and the identical-error oracle defense
 
-A `requires.anyTags` gate whose gating tag is itself hidden (Demoness,
-Bacchus — `TAGS.md` §3a) is a special case: failing it doesn't produce a
+A `requires.anyTags` gate whose gating tag is itself hidden (Demoness —
+`TAGS.md` §3a) is a special case: failing it doesn't produce a
 "locked" state at all. `evaluateDesireCatalog` **withholds the entry
 entirely** from its `visible` array — it never reaches a picker, dimmed or
 otherwise (`db/lib/desireGates.js` §evaluation order, step 1). Getting this
@@ -249,7 +249,7 @@ fails and the gating tag is hidden, the function returns `{ hidden: true }`
 rather than a `{ ok: false, reason }` — and the reason string for an
 *ordinary* locked entry never names a hidden tag, on pain of becoming the
 oracle the hidden rule exists to prevent. If a locked-reason string ever
-told a non-cultist "Requires the Cultist of Bacchus tag," that sentence
+told a non-holder "Requires the Demoness tag," that sentence
 alone would out the category — which is exactly why the code path is
 "withhold the row," not "show a generic reason." The two failure modes
 (gated-and-hidden vs. gated-and-visible-but-locked) must produce
@@ -374,7 +374,7 @@ about the largest `endedTurnNumber` among them.
 Curing an Addiction or a negative Personality tag (a Chaplain confessing
 someone free of one, say) is a `HEAL_CHARACTER`-shaped GM adjudication, not a
 code-enforced transaction — and when a GM does cure one, the rule is:
-**deduct the points that tag granted, even into negative.** A Cultist who took
+**deduct the points that tag granted, even into negative.** A character who took
 Glutton for the −6 points and later gets cured of it loses those 6 points
 back out of `Character.tagPoints`, even if that takes the balance below
 zero. This closes the loop a curable, maximally valuable drawback would

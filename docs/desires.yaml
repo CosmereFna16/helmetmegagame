@@ -91,16 +91,14 @@ familyGroups:
     name: Ambition
   mind:
     name: Mind
-  bacchus:
-    name: Bacchus
   demoness:
     name: Demoness
 
 # THE PALETTE — same rules as docs/taggroups.yaml, keep it:
 #   * One hue per GROUP, so the picker reads by group at a glance: Appetite
 #     amber, Heart rose, Blood red, Nerve green, Ambition teal, Mind blue,
-#     Bacchus violet and Demoness magenta (the last two match their tag
-#     categories in taggroups.yaml).
+#     and Demoness magenta (which matches its tag category in
+#     taggroups.yaml).
 #   * Families inside a group step by LIGHTNESS and SATURATION, never out of
 #     the hue.
 #   * `color` is drawn as the 3px left rule on a picker row (a .panel on
@@ -245,11 +243,6 @@ families:
     color: "#f0c4d0"
     # Giving with nothing back — feeding the poor, hugs given, mercy,
     # treating strangers.
-  cult-bacchus:
-    name: Cult of Bacchus
-    group: bacchus
-    color: "#b48ae0"
-    # Bacchus: revelry, rite, excess, spectacle.
   demoness:
     name: Demoness
     group: demoness
@@ -274,8 +267,6 @@ desires:
     name: See the Windlands
     tier: 2
     families: [adventure]
-    requires:
-      notTags: [windlander]
 
   win-an-argument:
     name: Win an argument
@@ -728,7 +719,7 @@ desires:
     tier: 1
     families: [charity, faith]
     requires:
-      anyTags: [pious, post-christian, fundamentalist, the-wind, saint, pilgrim, old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
+      anyTags: [pious, post-christian, fundamentalist, saint, pilgrim, old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
 
   finish-a-painting:
     name: Finish a {tag:painting}
@@ -736,14 +727,6 @@ desires:
     families: [craft]
     requires:
       anyTags: [artist]
-
-  sign-language-talk:
-    name: Hold a whole conversation in sign
-    tier: 1
-    families: [social, craft]
-    requires:
-      anyTags: [sign-language]
-    cooldownTurns: 5
 
   eat-dangerous:
     name: Eat something impressively dangerous
@@ -1007,28 +990,6 @@ desires:
     requires:
       anyRoles: [pusher]
 
-  form-a-clan:
-    name: Form a new clan of at least 4 people
-    tier: 7
-    families: [faction-success, status]
-    requires:
-      anyRoles: [follower]
-
-  become-the-bastard:
-    name: Become the new Bastard
-    tier: 7
-    families: [status]
-    requires:
-      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
-
-  become-lieutenant:
-    name: Become the new Lieutenant
-    tier: 5
-    families: [status]
-    requires:
-      anyRoles: [clansman-broken-spears-clan, clansman-windrider-clan]
-    oncePerLife: true
-
   promoted-to-watchman:
     name: Be promoted to Watchman
     tier: 4
@@ -1080,49 +1041,6 @@ desires:
     families: [scheming]
     requires:
       anyRoles: [heir, successor]
-
-  take-ravenheart:
-    name: Take Ravenheart
-    tier: 7
-    families: [faction-success]
-    requires:
-      anyRoles: [bastard]
-
-  take-the-town:
-    name: Take the town
-    tier: 5
-    families: [faction-success]
-    requires:
-      anyRoles: [bastard]
-    oncePerLife: true
-
-  slay-the-champion:
-    name: Slay the Champion
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [captain]
-
-  slay-the-captain:
-    name: Slay the Captain
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [champion]
-
-  slay-the-baron:
-    name: Slay the Baron
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [champion, bastard]
-
-  slay-the-bastard:
-    name: Slay the Bastard, by your own hand
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [baron, captain]
 
   save-the-barons-life:
     name: Save the Baron's life
@@ -1352,13 +1270,6 @@ desires:
     families: [status]
     requires:
       anyRoles: [peasant]
-
-  stomp-out-opposing-clan:
-    name: Stomp out the opposing clan once and for all
-    tier: 7
-    families: [feud, faction-success]
-    requires:
-      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
 
   # User gave no tier for this one.
   minstrel-joke-at-baron:
@@ -1710,101 +1621,6 @@ desires:
     requires:
       anyTags: [schemer]
 
-  bacchus-chant:
-    name: Chant the rites in the old tongue where somebody can hear
-    tier: 2
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-    cooldownTurns: 4
-
-  bacchus-boombox:
-    name: Make the whole street hear the {tag:boombox}
-    tier: 2
-    oncePerLife: true
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-bare-feet:
-    name: Get a stranger to take off their shoes and dance
-    tier: 2
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [cultist]
-    cooldownTurns: 4
-
-  bacchus-first-taste:
-    name: Give a first taste to somebody who has never had one
-    tier: 3
-    families: [cult-bacchus, drugs]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-feast:
-    name: "Throw an amazing feast, including at least 3 lavish meals"
-    tier: 2
-    families: [cult-bacchus, food]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-spend-it-all:
-    name: Spend 50 ⬢ in one night on nothing that lasts
-    tier: 4
-    families: [cult-bacchus, wealth]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-initiate-willing:
-    name: Initiate somebody who wants it
-    tier: 2
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-    cooldownTurns: 4
-
-  bacchus-break-a-vow:
-    name: "Make somebody break a vow"
-    tier: 4
-    families: [cult-bacchus, romance]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-noble-dance:
-    name: Get somebody with {tag:nobility} to dance with you
-    tier: 4
-    families: [cult-bacchus, vanity]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-initiate-unwilling:
-    name: "Initiate somebody forcefully"
-    tier: 3
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-ambrosia:
-    name: Drink {tag:ambrosia}
-    tier: 5
-    families: [cult-bacchus, drugs]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-defile:
-    name: Hold a rite inside the Cathedral
-    tier: 5
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-bring-the-demoness:
-    name: Bring the Demoness into the fold
-    tier: 7
-    families: [cult-bacchus, scheming]
-    requires:
-      anyTags: [cultist]
-
   dem-let-loose:
     name: Talk somebody into letting loose
     tier: 1
@@ -2017,30 +1833,6 @@ desires:
     requires:
       anyRoles: [brigand, brigand-leader]
 
-  # --- Role-flavoured: the Mother -------------------------------------------
-  comfort-the-bastard:
-    name: Comfort the distressed Bastard
-    tier: 1
-    families: [social, charity]
-    requires:
-      anyRoles: [mother]
-    cooldownTurns: 5
-
-  bastard-takes-your-advice:
-    name: Have the Bastard act on your advice
-    tier: 2
-    families: [social, scheming]
-    requires:
-      anyRoles: [mother]
-    cooldownTurns: 4
-
-  stop-a-plot-against-the-bastard:
-    name: Stop a plot against the Bastard
-    tier: 4
-    families: [duty, scheming]
-    requires:
-      anyRoles: [mother]
-
   # --- Role-flavoured: the Migrant ------------------------------------------
   through-the-town-gates:
     name: Be let through the Town gates
@@ -2141,113 +1933,6 @@ desires:
     families: [demoness, romance, scheming]
     requires:
       anyTags: [demoness]
-
-  # --- Bacchus ------------------------------------------------------------
-  # EVERY entry here carries cult-bacchus. The Cultist tag locks tier 1 to
-  # cult-bacchus alone and tiers 2-5/7 to cult-bacchus plus alcohol, drugs,
-  # food and romance — so a Bacchus desire filed under cruelty or faith
-  # ALONE would be invisible to the only people who can pick it.
-  bacchus-force-feed-fish:
-    name: "Force feed someone a living fish"
-    tier: 2
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-eat-fish:
-    name: "Eat a living fish"
-    tier: 1
-    families: [cult-bacchus, food]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-perform-a-rite:
-    name: "Perform a rite"
-    tier: 1
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-disinter-and-hang:
-    name: "Disinter a body and hang it publicly"
-    tier: 2
-    families: [cult-bacchus, mortality]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-display-a-corpse:
-    name: "Display a dead cave monster's body in a public area"
-    tier: 2
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-human-flesh:
-    name: "Secretly feed someone a meal made out of human flesh"
-    tier: 2
-    families: [cult-bacchus, food, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-torture-outsider:
-    name: "Torture a non-cultist"
-    tier: 2
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-desecrate-a-painting:
-    name: "Desecrate a painting"
-    tier: 3
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  # Tier 4, not 7: the sign-off swapped this with the cathedral. A naked
-  # blood-run is a night's scandal; burning the Cathedral is a once-ever act.
-  bacchus-blood-run:
-    name: "Cover yourself in blood and run around the town, naked"
-    tier: 4
-    families: [cult-bacchus, vanity]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-make-a-lunatic:
-    name: "Make someone a {tag:lunatic}"
-    tier: 4
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  # The three tier-7s below are automatically oncePerLife (the sync sets it
-  # for every tier-7 entry), so a cult gets one shot at each.
-  bacchus-funeral-party:
-    name: "Turn a non-cultist's funeral into a party"
-    tier: 7
-    families: [cult-bacchus, mortality]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-burn-the-cathedral:
-    name: "Burn the Cathedral down"
-    tier: 7
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-cross-in-the-pits:
-    name: "Throw the {tag:silver-cross} into the Aberrant Pits"
-    tier: 7
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  # === 5. Tag and role fill-ins (2026-09-02) ==============================
-  # Every name below is dictated verbatim, so none of them carries a ‡.
-  # Cooldowns: an explicit number was given for some; the rest take the
-  # inverted ladder from the header (tier 1 -> 5, 2 -> 4, 3 -> 3), because
-  # none of them costs anything per attempt. Nothing here is ever written
-  # cooldownTurns 1 or 2 — the slot lock already dominates those.
 
   become-new-esculap:
     name: Become the new Esculap

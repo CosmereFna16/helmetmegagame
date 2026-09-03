@@ -22,13 +22,13 @@
 # both shapes through db/lib/yamlEntries.js; the masters all use the keyed one.
 #
 # A SLUG IS ITS NAME, SLUGIFIED: lowercase, punctuation dropped, spaces and
-# colons to hyphens. "Death Wish (Cult)" is `death-wish-cult`, "True Form:
+# colons to hyphens. "Old Ways (Bacchus)" is `old-ways-bacchus`, "True Form:
 # Serpent" is `true-form-serpent`. db/lib/syncTags.js throws when they
 # disagree, so renaming a tag means renaming its slug — and then every
 # reference to it, since the slug is the match key everywhere else (desires,
-# taggroups, code). The one exception is a hidden category (demoness,
-# bacchus), where a generic name like "Heal" would collide with a general tag
-# and the slug leads with the category instead: `demoness-heal`.
+# taggroups, code). The one exception is a hidden category (demoness),
+# where a generic name like "Heal" would collide with a general tag and the
+# slug leads with the category instead: `demoness-heal`.
 #
 # This file is hand-edited and is the ONLY thing that writes the catalog.
 # There is deliberately no automated sync from anywhere else — drafted
@@ -189,9 +189,6 @@ categories:
   # withheld from /api/tags entirely.
   demoness:
     name: Demoness
-  bacchus:
-    name: Bacchus
-
 # TagGroup catalog (Traits, Social, Health, ...) now lives in
 # docs/taggroups.yaml — split out so group colors can be freeform hex
 # instead of a fixed token set. Tags below reference a group by its slug
@@ -212,68 +209,6 @@ tags:
     category: meta
     pointCost: 0
     purchasable: false
-
-  # --- Cult ---------------------------------------------------------------
-  # The Cult of Bacchus's own progression, kept out of the hidden `bacchus`
-  # category on purpose: `cultist` (General) is the gate that
-  # OPENS that category, and these track how far the cult has got rather than
-  # being powers it grants. They sit in the `meta-cult` group so /api/tags
-  # withholds them from anyone who isn't already a Cultist — see the note on
-  # that group in docs/taggroups.yaml.
-  #
-  # Ripening -> Bountiful is a replacing tier chain, so a cult holds at most
-  # one rung at a time. There is no base rung: a young cult simply holds no
-  # tier tag (the old Cult: Seedling granted nothing and was removed).
-  # `cultist` is deliberately NOT part of the chain — a Cultist
-  # keeps it while climbing, since it is what keeps the Bacchus category
-  # unlocked.
-  cult-leader:
-    name: Cult Leader
-    category: meta
-    group: meta-cult
-    description: "You understand Bacchus's plan."
-    pointCost: 0
-    purchasable: false
-
-  cult-ripening:
-    name: "Cult: Ripening"
-    category: meta
-    group: meta-cult
-    description: "Your cult is maturing. Unlocks the Ripening tags."
-    pointCost: 0
-    purchasable: false
-  cult-bountiful:
-    name: "Cult: Bountiful"
-    category: meta
-    group: meta-cult
-    description: "Your cult is at its prime. Unlocks the Bountiful cultist tags. Fulfill your mission!"
-    pointCost: 0
-    parentTag: cult-ripening
-    purchasable: false
-    # A cult that reaches its prime can no longer hide: this is the tag whose
-    # rung makes a bystander's 🔍 read "Cult: Bountiful".
-    # Seedling and Ripening stay concealed.
-    visible: true
-
-  # --- General --------------------------------------------------------------
-
-  # Slug kept deliberately: renaming means changing `name`, not `slug` (see
-  # this file's header). This is the gate on the hidden Bacchus category.
-  cultist:
-    name: Cultist
-    category: general
-    description: "We are free, so free! Unlocks the Bacchus tags."
-    pointCost: 0
-    purchasable: false
-    # Two-clause lock (2026-08-31, Desires rework): closed to everything but
-    # cult-bacchus at tier 1, but alcohol/drugs/food/romance stay open from
-    # tier 2 up — the "replaces the old +5-per-Desire compensation" carve-out.
-    desires:
-      locks:
-        - tiers: [1]
-          exceptFamilies: [cult-bacchus]
-        - tiers: [2, 3, 4, 5, 7]
-          exceptFamilies: [cult-bacchus, alcohol, drugs, food, romance]
 
   demoness:
     name: Demoness
@@ -473,9 +408,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Supersedes the retired Bacchus "Death Wish" tag — lock-free by design
-  # (F-18): the old one was Restriction-shaped, this one is just an Interest.
-  # Holders of the retired death-wish-cult are granted this free.
+  # Lock-free by design (F-18): an Interest, not a Restriction.
   death-wish:
     name: "Death Wish"
     category: general
@@ -491,14 +424,6 @@ tags:
     group: general-personality
     description: "Unlocks Desires about scheming."
     pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-
-  windlander:
-    name: Windlander
-    category: skills
-    description: "You know the ways of the Windlands. You may move about freely there, and you are less affected by its dangerous weather."
-    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -764,10 +689,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Granted as a starting tag to the Captain, the Bastard, and both Windlands
-  # Lieutenants — the leadership seats across the Watch and the Windlands
-  # camp. Left purchasable so anyone else can buy their way into the
-  # trait too.
+  # Granted as a starting tag to the Captain. Left purchasable so anyone
+  # else can buy their way into the trait too.
   tactician:
     name: Tactician
     category: general
@@ -964,17 +887,6 @@ tags:
     purchasableAfterStart: false
 
   # More drawbacks — same posture as Craven/Dwarf above.
-  squeamish:
-    name: Squeamish
-    category: general
-    group: general-traits
-    description: "Blood and gore make you sick."
-    pointCost: -5
-    # Retired 2026-08-31 — Desires rework; free removal, no successor.
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-
   clumsy:
     name: Clumsy
     category: general
@@ -996,20 +908,6 @@ tags:
     desires:
       locks:
         - families: [wealth]
-
-  honest:
-    name: Honest
-    category: general
-    group: general-traits
-    description: "You can't lie no matter what — nor can you withhold the truth. A good thing to be."
-    pointCost: -1
-    visible: false
-    # Retired 2026-08-30 (Gunboat: "remove Honest, keep Bad Liar"). Kept as a
-    # row rather than deleted because db:sync-tags is upsert-only and
-    # db:prune-tags refuses a tag anyone holds — purchasable: false is what
-    # actually takes it off every menu while leaving holders untouched.
-    purchasable: false
-    purchasableAfterStart: false
 
   bad-liar:
     name: Bad Liar
@@ -1091,16 +989,6 @@ tags:
           exceptFamilies: [drugs]
           slot: bottom
 
-  regular-debt:
-    name: Regular Debt
-    category: general
-    group: general-traits
-    description: "You owe somebody 10 ⬢. Choose a random person in your faction and let them know of this."
-    pointCost: -2
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-
   slave-brand:
     name: Slave Brand
     category: general
@@ -1153,17 +1041,6 @@ tags:
     purchasableAfterStart: false
     removable: false
 
-  cheap:
-    name: Cheap
-    category: general
-    group: general-traits
-    description: "You take a perverse sense of pride in scrimping and saving."
-    pointCost: 2
-    # Retired 2026-08-31 — Desires rework; free removal, no successor.
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-
   pale:
     name: Pale
     category: general
@@ -1197,17 +1074,6 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  coca-habit:
-    name: Coca Habit
-    category: general
-    group: general-traits
-    description: "You need {tag:distilled-coca}, you party animal, you."
-    pointCost: -7
-    # Retired 2026-08-31 — Desires rework; folded into drug-habit (Drug
-    # Habit) at par. Holders convert free.
-    purchasable: false
-    purchasableAfterStart: false
-
   # Slug kept deliberately (see this file's header) — renamed Gambler.
   gambler:
     name: "Gambler"
@@ -1226,17 +1092,6 @@ tags:
         - all: true
           exceptFamilies: [gambling]
           slot: bottom
-
-  life-debt:
-    name: Life Debt
-    category: general
-    group: general-traits
-    description: "Another character saved your life, and now it's theirs for the taking. Choose a random person in your faction and let them know of this."
-    pointCost: -4
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
 
   devoted-follower:
     name: Devoted Follower
@@ -1417,19 +1272,6 @@ tags:
     purchasableAfterStart: true
     removable: true
     requiredTag: post-christian
-    exclusive: true
-
-  #Windlanders only
-  the-wind:
-    name: The Wind
-    category: general
-    group: general-beliefs
-    description: "Hardship has made you supreme. One day, God will provide you a kingdom."
-    pointCost: 0
-    requiredTag: windlander
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
     exclusive: true
 
   old-ways-eusoch:
@@ -1616,79 +1458,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # --- The Windlands ----------------------------------------------------
-  mountaineer:
-    name: Mountaineer
-    category: general
-    group: general-windlands
-    description: "You can lead a group through the mountains instead of through the plains. You fight better there too, can track people, can hide. Interestingly, you can also climb walls perfectly well."
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-
-  hardy:
-    name: Hardy
-    category: general
-    group: general-windlands
-    description: "You grew up in hell. Hunger, the elements, and thirst — these don't bother you."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  honorbound:
-    name: Honorbound
-    category: general
-    group: general-windlands
-    description: "Your clan is your foremost concern in life. Feuds must be settled before anything else can happen. You must act accordingly."
-    pointCost: -2
-    visible: false
-    # Retired 2026-08-31 — Desires rework; absorbed into blood-feud
-    # (general-restrictions). Free removal where held alone.
-    purchasable: false
-    purchasableAfterStart: false
-
-  siege-engineer:
-    name: Siege Engineer
-    category: general
-    group: general-windlands
-    description: "You can make simple siege engines, build ladders, and such. Useful for getting past walls."
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-
-  detonation-charge:
-    name: Detonation Charge
-    category: general
-    group: general-windlands
-    description: "A great keg of dynamite hauled from one of the old gunpowder clans. Can blow a hole in a wall."
-    pointCost: 14
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  blood-debt:
-    name: Blood Debt
-    category: general
-    group: general-windlands
-    description: "Take only if you're a Windrider. The murdered clansman was family or your best friend. Take revenge!"
-    pointCost: -7
-    visible: false
-    # Retired 2026-08-31 — Desires rework; superseded by blood-feud
-    # (general-restrictions), which absorbs it and honorbound at par.
-    purchasable: false
-    purchasableAfterStart: false
-
-  sign-language:
-    name: Sign Language
-    category: skills
-    description: "You know sign language, the ancestral language of the Windlanders. To speak with others in sign language when others are around, use a private thread."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
   artist:
     name: Artist
     category: skills
@@ -1724,47 +1493,6 @@ tags:
     requiredTag: laborer-skilled
     purchasable: true
     purchasableAfterStart: true
-
-  # Breaking a horse is Windlander knowledge, and only a Windlander can buy
-  # it. `wild-horse-trainer` is the only trainer on sale; the open
-  # `horse-trainer` below it is retired. That makes the Windlands camp the
-  # single source of every new horse in the game — everyone else has to trade
-  # for one, which is the Merchant's whole reason to cross the map.
-  #
-  # The horse it makes is the ungated {tag:horse}, not `wild-horse`, so
-  # what a Windlander produces is freely tradeable to a townsman. Owning a
-  # horse was never the gated part; making one is.
-  wild-horse-trainer:
-    name: Wild Horse Trainer
-    category: skills
-    group: skills-labor
-    description: "You grew up around horses, wild ones included — the trick every outsider stableman never learned. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
-    pointCost: 5
-    requiredTag: windlander
-    purchasable: true
-    purchasableAfterStart: true
-    requirement:
-      resourceCost: 21
-      turnsCost: 1
-
-  # Retired: horse breeding went Windlander-only. The row stays in this file
-  # on purpose rather than being deleted. syncTagsFromYaml is upsert-only, so
-  # dropping the entry would leave the DB row alive AND still purchasable,
-  # and db:prune-tags refuses to delete a tag anyone holds — either way it
-  # would keep appearing in /store. Kept here, the sync pins both flags to
-  # false on every run, the characters who already bought it keep it, and a
-  # GM can still assign it by hand.
-  horse-trainer:
-    name: Horse Trainer
-    category: skills
-    group: skills-labor
-    description: "You can break and raise horses for others. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
-    pointCost: 7
-    purchasable: false
-    purchasableAfterStart: false
-    requirement:
-      resourceCost: 21
-      turnsCost: 1
 
   intercom:
     name: Intercom
@@ -1885,7 +1613,7 @@ tags:
   # Grappler is 5 and standalone — bare hands are not a rung of either tree,
   # so it gates on nothing. Guerrilla is ungated for a different reason: it
   # reads "whether melee or ranged", and a single `requiredTag` cannot say
-  # "either tree". Cavalry keeps its Windlander gate.
+  # "either tree".
 
   melee-basic:
     name: Melee (Basic)
@@ -2100,18 +1828,6 @@ tags:
     group: skills-fighting
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
     pointCost: 10
-    visible: false
-    purchasable: true
-    purchasableAfterStart: true
-
-  #Windlander only
-  cavalry:
-    name: Cavalry
-    category: skills
-    group: skills-fighting
-    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
-    pointCost: 10
-    requiredTag: windlander
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -3687,19 +3403,6 @@ tags:
   # vehicles and ordinary animals travel: they are standing right there and
   # anyone can lead them away. Real property does not — you cannot carry a house
   # off a corpse — and neither does the Drone, which belongs to itself.
-  wild-horse:
-    name: Wild Horse
-    category: assets
-    group: assets-companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
-    pointCost: 6
-    requiredTag: windlander
-    tradeable: true
-    purchasable: true
-    visible: true
-    purchasableAfterStart: false
-    removable: true
-
   horse:
     name: Horse
     category: assets
@@ -6998,6 +6701,7 @@ tags:
     name: Apex Form
     category: demoness
     group: demoness
+    forcesName: Beast
     description: "Give in to the carnage. You permanently become a monstrously tall woman with hands like rakes. You hide in the dark, sprint impossibly quickly, and heal from eating people. Fire and silver stop the healing. You can no longer speak. Requires a True Form, and removes almost all of your other tags."
     pointCost: 9
     visible: true
@@ -7096,252 +6800,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # --- Bacchus --------------------------------------------------------------
-  # The Cult's own powers. Gated by group, not by tag: `bacchus` requires
-  # `cultist`, `bacchus-ripening` requires `cult-ripening`,
-  # `bacchus-bountiful` requires `cult-bountiful` (docs/taggroups.yaml), so
-  # none of the tags below repeat a requiredTag for that gate — same posture
-  # as the `demoness` group above.
-  #
-  # Spell/Rite naming: the display name carries the "Spell:"/"Rite:" prefix so
-  # it can never collide with the status it inflicts on someone else (Rite:
-  # Rage vs. the Rage status a victim ends up holding) — documents.yaml
-  # assigns by tag NAME, and two rows sharing one is a coin toss.
-  #
-  # Cooldown markers: a spell with a stated cooldown lists ITSELF plus a
-  # `<name>-expired` marker in consumesInto. dropCharacterTag runs before
-  # grantTagSlugs in consumeTagRequestImpl, so the caster keeps the spell and
-  # picks up the marker in the same transaction — same idiom as the potion at
-  # requestEffects.js. Markers carry no description (optional field) and sit
-  # outside the Spell:/Rite: naming, since nobody reads them as a chip.
-  #
-  # A status a spell inflicts on someone ELSE — who is usually not a cultist —
-  # is NOT gated: a gated group would render as literal `{tag:slug}` text to
-  # its own holder and inspect would withhold it. Same for the Bacchus
-  # craftables, which get traded to non-cultists.
-  spell-nourishment:
-    name: "Spell: Nourishment"
-    category: bacchus
-    group: bacchus
-    description: "Once every 2 turns, touch someone else. Grant them {tag:ate-meal}. | vory ysm lechem, wa oryy"
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-nourishment, nourishment-expired]
-  nourishment-expired:
-    name: Nourishment (Expired)
-    category: bacchus
-    group: bacchus
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 2
-
-  rite-transmutation:
-    name: "Rite: Transmutation"
-    category: bacchus
-    group: bacchus
-    description: "Takes 1 turn. Turn up to 3 {tag:fine-meal}s into 1 {tag:ravenheart-red} each. | xe qorvym lys ymadv rechem"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  spell-summon-camera:
-    name: "Spell: Summon Camera"
-    category: bacchus
-    group: bacchus
-    description: "Once every 3 turns, summon an {tag:instant-camera}. You need photos for certain spells. | bymadv lys xe oryym"
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-summon-camera, instant-camera, summon-camera-expired]
-  summon-camera-expired:
-    name: Summon Camera (Expired)
-    category: bacchus
-    group: bacchus
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 3
-
-  worry-free:
-    name: Worry Free
-    category: bacchus
-    group: bacchus
-    description: "Pain doesn't bother you, nor does fear."
-    pointCost: 6
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  mindlink:
-    name: Mindlink
-    category: bacchus
-    group: bacchus
-    description: "You can send messages to all fellow cultists, regardless of where you are."
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  brewing-ambrosia:
-    name: Brewing (Ambrosia)
-    category: bacchus
-    group: bacchus
-    description: "You can refine {tag:bliss} into {tag:ambrosia}. It's the best substance on Earth, valid of a 5-point Desire, but is very expensive."
-    pointCost: 5
-    requiredTag: brewing-basic
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    visible: false
-
-  spell-electromagnetic-pulse:
-    name: "Spell: Electromagnetic Pulse"
-    category: bacchus
-    group: bacchus
-    description: "Disables electronic devices within 15 feet. | hazyq iw vorytm, xe dechem"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  spell-stun:
-    name: "Spell: Stun"
-    category: bacchus
-    group: bacchus
-    description: "Once per day, drop someone to the ground, inflicting {tag:paralyzed}. They can still talk. | mh ryitem vorav, wa lys"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-stun, stun-expired]
-  stun-expired:
-    name: Stun (Expired)
-    category: bacchus
-    group: bacchus
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 2
-
-  melee-drunken-master:
-    name: Melee (Drunken Master)
-    category: bacchus
-    group: bacchus
-    description: "While intoxicated, your melee skill counts as 2 tiers higher."
-    pointCost: 10
-    requiredTag: melee-basic
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  spell-soothe:
-    name: "Spell: Soothe"
-    category: bacchus
-    group: bacchus
-    description: "Once per turn, immediately cure a Moderate or lesser wound. | eraqylym iw xe vechem"
-    pointCost: 9
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-soothe, soothe-expired]
-  soothe-expired:
-    name: Soothe (Expired)
-    category: bacchus
-    group: bacchus
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 1
-
-  # Renamed 2026-09-02: Tag.name is UNIQUE, and the new death-wish
-  # Interest takes the plain "Death Wish". This retired Cult original keeps a
-  # distinct name until db:backfill-desires moves its last holders across.
-  death-wish-cult:
-    name: "Death Wish (Cult)"
-    category: bacchus
-    group: bacchus
-    description: "The only valid Desires for you are near-death occurrences."
-    pointCost: -5
-    # Retired 2026-08-31 — Desires rework; superseded by the lock-free
-    # death-wish Interest (general-interests). Holders are granted
-    # death-wish for free.
-    purchasable: false
-    purchasableAfterStart: false
-    exclusive: true
-    removable: false
-    consumable: false
-
-  # The four `addiction-*` Bacchus tags below are retired 2026-08-31 —
-  # Desires rework; the desire-lock mechanism they existed to hand-simulate
-  # is now data on the general-addictions tags themselves (alcoholic,
-  # drug-habit, gambler, vain, glutton), which any Cultist can
-  # take the same as anyone else. Kept as rows per this file's header;
-  # `purchasable: false` is what actually removes them from every menu.
-  addiction-romantic:
-    name: "Addiction: Romantic"
-    category: bacchus
-    group: bacchus
-    description: "The only valid Desires for you are related to romance. Do not take with other Addiction tags."
-    pointCost: -5
-    # Retired 2026-08-31 — Desires rework; free removal, no successor.
-    purchasable: false
-    purchasableAfterStart: false
-    exclusive: true
-    removable: true
-    consumable: false
-
-  addiction-cruel:
-    name: "Addiction: Cruel"
-    category: bacchus
-    group: bacchus
-    description: "The only valid Desires for you are related to cruelty. Do not take with other Addiction tags."
-    pointCost: -5
-    # Retired 2026-08-31 — Desires rework; superseded by the cruel Interest
-    # (general-interests). Holders are granted cruel for free.
-    purchasable: false
-    purchasableAfterStart: false
-    exclusive: true
-    removable: true
-    consumable: false
-
-  addiction-glutton:
-    name: "Addiction: Glutton"
-    category: bacchus
-    group: bacchus
-    description: "The only valid Desires for you are related to {tag:lavish-meal}, {tag:sweets}, and other expensive foods — not fine meals. Do not take with other Addiction tags."
-    pointCost: -5
-    # Retired 2026-08-31 — Desires rework; superseded by the glutton
-    # Addiction (general-addictions). Holders convert free.
-    purchasable: false
-    purchasableAfterStart: false
-    exclusive: true
-    removable: true
-    consumable: false
-
-  addiction-drugs:
-    name: "Addiction: Drugs"
-    category: bacchus
-    group: bacchus
-    description: "The only valid Desires for you are related to recreational drugs. Do not take with other Addiction tags."
-    pointCost: -5
-    # Retired 2026-08-31 — Desires rework; superseded by drug-habit (Drug
-    # Habit, general-addictions). Holders convert free.
-    purchasable: false
-    purchasableAfterStart: false
-    exclusive: true
-    removable: true
-    consumable: false
-
-  # Not cult-gated: an Instant Camera can be handed to anyone. Purchasable at
+  # An Instant Camera can be handed to anyone. Purchasable at
   # start like every other item (TAGS.md §4a: items are never
   # purchasableAfterStart).
   instant-camera:
@@ -7359,341 +6818,6 @@ tags:
     sellable: true
     sellablePrice: 14
     depotPrice: 32
-
-  ambrosia:
-    name: Ambrosia
-    category: items
-    group: items-drink
-    description: "Bacchus's own choice, valid of a 5-point Desire."
-    pointCost: 0
-    tradeable: true
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    consumable: true
-    consumesInto: [euphoric]
-    requirement:
-      turnsCost: 3
-      resourceCost: 25
-      skills: [brewing-ambrosia]
-      gambit: false
-    sellable: true
-    sellablePrice: 40
-
-  # --- Bacchus: Ripening ------------------------------------------------
-  rite-teleport:
-    name: "Rite: Teleport"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Once per day, you and up to 3 people whose hands you hold can be teleported anywhere. This takes 1 turn. | wy oryym xe qarvadv lys"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [rite-teleport, teleport-expired]
-  teleport-expired:
-    name: Teleport (Expired)
-    category: bacchus
-    group: bacchus-ripening
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 2
-
-  spell-silence:
-    name: "Spell: Silence"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Once per day, make someone lose the will to speak. | xe lymrav, wa vechem"
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-silence, silence-expired]
-  silence-expired:
-    name: Silence (Expired)
-    category: bacchus
-    group: bacchus-ripening
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 2
-
-  rite-den:
-    name: "Rite: Den"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Takes 1 turn. A pocket dimension forms at the sigil. The gate itself is invisible—it'd take a very close eye to detect the faint shimmering on its surface. It lasts until you close it or die. You don't know what happens to anyone or anything who's in it when it closes. You can only have one active at a time. | bymadv qoryy iw xe hazym"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  rite-summon-nekker:
-    name: "Rite: Summon Nekker"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Transmute the aroma of {tag:ravenheart-red} into powerful pheromones. Requires 1 turn and a {tag:ravenheart-red} as the basis. Nekkers—paranoid, hungry, thin-limbed creatures from the caves—may come running out. This may not work during stormy days. Nekkers will attack anyone, including cultists. | vory nechem lys oryitm"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  rite-rage:
-    name: "Rite: Rage"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Set a head—animal or human—on fire. Requires 1 turn and a willing target—can be yourself. You can no longer examine people, but are rewarded with true power. | mh ryqadv, xe vorym rechem"
-    pointCost: 9
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  rite-overwhelm:
-    name: "Rite: Overwhelm"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
-    pointCost: 9
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  spell-fulfill:
-    name: "Spell: Fulfill"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Once every 3 days, select a target (not yourself) and fulfill their Desire immediately — they are convinced that it happened. | xe eraqym vory, wa oryy"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-fulfill, fulfill-expired]
-  fulfill-expired:
-    name: Fulfill (Expired)
-    category: bacchus
-    group: bacchus-ripening
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 6
-
-  gills:
-    name: Gills
-    category: bacchus
-    group: bacchus-ripening
-    description: "You can breathe underwater. Your gills are visible."
-    pointCost: 2
-    visible: true
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  smithing-bacchus:
-    name: Smithing (Bacchus)
-    category: bacchus
-    group: bacchus-ripening
-    description: "You can smith unholy weapons and armor."
-    pointCost: 2
-    requiredTag: smithing
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    visible: false
-
-  rite-revive:
-    name: "Rite: Revive"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Carefully scrawl Bacchus's sigil. Place a human skull at the sigil's apex. Hack off the target body's former skull and implant the new one. The person's life is restored, fully healed, but they gain the {tag:disfigured} tag. You don't know what happens if the person's soul already moved on. | bymadv iw mh vechem lys"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  spell-cure:
-    name: "Spell: Cure"
-    category: bacchus
-    group: bacchus-ripening
-    description: "Once every 3 turns, immediately cure a Very minor surgery wound or lesser. | vory lymechem, xe oryitm"
-    pointCost: 5
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-    consumable: true
-    consumesInto: [spell-cure, cure-expired]
-  cure-expired:
-    name: Cure (Expired)
-    category: bacchus
-    group: bacchus-ripening
-    pointCost: 0
-    purchasable: false
-    removable: true
-    durationTurns: 3
-
-  # Statuses a Bacchus spell/rite inflicts on someone else — deliberately NOT
-  # in a gated group (see the header note above).
-  silence:
-    name: Silence
-    category: health
-    group: health-mind
-    description: "You can't speak!"
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-
-  rage:
-    name: Rage
-    category: status
-    group: status-buffs
-    description: "Inhumanly strong, fast, tough, and intelligent, but completely consumed by bloodlust. You are terribly impatient and are uninterested in anything but killing people."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-
-  lunatic:
-    name: Lunatic
-    category: health
-    group: health-mind
-    description: "Oh, I SEE now! AHAHAHAH! HAHAHAH! ETERNAL BLISSSS!"
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 8
-      skills: [medical-expert]
-      gambit: true
-
-  nailed:
-    name: Nailed
-    category: status
-    group: status-buffs
-    description: "Nails have been hammered into your thorax, granting you strength and stamina. Your skin can also turn blows."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-
-  shirtless:
-    name: Shirtless
-    category: status
-    group: status-buffs
-    description: "You are shirtless."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-
-  # Bacchus craftables, gated by the smithing-bacchus SKILL rather than the
-  # tag group, so they can be traded to and worn by non-cultists.
-  nailgun:
-    name: Nailgun
-    category: items
-    group: items-weapons
-    description: "A huge, menacing, jury-rigged rifle. It penetrates armor, but is extremely slow, inaccurate, and cumbersome. Requires {tag:saltpeter}."
-    pointCost: 0
-    requiredTag: ranged-basic
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 20
-      skills: [smithing-bacchus]
-      gambit: false
-
-  armor-robes:
-    name: Armor Robes
-    category: items
-    group: items-armor
-    description: "A set of fine red robes woven into a full chainmail set. A declaration of your pleasure."
-    pointCost: 0
-    equippable: true
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 8
-      skills: [smithing-bacchus]
-      gambit: false
-
-  nails-of-life:
-    name: Nails of Life
-    category: items
-    group: items-gear
-    description: "Consume (implant them into someone) to permanently render them {tag:nailed} and {tag:shirtless}."
-    pointCost: 0
-    tradeable: true
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    consumable: true
-    consumesInto: [nailed, shirtless]
-    requirement:
-      turnsCost: 1
-      resourceCost: 5
-      skills: [smithing-bacchus]
-      gambit: false
-
-  # --- Bacchus: Bountiful -------------------------------------------------
-  rite-judgement:
-    name: "Rite: Judgement"
-    category: bacchus
-    group: bacchus-bountiful
-    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  spell-become-monster:
-    name: "Spell: Become Monster"
-    category: bacchus
-    group: bacchus-bountiful
-    description: "Touch a monster. You displace its mind. One-way. | wa nechyluzar, xe vory oryy"
-    pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-    removable: true
-
-  monster-possession:
-    name: Monster Possession
-    category: status
-    group: status-buffs
-    description: "You have permanently become a monster, but you keep your mind. Remove your other tags; you won't need them."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
 
   # --- Health: Grievous Wound ---------------------------------------------
   # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.

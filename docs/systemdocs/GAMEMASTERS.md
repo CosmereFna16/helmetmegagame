@@ -56,8 +56,9 @@ row, and it counts the offenders if any exist (`CHANNELS.md` §6).
 ### 2b. Seat by faction, not by feet
 
 **The zone a character's *faction* is keyed to — `Faction.zoneId` — never where
-they happen to be standing.** A Windlander in Town is a Windlands row. That
-distinction is the whole feature and the one real bug it invites.
+they happen to be standing.** A Fortress character visiting Town is still a
+Fortress row. That distinction is the whole feature and the one real bug it
+invites.
 
 Two zone fields exist on a character and they mean different things:
 

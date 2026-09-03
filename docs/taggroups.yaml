@@ -1,8 +1,11 @@
 # Sole master for the TagGroup catalog — split out of docs/tags.yaml so
 # group colors can be freeform hex rather than a fixed set of tokens. Same
 # posture as docs/tags.yaml: hand-edited, `slug` is the stable match key,
-# synced upsert-only (never deletes) by db/lib/syncTags.js#syncTagsFromYaml,
-# which reads this file and docs/tags.yaml together — see docs/tags.yaml's
+# synced upsert-only by db/lib/syncTags.js#syncTagsFromYaml, which reads
+# this file and docs/tags.yaml together and never deletes on its own — a
+# separate, opt-in `npm run db:prune-tags` prunes tags absent from
+# docs/tags.yaml and, once no surviving tag sits in them, groups absent
+# from this file too — see docs/systemdocs/SYNC.md §3b, docs/tags.yaml's
 # header and docs/systemdocs/TAGS.md.
 #
 # Entries are keyed by slug (`general-traits:`, not `- slug: general-traits`)
@@ -29,7 +32,7 @@
 # THE PALETTE — keep it, or the character sheet goes motley again:
 #   * One hue family per CATEGORY, so a sheet reads by category at a glance:
 #     General blue/indigo, Skills green, Status amber, Health red, Items teal,
-#     Bacchus violet, Demoness magenta — and Assets the one grey (stone) family.
+#     Demoness magenta — and Assets the one grey (stone) family.
 #   * Groups inside a category step by LIGHTNESS and SATURATION, never out of
 #     the hue. Health is the tightest on purpose: all seven read as one red.
 #   * No two categories share a hue. Status and Health both carry bad news, so
@@ -47,7 +50,7 @@ groups:
     category: general
     color: "#8479d7"
   # What a character actually believes. Ungated on purpose — a belief is not a
-  # secret the way the Demoness and Bacchus groups below are, and #info already
+  # secret the way the Demoness group below is, and #info already
   # tells every player that "most people are Post-Christian, but some people
   # believe in the Old Ways".
   #
@@ -85,9 +88,10 @@ groups:
     category: general
     color: "#8a90c6"
   # Orphaned by the Personality rework above: general-personality took every
-  # tag both of these held. Groups sync upsert-only and are never deleted, so
-  # these rows survive empty — same as status-health below. Don't reuse either
-  # slug, and don't put anything back in them.
+  # tag both of these held. Sync never deletes, and `db:prune-tags` only
+  # prunes an empty group once it's absent from this file — so these rows
+  # survive empty as long as they stay listed here, same as status-health
+  # below. Don't reuse either slug, and don't put anything back in them.
   general-restrictions:
     name: Restrictions
     category: general
@@ -96,11 +100,11 @@ groups:
     name: Interests
     category: general
     color: "#9db4e0"
-  # Two body-membership groups, gated the same way Demoness and Bacchus are
+  # Two body-membership groups, gated the same way Demoness is
   # (see the bottom of this file). Gating here rather than repeating
   # `requiredTag` on every member is the established idiom, and it means a
   # player who isn't in the body never sees the group at all. Unlike Demoness
-  # and Bacchus these sit in the `general` category, which stays visible
+  # these sit in the `general` category, which stays visible
   # because general-traits and general-social are ungated.
   general-watch:
     name: The Watch
@@ -119,18 +123,11 @@ groups:
     category: general
     color: "#aaace4"
     requiredTag: courtier
-  # Fourth body-membership group, same shape as the three above. The key is
-  # `windlander` — a purchasable Skills tag every Windlands role gets free
-  # from roles.yaml, so the door stays open to anyone willing to pay for the
-  # origin first, same reasoning as `the-wind`'s own comment.
-  general-windlands:
-    name: The Windlands
-    category: general
-    color: "#b8bed3"
-    requiredTag: windlander
   # Orphaned: the Health category below took every tag that used to live
-  # here. Groups sync upsert-only and are never deleted, so this row survives
-  # empty — don't reuse the slug, and don't put anything back in it.
+  # here. Sync never deletes, and `db:prune-tags` only prunes an empty group
+  # once it's absent from this file — so this row survives empty as long as
+  # it stays listed here. Don't reuse the slug, and don't put anything back
+  # in it.
   status-health:
     name: Health
     category: status
@@ -222,7 +219,7 @@ groups:
     category: assets
     color: "#a48d7c"
   # Skill families, clustered the same way General and Status already are.
-  # A handful of standalone Skills tags (sign-language, intercom, forester,
+  # A handful of standalone Skills tags (intercom, forester,
   # musician, lockpicking, butcher, climbing, navigating, stealth) stay
   # groupless on purpose — they don't
   # belong to any family and would just be noise in a one-tag group.
@@ -251,41 +248,11 @@ groups:
     category: skills
     color: "#b8d5c3"
   # --- Gated groups ------------------------------------------------------
-  # These all carry `requiredTag`, which is what makes the Demoness and
-  # Bacchus categories hidden. Every tag in them is gated by the group, so the
-  # tags themselves deliberately do NOT repeat `requiredTag` — the gate is
-  # written once here.
+  # These carry `requiredTag`, which is what makes the Demoness category
+  # hidden. Every tag in it is gated by the group, so the tags themselves
+  # deliberately do NOT repeat `requiredTag` — the gate is written once here.
   demoness:
     name: Demoness
     category: demoness
     color: "#d26dad"
     requiredTag: demoness
-  bacchus:
-    name: Bacchus
-    category: bacchus
-    color: "#d4b4da"
-    requiredTag: cultist
-  # The Cult tier ladder (Ripening -> Bountiful) plus the Cult
-  # Leader seat. These are Meta tags — 0 points, never purchasable, granted by
-  # a GM — but they live in a gated group rather than groupless like the rest
-  # of Meta, because /api/tags withholds a tag only when its GROUP carries a
-  # requiredTag. Groupless would ship the whole cult ladder to every signed-in
-  # client, which is exactly the leak that route's header comment exists to
-  # close. No `color`, so the chips stay uncoloured like the rest of Meta.
-  meta-cult:
-    name: Cult
-    category: meta
-    requiredTag: cultist
-  # Empty for now: the powers a growing cult unlocks land here, gated by the
-  # ladder rung that opens them. Groups sync upsert-only and are never
-  # deleted, so these slugs are fixed from here on.
-  bacchus-ripening:
-    name: Ripening
-    category: bacchus
-    color: "#c292d5"
-    requiredTag: cult-ripening
-  bacchus-bountiful:
-    name: Bountiful
-    category: bacchus
-    color: "#b262cf"
-    requiredTag: cult-bountiful

@@ -1,0 +1,656 @@
+# ARCHIVE — the Windlander faction, retired from the live game on 2026-09-02.
+#
+# Nothing reads this file. No sync, no script, no route. It is a verbatim dump
+# of every entry the Bastard's Camp and its two clans owned in the YAML
+# masters, each block copied exactly as it sat there (comments included), so
+# putting them back is a paste: each top-level key below names the master
+# section it came from (`tags` -> docs/tags.yaml `tags:`, `taggroups` ->
+# docs/taggroups.yaml `groups:`, `roles` -> the `zones:` sequence in
+# docs/roles.yaml, `documents` -> docs/documents.yaml `documents:`).
+#
+# The Windlands ZONE itself (docs/zones.yaml, its channels and roles) was kept:
+# it is geography. Only the people who lived there left.
+#
+# Code that went with them (see git history around this date):
+#   - db/lib/roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS lost its "Windlands"
+#     block: bastard, champion, mother, follower,
+#     lieutenant-broken-spears-clan, master-of-parties,
+#     clansman-broken-spears-clan, lieutenant-windrider-clan, ranger,
+#     clansman-windrider-clan.
+#   - docs/desires.yaml `see-the-windlands` stayed live but dropped its
+#     `requires.notTags: [windlander]` gate. Under `desires` below:
+#     `sign-language-talk` (gated on sign-language) and the thirteen desires
+#     that only exist because of the camp — the ones gated on its ten role
+#     slugs, plus the Baron's and the Captain's wish to slay the Bastard.
+
+tags:
+  windlander:
+    name: Windlander
+    category: skills
+    description: "You know the ways of the Windlands. You may move about freely there, and you are less affected by its dangerous weather."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  #Windlanders only
+  the-wind:
+    name: The Wind
+    category: general
+    group: general-beliefs
+    description: "Hardship has made you supreme. One day, God will provide you a kingdom."
+    pointCost: 0
+    requiredTag: windlander
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    exclusive: true
+
+  # --- The Windlands ----------------------------------------------------
+  mountaineer:
+    name: Mountaineer
+    category: general
+    group: general-windlands
+    description: "You can lead a group through the mountains instead of through the plains. You fight better there too, can track people, can hide. Interestingly, you can also climb walls perfectly well."
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+
+  hardy:
+    name: Hardy
+    category: general
+    group: general-windlands
+    description: "You grew up in hell. Hunger, the elements, and thirst — these don't bother you."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  honorbound:
+    name: Honorbound
+    category: general
+    group: general-windlands
+    description: "Your clan is your foremost concern in life. Feuds must be settled before anything else can happen. You must act accordingly."
+    pointCost: -2
+    visible: false
+    # Retired 2026-08-31 — Desires rework; absorbed into blood-feud
+    # (general-restrictions). Free removal where held alone.
+    purchasable: false
+    purchasableAfterStart: false
+
+  siege-engineer:
+    name: Siege Engineer
+    category: general
+    group: general-windlands
+    description: "You can make simple siege engines, build ladders, and such. Useful for getting past walls."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  detonation-charge:
+    name: Detonation Charge
+    category: general
+    group: general-windlands
+    description: "A great keg of dynamite hauled from one of the old gunpowder clans. Can blow a hole in a wall."
+    pointCost: 14
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  blood-debt:
+    name: Blood Debt
+    category: general
+    group: general-windlands
+    description: "Take only if you're a Windrider. The murdered clansman was family or your best friend. Take revenge!"
+    pointCost: -7
+    visible: false
+    # Retired 2026-08-31 — Desires rework; superseded by blood-feud
+    # (general-restrictions), which absorbs it and honorbound at par.
+    purchasable: false
+    purchasableAfterStart: false
+
+  sign-language:
+    name: Sign Language
+    category: skills
+    description: "You know sign language, the ancestral language of the Windlanders. To speak with others in sign language when others are around, use a private thread."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Breaking a horse is Windlander knowledge, and only a Windlander can buy
+  # it. `wild-horse-trainer` is the only trainer on sale; the open
+  # `horse-trainer` below it is retired. That makes the Windlands camp the
+  # single source of every new horse in the game — everyone else has to trade
+  # for one, which is the Merchant's whole reason to cross the map.
+  #
+  # The horse it makes is the ungated {tag:horse}, not `wild-horse`, so
+  # what a Windlander produces is freely tradeable to a townsman. Owning a
+  # horse was never the gated part; making one is.
+  wild-horse-trainer:
+    name: Wild Horse Trainer
+    category: skills
+    group: skills-labor
+    description: "You grew up around horses, wild ones included — the trick every outsider stableman never learned. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
+    pointCost: 5
+    requiredTag: windlander
+    purchasable: true
+    purchasableAfterStart: true
+    requirement:
+      resourceCost: 21
+      turnsCost: 1
+
+  # Retired: horse breeding went Windlander-only. The row stays in this file
+  # on purpose rather than being deleted. syncTagsFromYaml is upsert-only, so
+  # dropping the entry would leave the DB row alive AND still purchasable,
+  # and db:prune-tags refuses to delete a tag anyone holds — either way it
+  # would keep appearing in /store. Kept here, the sync pins both flags to
+  # false on every run, the characters who already bought it keep it, and a
+  # GM can still assign it by hand.
+  horse-trainer:
+    name: Horse Trainer
+    category: skills
+    group: skills-labor
+    description: "You can break and raise horses for others. For 21 ⬢ and 1 turn, you can produce a {tag:horse} and give it to anyone else."
+    pointCost: 7
+    purchasable: false
+    purchasableAfterStart: false
+    requirement:
+      resourceCost: 21
+      turnsCost: 1
+
+  #Windlander only
+  cavalry:
+    name: Cavalry
+    category: skills
+    group: skills-fighting
+    description: "You fire bows and wield spears effortlessly from the back of a horse. While mounted, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
+    pointCost: 10
+    requiredTag: windlander
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wild-horse:
+    name: Wild Horse
+    category: assets
+    group: assets-companions
+    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
+    pointCost: 6
+    requiredTag: windlander
+    tradeable: true
+    purchasable: true
+    visible: true
+    purchasableAfterStart: false
+    removable: true
+
+taggroups:
+  # Fourth body-membership group, same shape as the three above. The key is
+  # `windlander` — a purchasable Skills tag every Windlands role gets free
+  # from roles.yaml, so the door stays open to anyone willing to pay for the
+  # origin first, same reasoning as `the-wind`'s own comment.
+  general-windlands:
+    name: The Windlands
+    category: general
+    color: "#b8bed3"
+    requiredTag: windlander
+
+documents:
+  campstarting:
+    name: Camp Starting Packet
+    public: false
+    tags: []
+    description: |-
+      The word for wind in the Windlands is the same word as train, because that's how hard it blows.
+
+      While most of humanity today lives underground — or in those rare fertile oases like Ravenheart — your people refused to cower in the darkness like animals. You lived among brambles, lizards, and oxen. To protect yourself, you wore wind goggles, masks, and gloves. Often being unable to hear your comrades, you were taught sign language as a child and learned to recognize people by their gait.
+
+      The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food? What will life be without wind? What will it be like to see your friend's face, and not just their mask?
+
+      The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
+
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
+
+  brokenspear:
+    name: Broken Spear Clan
+    public: false
+    tags: []
+    description: |-
+      You are lightning on the plains — a hundred horses galloping! Behold the people of Ravenheart, like sheep ready for the rending. After you take it, Ravenheart will become a place of strength and honor.
+
+      The Bastard showed strength when he defeated your Lieutenant, but not honor: he spared his life, humiliating him even further. You will follow him gladly.
+
+      However, the fire in his eyes has died. The man ponders and calculates like an old toothless woman. Ravenheart knows you are here — every day wasted is a day they grow stronger. The birds watch you as if you were a corpse ready for the picking.
+
+      In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
+
+      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use — or "riding the horse" — is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
+
+  windrider:
+    name: Windrider Clan
+    public: false
+    tags: []
+    description: |-
+      The Windrider Clan was the last to bend the knee to the Bastard. An impenetrable sense of family, centuries of prestige: Ereglas the Conqueror, Oliver Horserider, The Ranger Chief, all were Windriders.
+
+      Fate has already decided your course. You were forged upon the face of a dead planet. You are the ideal human, intelligent, capable, and unyielding. They cannot stop you.
+
+      The Bastard understands an all-out attack would be suicide. Support of the people, logistics, careful planning; these are what kept the Windriders alive while clans like the Broken Spears formed and disbanded, year by year. So your fealty was lightly given. You trust his plan will net you a home, but you will not accept a king.
+
+      One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends — prioritization of Resources, independence after taking Ravenheart, or some other promise — or the Broken Spears get put down like the brushlizards they are.
+
+roles:
+  - name: Windlands
+    situation:
+      - >-
+        The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart, and you're ready to fight for a home.
+      - >-
+        There was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the Town. Food stores are running low, and there's no time to waste on old grudges.
+    factions:
+      the-bastards-camp:
+        name: The Bastard's Camp
+        silo_zone: Town
+        roles:
+          bastard:
+            name: Bastard
+            intro: >-
+              You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march — it's your people's only hope.
+            description:
+              - >-
+                Your job is very difficult. Your people are naturally inclined to kill each other instead of cooperate, and if you don't act fast enough, you will starve. You must plan, communicate, organize, and lead to be effective. Above all, be proactive.
+              - >-
+                The way in which you take Ravenheart is important. Do you want to be known as a tyrant or as a liberator?
+              - >-
+                You have noble blood. It's possible that you are the bastard of someone in the Baron's lineage, and thus you share blood with him.
+              - >-
+                There are certain people in your entourage that follow you directly, but the bulk of your force is divided into two groups: the Broken Spears Clan and the Windrider Clan. The Broken Spears clan, known to be warlike, have grown increasingly loyal to you after you defeated their Lieutenant in battle and let him live (he may be a better fighter than you; did you cheat or simply win by luck?) However, they are largely antsy, violent, and hard to manage.
+              - >-
+                In contrast, the Windrider Clan, a much older clan, are calculating and patient, but have made their independence abundantly clear. They support your plans to take Ravenheart, but you suspect there are conditions to their support.
+              - >-
+                There is someone sympathetic to your cause within the walls of the Baron's keep.
+            difficulty: hard
+            multiple: false
+            starting_resources: 1
+            starting_zone: windlands
+            extra_starting_points: 2
+            leader: true
+            starting_tags:
+              - Melee (Basic)
+              - Windlander
+              - Tactician
+              - Sabre
+              - Buckler
+              - Sign Language
+              - The Wind
+              - Knight's Helmet
+              - Brigandine
+              - Mail Coif
+              - Nobility
+              - Literate
+              - Bastard's Garb
+            doc_elements:
+              - campstarting
+              - charon
+              - brokenspear
+              - windrider
+          champion:
+            name: Champion
+            intro: >-
+              You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death.
+            description:
+              - >-
+                You taught the Bastard how to fight, how to play the lute, how to survive. You will follow him even into death. However, the love of your life died on the war trail. You are slightly broken inside.
+            difficulty: normal
+            multiple: false
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Musician
+              - Brave
+              - Melee (Trained)
+              - Melee (Duelist)
+              - Ranged (Basic)
+              - Knight's Helmet
+              - Depressed
+              - Dagger
+              - Bastard Sword
+              - Mail Coif
+              - Brigandine
+              - Windlander
+              - Sign Language
+              - The Wind
+            doc_elements:
+              - campstarting
+          mother:
+            name: Mother
+            intro: >-
+              Counsel and support your son.
+            description:
+              - >-
+                Counsel and support your son.
+            difficulty: normal
+            multiple: false
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Windlander
+              - Sign Language
+              - Laborer (Basic)
+              - Keen Hearing
+              - Dagger
+              - Sixth Sense
+              - Medical (Basic)
+              - The Wind
+            doc_elements:
+              - campstarting
+          follower:
+            name: Follower
+            intro: >-
+              Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
+            description:
+              - >-
+                Clanless, you follow the Bastard, as a warrior, a healer, a herder, or anything else.
+            difficulty: easy
+            multiple: true
+            weight: 3
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Windlander
+              - Sign Language
+              - Laborer (Basic)
+              - Melee (Basic)
+              - Dagger
+              - Spear
+              - Salvage Plate
+              - The Wind
+            doc_elements:
+              - campstarting
+      broken-spears-clan:
+        name: Broken Spears Clan
+        parent: The Bastard's Camp
+        roles:
+          lieutenant-broken-spears-clan:
+            name: Lieutenant (Broken Spears Clan)
+            intro: >-
+              Glory for the Broken Spears!
+            description:
+              - >-
+                Glory for the Broken Spears!
+              - >-
+                Sort out your budding feud with the Windriders, muster your men, and attack Ravenheart.
+              - >-
+                Follow the Bastard! He will make a good sovereign, the likes of which the Windlands have never seen.
+              - >-
+                A tip: the best trick you have is the element of surprise, and food's hard to get. Raiding the town or the fortress may be your best chance. If he falters, or doesn't put the Windriders in their place… it may be in your best interest to take matters into your own hands.
+            difficulty: normal
+            multiple: false
+            starting_resources: 1
+            starting_zone: windlands
+            leader: true
+            starting_tags:
+              - Melee (Basic)
+              - Windlander
+              - Tactician
+              - Battle Axe
+              - Mail Shirt
+              - Ranged (Basic)
+              - Simple Helm
+              - Sign Language
+              - The Wind
+              - Broken Spears Banner
+            doc_elements:
+              - campstarting
+              - brokenspear
+          master-of-parties:
+            name: Master of Parties
+            intro: >-
+              Supply the Clan with tonics, sound the drums, and keep the men fighting!
+            description:
+              - >-
+                Supply the Clan with tonics, sound the drums, and keep the men fighting!
+              - >-
+                You are the Lieutenant's right hand man, but you are also the Broken Spears' most radically posed man. The Windriders are dangerous, treacherous, plotting to depose the Broken Spears — and possibly the Bastard himself. What weakness! You venerate your ancestors and act entirely according to Providence. It's clear that even if you take Ravenheart, the Windriders will have to go. Only one clan can come out alive out of the two. Desires to continue feuds are valid for you.
+            difficulty: normal
+            multiple: true
+            weight: 1
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Brewing (Skilled)
+              - Musician
+              - Medical (Basic)
+              - Melee (Trained)
+              - Ranged (Basic)
+              - Battle Axe
+              - Salvage Plate
+              - Mail Coif
+              - Distilled Coca
+              - Poppy
+              - Advanced Poppy
+              - Windlander
+              - Sign Language
+              - The Wind
+            doc_elements:
+              - campstarting
+              - brokenspear
+          clansman-broken-spears-clan:
+            name: Clansman (Broken Spears Clan)
+            intro: >-
+              A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower — the spouse or servant of one of the above.
+            description:
+              - >-
+                A member of the Broken Spears: a warrior, a drug alchemist, a drummer, a healer, a fortune teller, a herder, or simply a camp follower — the spouse or servant of one of the above.
+            difficulty: easy
+            multiple: true
+            weight: 4
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Melee (Basic)
+              - Windlander
+              - Sign Language
+              - Spear
+              - Dagger
+              - Salvage Plate
+              - Laborer (Basic)
+              - The Wind
+            doc_elements:
+              - campstarting
+              - brokenspear
+      windrider-clan:
+        name: Windrider Clan
+        silo_zone: Town
+        parent: The Bastard's Camp
+        roles:
+          lieutenant-windrider-clan:
+            name: Lieutenant (Windrider Clan)
+            intro: >-
+              Your ultimate task is at hand. Fulfill your destiny.
+            description:
+              - >-
+                Your ultimate task is at hand. Fulfill your destiny.
+              - >-
+                The Broken Spears clan cannot go unpunished for their slight.
+              - >-
+                Ravenheart will be yours, but not on the Bastard's terms. If you let him gain control over the Windriders, your culture, your leadership, your history will be gone. You, too, will become like farmers — weak, and willing. Still, follow his orders; they're your best chance.
+            difficulty: normal
+            multiple: false
+            starting_resources: 1
+            starting_zone: windlands
+            leader: true
+            starting_tags:
+              - Windlander
+              - Tactician
+              - Sign Language
+              - Melee (Basic)
+              - Ranged (Basic)
+              - Shortbow
+              - The Wind
+              - Windrider Banner
+              - Gladius
+              - Mail Shirt
+              - Simple Helm
+            doc_elements:
+              - campstarting
+              - windrider
+          ranger:
+            name: Ranger
+            intro: >-
+              Track the enemy and ensure the plan comes to fruition.
+            description:
+              - >-
+                Track the enemy and ensure the plan comes to fruition.
+              - >-
+                You are the Lieutenant's right hand man, but you are also the Windrider's most radically posed man. You venerate your ancestors and act entirely according to Providence. You almost feel as if dealing with the blood-crazed, idiot Broken Spears is a more important goal for now — it's clear that even if you take Ravenheart, they will have to go. Only one clan can come out alive out of the two. Desires to continue feuds are valid for you.
+            difficulty: normal
+            multiple: true
+            weight: 1
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Musketoon
+              - Wild Horse
+              - Windlander
+              - Sign Language
+              - The Wind
+              - Spotter
+              - Ranged (Skilled)
+              - Melee (Basic)
+              - Mail Shirt
+              - Mail Coif
+              - Tracking
+            doc_elements:
+              - campstarting
+              - windrider
+          clansman-windrider-clan:
+            name: Clansman (Windrider Clan)
+            intro: >-
+              You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower — the spouse or servant of one of the above.
+            description:
+              - >-
+                You are the essence of the Windlands: a warrior, a healer, a mentat, a scribe, an inventor-engineer, a herder, or simply a camp follower — the spouse or servant of one of the above.
+            difficulty: easy
+            multiple: true
+            weight: 4
+            starting_resources: 1
+            starting_zone: windlands
+            starting_tags:
+              - Melee (Basic)
+              - Ranged (Basic)
+              - Shortbow
+              - Dagger
+              - Salvage Plate
+              - Windlander
+              - Sign Language
+              - The Wind
+              - Laborer (Basic)
+            doc_elements:
+              - campstarting
+              - windrider
+
+desires:
+  sign-language-talk:
+    name: Hold a whole conversation in sign
+    tier: 1
+    families: [social, craft]
+    requires:
+      anyTags: [sign-language]
+    cooldownTurns: 5
+
+  form-a-clan:
+    name: Form a new clan of at least 4 people
+    tier: 7
+    families: [faction-success, status]
+    requires:
+      anyRoles: [follower]
+
+  become-the-bastard:
+    name: Become the new Bastard
+    tier: 7
+    families: [status]
+    requires:
+      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
+
+  become-lieutenant:
+    name: Become the new Lieutenant
+    tier: 5
+    families: [status]
+    requires:
+      anyRoles: [clansman-broken-spears-clan, clansman-windrider-clan]
+    oncePerLife: true
+
+  take-ravenheart:
+    name: Take Ravenheart
+    tier: 7
+    families: [faction-success]
+    requires:
+      anyRoles: [bastard]
+
+  take-the-town:
+    name: Take the town
+    tier: 5
+    families: [faction-success]
+    requires:
+      anyRoles: [bastard]
+    oncePerLife: true
+
+  slay-the-champion:
+    name: Slay the Champion
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [captain]
+
+  slay-the-captain:
+    name: Slay the Captain
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [champion]
+
+  slay-the-baron:
+    name: Slay the Baron
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [champion, bastard]
+
+  slay-the-bastard:
+    name: Slay the Bastard, by your own hand
+    tier: 7
+    families: [violence, feud]
+    requires:
+      anyRoles: [baron, captain]
+
+  stomp-out-opposing-clan:
+    name: Stomp out the opposing clan once and for all
+    tier: 7
+    families: [feud, faction-success]
+    requires:
+      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
+
+  # --- Role-flavoured: the Mother -------------------------------------------
+  comfort-the-bastard:
+    name: Comfort the distressed Bastard
+    tier: 1
+    families: [social, charity]
+    requires:
+      anyRoles: [mother]
+    cooldownTurns: 5
+
+  bastard-takes-your-advice:
+    name: Have the Bastard act on your advice
+    tier: 2
+    families: [social, scheming]
+    requires:
+      anyRoles: [mother]
+    cooldownTurns: 4
+
+  stop-a-plot-against-the-bastard:
+    name: Stop a plot against the Bastard
+    tier: 4
+    families: [duty, scheming]
+    requires:
+      anyRoles: [mother]
+

@@ -1,0 +1,1070 @@
+# ARCHIVE — the Cult of Bacchus, retired from the live game on 2026-09-02.
+#
+# Nothing reads this file. No sync, no script, no route. It is a verbatim dump
+# of every entry the Cult owned in the YAML masters and docs/threats.md, each
+# block copied exactly as it sat there (comments included), so putting them
+# back is a paste: each top-level key below names the master section it came
+# from (`categories` and `tags` -> docs/tags.yaml, `taggroups` ->
+# docs/taggroups.yaml `groups:`, `documents` -> docs/documents.yaml,
+# `familyGroups` / `families` / `desires` -> docs/desires.yaml, `threats` ->
+# the two briefs under "## Town" in docs/threats.md).
+#
+# Six statuses the Cult's rites inflicted on OTHER people (silence, rage,
+# lunatic, nailed, shirtless, monster-possession) are here too: nothing else
+# ever applied them. `instant-camera`, `bliss`, `euphoric` and the folk belief
+# `old-ways-bacchus` stayed live — they are general content the Cult merely
+# used.
+#
+# Code that went with the Cult (see git history around this date):
+#   - db/lib/partySize.js and the whole {partysize:N} token: the barrel line
+#     in db/index.js, web/lib/referenceData.js#getPartySizes,
+#     web/app/components/PartySizeProvider.js + PartySizeChip.js, and the
+#     `partysize` branch in RichText.js / DocumentMarkdown.js / ChipText.js.
+#     docs/systemdocs/PARTY-SIZE.md described it. The thresholds were 4, 8,
+#     12 and 16 players per 100, floored, never below 1.
+#   - The `mindlink` entry in db/lib/specialChannels.js (the #mindlink
+#     channel: `mindlink` holders could talk, `cultist` holders could read).
+#     GameConfig.mindlinkChannelId is still in the schema, unused.
+#   - RAGE_SLUG in db/lib/constants.js and `ragingBlind` in
+#     db/lib/inspectVision.js (a raging character could not inspect).
+#   - The `cultist` seat in db/lib/antagonists.js.
+#   - "bacchus" in db/lib/syncTags.js#HIDDEN_CATEGORIES (the category-prefixed
+#     slug allowance for hidden categories).
+
+categories:
+  bacchus:
+    name: Bacchus
+
+tags:
+  # --- Cult ---------------------------------------------------------------
+  # The Cult of Bacchus's own progression, kept out of the hidden `bacchus`
+  # category on purpose: `cultist` (General) is the gate that
+  # OPENS that category, and these track how far the cult has got rather than
+  # being powers it grants. They sit in the `meta-cult` group so /api/tags
+  # withholds them from anyone who isn't already a Cultist — see the note on
+  # that group in docs/taggroups.yaml.
+  #
+  # Ripening -> Bountiful is a replacing tier chain, so a cult holds at most
+  # one rung at a time. There is no base rung: a young cult simply holds no
+  # tier tag (the old Cult: Seedling granted nothing and was removed).
+  # `cultist` is deliberately NOT part of the chain — a Cultist
+  # keeps it while climbing, since it is what keeps the Bacchus category
+  # unlocked.
+  cult-leader:
+    name: Cult Leader
+    category: meta
+    group: meta-cult
+    description: "You understand Bacchus's plan."
+    pointCost: 0
+    purchasable: false
+
+  cult-ripening:
+    name: "Cult: Ripening"
+    category: meta
+    group: meta-cult
+    description: "Your cult is maturing. Unlocks the Ripening tags."
+    pointCost: 0
+    purchasable: false
+
+  cult-bountiful:
+    name: "Cult: Bountiful"
+    category: meta
+    group: meta-cult
+    description: "Your cult is at its prime. Unlocks the Bountiful cultist tags. Fulfill your mission!"
+    pointCost: 0
+    parentTag: cult-ripening
+    purchasable: false
+    # A cult that reaches its prime can no longer hide: this is the tag whose
+    # rung makes a bystander's 🔍 read "Cult: Bountiful".
+    # Seedling and Ripening stay concealed.
+    visible: true
+
+  # --- General --------------------------------------------------------------
+
+  # Slug kept deliberately: renaming means changing `name`, not `slug` (see
+  # this file's header). This is the gate on the hidden Bacchus category.
+  cultist:
+    name: Cultist
+    category: general
+    description: "We are free, so free! Unlocks the Bacchus tags."
+    pointCost: 0
+    purchasable: false
+    # Two-clause lock (2026-08-31, Desires rework): closed to everything but
+    # cult-bacchus at tier 1, but alcohol/drugs/food/romance stay open from
+    # tier 2 up — the "replaces the old +5-per-Desire compensation" carve-out.
+    desires:
+      locks:
+        - tiers: [1]
+          exceptFamilies: [cult-bacchus]
+        - tiers: [2, 3, 4, 5, 7]
+          exceptFamilies: [cult-bacchus, alcohol, drugs, food, romance]
+
+  # --- Bacchus --------------------------------------------------------------
+  # The Cult's own powers. Gated by group, not by tag: `bacchus` requires
+  # `cultist`, `bacchus-ripening` requires `cult-ripening`,
+  # `bacchus-bountiful` requires `cult-bountiful` (docs/taggroups.yaml), so
+  # none of the tags below repeat a requiredTag for that gate — same posture
+  # as the `demoness` group above.
+  #
+  # Spell/Rite naming: the display name carries the "Spell:"/"Rite:" prefix so
+  # it can never collide with the status it inflicts on someone else (Rite:
+  # Rage vs. the Rage status a victim ends up holding) — documents.yaml
+  # assigns by tag NAME, and two rows sharing one is a coin toss.
+  #
+  # Cooldown markers: a spell with a stated cooldown lists ITSELF plus a
+  # `<name>-expired` marker in consumesInto. dropCharacterTag runs before
+  # grantTagSlugs in consumeTagRequestImpl, so the caster keeps the spell and
+  # picks up the marker in the same transaction — same idiom as the potion at
+  # requestEffects.js. Markers carry no description (optional field) and sit
+  # outside the Spell:/Rite: naming, since nobody reads them as a chip.
+  #
+  # A status a spell inflicts on someone ELSE — who is usually not a cultist —
+  # is NOT gated: a gated group would render as literal `{tag:slug}` text to
+  # its own holder and inspect would withhold it. Same for the Bacchus
+  # craftables, which get traded to non-cultists.
+  spell-nourishment:
+    name: "Spell: Nourishment"
+    category: bacchus
+    group: bacchus
+    description: "Once every 2 turns, touch someone else. Grant them {tag:ate-meal}. | vory ysm lechem, wa oryy"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-nourishment, nourishment-expired]
+
+  nourishment-expired:
+    name: Nourishment (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  rite-transmutation:
+    name: "Rite: Transmutation"
+    category: bacchus
+    group: bacchus
+    description: "Takes 1 turn. Turn up to 3 {tag:fine-meal}s into 1 {tag:ravenheart-red} each. | xe qorvym lys ymadv rechem"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  spell-summon-camera:
+    name: "Spell: Summon Camera"
+    category: bacchus
+    group: bacchus
+    description: "Once every 3 turns, summon an {tag:instant-camera}. You need photos for certain spells. | bymadv lys xe oryym"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-summon-camera, instant-camera, summon-camera-expired]
+
+  summon-camera-expired:
+    name: Summon Camera (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 3
+
+  worry-free:
+    name: Worry Free
+    category: bacchus
+    group: bacchus
+    description: "Pain doesn't bother you, nor does fear."
+    pointCost: 6
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  mindlink:
+    name: Mindlink
+    category: bacchus
+    group: bacchus
+    description: "You can send messages to all fellow cultists, regardless of where you are."
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  brewing-ambrosia:
+    name: Brewing (Ambrosia)
+    category: bacchus
+    group: bacchus
+    description: "You can refine {tag:bliss} into {tag:ambrosia}. It's the best substance on Earth, valid of a 5-point Desire, but is very expensive."
+    pointCost: 5
+    requiredTag: brewing-basic
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    visible: false
+
+  spell-electromagnetic-pulse:
+    name: "Spell: Electromagnetic Pulse"
+    category: bacchus
+    group: bacchus
+    description: "Disables electronic devices within 15 feet. | hazyq iw vorytm, xe dechem"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  spell-stun:
+    name: "Spell: Stun"
+    category: bacchus
+    group: bacchus
+    description: "Once per day, drop someone to the ground, inflicting {tag:paralyzed}. They can still talk. | mh ryitem vorav, wa lys"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-stun, stun-expired]
+
+  stun-expired:
+    name: Stun (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  melee-drunken-master:
+    name: Melee (Drunken Master)
+    category: bacchus
+    group: bacchus
+    description: "While intoxicated, your melee skill counts as 2 tiers higher."
+    pointCost: 10
+    requiredTag: melee-basic
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  spell-soothe:
+    name: "Spell: Soothe"
+    category: bacchus
+    group: bacchus
+    description: "Once per turn, immediately cure a Moderate or lesser wound. | eraqylym iw xe vechem"
+    pointCost: 9
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-soothe, soothe-expired]
+
+  soothe-expired:
+    name: Soothe (Expired)
+    category: bacchus
+    group: bacchus
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 1
+
+  # Renamed 2026-09-02: Tag.name is UNIQUE, and the new death-wish
+  # Interest takes the plain "Death Wish". This retired Cult original keeps a
+  # distinct name until db:backfill-desires moves its last holders across.
+  death-wish-cult:
+    name: "Death Wish (Cult)"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are near-death occurrences."
+    pointCost: -5
+    # Retired 2026-08-31 — Desires rework; superseded by the lock-free
+    # death-wish Interest (general-interests). Holders are granted
+    # death-wish for free.
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    removable: false
+    consumable: false
+
+  # The four `addiction-*` Bacchus tags below are retired 2026-08-31 —
+  # Desires rework; the desire-lock mechanism they existed to hand-simulate
+  # is now data on the general-addictions tags themselves (alcoholic,
+  # drug-habit, gambler, vain, glutton), which any Cultist can
+  # take the same as anyone else. Kept as rows per this file's header;
+  # `purchasable: false` is what actually removes them from every menu.
+  addiction-romantic:
+    name: "Addiction: Romantic"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to romance. Do not take with other Addiction tags."
+    pointCost: -5
+    # Retired 2026-08-31 — Desires rework; free removal, no successor.
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    removable: true
+    consumable: false
+
+  addiction-cruel:
+    name: "Addiction: Cruel"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to cruelty. Do not take with other Addiction tags."
+    pointCost: -5
+    # Retired 2026-08-31 — Desires rework; superseded by the cruel Interest
+    # (general-interests). Holders are granted cruel for free.
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    removable: true
+    consumable: false
+
+  addiction-glutton:
+    name: "Addiction: Glutton"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to {tag:lavish-meal}, {tag:sweets}, and other expensive foods — not fine meals. Do not take with other Addiction tags."
+    pointCost: -5
+    # Retired 2026-08-31 — Desires rework; superseded by the glutton
+    # Addiction (general-addictions). Holders convert free.
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    removable: true
+    consumable: false
+
+  addiction-drugs:
+    name: "Addiction: Drugs"
+    category: bacchus
+    group: bacchus
+    description: "The only valid Desires for you are related to recreational drugs. Do not take with other Addiction tags."
+    pointCost: -5
+    # Retired 2026-08-31 — Desires rework; superseded by drug-habit (Drug
+    # Habit, general-addictions). Holders convert free.
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    removable: true
+    consumable: false
+
+  ambrosia:
+    name: Ambrosia
+    category: items
+    group: items-drink
+    description: "Bacchus's own choice, valid of a 5-point Desire."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto: [euphoric]
+    requirement:
+      turnsCost: 3
+      resourceCost: 25
+      skills: [brewing-ambrosia]
+      gambit: false
+    sellable: true
+    sellablePrice: 40
+
+  # --- Bacchus: Ripening ------------------------------------------------
+  rite-teleport:
+    name: "Rite: Teleport"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once per day, you and up to 3 people whose hands you hold can be teleported anywhere. This takes 1 turn. | wy oryym xe qarvadv lys"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [rite-teleport, teleport-expired]
+
+  teleport-expired:
+    name: Teleport (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  spell-silence:
+    name: "Spell: Silence"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once per day, make someone lose the will to speak. | xe lymrav, wa vechem"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-silence, silence-expired]
+
+  silence-expired:
+    name: Silence (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 2
+
+  rite-den:
+    name: "Rite: Den"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Takes 1 turn. A pocket dimension forms at the sigil. The gate itself is invisible—it'd take a very close eye to detect the faint shimmering on its surface. It lasts until you close it or die. You don't know what happens to anyone or anything who's in it when it closes. You can only have one active at a time. | bymadv qoryy iw xe hazym"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  rite-summon-nekker:
+    name: "Rite: Summon Nekker"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Transmute the aroma of {tag:ravenheart-red} into powerful pheromones. Requires 1 turn and a {tag:ravenheart-red} as the basis. Nekkers—paranoid, hungry, thin-limbed creatures from the caves—may come running out. This may not work during stormy days. Nekkers will attack anyone, including cultists. | vory nechem lys oryitm"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  rite-rage:
+    name: "Rite: Rage"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Set a head—animal or human—on fire. Requires 1 turn and a willing target—can be yourself. You can no longer examine people, but are rewarded with true power. | mh ryqadv, xe vorym rechem"
+    pointCost: 9
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  rite-overwhelm:
+    name: "Rite: Overwhelm"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your target, a left foot, and a right foot. If target isn't {tag:pious}, they lose their mind. Takes 1 turn. | wa hazyluzar, iw xe lechem"
+    pointCost: 9
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  spell-fulfill:
+    name: "Spell: Fulfill"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once every 3 days, select a target (not yourself) and fulfill their Desire immediately — they are convinced that it happened. | xe eraqym vory, wa oryy"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-fulfill, fulfill-expired]
+
+  fulfill-expired:
+    name: Fulfill (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 6
+
+  gills:
+    name: Gills
+    category: bacchus
+    group: bacchus-ripening
+    description: "You can breathe underwater. Your gills are visible."
+    pointCost: 2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  smithing-bacchus:
+    name: Smithing (Bacchus)
+    category: bacchus
+    group: bacchus-ripening
+    description: "You can smith unholy weapons and armor."
+    pointCost: 2
+    requiredTag: smithing
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    visible: false
+
+  rite-revive:
+    name: "Rite: Revive"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Carefully scrawl Bacchus's sigil. Place a human skull at the sigil's apex. Hack off the target body's former skull and implant the new one. The person's life is restored, fully healed, but they gain the {tag:disfigured} tag. You don't know what happens if the person's soul already moved on. | bymadv iw mh vechem lys"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  spell-cure:
+    name: "Spell: Cure"
+    category: bacchus
+    group: bacchus-ripening
+    description: "Once every 3 turns, immediately cure a Very minor surgery wound or lesser. | vory lymechem, xe oryitm"
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    consumable: true
+    consumesInto: [spell-cure, cure-expired]
+
+  cure-expired:
+    name: Cure (Expired)
+    category: bacchus
+    group: bacchus-ripening
+    pointCost: 0
+    purchasable: false
+    removable: true
+    durationTurns: 3
+
+  # Statuses a Bacchus spell/rite inflicts on someone else — deliberately NOT
+  # in a gated group (see the header note above).
+  silence:
+    name: Silence
+    category: health
+    group: health-mind
+    description: "You can't speak!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  rage:
+    name: Rage
+    category: status
+    group: status-buffs
+    description: "Inhumanly strong, fast, tough, and intelligent, but completely consumed by bloodlust. You are terribly impatient and are uninterested in anything but killing people."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  lunatic:
+    name: Lunatic
+    category: health
+    group: health-mind
+    description: "Oh, I SEE now! AHAHAHAH! HAHAHAH! ETERNAL BLISSSS!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [medical-expert]
+      gambit: true
+
+  nailed:
+    name: Nailed
+    category: status
+    group: status-buffs
+    description: "Nails have been hammered into your thorax, granting you strength and stamina. Your skin can also turn blows."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  shirtless:
+    name: Shirtless
+    category: status
+    group: status-buffs
+    description: "You are shirtless."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  # Bacchus craftables, gated by the smithing-bacchus SKILL rather than the
+  # tag group, so they can be traded to and worn by non-cultists.
+  nailgun:
+    name: Nailgun
+    category: items
+    group: items-weapons
+    description: "A huge, menacing, jury-rigged rifle. It penetrates armor, but is extremely slow, inaccurate, and cumbersome. Requires {tag:saltpeter}."
+    pointCost: 0
+    requiredTag: ranged-basic
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 20
+      skills: [smithing-bacchus]
+      gambit: false
+
+  armor-robes:
+    name: Armor Robes
+    category: items
+    group: items-armor
+    description: "A set of fine red robes woven into a full chainmail set. A declaration of your pleasure."
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [smithing-bacchus]
+      gambit: false
+
+  nails-of-life:
+    name: Nails of Life
+    category: items
+    group: items-gear
+    description: "Consume (implant them into someone) to permanently render them {tag:nailed} and {tag:shirtless}."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto: [nailed, shirtless]
+    requirement:
+      turnsCost: 1
+      resourceCost: 5
+      skills: [smithing-bacchus]
+      gambit: false
+
+  # --- Bacchus: Bountiful -------------------------------------------------
+  rite-judgement:
+    name: "Rite: Judgement"
+    category: bacchus
+    group: bacchus-bountiful
+    description: "Carefully scrawl Bacchus's sigil. Place a photo of your victim in the center. Pour a liter of human blood on it. If the target isn't {tag:pious}, their head immediately shoots off at supersonic speed. The ritual takes 2 turns. | mh qaravym iw xe ryitm dechem"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  spell-become-monster:
+    name: "Spell: Become Monster"
+    category: bacchus
+    group: bacchus-bountiful
+    description: "Touch a monster. You displace its mind. One-way. | wa nechyluzar, xe vory oryy"
+    pointCost: 7
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+
+  monster-possession:
+    name: Monster Possession
+    category: status
+    group: status-buffs
+    description: "You have permanently become a monster, but you keep your mind. Remove your other tags; you won't need them."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+taggroups:
+  bacchus:
+    name: Bacchus
+    category: bacchus
+    color: "#d4b4da"
+    requiredTag: cultist
+
+  # The Cult tier ladder (Ripening -> Bountiful) plus the Cult
+  # Leader seat. These are Meta tags — 0 points, never purchasable, granted by
+  # a GM — but they live in a gated group rather than groupless like the rest
+  # of Meta, because /api/tags withholds a tag only when its GROUP carries a
+  # requiredTag. Groupless would ship the whole cult ladder to every signed-in
+  # client, which is exactly the leak that route's header comment exists to
+  # close. No `color`, so the chips stay uncoloured like the rest of Meta.
+  meta-cult:
+    name: Cult
+    category: meta
+    requiredTag: cultist
+
+  # Empty for now: the powers a growing cult unlocks land here, gated by the
+  # ladder rung that opens them. Groups sync upsert-only and are never
+  # deleted, so these slugs are fixed from here on.
+  bacchus-ripening:
+    name: Ripening
+    category: bacchus
+    color: "#c292d5"
+    requiredTag: cult-ripening
+
+  bacchus-bountiful:
+    name: Bountiful
+    category: bacchus
+    color: "#b262cf"
+    requiredTag: cult-bountiful
+
+documents:
+  # The Cult of Bacchus's three briefs, replacing the old empty `cult` stub.
+  # Assigned by tag, the same way the Demoness threat's brief is — a GM hands
+  # the seat out and the paper arrives with the powers. The Leader holds
+  # Cultist too, so they get all three.
+  #
+  # The party thresholds are {partysize:N} tokens rather than literals: they
+  # scale with GameConfig.playerCount (4/8/12/16 per 100, floored, minimum 1)
+  # via db/lib/partySize.js, so turning the player-count dial on /gm/dev
+  # retargets every goal without an edit here.
+  cultistleader:
+    name: Cult Leader
+    public: false
+    secret: true
+    tags:
+      - Cult Leader
+    description: |-
+      You are a very old being, a wielder of supreme arcane magics, a true master of pleasure-seeking.
+
+      As a Leader, you must be proactive, coordinated, and active. Your word is final, but you must organize your Cultists if they have a chance to succeed. *You must set the plan.*
+
+      There is a Demoness in the area. She hates you. If you manage to convert her, she'll lose all her powers, but you would gain 10 Tag Points.
+
+      Bacchus has told you about Eternal Bliss. It is not what you expected, but it is, in a strange way, the greatest thing there is. You are very happy with your choice. Unlike other Cultists, you are far too deep in, and you can never lose your faith. They can either imprison you or kill you; they can't break you.
+
+  cultist:
+    name: Cultist
+    public: false
+    secret: true
+    tags:
+      - Cultist
+    description: |-
+      - After enough time living quietly, your cult leader has made the call: it is time to seek Eternal Bliss.
+      - This will be difficult. You will have to find a strategy, coordinate, and execute. You can start a front — a guild, a charity, a troupe of entertainers — or you can declare war and lose the cover. Either way, listen to your Leader; he has the final word.
+      - To achieve Eternal Bliss, Bacchus has asked you to host parties. When a party is hosted that contains {partysize:2}, and then {partysize:3} people, you will unlock access to new, more powerful Bacchus tags. The Final Party requires {partysize:4} people and blood of someone with the {tag:nobility} tag: the Baron, his family, or the Bastard. Something very fun happens at the Final Party.
+      - Your parties must be well supplied with sources of pleasure. Anyone that participates in your party, whether or not they're a cultist, counts towards the number. You may hide the true nature of your parties. People with the {tag:nobility} tag count as 3 people.
+      - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose 10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
+      - You can either initiate people willingly or forcibly. Either way, you must perform a ritual (1 Move, Routine) that involves (1) one of the following: alcohol or another recreational drug / music / lavish food, and (2) your cult's secret chant. To perform it forcibly, they must be immobilized. Characters with the {tag:pious} tag cannot be converted.
+      - Spells can be cast instantly, while Rites usually have a turn cost.
+
+  bacchuslore:
+    name: Bacchus
+    public: false
+    secret: true
+    tags:
+      - Cultist
+    description: |-
+      You have no idea what you have gotten into, do you? Ah…
+
+      As a Cultist of Bacchus, you have implicitly gone against ancient wisdom — which declares that Pleasure is Painful — to declare that Pleasure is Pleasurable. Bacchus, Parent of Parents, is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers. Bacchus is often depicted as a stemless apple, two deer enjoined in a circle, or, in some sects, as a gigantic dead sea creature.
+
+      Bacchus doesn't have a specific demand on his followers except that they focus on nothing more than indulging their own particular desires — in other words, being happy and free. Because of their individualistic streak, Bacchus Cultists don't have a unified doctrine and tend to operate in scattered chapters with their own rules and systems. Some cults are violent, forceful, and warlike, while some eke out an existence on the edge of society.
+
+      In exchange for their service, Bacchus rewards his followers with exquisite sensual pleasure and magical powers. Those who truly dedicate themselves to his cause, however, earn something else: Eternal Bliss. How nerve-wracking, how tantalizing!
+
+      **Chant**
+
+      | English | Demonic |
+      | --- | --- |
+      | We are free, so free — | Wy vory oryy, wa oryy — |
+      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
+      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
+
+  conversion:
+    name: Conversion
+    public: false
+    secret: true
+    tags:
+      - Cultist
+    description: |-
+      “Carefully scrawl Bacchus’s sigil on the ground. The initiate should then lose themselves in hedonism through their chosen way — consuming alcohol, eating food, being with a lover, cruelty, fine music, or something else — while standing on the sigil. They should be watched while they indulge, violating their privacy, as a way to demonstrate their commitment to Bacchus. Chant the Verse.
+
+      There must be two people at least: the host and the initiate. The initiate should not be told everything of the Truth, but must be made to understand the nature of their new lifelong commitment and service in Bacchus. Although their desires always come first, it will always be through the Parent — so they are becoming a servant. They are no longer an independent person. However, they become Everlasting, achieving Eternal Bliss.
+
+      Finally, their blood must be drawn and spilled on the sigil.
+
+      The nature of Eternal Bliss should not be discussed, but Eternal Bliss itself should be mentioned. This would be a Routine Move, as it is a party that takes a couple of hours, on both the part of the initiate and the host.
+
+      **Chant**
+
+      | English | Demonic |
+      | --- | --- |
+      | We are free, so free — | Wy vory oryy, wa oryy — |
+      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
+      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
+
+      For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.”
+
+familyGroups:
+  bacchus:
+    name: Bacchus
+
+families:
+  cult-bacchus:
+    name: Cult of Bacchus
+    group: bacchus
+    color: "#b48ae0"
+    # Bacchus: revelry, rite, excess, spectacle.
+
+desires:
+  bacchus-chant:
+    name: Chant the rites in the old tongue where somebody can hear
+    tier: 2
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+    cooldownTurns: 4
+
+  bacchus-boombox:
+    name: Make the whole street hear the {tag:boombox}
+    tier: 2
+    oncePerLife: true
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-bare-feet:
+    name: Get a stranger to take off their shoes and dance
+    tier: 2
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [cultist]
+    cooldownTurns: 4
+
+  bacchus-first-taste:
+    name: Give a first taste to somebody who has never had one
+    tier: 3
+    families: [cult-bacchus, drugs]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-feast:
+    name: "Throw an amazing feast, including at least 3 lavish meals"
+    tier: 2
+    families: [cult-bacchus, food]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-spend-it-all:
+    name: Spend 50 ⬢ in one night on nothing that lasts
+    tier: 4
+    families: [cult-bacchus, wealth]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-initiate-willing:
+    name: Initiate somebody who wants it
+    tier: 2
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+    cooldownTurns: 4
+
+  bacchus-break-a-vow:
+    name: "Make somebody break a vow"
+    tier: 4
+    families: [cult-bacchus, romance]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-noble-dance:
+    name: Get somebody with {tag:nobility} to dance with you
+    tier: 4
+    families: [cult-bacchus, vanity]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-initiate-unwilling:
+    name: "Initiate somebody forcefully"
+    tier: 3
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-ambrosia:
+    name: Drink {tag:ambrosia}
+    tier: 5
+    families: [cult-bacchus, drugs]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-defile:
+    name: Hold a rite inside the Cathedral
+    tier: 5
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-bring-the-demoness:
+    name: Bring the Demoness into the fold
+    tier: 7
+    families: [cult-bacchus, scheming]
+    requires:
+      anyTags: [cultist]
+
+  # --- Bacchus ------------------------------------------------------------
+  # EVERY entry here carries cult-bacchus. The Cultist tag locks tier 1 to
+  # cult-bacchus alone and tiers 2-5/7 to cult-bacchus plus alcohol, drugs,
+  # food and romance — so a Bacchus desire filed under cruelty or faith
+  # ALONE would be invisible to the only people who can pick it.
+  bacchus-force-feed-fish:
+    name: "Force feed someone a living fish"
+    tier: 2
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-eat-fish:
+    name: "Eat a living fish"
+    tier: 1
+    families: [cult-bacchus, food]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-perform-a-rite:
+    name: "Perform a rite"
+    tier: 1
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-disinter-and-hang:
+    name: "Disinter a body and hang it publicly"
+    tier: 2
+    families: [cult-bacchus, mortality]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-display-a-corpse:
+    name: "Display a dead cave monster's body in a public area"
+    tier: 2
+    families: [cult-bacchus, social]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-human-flesh:
+    name: "Secretly feed someone a meal made out of human flesh"
+    tier: 2
+    families: [cult-bacchus, food, cruelty]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-torture-outsider:
+    name: "Torture a non-cultist"
+    tier: 2
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-desecrate-a-painting:
+    name: "Desecrate a painting"
+    tier: 3
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+
+  # Tier 4, not 7: the sign-off swapped this with the cathedral. A naked
+  # blood-run is a night's scandal; burning the Cathedral is a once-ever act.
+  bacchus-blood-run:
+    name: "Cover yourself in blood and run around the town, naked"
+    tier: 4
+    families: [cult-bacchus, vanity]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-make-a-lunatic:
+    name: "Make someone a {tag:lunatic}"
+    tier: 4
+    families: [cult-bacchus, cruelty]
+    requires:
+      anyTags: [cultist]
+
+  # The three tier-7s below are automatically oncePerLife (the sync sets it
+  # for every tier-7 entry), so a cult gets one shot at each.
+  bacchus-funeral-party:
+    name: "Turn a non-cultist's funeral into a party"
+    tier: 7
+    families: [cult-bacchus, mortality]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-burn-the-cathedral:
+    name: "Burn the Cathedral down"
+    tier: 7
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+
+  bacchus-cross-in-the-pits:
+    name: "Throw the {tag:silver-cross} into the Aberrant Pits"
+    tier: 7
+    families: [cult-bacchus, faith]
+    requires:
+      anyTags: [cultist]
+
+  # === 5. Tag and role fill-ins (2026-09-02) ==============================
+  # Every name below is dictated verbatim, so none of them carries a ‡.
+  # Cooldowns: an explicit number was given for some; the rest take the
+  # inverted ladder from the header (tier 1 -> 5, 2 -> 4, 3 -> 3), because
+  # none of them costs anything per attempt. Nothing here is ever written
+  # cooldownTurns 1 or 2 — the slot lock already dominates those.
+
+threats: |
+  ### Cult of Bacchus (Leader)
+
+  _Bacchus has willed you to take Ravenheart for them._
+
+  - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
+  - Bacchus has willed you to take Ravenheart for them.
+  - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
+  - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
+  - Followers of Bacchus pick their Desires from the cult's own gated list (`cultist`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
+  - Your goal is to spread the influence of Bacchus and throw parties. All cult members unlock more powerful Bacchus tags if you manage to host a party hitting each of the first three party thresholds. People do not have to be part of the Cult to count towards the party number. Anyone with Nobility (Baron, Heir, Successor, Baroness, Bastard) counts as 3 people.
+  - There is a Demoness on the loose. She is an amazing asset, but she finds your ways too controlling. If you manage to bring her to the fold, she'll count as 3 people towards each party.
+  - Something very special happens at the Final Party, the fourth and largest threshold, which also needs the blood of someone with the Nobility tag. This is your ultimate goal. If the Demoness is present during the party, the surprise will be even better!
+  - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue. To initiate people against their will, lash them down and chant the rites—if they resist, it will be a Move.
+  - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
+
+  **Starting tags:** Cultist, Cult Leader.
+
+  ### Cult of Bacchus (Cultist)
+
+  _You either love Bacchus and believe in their message, or love-hate them._
+
+  - Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
+  - You either love Bacchus and believe in their message, or love-hate them. Either way, you are certain you'll never leave.
+  - Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
+  - The stuck-ups in Ravenheart would kill you if they knew. Be careful.
+  - Followers of Bacchus pick their Desires from the cult's own gated list (`cultist`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
+  - You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
+  - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
+
+  **Starting tags:** Cultist.
+
+  The Cultist tag unlocks the Bacchus tag category, and carries the `cultist`
+  and `bacchuslore` documents; the Leader additionally holds Cult Leader, which
+  carries `cultistleader`. As the cult grows, a GM grants Cult: Ripening and
+  then Cult: Bountiful, each rung unlocking a further gated group of Bacchus
+  tags (a young cult holds no tier tag at all). See `docs/tags.yaml`, `docs/taggroups.yaml` and
+  `docs/documents.yaml`.
+
+  The four party thresholds are **not** fixed numbers — they are 4, 8, 12 and 16
+  players per 100, floored and never below 1, scaled live by
+  `GameConfig.playerCount` (`db/lib/partySize.js`). At the default 100 players
+  that is 4/8/12/16; in a 50-player game it is 2/4/6/8. The player-facing
+  documents print them through the `{partysize:N}` token, so they can never go
+  stale. See `systemdocs/PARTY-SIZE.md`.

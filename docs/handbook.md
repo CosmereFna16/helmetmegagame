@@ -224,6 +224,8 @@ While you're concealed, everything you say posts under a vague descriptor such a
 
 Other players can still 🔎 you and see any visible wounds or gear, but your name, face, and faction remain hidden.
 
+Some transformations take the choice away. A tag like Apex Form fixes your name and face to what you have become, and `/conceal` stops working while you hold it. ‡
+
 ### Talking OOC
 
 OOC discussion should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, you can bracket the message like this: "[OOC: Have to step away, be back soon]".

@@ -13,7 +13,7 @@ running the sync is the only way these rows change.
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
 | `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread |
-| `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b) |
+| `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members, roles, or a non-zero silo is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
@@ -244,7 +244,10 @@ deliberately use plain indexed id columns rather than real relations — see
 `db:sync-tags` never deletes, which is the right default — a tag a character
 holds must not vanish because someone tidied a YAML file — but it means the
 catalog only ever grows. `npm run db:prune-tags` is the separately-invoked
-counterpart, and the only tag operation in this repo that deletes anything.
+counterpart, and the only tag/group operation in this repo that deletes
+anything: it prunes a `Tag` absent from `docs/tags.yaml`, and — once no
+surviving tag sits in it — a `TagGroup` absent from `docs/taggroups.yaml`
+too.
 
 **It is a dry run by default.** Nothing is removed without `-- --apply`, the
 same posture as `db:prune-orphan-roles` and `db:doctor`.
@@ -271,7 +274,9 @@ because a prune that skips silently is worse than one that deletes:
   `db:sync-tags` writes the edge symmetrically, but a custom tag's edge isn't
   guaranteed symmetric, so the blocker check reads both `conflictsWith` and
   `conflictedBy`);
-- no `DesireTemplate` gates on it via `requiresAnyTags`/`requiresNotTags`;
+- no **non-retired** `DesireTemplate` gates on it via
+  `requiresAnyTags`/`requiresNotTags` — a gate held only by a retired
+  template (`DESIRES.md` §10) no longer counts as a blocker;
 - no `Role.startingTagSlugs` grants it and no `Document.tagSlugs` is assigned
   by it. Note `Role.startingTagSlugs` is misnamed and holds tag **names**,
   while `Document.tagSlugs` really does hold slugs.
@@ -279,6 +284,18 @@ because a prune that skips silently is worse than one that deletes:
 It is deliberately terminal-only and **not** wired into Restart Game: a wipe
 clears every `CharacterTag` first, so a prune running there would find every
 custom tag unheld and delete the lot.
+
+**A `TagGroup` prunes the same way, once it has no tags left.** After tags
+are pruned, any group absent from `docs/taggroups.yaml` and holding no
+surviving tag is deleted too. The `TagGroup.requiredTagId` blocker above
+also has the mirror exception: a gate held by a group that's itself absent
+from `docs/taggroups.yaml` no longer counts as a blocker on the tag it
+gates, since that group is on its way out in the same run. Tag-to-tag
+references work the same way: a `parentTag`, `requiredTag`, `conflictsWith`,
+cure/craft skill or `consumesInto` reference made by a tag that is itself
+being pruned does not pin its target, so a spell and its expiry marker can go
+together. The prune loops to a fixpoint, so a tag that a character still
+holds keeps everything it references.
 
 ## 4. Ops scripts
 
@@ -292,7 +309,7 @@ pre-launch wipe rebuilds everything else from YAML.
 |---|---|
 | `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). `-- --seed-silos` also re-seeds every faction Silo. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
-| `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags. |
+| `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags, then any TagGroup absent from `docs/taggroups.yaml` once no surviving tag sits in it. |
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Guards the 250-role guild cap. |
 | `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
 | `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch`/`#intercom` channels from the special-channels registry. Run after `db:sync-zones`. |

@@ -18,7 +18,7 @@ provisioned channels, or a special channel whose registry entry says
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
 | A Location's channel (text), and every Room or Conversation thread under it | yes | no |
-| `#watch` / `#intercom` / `#mindlink` | yes | no |
+| `#watch` / `#intercom` | yes | no |
 
 The special channels aren't tied to a place, so they're never summary.
 
@@ -304,6 +304,39 @@ the real `characterId`/`characterName` — so `/archive` renders
 which is why `archiveVisible` is meant to stay shut until the game ends
 (`ARCHIVE.md`).
 
+### Forced identity (`Tag.forcedName`)
+
+The opposite case: a held tag that **fixes** the name and face rather than
+hiding them. Apex Form carries `forcesName: Beast` (`TAGS.md`, "`forcesName`").
+`db/lib/presentedIdentity.js` is the one resolver, and every surface above
+calls it instead of branching on `concealed` by hand:
+
+```
+presentedIdentity(character, { forcedName }) -> { name, avatarPath, alias, concealed, forced }
+```
+
+Precedence is **forced > concealed > own name**. A forced identity posts under
+the forced name with the static plaque `/assets/letters/<Initial>.webp` — not
+`/api/avatar`, so nothing about the character's real face is ever fetched for
+it. `alias` is "the name the room saw when it was not the real one" and is set
+for both a hood and a forced name; it is what `recordArchiveMessage` freezes
+into `concealedAlias` and what ⭐ files under. `concealed` stays true only for
+a real hood, so the impoverished 🔍 embed and the no-relay rule below keep
+applying only to hoods — a Beast is not hiding.
+
+Call sites that already hold `character.tags` use `forcedNameFrom(tags)`; the
+two proxy paths that load a bare `Character` (`messageCreate.js`, the Speak
+modal) run `loadForcedName(prisma, id)`, one indexed query. The REST twin
+takes `forcedName` from its caller in `db/index.js`, since `discordRest.js`
+has no prisma of its own.
+
+While a forced name is held, `/conceal` refuses and the switch on `/character`
+renders disabled; `updateCharacterProfile` writes `concealed: false` whatever
+the form posted, and drops any upload. The **@-mention role and the nickname
+keep the real bare name** on purpose (§6, §8) — so the `/add` picker naming a
+Beast by their old name is intended. Nothing is written when the tag lands, so
+there is no grant hook: the next message is already the Beast's.
+
 ## 6. Mentions and conversations
 
 A character's personal Discord role is a **mentionable name token and nothing
@@ -503,6 +536,7 @@ title off itself.
 | Reactions | `bot/src/events/messageReactionAdd.js` |
 | Channel opt-in | `bot/src/lib/channels.js`, `web/lib/discordGuild.js` |
 | Concealed alias | `db/lib/concealedIdentity.js` |
+| Presented identity (forced > concealed > own) | `db/lib/presentedIdentity.js` |
 | Mentions, `/add`, `/remove` | `bot/src/lib/mentions.js`, `bot/src/lib/commands.js` |
 | Inspect gates | `db/lib/inspectVision.js` |
 | Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |

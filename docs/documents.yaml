@@ -202,46 +202,6 @@ documents:
     tags: []
     description: |-
       The last tithe didn't arrive.
-  campstarting:
-    name: Camp Starting Packet
-    public: false
-    tags: []
-    description: |-
-      The word for wind in the Windlands is the same word as train, because that's how hard it blows.
-
-      While most of humanity today lives underground — or in those rare fertile oases like Ravenheart — your people refused to cower in the darkness like animals. You lived among brambles, lizards, and oxen. To protect yourself, you wore wind goggles, masks, and gloves. Often being unable to hear your comrades, you were taught sign language as a child and learned to recognize people by their gait.
-
-      The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food? What will life be without wind? What will it be like to see your friend's face, and not just their mask?
-
-      The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
-
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
-  brokenspear:
-    name: Broken Spear Clan
-    public: false
-    tags: []
-    description: |-
-      You are lightning on the plains — a hundred horses galloping! Behold the people of Ravenheart, like sheep ready for the rending. After you take it, Ravenheart will become a place of strength and honor.
-
-      The Bastard showed strength when he defeated your Lieutenant, but not honor: he spared his life, humiliating him even further. You will follow him gladly.
-
-      However, the fire in his eyes has died. The man ponders and calculates like an old toothless woman. Ravenheart knows you are here — every day wasted is a day they grow stronger. The birds watch you as if you were a corpse ready for the picking.
-
-      In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
-
-      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use — or "riding the horse" — is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
-  windrider:
-    name: Windrider Clan
-    public: false
-    tags: []
-    description: |-
-      The Windrider Clan was the last to bend the knee to the Bastard. An impenetrable sense of family, centuries of prestige: Ereglas the Conqueror, Oliver Horserider, The Ranger Chief, all were Windriders.
-
-      Fate has already decided your course. You were forged upon the face of a dead planet. You are the ideal human, intelligent, capable, and unyielding. They cannot stop you.
-
-      The Bastard understands an all-out attack would be suicide. Support of the people, logistics, careful planning; these are what kept the Windriders alive while clans like the Broken Spears formed and disbanded, year by year. So your fealty was lightly given. You trust his plan will net you a home, but you will not accept a king.
-
-      One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends — prioritization of Resources, independence after taking Ravenheart, or some other promise — or the Broken Spears get put down like the brushlizards they are.
   lifewebbasic:
     name: The Lifeweb
     public: true
@@ -394,90 +354,6 @@ documents:
   # The canonical numbers are docs/systemdocs/DEPOT.md §3-4; this is the
   # player-facing half and only carries the bands, never the full table.
 
-  # The Cult of Bacchus's three briefs, replacing the old empty `cult` stub.
-  # Assigned by tag, the same way the Demoness threat's brief is — a GM hands
-  # the seat out and the paper arrives with the powers. The Leader holds
-  # Cultist too, so they get all three.
-  #
-  # The party thresholds are {partysize:N} tokens rather than literals: they
-  # scale with GameConfig.playerCount (4/8/12/16 per 100, floored, minimum 1)
-  # via db/lib/partySize.js, so turning the player-count dial on /gm/dev
-  # retargets every goal without an edit here.
-  cultistleader:
-    name: Cult Leader
-    public: false
-    secret: true
-    tags:
-      - Cult Leader
-    description: |-
-      You are a very old being, a wielder of supreme arcane magics, a true master of pleasure-seeking.
-
-      As a Leader, you must be proactive, coordinated, and active. Your word is final, but you must organize your Cultists if they have a chance to succeed. *You must set the plan.*
-
-      There is a Demoness in the area. She hates you. If you manage to convert her, she'll lose all her powers, but you would gain 10 Tag Points.
-
-      Bacchus has told you about Eternal Bliss. It is not what you expected, but it is, in a strange way, the greatest thing there is. You are very happy with your choice. Unlike other Cultists, you are far too deep in, and you can never lose your faith. They can either imprison you or kill you; they can't break you.
-  cultist:
-    name: Cultist
-    public: false
-    secret: true
-    tags:
-      - Cultist
-    description: |-
-      - After enough time living quietly, your cult leader has made the call: it is time to seek Eternal Bliss.
-      - This will be difficult. You will have to find a strategy, coordinate, and execute. You can start a front — a guild, a charity, a troupe of entertainers — or you can declare war and lose the cover. Either way, listen to your Leader; he has the final word.
-      - To achieve Eternal Bliss, Bacchus has asked you to host parties. When a party is hosted that contains {partysize:2}, and then {partysize:3} people, you will unlock access to new, more powerful Bacchus tags. The Final Party requires {partysize:4} people and blood of someone with the {tag:nobility} tag: the Baron, his family, or the Bastard. Something very fun happens at the Final Party.
-      - Your parties must be well supplied with sources of pleasure. Anyone that participates in your party, whether or not they're a cultist, counts towards the number. You may hide the true nature of your parties. People with the {tag:nobility} tag count as 3 people.
-      - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose 10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-      - You can either initiate people willingly or forcibly. Either way, you must perform a ritual (1 Move, Routine) that involves (1) one of the following: alcohol or another recreational drug / music / lavish food, and (2) your cult's secret chant. To perform it forcibly, they must be immobilized. Characters with the {tag:pious} tag cannot be converted.
-      - Spells can be cast instantly, while Rites usually have a turn cost.
-  bacchuslore:
-    name: Bacchus
-    public: false
-    secret: true
-    tags:
-      - Cultist
-    description: |-
-      You have no idea what you have gotten into, do you? Ah…
-
-      As a Cultist of Bacchus, you have implicitly gone against ancient wisdom — which declares that Pleasure is Painful — to declare that Pleasure is Pleasurable. Bacchus, Parent of Parents, is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers. Bacchus is often depicted as a stemless apple, two deer enjoined in a circle, or, in some sects, as a gigantic dead sea creature.
-
-      Bacchus doesn't have a specific demand on his followers except that they focus on nothing more than indulging their own particular desires — in other words, being happy and free. Because of their individualistic streak, Bacchus Cultists don't have a unified doctrine and tend to operate in scattered chapters with their own rules and systems. Some cults are violent, forceful, and warlike, while some eke out an existence on the edge of society.
-
-      In exchange for their service, Bacchus rewards his followers with exquisite sensual pleasure and magical powers. Those who truly dedicate themselves to his cause, however, earn something else: Eternal Bliss. How nerve-wracking, how tantalizing!
-
-      **Chant**
-
-      | English | Demonic |
-      | --- | --- |
-      | We are free, so free — | Wy vory oryy, wa oryy — |
-      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
-      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
-
-  conversion:
-    name: Conversion
-    public: false
-    secret: true
-    tags:
-      - Cultist
-    description: |-
-      “Carefully scrawl Bacchus’s sigil on the ground. The initiate should then lose themselves in hedonism through their chosen way — consuming alcohol, eating food, being with a lover, cruelty, fine music, or something else — while standing on the sigil. They should be watched while they indulge, violating their privacy, as a way to demonstrate their commitment to Bacchus. Chant the Verse.
-
-      There must be two people at least: the host and the initiate. The initiate should not be told everything of the Truth, but must be made to understand the nature of their new lifelong commitment and service in Bacchus. Although their desires always come first, it will always be through the Parent — so they are becoming a servant. They are no longer an independent person. However, they become Everlasting, achieving Eternal Bliss.
-
-      Finally, their blood must be drawn and spilled on the sigil.
-
-      The nature of Eternal Bliss should not be discussed, but Eternal Bliss itself should be mentioned. This would be a Routine Move, as it is a party that takes a couple of hours, on both the part of the initiate and the host.
-
-      **Chant**
-
-      | English | Demonic |
-      | --- | --- |
-      | We are free, so free — | Wy vory oryy, wa oryy — |
-      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
-      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
-
-      For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.”
   charon:
     name: The Charon
     public: false
@@ -600,7 +476,6 @@ documents:
       You don't need to eat. Instead, you live for the thrill of enslaving souls, manipulating people, and causing pain. You will become unhappy if you don't.
 
       You can Break souls — see {tag:demoness}. If you have {tag:slavemaster}, they become {tag:broken-enslaved} instead of merely {tag:broken}.
-
 
       You find normal crosses tacky and boring. Fire scares you somewhat — it definitely hurts. The Silver Cross, on the other hand, terrifies you. If you touch it, your powers are disabled for the rest of the day.
 

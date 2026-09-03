@@ -165,7 +165,7 @@ null there never expires at all.
 `PointBuy` is the *player's* rules-respecting store and stays that way. The GM
 editor shares its pure helpers and deliberately drops every gate:
 
-- **Every category**, hidden ones (Demoness, Bacchus) and `meta` included.
+- **Every category**, hidden ones (Demoness) and `meta` included.
   `TAGS.md` is explicit that a GM grant ignores `requiredTag` and the
   `TagGroup` gate; this is the surface that does it.
 - **No budget.** Cost is information, never a limit — `tagPoints` is a field

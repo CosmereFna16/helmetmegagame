@@ -1,10 +1,10 @@
 # Threats
 
-The GM-assigned seats: Sympathizer, the Demoness, the Cult of Bacchus, the
-Judge, the NPC monsters, the Brigands.
+The GM-assigned seats: Sympathizer, the Demoness, the Judge, the NPC
+monsters, the Brigands.
 
 Note this list and the **antagonist opt-in catalog** are separate and have
-drifted: `db/lib/antagonists.js` ships twelve consent entries a player can tick
+drifted: `db/lib/antagonists.js` ships eleven consent entries a player can tick
 at character creation (`CHARACTERS.md` §1), while the briefs below cover fewer
 seats. Neither reads the other — the opt-ins are pure consent data, and these
 are prose for a GM. If you add a seat to one, consider whether it belongs in
@@ -55,51 +55,6 @@ discounted Seductive/Torturer twins, and the three true forms. See
 `docs/tags.yaml` and the `demoness` document in `docs/documents.yaml`.
 
 ## Town
-
-### Cult of Bacchus (Leader)
-
-_Bacchus has willed you to take Ravenheart for them._
-
-- Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
-- Bacchus has willed you to take Ravenheart for them.
-- Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
-- The stuck-ups in Ravenheart would kill you if they knew. Be careful.
-- Followers of Bacchus pick their Desires from the cult's own gated list (`cultist`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
-- Your goal is to spread the influence of Bacchus and throw parties. All cult members unlock more powerful Bacchus tags if you manage to host a party hitting each of the first three party thresholds. People do not have to be part of the Cult to count towards the party number. Anyone with Nobility (Baron, Heir, Successor, Baroness, Bastard) counts as 3 people.
-- There is a Demoness on the loose. She is an amazing asset, but she finds your ways too controlling. If you manage to bring her to the fold, she'll count as 3 people towards each party.
-- Something very special happens at the Final Party, the fourth and largest threshold, which also needs the blood of someone with the Nobility tag. This is your ultimate goal. If the Demoness is present during the party, the surprise will be even better!
-- You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue. To initiate people against their will, lash them down and chant the rites—if they resist, it will be a Move.
-- You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-
-**Starting tags:** Cultist, Cult Leader.
-
-### Cult of Bacchus (Cultist)
-
-_You either love Bacchus and believe in their message, or love-hate them._
-
-- Bacchus is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers.
-- You either love Bacchus and believe in their message, or love-hate them. Either way, you are certain you'll never leave.
-- Bacchus is often depicted as an apple, a deer, or, in some circles, as a gigantic dead sea creature. Bacchus's gender is irrelevant. The specifics of doctrine are for you to figure out if you want.
-- The stuck-ups in Ravenheart would kill you if they knew. Be careful.
-- Followers of Bacchus pick their Desires from the cult's own gated list (`cultist`, tier 2 and up) — more indulgent, and worth more, than the general catalog's low end. You also gain access to powerful Bacchus tags. ‡
-- You can either initiate people willingly or forcibly. Either way, you must perform a ritual that involves (1) either alcohol, music, lavish food, or drugs, and (2) secret chants in an ancient tongue.
-- You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose -10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-
-**Starting tags:** Cultist.
-
-The Cultist tag unlocks the Bacchus tag category, and carries the `cultist`
-and `bacchuslore` documents; the Leader additionally holds Cult Leader, which
-carries `cultistleader`. As the cult grows, a GM grants Cult: Ripening and
-then Cult: Bountiful, each rung unlocking a further gated group of Bacchus
-tags (a young cult holds no tier tag at all). See `docs/tags.yaml`, `docs/taggroups.yaml` and
-`docs/documents.yaml`.
-
-The four party thresholds are **not** fixed numbers — they are 4, 8, 12 and 16
-players per 100, floored and never below 1, scaled live by
-`GameConfig.playerCount` (`db/lib/partySize.js`). At the default 100 players
-that is 4/8/12/16; in a 50-player game it is 2/4/6/8. The player-facing
-documents print them through the `{partysize:N}` token, so they can never go
-stale. See `systemdocs/PARTY-SIZE.md`.
 
 ### The Judge (Town, or Cave)
 

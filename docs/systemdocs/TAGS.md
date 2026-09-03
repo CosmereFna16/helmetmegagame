@@ -10,7 +10,7 @@ Locations themselves; nothing like them exists on a Zone.
 Three levels:
 
 - **Category** — a flat string (`Meta`, `General`, `Skills`, `Status`,
-  `Items`, `Assets`, plus the two hidden ones, `Demoness` and `Bacchus`).
+  `Items`, `Assets`, plus the one hidden one, `Demoness`).
   Not its own DB table; `docs/tags.yaml`'s top-level `categories:` list is
   validation-only — `syncTagsFromYaml` rejects any tag/group whose
   `category` isn't in that list. Because a category has no row of its own, a
@@ -32,8 +32,10 @@ Three levels:
   `status-health` (the Health category, §5c, took every tag that used to live
   in it) and `general-restrictions` / `general-interests` (merged into
   `general-personality`, `DESIRES.md` §5). Groups sync upsert-only and are
-  never deleted, so the rows survive; don't reuse those slugs and don't put
-  anything back in them.
+  never deleted by the sync — `db:prune-tags` will prune one once it's
+  absent from `docs/taggroups.yaml` and no surviving tag sits in it, but
+  these three stay listed there, so the rows survive; don't reuse those
+  slugs and don't put anything back in them.
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -42,8 +44,11 @@ Three levels:
 `TagGroup` catalog (split into its own file so group colors can be freeform
 hex rather than a fixed token set). Same posture as `docs/zones.yaml`:
 hand-edited, `slug` is the stable match key across syncs, and syncing is
-**upsert-only** — removing an entry from either YAML never deletes its row,
-it just stops receiving updates. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
+**upsert-only** — removing an entry from either YAML never deletes its row
+by itself, it just stops receiving updates. The separate, opt-in
+`npm run db:prune-tags` (§3b) is what actually deletes: it prunes a tag
+absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group
+absent from `docs/taggroups.yaml`. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
 reads both files and does the sync, run by hand via `npm run db:sync-tags`
 (`db/scripts/sync/sync-tags.js`) or automatically at the end of `wipeGameData`'s
 "Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
@@ -60,7 +65,7 @@ diff check, same style as the zone sync's hash gate).
 ### A slug is its name, slugified
 
 `slug` is the name lowercased with punctuation dropped and spaces/colons
-turned into hyphens: **Death Wish (Cult)** is `death-wish-cult`, **True Form:
+turned into hyphens: **Old Ways (Bacchus)** is `old-ways-bacchus`, **True Form:
 Serpent** is `true-form-serpent`. `syncTags.js` throws when a tag breaks the
 rule, so renaming a tag means renaming its slug in the same pass — and then
 every reference to it, since the slug is what desires, taggroups and code
@@ -68,7 +73,7 @@ match on. (Names themselves are never referenced that way, with two
 exceptions: `roles.yaml`'s `starting_tags` and `documents.yaml`'s `tags` both
 resolve tags **by name**.)
 
-The one carve-out is a hidden category (`demoness`, `bacchus`), where a
+The one carve-out is a hidden category (`demoness`), where a
 generic power name would collide with a general tag: those may lead with the
 category instead, as `demoness-heal` and `demoness-seductive` do.
 
@@ -84,9 +89,8 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   replace it. Example in the catalog: `Ranged (Archer)` requires
   `Ranged (Basic)` but coexists with `Ranged (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
-  gated tag doesn't consume: `Wild Horse` (`wild-horse`) requires
-  `Windlander`, `Manor` requires `Courtier`, `House`/`Shack` require
-  `Ravenhearter`, and
+  gated tag doesn't consume: `Manor` requires `Courtier`, `House`/`Shack`
+  require `Ravenhearter`, and
   `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
   with the tier it builds on.
 
@@ -207,8 +211,8 @@ way. A menu whose own help text has to ask players not to abuse it is a menu
 with the wrong contents. Buying is now `/store`'s job alone.
 
 The **group gate still applies, unconditionally** — same as everywhere else,
-it's the hidden-category mechanism and is never bypassed. A Bacchus craftable
-stays invisible outside the cult.
+it's the hidden-category mechanism and is never bypassed. A Demoness
+craftable stays invisible outside the category.
 
 `requirementSkills` is an **OR** list, not an AND: every multi-skill recipe
 in `docs/tags.yaml` is a Dead Simple item written `[smithing, crafting]`
@@ -228,11 +232,13 @@ button there (`BIRD.md`). `literate` is also the key to
 than reinvent — a written thing an illiterate character cannot read should look
 the same everywhere in the game.
 
-Two whole categories are secret: **Demoness** (behind the `demoness` tag) and
-**Bacchus** (behind `cultist`, displayed as "Cultist of
-Bacchus"). Each contains exactly one `TagGroup` carrying the `requiredTag`,
-which is where the whole mechanism lives — the tags inside deliberately do
-**not** repeat `requiredTag`, so the gate is written once.
+One whole category is secret: **Demoness** (behind the `demoness` tag). It
+contains exactly one `TagGroup` carrying the `requiredTag`, which is where
+the whole mechanism lives — the tags inside deliberately do **not** repeat
+`requiredTag`, so the gate is written once. (The Cult of Bacchus used to be
+a second hidden category, gated the same way behind `cultist`; it's archived
+in `docs/archive/bacchus.yaml`, and the mechanism below applies to any future
+hidden category the same way it applied to that one.)
 
 The same field also gates a group **inside a visible category**, which is how
 body membership is modelled: `general-watch` ("The Watch", behind `watchman`)
@@ -269,45 +275,6 @@ Three things make a category actually hidden rather than merely empty:
   is on the **group** gate only, never a tag's own `requiredTag`: Ranged
   (Archer) isn't a secret, and hiding it would break `{tag:ranged-archer}`
   in public documents for everyone who hasn't bought it.
-
-### The Bacchus power ladder
-
-Where the `bacchus` category's own tags live is a further split, since the
-cult's progression isn't one group but three: `bacchus` (gated by
-`cultist`), `bacchus-ripening` (gated by `cult-ripening`) and
-`bacchus-bountiful` (gated by `cult-bountiful`) — one for each rung of the
-`cult-ripening` → `cult-bountiful` chain (`docs/tags.yaml`'s
-`# --- Cult ---` block; a young cult holds no rung at all). Same rule as above: none of the member tags repeat
-`requiredTag` for that gate.
-
-Two further conventions, specific to this category:
-
-- **Spells and Rites carry a `Spell:`/`Rite:` name prefix.** A spell that
-  inflicts a status on someone else would otherwise collide with that status's
-  own name (`Rite: Rage` the caster holds, vs. `Rage` the victim ends up
-  with) — and `docs/documents.yaml` assigns documents by tag **name**, so a
-  collision there is a coin toss, same problem `peerless-beauty`'s comment
-  already documents for Demoness.
-- **A cooldown is a self-referencing `consumesInto`.** A spell with a stated
-  cooldown lists *itself* plus a `<name>-expired` marker:
-  `consumesInto: [spell-nourishment, nourishment-expired]`. This works because
-  `dropCharacterTag` runs before `grantTagSlugs` inside `consumeTagRequestImpl`
-  (`web/app/(app)/character/requestActions.js`) — the caster's stack is
-  decremented and then both slugs are granted back in the same transaction, so
-  the spell survives its own consumption and the marker's `durationTurns`
-  becomes the visible cooldown clock. The marker carries no `description` (an
-  optional field) and sits outside the `Spell:`/`Rite:` naming, since nothing
-  ever renders it as a standalone chip a player picks.
-
-**A status a Bacchus power inflicts on someone else is never gated.** The
-target is usually not a cultist: a gated group renders as literal
-`{tag:slug}` text to its own holder (per the `getVisibleTags` rule above), and
-its `visible` setting would be silently withheld from a bystander's 🔍. So
-`Rage`, `Lunatic`, `Silence` and the rest sit in ordinary `status`/`health`
-groups; only the caster-facing `Spell:`/`Rite:` tag itself is gated. The same
-goes for anything craftable — `Nailgun`, `Armor Robes` — which get traded to
-and worn by non-cultists, so they gate on the `smithing-bacchus` *skill*
-rather than the tag group.
 
 ## 4. The point economy
 
@@ -353,11 +320,12 @@ exist at launch and never afterward. **Every negative-cost tag must be
 `purchasableAfterStart: false` — *unless* it is deliberately farmable, in
 which case it must also be non-removable.** A drawback that can be bought
 mid-game and then shed is a point farm, because `REMOVE_TAG` and
-`CONSUME_TAG` refund resources but never Tag Points. The four **Addictions**
-are the one deliberate exception: a Cultist is meant to be able to take one
-mid-game for the points, so they are `purchasableAfterStart: true` and
-`removable: false, consumable: false`. The flag is the whole rule — there is
-no second, hardcoded refusal behind it.
+`CONSUME_TAG` refund resources but never Tag Points. A deliberate exception
+is possible — a negative tag that's `purchasableAfterStart: true` but also
+`removable: false, consumable: false`, so it can be taken for the points but
+never shed — but nothing in the current catalog uses it (the four
+Addictions did, before the Cult of Bacchus was archived). The flag is the
+whole rule — there is no second, hardcoded refusal behind it.
 
 That invariant has three enforcement points. `purchasableTags()` honours it
 via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
@@ -510,12 +478,10 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   Duelist, Polearms, Swords, Clubs) and Ranged (Archer, Firearms). Melee
   (Flamboyant) is priced at 7, not the usual 10 — the "without armor"
   condition is a real cost of its own, unlike the other sidegrades'
-  situational-but-free conditions. Melee (Drunken Master) is priced the same
-  way but sits in the `bacchus` category. Three sidegrades sit outside both
+  situational-but-free conditions. Two sidegrades sit outside both
   trees: Grappler (5, standalone — bare hands are not a rung of either tree,
-  so it gates on nothing), Guerrilla (10, standalone and deliberately
-  ungated, since a single `requiredTag` can't say "either tree"), and
-  Cavalry (10, `requiredTag: windlander`).
+  so it gates on nothing), and Guerrilla (10, standalone and deliberately
+  ungated, since a single `requiredTag` can't say "either tree").
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.
@@ -595,7 +561,7 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   accepts the discounted Demoness twin. Like the Silo-gated Resources field,
   an unseen field is absent rather than placeholdered — a placeholder
   advertises that there is something to go after.
-- `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs and the five Bacchus drawbacks;
+- `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
 - `tradeable` — **live**: whether the tag can change hands at all. One flag
   covers both directions — handing it to someone standing with you
@@ -631,6 +597,11 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   One tag outside Items/Assets sets it: `detonation-charge`, a keg of dynamite
   filed under `general`. The old category test blocked it; it is transferable
   now, which is correct.
+- `forcesName` (`Tag.forcedName`) — a name the holder is **forced to wear**.
+  Apex Form sets it to `Beast`. While any held tag carries one, the character
+  proxies under that name with the letter plaque for its initial, Who's here?
+  and 🔍 name them that way, and `/conceal` is refused. See "`forcesName`"
+  under `equippable` / `concealsIdentity` below, and `PROXYING.md` §5.
 - `sellable` / `sellablePrice` — the seller's half of
   `purchasable`/`purchasableAfterStart`: whether the Merchant's Depot will
   buy this tag off him, and for how many ⬢. Added for the Caves Update
@@ -1298,7 +1269,7 @@ hover-tooltip chip that renders group color, and the "Becomes" row from §5c),
 `db/lib/tagExpiryPass.js` (the `expiresInto` progression, §5c), and
 `web/lib/healRequests.js` (what a medic may treat, `REQUESTS.md` §5c).
 
-**Tag descriptions carry `{tag:…}`/`{resource:…}`/`{partysize:…}` tokens
+**Tag descriptions carry `{tag:…}`/`{resource:…}` tokens
 too**, not just documents — that's how a True Form names the {tag} it inflicts. The three
 places a description renders all forbid an *interactive* chip, though: a
 `TagChip` nested in a hover tooltip could never be hovered to reach its own
@@ -1310,12 +1281,9 @@ can point at (documents, a character's appearance). Both share the parser in
 renders `TagChip` and `TagChip` renders `ChipText`, so importing one from
 the other would close an import cycle.
 
-There are four token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
-described above; `{partysize:N}` is the Cult of Bacchus's party thresholds
-(`PARTY-SIZE.md`), a 1-indexed
-tier resolving to a headcount scaled live by `GameConfig.playerCount`; and
-`{document:key}` names another paper by its `Document.key` (`DOCUMENTS.md`),
-rendering as a chip that links to it. The
+There are three token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
+described above; `{document:key}` names another paper by its `Document.key`
+(`DOCUMENTS.md`), rendering as a chip that links to it. The
 parser in `richTokens.js` is kind-agnostic — `{(\w+):([^}]+)}` — so a new kind
 never touches it or `remarkTokens.js`. What a new kind *does* touch is the
 three renderers, which is the whole edit surface: `RichText.js`'s
@@ -1411,6 +1379,50 @@ predicate, so a hidden cuirass stays hidden even while worn, and a stowed
 dagger stays hidden even from someone standing next to it. What conceal takes
 away is the *identity* — name, appearance, Desire, Resources — not the
 inventory.
+
+## `forcesName`
+
+`forcesName: Beast` is the opposite of a hood: a tag that **fixes** how its
+holder presents instead of hiding it. It exists for transformations — Apex Form
+turns a Demoness into a monster, and a monster does not get to keep posting as
+`Lady Ysolde "the Fair" Marrow` with her portrait.
+
+What it does, all resolved at **read time** by `db/lib/presentedIdentity.js`
+(`PROXYING.md` §5), with the precedence **forced > concealed > own name**:
+
+- Every proxied message — typed, the Speak modal, and the REST twin that posts
+  Default Move summaries — goes out under the forced name, with the letter
+  plaque for its initial (`/assets/letters/B.webp` for Beast). Never the
+  character's own face, uploaded or built.
+- **Who's here?** lists them under the forced name, with no Role, and never on
+  the concealed line even if `Character.concealed` is still true on the row.
+- The player-facing 🔍 embed titles itself with the forced name and shows the
+  plaque. The GM's ⚜️ dossier keeps the real name and face and adds a
+  `Presents as` line — a GM needs to know who it is.
+- ⭐ files the note under the forced name, and the archive freezes it into
+  `ArchiveEntry.concealedAlias`, so `/archive` reads `Beast (Ysolde Marrow)`
+  exactly as it reads a hood.
+- `/conceal` and the switch on `/character` both refuse. The portrait maker,
+  the upload and Reset to Default are hidden on the sheet, and the server
+  actions behind them re-check the tag, since a hidden button is a hint and
+  not a lock.
+
+What it deliberately does **not** touch: the `Character` row (no rename, so two
+Beasts never collide on `Character.name`, which `dawnWipe` keys on, and every GM
+table still says who it is), the personal @-mention role, and the server
+nickname — both keep the real bare name, by decision. The `/add` picker naming
+the character is intended, not a leak.
+
+Because nothing is written when the tag lands, there is no grant hook and no
+catch-up pass: the first message after any door grants it — the store, the dev
+panel, a Desire — already posts as the forced name, and removing the tag
+reverts every surface on the next message.
+
+`syncTagsFromYaml` **throws** on an empty `forcesName`, on one longer than the
+first-name budget (`NAME_LIMITS.firstName`, 24), and on a tag that sets it
+beside `concealsIdentity` — a tag cannot hide who you are and dictate it. The
+GM's custom-tag form has no editor for it, the same posture as `desireLocks`;
+`/gm/dev/tags` shows it as a `Forces name: …` chip.
 
 ### The equipment panel
 

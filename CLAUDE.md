@@ -50,7 +50,7 @@ is Bascinet's signal, not yours.
 
 **Never put one in a value something matches on.** This is the caveat that keeps
 the directive from breaking the game. No ‡ in a slug, an id, an enum value, a
-`{resource:…}` or `{partysize:N}` token, a Discord channel or role name, or any
+`{resource:…}` token, a Discord channel or role name, or any
 string a sync or a lookup compares. Those are keys, not prose. A tag's `name` is
 safe, because the catalog matches on `slug`; a Zone's Discord role title is not,
 because the channel doctor matches on it.
@@ -216,7 +216,6 @@ you pick the right doc — they are never enough to change code with.
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, the Silo, or Leader/Treasurer authority |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
 | [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
-| [`PARTY-SIZE.md`](docs/systemdocs/PARTY-SIZE.md) | You're touching the Cult of Bacchus's party goals or the `{partysize:N}` token |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
@@ -227,8 +226,8 @@ you pick the right doc — they are never enough to change code with.
 Other reference docs, outside `systemdocs/`:
 
 - `docs/lore.md` — the setting.
-- `docs/threats.md` — the antagonist seats. It briefs 8 of them, while
-  `db/lib/antagonists.js` ships 12 opt-in entries.
+- `docs/threats.md` — the antagonist seats. It briefs 6 of them, while
+  `db/lib/antagonists.js` ships 11 opt-in entries.
 - `docs/handbook.md` — the player handbook, read at runtime by the web app
   (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
   live surfaces: the pinned "Player Handbook" card on `/documents` and the
@@ -567,11 +566,10 @@ strings, and the web UI.
   `<th>Resources</th>` over cells reading `12 ⬢` — never the other way
   around. A number `<input>` just gets a plain label.
 
-Two exceptions. A `{resource:…}` bubble already renders its own glyph via
-`ResourceChip.js`, so never write a glyph after one. `PartySizeChip.js` is
-the opposite case and carries **no** glyph, because a party threshold is a
-count of people, not a currency. Also, literal syntax a player is meant to
-*type* (`/move`, `/conceal`) is quoted as-is. The glossary line in
+One exception. A `{resource:…}` bubble already renders its own glyph via
+`ResourceChip.js`, so never write a glyph after one. Also, literal syntax a
+player is meant to *type* (`/move`, `/conceal`) is quoted as-is. The glossary
+line in
 `docs/systemdocs/infochannel.yaml` is, on purpose, the one place the glyph is
 introduced to players.
 
@@ -758,6 +756,9 @@ global CLIs. To make one able to build, run, and deploy:
   `ActionStatus.ADJUDICATED`. `TagSource.DESIRE_REWARD` and
   `TagSource.LEADER_GRANT` are the same shape from an earlier tag-sourcing
   design — declared in the enum, written and read nowhere.
+  `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
+  stays in the schema, but nothing reads or writes it since the Cult of
+  Bacchus was archived (`docs/archive/bacchus.yaml`).
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

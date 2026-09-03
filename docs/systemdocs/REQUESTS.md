@@ -221,9 +221,9 @@ Three notes on deliberate choices:
   (`addRequirementSatisfied()` in `web/lib/tagRequests.js`, `TAGS.md` §3b),
   with the recipe shown as the picker's "To make: …" hint and the GM review
   as the backstop. A smith with no combat skill can forge weapons to sell; a
-  fighter can pull one from the clan armoury the fiction gives them. The
-  group gate stays unconditional, so a Bacchus craftable is still invisible
-  outside the cult.
+  fighter can pull one from an armoury the fiction gives them. The
+  group gate stays unconditional, so a craftable in a hidden category is
+  still invisible outside it.
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing

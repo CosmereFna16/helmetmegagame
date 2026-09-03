@@ -65,10 +65,12 @@ itself (a recipe's `requirementSkills`) is an **OR list** — `crafting` OR
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items
-(`purchasable: false`) sit outside the ladder — as do the Bacchus craftables
-(Nailgun, Armor Robes, Nails of Life), gated by the cult's own
-`smithing-bacchus` skill rather than `smithing`/`smithing-skilled`, priced on
-their own terms rather than a rung of this table.
+(`purchasable: false`) sit outside the ladder — a craftable gated behind a
+hidden-category skill (§3a of `TAGS.md`, or a future one like it) works the
+same way: it's priced on its own terms, not a rung of this table. The Cult
+of Bacchus's `smithing-bacchus` craftables (Nailgun, Armor Robes, Nails of
+Life) used to be the example; they're archived in
+`docs/archive/bacchus.yaml`.
 
 ## 3. Weapons
 

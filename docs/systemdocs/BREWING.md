@@ -60,19 +60,6 @@ ingredient. `addTagRequestImpl` accepts a brew because the tag is
 | `forgiveness` | 8 | 1 | someone's tears | — |
 | `flawless-skin` | 8 | 1 | a lock of Nobility hair | `otherworldly-beauty` |
 
-## 3a. Bacchus recipe
-
-Gated by the cult's own `brewing-ambrosia` tag (`requiredTag: brewing-basic`),
-not by `brewing-skilled` — a Cultist doesn't need the ordinary Skilled rung to
-make this one.
-
-| Brew | ⬢ | Turns | Ingredient | Consumes into |
-|---|---|---|---|---|
-| `ambrosia` | 25 | 3 | `bliss` | `euphoric` |
-
-Three turns, where every ordinary recipe takes one. That is deliberate: it is
-the cult's long project, not a tonic.
-
 An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
 drinker — a poison you administer, a flask you throw, a powder worked into
