@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Hard of Hearing is worth less, and rules out Deaf
+
+✎ Hard of Hearing gives 4 points instead of 5  
+✚ Hard of Hearing and Deaf can no longer be taken together — one ear or none, not both
+
 ## 2026-09-03 · Tag stacking: set the count, and tag edits save on the spot
 
 ✎ The Dev Panel's Holds row now has a stepper showing how many they hold — type the number you want. Taking a stack of seven meals down to three is one gesture, not four clicks of Take one  
