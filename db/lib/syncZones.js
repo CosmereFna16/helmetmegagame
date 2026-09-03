@@ -988,6 +988,22 @@ async function syncZonesFromYaml(prisma) {
       await deleteChannel(id);
     }
     if (zone.discordRoleId) await deleteGuildRole(zone.discordRoleId);
+
+    // CavingRoll.zoneId is the one FK into Zone that is required, so it
+    // RESTRICTs rather than nulling and would abort the whole prune. Its own
+    // comment calls the column a snapshot, and ARCHITECTURE.md's rule is that
+    // a log stores snapshot COLUMNS rather than foreign keys — this one never
+    // got that treatment. Until it does, a roll in a zone that no longer
+    // exists goes with the zone, the same way a pruned Room takes its stash.
+    // Counted, never silent: it is a log, and deleting one should show up in
+    // the report.
+    const rolls = await prisma.cavingRoll.deleteMany({ where: { zoneId: zone.id } });
+    if (rolls.count > 0) {
+      report.warnings.push(
+        `pruning zone "${zone.name}" deleted ${rolls.count} CavingRoll row(s) that happened there`,
+      );
+    }
+
     await prisma.zone.delete({ where: { id: zone.id } });
     report.pruned.push(zone.name);
   }
