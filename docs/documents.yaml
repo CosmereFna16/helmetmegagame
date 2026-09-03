@@ -135,10 +135,19 @@ documents:
 
       Traditionally, in part due to the cost of medical procedures, the Esculap only treats people that can pay or people of noble blood. So try not to get hurt — you should only expect to get medical treatment if you can pay for it, unless the Esculap is feeling generous.
   teachingskills:
-  name: Teaching Skills
-  public: true
-  tags: []
-  description: "Skills can be taught. Find someone standing where you are who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is the teacher's Routine for the turn; learning is your Gambit. Roll a 5 or a 6 and the skill is yours when the turn ends. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill. ‡"
+    name: Teaching Skills
+    public: true
+    tags: []
+    description: "Skills can be taught. Find someone standing where you are who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is the teacher's Routine for the turn; learning is your Gambit. Roll a 5 or a 6 and the skill is yours when the turn ends. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill. ‡"
+  production:
+    name: Producing Resources
+    public: true
+    tags:
+      - Laborer (Basic)
+      - Laborer (Skilled)
+      - Laborer (Farming)
+    description: |-
+      Everyone can use Routine Moves to produce Resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
 
       To produce, simply enable **Labor** on your Move. Your skills are automatically applied. Laboring can be flavored in any way, from herding to hunting and foraging.
 
