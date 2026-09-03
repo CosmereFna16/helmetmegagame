@@ -968,6 +968,7 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
+    conflictsWith: [giant]
 
   # More drawbacks — same posture as Craven/Dwarf above.
   clumsy:
@@ -3248,6 +3249,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: false
+    conflictsWith: [stutter]
 
   # --- Maiming -----------------------------------------------------------
 
