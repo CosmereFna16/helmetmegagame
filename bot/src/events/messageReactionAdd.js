@@ -351,15 +351,7 @@ module.exports = {
           where: { discordUserId: user.id, status: "ALIVE" },
           select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
         });
-        const { canSeeDesire, ragingBlind } = inspectVision(viewer?.tags ?? []);
-        if (ragingBlind) {
-          try {
-            await sendDm(user, "No time, no time!", { source: "system_notice" });
-          } catch (err) {
-            console.error("Inspect reaction DM failed (raging):", err);
-          }
-          return;
-        }
+        const { canSeeDesire } = inspectVision(viewer?.tags ?? []);
 
         // Seductive/Demoness reads off the reactor, not the subject. A
         // concealed message gets a hardcoded, impoverished embed instead of

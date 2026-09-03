@@ -20,7 +20,7 @@ const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
 // Reconciles a character's per-member overwrites on the narrowcast channels
-// (#watch, #intercom, #mindlink) against their CURRENT zone/tags. Same
+// (#watch, #intercom) against their CURRENT zone/tags. Same
 // computation as web/lib/discordGuild.js#syncCharacterNarrowcastAccess,
 // built on the db/lib REST primitives instead of the web ones.
 async function reconcileNarrowcastAccess(prisma, characterId, discordUserId) {

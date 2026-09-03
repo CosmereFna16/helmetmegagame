@@ -1,17 +1,17 @@
-import { prisma, PRODUCTION_RATES, computeRate, formatRate, PARTY_SIZE_TIERS, partySize, formatPartySize } from "@lifeweb/db";
+import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
 import { documentSource, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 
-// The four datasets behind the {tag:…} / {resource:…} / {partysize:…} /
-// {document:…} inline reference syntax. The root layout calls these
+// The three datasets behind the {tag:…} / {resource:…} / {document:…}
+// inline reference syntax. The root layout calls these
 // un-awaited and streams the promises into client providers, so the data
 // rides the initial response instead of a post-hydration round trip.
 
 // The tag list is not the whole catalog: a tag whose group carries a
-// requiredTag sits in a hidden category (Demoness, Bacchus — TAGS.md §3),
+// requiredTag sits in a hidden category (Demoness — TAGS.md §3),
 // withheld unless the caller's own character has unlocked it. Gating is on
 // the GROUP gate only — a tag's own requiredTag stays visible so
 // {tag:ranged-archer} references still work for players who haven't bought it.
@@ -98,22 +98,6 @@ export async function getProductionRates() {
   );
 
   return { coefficient, rates };
-}
-
-// The Cult of Bacchus's party goals, computed live from
-// GameConfig.playerCount for the same reason as getProductionRates.
-export async function getPartySizes() {
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const playerCount = config?.playerCount ?? 100;
-
-  const sizes = Object.fromEntries(
-    PARTY_SIZE_TIERS.map((tier) => {
-      const value = partySize(tier, playerCount);
-      return [tier, { value, display: formatPartySize(value) }];
-    }),
-  );
-
-  return { playerCount, sizes };
 }
 
 const EXCERPT_CHARS = 160;

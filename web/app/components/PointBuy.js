@@ -171,7 +171,7 @@ export default function PointBuy({
   );
 
   // Requirement filtering happens BEFORE the tabs are derived, not per row:
-  // a category whose every tag is gated (Demoness, Bacchus) must have no tab
+  // a category whose every tag is gated (Demoness) must have no tab
   // at all. Selected tags stay in, so unticking one can't make it vanish
   // mid-interaction.
   const gateChecked = useMemo(

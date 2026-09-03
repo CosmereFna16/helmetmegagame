@@ -33,6 +33,7 @@ const { runStagedPushPass } = require("./lib/stagedPush");
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
+const { loadForcedName } = require("./lib/presentedIdentity");
 const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole, deleteGuildRole, addMemberRole, getGuildMember, setGuildNickname } = require("./lib/discordRest");
 const { bumpBlood } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
@@ -599,7 +600,10 @@ async function advanceTurn() {
     const sideEffectsStartedAt = Date.now();
 
     for (const post of defaultMovePosts) {
-      const sent = await postAsCharacter(post.channelId, post.character, post.message).catch((err) => {
+      // A Beast's summary is the Beast's (Tag.forcedName); resolved here
+      // because discordRest.js has no prisma of its own.
+      const forcedName = await loadForcedName(prisma, post.character.id).catch(() => null);
+      const sent = await postAsCharacter(post.channelId, post.character, post.message, { forcedName }).catch((err) => {
         console.error(`Default Move summary post for ${post.character.id} failed:`, err);
         return null;
       });
@@ -879,9 +883,9 @@ module.exports = {
   ...require("./lib/nameCorpus"),
   ...require("./lib/dynasty"),
   ...require("./lib/concealedIdentity"),
+  ...require("./lib/presentedIdentity"),
   ...require("./lib/antagonists"),
   ...require("./lib/roleCapacity"),
-  ...require("./lib/partySize"),
   ...require("./lib/production"),
   ...require("./lib/depot"),
   ...require("./lib/formatTagRequirement"),

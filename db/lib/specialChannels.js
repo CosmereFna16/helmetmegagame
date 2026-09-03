@@ -1,5 +1,5 @@
 // The registry of SPECIAL CHANNELS — standing channels outside the zone
-// system (#watch, #intercom, #mindlink). Each entry fully describes a
+// system (#watch, #intercom). Each entry fully describes a
 // channel: provisioning, static role grants, per-character access, wipe
 // behavior, ghost visibility and tupper routing all derive from it. Adding a
 // channel is one entry here plus one GameConfig id column.
@@ -44,23 +44,6 @@ const SPECIAL_CHANNELS = [
       if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === FORTRESS_SLUG) {
         return { view: true, send: true };
       }
-      return null;
-    },
-  },
-  {
-    slug: "mindlink",
-    configKey: "mindlinkChannelId",
-    categoryConfigKey: "radioCategoryId",
-    topic: "Bacchus's own net. Every Cultist hears; only a Mindlink speaks.",
-    tupper: true,
-    wipe: "clear",
-    ghostsMaySee: true,
-    slowmode: 1800,
-    // Per-member only — the cult isn't a zone, so there's no role floor.
-    roleViewZones: [],
-    member: (ctx) => {
-      if (ctx.tagSlugs.has("mindlink")) return { view: true, send: true };
-      if (ctx.tagSlugs.has("cultist")) return { view: true, send: false };
       return null;
     },
   },

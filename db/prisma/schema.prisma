@@ -470,13 +470,15 @@ model GameConfig {
   // capped role proportionally without touching the YAML.
   playerCount Int @default(100)
 
-  // The narrowcast channels (#watch, #intercom, #mindlink) live under a
+  // The narrowcast channels (#watch, #intercom) live under a
   // shared Discord "radio" category — see db/lib/specialChannels.js.
   // Provisioned once by npm run db:sync-narrowcast-channels; never touched
   // again after that.
   radioCategoryId   String?
   watchChannelId    String?
   intercomChannelId String?
+  // Orphaned: #mindlink went with the Cult of Bacchus (docs/archive/bacchus.yaml).
+  // Nothing reads or writes it; kept rather than migrated away.
   mindlinkChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
@@ -1109,7 +1111,7 @@ model Character {
   age Int?
 
   // Which secretly GM-assigned antagonist seats this player is open to being
-  // handed (Succubus, Cultist, the Judge...). Consent data only: nothing in
+  // handed (Succubus, the Judge...). Consent data only: nothing in
   // the game reads it, grants from it, or gates on it — it exists so a GM
   // picking who receives one can tell who is willing.
   //
@@ -1181,10 +1183,9 @@ model Tag {
 
   // Mutually exclusive with every other tag carrying this flag IN THE SAME
   // GROUP: a character may hold at most one of them per group. Set on the
-  // Beliefs (Post-Christian, Atheist, Existentialist, Fundamentalist, The
-  // Wind, the four Old Ways), which are meant to be a single answer rather
-  // than a collection, and on the Bacchus drawbacks (the four Addictions and
-  // Death Wish), which say "do not take with other Addiction tags". The one exception is
+  // Beliefs (Post-Christian, Atheist, Existentialist, Fundamentalist, the
+  // four Old Ways), which are meant to be a single answer rather than a
+  // collection. The one exception is
   // a pair joined by requiredTag — Fundamentalist requires Post-Christian and
   // so stacks on it. Enforced by exclusiveConflict()
   // (web/lib/characterCreation.js), called from PointBuy, createCharacter,
@@ -1433,7 +1434,7 @@ model Tag {
   // db/lib/tagShapes.js). Null for the ~99% of tags that lock nothing.
   // An ARRAY of clauses, union semantics — each clause is exactly one of
   // {all:true} | {families:[...]} | {tiers:[...]}, plus an optional
-  // exceptFamilies. Multi-clause is needed for Cultist/Nobility. The GM's
+  // exceptFamilies. Multi-clause is needed for Nobility. The GM's
   // custom-tag form at /gm/dev/tags does NOT get an editor for this — a GM
   // homebrew tag never locks catalog content.
   desireLocks Json?
@@ -1478,7 +1479,7 @@ model TagGroup {
 
   // Whole-group gate: every tag in this group stays hidden until the
   // character holds requiredTag. This is the hidden-category mechanism —
-  // the Demoness and Bacchus categories each hold exactly one gated group,
+  // the Demoness category holds exactly one gated group,
   // so until you hold the unlocking tag the category has no tab in any
   // picker and its tags are withheld from /api/tags outright. Live:
   // requirementSatisfied() in web/lib/characterCreation.js is the single

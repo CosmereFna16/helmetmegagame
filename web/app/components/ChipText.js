@@ -2,12 +2,10 @@
 
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
-import { usePartySizes } from "./PartySizeProvider";
 import { useDocuments } from "./DocumentsProvider";
 import ChipLabel from "./ChipLabel";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
-import PartySizeChip from "./PartySizeChip";
 import { splitTokens } from "./richTokens";
 
 // RichText's quiet twin: same {tag:…} / {resource:…} tokens, but a tag
@@ -28,7 +26,6 @@ import { splitTokens } from "./richTokens";
 export default function ChipText({ text, as: Wrapper = "span", className, inTooltip = false }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
-  const { sizes } = usePartySizes();
   const { docsByKey } = useDocuments();
 
   if (!text) return null;
@@ -52,12 +49,6 @@ export default function ChipText({ text, as: Wrapper = "span", className, inTool
       const rate = rates[field]?.[tier];
       if (!rate) return part.raw;
       return <ResourceChip key={`r-${i}`} value={rate.display} />;
-    }
-
-    if (part.kind === "partysize") {
-      const size = sizes[part.payload.trim()];
-      if (!size) return part.raw;
-      return <PartySizeChip key={`p-${i}`} value={size.display} />;
     }
 
     // Always the flat face, never DocumentChip: this renderer exists for text

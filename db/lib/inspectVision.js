@@ -7,7 +7,7 @@
 //
 // No Prisma import; imported by subpath from both bot/ and web/ so the rule
 // can't drift between the two faces of the game.
-const { SEDUCTIVE_DEMONESS_SLUG, INSCRUTABLE_SLUG, RAGE_SLUG } = require("./constants");
+const { SEDUCTIVE_DEMONESS_SLUG, INSCRUTABLE_SLUG } = require("./constants");
 
 // A list, not a bare slug, so another tag can be added without touching the
 // check below.
@@ -24,9 +24,6 @@ function inspectVision(characterTags = []) {
   const slugs = slugSet(characterTags);
   return {
     canSeeDesire: DESIRE_SIGHT_SLUGS.some((slug) => slugs.has(slug)),
-    // Rite: Rage (docs/tags.yaml): "you can no longer examine people." Blinds
-    // the REACTOR's own inspect — nothing about who they're looking at.
-    ragingBlind: slugs.has(RAGE_SLUG),
   };
 }
 

@@ -406,7 +406,7 @@ export default function RequestActionsProvider({
     () => characterTags.map((ct) => ct.tagId),
     [characterTags],
   );
-  // The catalog excludes gate-opening tags (Demoness, Bacchus). Fold in
+  // The catalog excludes gate-opening tags (Demoness). Fold in
   // held tags too, or a chain walk from a held gate tag dead-ends.
   const gateById = useMemo(
     () =>

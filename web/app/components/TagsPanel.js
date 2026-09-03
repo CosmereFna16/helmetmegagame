@@ -33,7 +33,6 @@ const CATEGORY_ORDER = [
   "Items",
   "Assets",
   "Demoness",
-  "Bacchus",
 ];
 
 function categoryRank(category) {

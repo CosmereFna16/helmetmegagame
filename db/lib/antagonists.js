@@ -14,7 +14,6 @@
 const ANTAGONISTS = [
   { slug: "aberrant-emissary", name: "Aberrant Emissary" },
   { slug: "archon", name: "Archon" },
-  { slug: "cultist", name: "Cultist" },
   { slug: "false-chaplain", name: "False Chaplain" },
   { slug: "judge", name: "Judge" },
   { slug: "neomorph", name: "Neomorph" },

@@ -37,7 +37,7 @@ export async function loadRoleBySlugForTemplates(prisma, templates) {
 }
 
 // Tag ids gating a hidden category the character does NOT hold (Demoness,
-// Bacchus, etc — see TagGroup.requiredTagId). Shared by every caller that
+// etc — see TagGroup.requiredTagId). Shared by every caller that
 // evaluates the Desire catalog for a specific character; getting this wrong
 // leaks a hidden roster straight into the catalog payload. devPanelData.js
 // deliberately does NOT call this — it passes an empty Set instead, because

@@ -3,7 +3,7 @@
 // actions, which pass plain objects.
 // Order (first match wins): hidden, locked, spent, cooldown, available. A
 // hidden state must be withheld entirely; a locked reason must never name a
-// hidden tag (leaks Demoness/Bacchus).
+// hidden tag (leaks Demoness).
 function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, history, openTurnNumber, desireSlots = 2 }) {
   const heldTagIds = new Set((heldTags || []).map((t) => t.id));
   const hidden_ = hiddenTagIds instanceof Set ? hiddenTagIds : new Set(hiddenTagIds || []);

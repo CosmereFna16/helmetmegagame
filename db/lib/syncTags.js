@@ -28,10 +28,10 @@ const VISIBILITY_BY_YAML = new Map([
 // Categories whose tags may carry their category as a slug prefix, because a
 // hidden power's name ("Heal", "Seductive") is generic enough to collide with
 // a general tag. Everywhere else the slug is exactly the slugified name.
-const HIDDEN_CATEGORIES = new Set(["demoness", "bacchus"]);
+const HIDDEN_CATEGORIES = new Set(["demoness"]);
 
 // The one slug rule, applied to Tag.name. Lowercase, punctuation dropped,
-// whitespace and colons to hyphens: "Death Wish (Cult)" -> death-wish-cult,
+// whitespace and colons to hyphens: "Old Ways (Bacchus)" -> old-ways-bacchus,
 // "True Form: Serpent" -> true-form-serpent.
 function slugifyName(name) {
   return String(name ?? "")
@@ -135,7 +135,7 @@ async function syncTagsFromYaml(prisma) {
     }
     // A slug is always its name, slugified — so anyone reading a slug in code
     // or in a Desire's requires knows which tag it is. The only exception is a
-    // hidden category (demoness, bacchus), where a bare name like "Heal" or
+    // hidden category (demoness), where a bare name like "Heal" or
     // "Seductive" collides with a general tag and the category leads instead.
     const wantSlug = slugifyName(t.name);
     const prefixed = `${t.category}-${wantSlug}`;

@@ -24,11 +24,6 @@ const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 // viewer — see db/lib/inspectVision.js.
 const INSCRUTABLE_SLUG = "inscrutable";
 
-
-// Consumed with everything a Rite: Rage caster examines — see
-// db/lib/inspectVision.js. Read off the REACTOR, same posture as Seductive.
-const RAGE_SLUG = "rage";
-
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
 const FORTRESS_SLUG = "fortress";
@@ -60,5 +55,4 @@ module.exports = {
   DISAPPOINTED_SLUG,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
-  RAGE_SLUG,
 };

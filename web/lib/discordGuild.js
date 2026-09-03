@@ -32,7 +32,7 @@ const PERM_SEND_MESSAGES = 2048;
 // Tupper/summary status is channel-ID-based (getLocationChannelIds below).
 // Since Bascinet 2 the tupper set is every Location channel plus each zone's
 // #summary; #summary is also the channel a zone's summaries post to.
-// #watch/#intercom/#mindlink are tupper-only (no zone to summarize into).
+// #watch/#intercom are tupper-only (no zone to summarize into).
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
   return locationChannelIds?.tupperSummary?.has(channel.id) ?? false;

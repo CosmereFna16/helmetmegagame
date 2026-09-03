@@ -28,17 +28,16 @@ function formatCapacity(cap) {
 // — the holder dies and the picker offers the role again, which is right for
 // a Bum or a Watchman. These roles are the exception: once someone has held
 // the seat it stays taken for the rest of the run, dead holder or not, so
-// there is never a second Baron, a second Sheriff, a second Bastard. That
-// includes the roles with a single seat at 100 players (Diplomat, Sheriff,
-// Ranger, Master of Parties) — Gunboat confirmed they are one-and-done.
+// there is never a second Baron, a second Sheriff. That includes the roles
+// with a single seat at 100 players (Diplomat, Sheriff) — Gunboat confirmed
+// they are one-and-done.
 //
 // A slug list rather than a roles.yaml key + Role column, the same call the
 // playtest lock made (web/lib/characterCreation.js#PLAYTEST_LOCKED_ROLE_SLUGS,
 // CHARACTERS.md "Seat caps"): a static rule over a fixed roster, and a column
 // would mean a live migration for a boolean. Keyed on Role.slug, so renaming
 // a slug in the YAML silently drops the role from this list — same caveat
-// the playtest lock carries. Every Windlands role is here; while playtest
-// mode holds the Windlands back those entries are dormant.
+// the playtest lock carries.
 const PERMANENT_SEAT_ROLE_SLUGS = [
   // The Court
   "baron",
@@ -60,17 +59,6 @@ const PERMANENT_SEAT_ROLE_SLUGS = [
   "innkeeper",
   "brigand-leader",
   "brigand",
-  // Windlands
-  "bastard",
-  "champion",
-  "mother",
-  "follower",
-  "lieutenant-broken-spears-clan",
-  "master-of-parties",
-  "clansman-broken-spears-clan",
-  "lieutenant-windrider-clan",
-  "ranger",
-  "clansman-windrider-clan",
 ];
 
 function isPermanentSeat(role) {

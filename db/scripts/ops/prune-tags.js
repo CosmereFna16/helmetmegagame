@@ -15,7 +15,7 @@ const { pruneTagsFromYaml } = require("../../lib/pruneTags");
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  const { deletable, skipped, deleted } = await pruneTagsFromYaml(prisma, { apply });
+  const { deletable, skipped, deleted, groups } = await pruneTagsFromYaml(prisma, { apply });
 
   if (skipped.length) {
     console.log(`Kept ${skipped.length} tag(s) absent from docs/tags.yaml:`);
@@ -25,18 +25,32 @@ async function main() {
     console.log("");
   }
 
-  if (!deletable.length) {
+  if (groups.skipped.length) {
+    console.log(`Kept ${groups.skipped.length} tag group(s) absent from docs/taggroups.yaml:`);
+    for (const { group, reasons } of groups.skipped) {
+      console.log(`  - ${group.name} (${group.slug}) — ${reasons.join("; ")}`);
+    }
+    console.log("");
+  }
+
+  if (!deletable.length && !groups.deletable.length) {
     console.log("Nothing to prune.");
     return;
   }
 
-  console.log(`${apply ? "Deleted" : "Would delete"} ${deletable.length} unreferenced tag(s):`);
-  for (const tag of deletable) console.log(`  - ${tag.name} (${tag.slug})`);
+  if (deletable.length) {
+    console.log(`${apply ? "Deleted" : "Would delete"} ${deletable.length} unreferenced tag(s):`);
+    for (const tag of deletable) console.log(`  - ${tag.name} (${tag.slug})`);
+  }
+  if (groups.deletable.length) {
+    console.log(`${apply ? "Deleted" : "Would delete"} ${groups.deletable.length} empty tag group(s):`);
+    for (const group of groups.deletable) console.log(`  - ${group.name} (${group.slug})`);
+  }
 
   if (!apply) {
     console.log("\nDry run. Re-run with `-- --apply` to delete them.");
   } else {
-    console.log(`\nDeleted ${deleted}.`);
+    console.log(`\nDeleted ${deleted} tag(s), ${groups.deleted} group(s).`);
   }
 }
 

@@ -4,8 +4,8 @@ import { zoneKey } from "@/lib/zones";
 //
 // What it shows is the zone the character's FACTION is keyed to
 // (Faction.zoneId), never where they happen to be standing
-// (Character.zoneId) — a Windlander is Windlands whether or not they are in
-// the Windlands. Callers pass a flat `factionZoneName` string for that reason;
+// (Character.zoneId) — a Courtier is Fortress whether or not they are in
+// the Fortress. Callers pass a flat `factionZoneName` string for that reason;
 // getting the two zones confused is the one real bug this component invites.
 //
 // No "use client": a leaf with no handlers, so it stays server-rendered inside

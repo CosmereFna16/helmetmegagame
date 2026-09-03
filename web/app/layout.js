@@ -5,12 +5,10 @@ import { resolveTheme } from "@/lib/turnFormat";
 import {
   getVisibleTags,
   getProductionRates,
-  getPartySizes,
   getDocumentIndex,
 } from "@/lib/referenceData";
 import TagsProvider from "./components/TagsProvider";
 import ProductionRatesProvider from "./components/ProductionRatesProvider";
-import PartySizeProvider from "./components/PartySizeProvider";
 import DocumentsProvider from "./components/DocumentsProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import { RefreshProvider } from "./components/useRefresh";
@@ -52,15 +50,14 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }) {
-  // The four reference datasets behind {tag:…}/{resource:…}/{partysize:…}/
-  // {document:…} chips. Created un-awaited so they don't block first paint —
-  // React streams each promise into its provider, which used to cost four
+  // The three reference datasets behind {tag:…}/{resource:…}/{document:…}
+  // chips. Created un-awaited so they don't block first paint — React
+  // streams each promise into its provider, which used to cost three
   // client fetches after hydration. The .catch means a failed query degrades
   // to empty chips instead of crashing the stream with an unhandled
   // rejection.
   const tagsPromise = getVisibleTags().catch(() => []);
   const ratesPromise = getProductionRates().catch(() => null);
-  const sizesPromise = getPartySizes().catch(() => null);
   const docsPromise = getDocumentIndex().catch(() => []);
 
   const turn = await getOpenTurn();
@@ -91,9 +88,7 @@ export default async function RootLayout({ children }) {
           <ConfirmProvider>
             <TagsProvider tagsPromise={tagsPromise}>
               <ProductionRatesProvider ratesPromise={ratesPromise}>
-                <PartySizeProvider sizesPromise={sizesPromise}>
-                  <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
-                </PartySizeProvider>
+                <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
               </ProductionRatesProvider>
             </TagsProvider>
           </ConfirmProvider>

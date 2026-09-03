@@ -95,7 +95,7 @@ export async function createCharacter(formData) {
   }
 
   const [role, config, member, openTurn] = await Promise.all([
-    // Zone comes along for the playtest lock below (no Windlander column).
+    // Zone comes along for the playtest lock below.
     prisma.role.findUnique({
       where: { id: roleId },
       include: {

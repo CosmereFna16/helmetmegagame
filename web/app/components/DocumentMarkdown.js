@@ -5,11 +5,9 @@ import remarkGfm from "remark-gfm";
 import remarkTokens from "./remarkTokens";
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
-import { usePartySizes } from "./PartySizeProvider";
 import { useDocuments } from "./DocumentsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
-import PartySizeChip from "./PartySizeChip";
 import DocumentChip from "./DocumentChip";
 import InfoIcon from "./InfoIcon";
 import { toString as mdastToString } from "mdast-util-to-string";
@@ -17,12 +15,10 @@ import { slugifyHeading } from "@/lib/documentHeadings";
 
 // Renders a <richtoken> node (see remarkTokens.js) the same way RichText
 // renders a {kind:payload} token outside Markdown: a {tag:...} becomes a
-// hoverable TagChip, a {resource:field:tier} becomes a live ResourceChip, and
-// a {partysize:N} becomes a live PartySizeChip.
+// hoverable TagChip and a {resource:field:tier} becomes a live ResourceChip.
 function RichTokenRenderer({ kind, payload, raw }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
-  const { sizes } = usePartySizes();
   const { docsByKey } = useDocuments();
 
   if (kind === "tag") {
@@ -36,12 +32,6 @@ function RichTokenRenderer({ kind, payload, raw }) {
     const rate = rates[field]?.[tier];
     if (!rate) return raw;
     return <ResourceChip value={rate.display} />;
-  }
-
-  if (kind === "partysize") {
-    const size = sizes[payload.trim()];
-    if (!size) return raw;
-    return <PartySizeChip value={size.display} />;
   }
 
   if (kind === "document") {

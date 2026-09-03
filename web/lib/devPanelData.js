@@ -60,7 +60,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     }),
     // The whole catalog, gates and all: a GM grant deliberately ignores
     // requiredTag and the TagGroup gate (TAGS.md), so unlike getVisibleTags (lib/referenceData.js) this
-    // withholds nothing — including the hidden Demoness and Bacchus groups.
+    // withholds nothing — including the hidden Demoness group.
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       // An explicit select, not an include: this is the whole catalog, and

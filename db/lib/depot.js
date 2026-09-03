@@ -2,8 +2,7 @@
 // /depot and the three DEPOT_* request kinds. See docs/systemdocs/DEPOT.md.
 //
 // This lives in db/lib rather than web/lib because the numbers are game
-// balance, not page logic — the same reason production.js and partySize.js
-// are here. Nothing in it touches Prisma or the network, so it is safe on the
+// balance, not page logic — the same reason production.js is here. Nothing in it touches Prisma or the network, so it is safe on the
 // barrel and safe to import from either face.
 
 // The tag that opens the counter. Holding it is the whole permission model:
