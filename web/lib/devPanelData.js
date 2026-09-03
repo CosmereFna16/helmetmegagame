@@ -4,7 +4,7 @@ import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
-import { DEFAULT_MAX_DRAWBACK_TAGS } from "@/lib/characterCreation";
+import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 
@@ -333,6 +333,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     cursed: isCursed(member),
     equipSlots: config?.equipSlots ?? 6,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
+    maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
     gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak }),

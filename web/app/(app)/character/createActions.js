@@ -32,7 +32,9 @@ import {
   tagsById as buildTagsById,
   effectiveTotalCost,
   negativeTagCount,
+  negativeTagPoints,
   DEFAULT_MAX_DRAWBACK_TAGS,
+  DEFAULT_MAX_DRAWBACK_POINTS,
   chainSiblingsToRemove,
   heldHigherTiers,
   requirementSatisfied,
@@ -246,13 +248,22 @@ export async function createCharacter(formData) {
     }
   }
 
-  // Drawback cap (TAGS.md §4a) counts only bought tags — role-granted
-  // starting tags never pass through `selected`.
+  // Both drawback ceilings (TAGS.md §4a), checked separately so a refusal
+  // names the one that actually stopped the build. Each counts only bought
+  // tags — role-granted starting tags never pass through `selected`.
   const maxDrawbacks = config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS;
   const drawbackCount = negativeTagCount(selected);
   if (drawbackCount > maxDrawbacks) {
     return {
       error: `You picked ${drawbackCount} drawbacks and can take at most ${maxDrawbacks}.`,
+    };
+  }
+
+  const maxDrawbackPoints = config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS;
+  const drawbackPoints = negativeTagPoints(selected);
+  if (drawbackPoints > maxDrawbackPoints) {
+    return {
+      error: `Your drawbacks claim back ${drawbackPoints} points and you can claim at most ${maxDrawbackPoints}.`,
     };
   }
 

@@ -10,13 +10,27 @@ import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 // web/lib/discordGuild.js).
 export const CURSED_POINT_PENALTY = 6;
 
-// Default drawback-tag cap when GameConfig has no row yet. Live value is
-// GameConfig.maxDrawbackTags (default 5), editable on /gm/dev.
-export const DEFAULT_MAX_DRAWBACK_TAGS = 5;
+// Defaults for the two drawback ceilings, used only when GameConfig has no
+// row yet. The live values are GameConfig.maxDrawbackTags and
+// maxDrawbackPoints, both editable on /gm/dev. A build stops at whichever it
+// reaches first — TAGS.md §4a has the reasoning.
+export const DEFAULT_MAX_DRAWBACK_TAGS = 6;
+export const DEFAULT_MAX_DRAWBACK_POINTS = 12;
 
 // A drawback is any tag with a negative pointCost (TAGS.md §4a).
 export function negativeTagCount(tags) {
   return tags.reduce((count, t) => ((t.pointCost ?? 0) < 0 ? count + 1 : count), 0);
+}
+
+// What those drawbacks claim back, as a POSITIVE magnitude — so it compares
+// with maxDrawbackPoints directly and nothing has to do a sign dance.
+//
+// Deliberately the RAW pointCost, never effectiveCost: the tier-chain discount
+// exists so upgrading Melee (Basic) to (Trained) bills only the difference,
+// and no drawback is a tier of another. Running them through it would only
+// give a future negative-cost chain a quiet way past the cap.
+export function negativeTagPoints(tags) {
+  return tags.reduce((sum, t) => ((t.pointCost ?? 0) < 0 ? sum - t.pointCost : sum), 0);
 }
 
 // The only roles a cursed player may take. Matched by Role.slug.

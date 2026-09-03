@@ -465,28 +465,31 @@ model GameConfig {
   // one on top; Overburdened zeroes the allowance. Live on /gm/dev.
   freeZoneMovesPerTurn Int @default(1)
 
-  // How many drawback TAGS a character may buy through the point-buy menu —
-  // a cap on the COUNT of negative-cost tags picked, not on their combined
-  // point value. Replaces the old points-based maxNegativeTags: that field's
-  // name always claimed to count tags while actually summing points, which
-  // this field now does for real. Only POINT_BUY drawbacks count against it —
-  // a role's free drawback (the Meister's Frail, the Headman's Old) arrives
-  // as GM_GRANT, and so does anything a GM or a turn effect inflicts, so
-  // neither eats into a player's count. Enforced in createCharacter and shown
-  // live in PointBuy's build pane, in red once over the cap; /store never
-  // sells a drawback, so there it is only a readout. Editable live from the
-  // Dev Panel, same posture as equipSlots above. 0 is a real setting: no
-  // drawbacks at all.
-  maxDrawbackTags Int @default(5)
+  // TWO ceilings on drawbacks at creation, and a build stops at whichever it
+  // reaches first (TAGS.md §4a). Neither works alone: with a count cap only,
+  // five −1s and five −11s cost the same five slots, so the cap reads as an
+  // instruction to stack the heaviest tags in the catalog; with a point cap
+  // only, one Appendicitis finishes you while ten −1s are never stopped.
+  //
+  // Both count POINT_BUY drawbacks only — a role's free drawback (the
+  // Meister's Frail, the Headman's Old) arrives as GM_GRANT, and so does
+  // anything a GM or a turn effect inflicts, so neither eats into a player's
+  // allowance. Enforced in createCharacter, shown live as the two bars in
+  // PointBuy's build pane; /store passes neither, because the caps belong to
+  // the wizard and stop existing once play starts. Both are editable live
+  // from the Dev Panel, same posture as equipSlots above, and 0 is a real
+  // setting on either: no drawbacks at all.
 
-  // Retired — replaced by maxDrawbackTags above. Kept for one deploy cycle
-  // so any process still running the pre-desires Prisma client (a lagged or
-  // skipped bot deploy — REST-only, so it can run stale for a while without
-  // erroring) keeps being able to select this column instead of throwing
-  // P2022. Drop it in a follow-up migration once both bot and web are
-  // confirmed on the build that introduced maxDrawbackTags — see the ship
-  // order in docs/systemdocs/DESIRES.md.
-  maxNegativeTags Int @default(8)
+  // How many drawback TAGS may be bought — a cap on the COUNT of
+  // negative-cost tags picked, whatever they are worth.
+  maxDrawbackTags Int @default(6)
+
+  // How many points those drawbacks may claim back in total. Stored as a
+  // POSITIVE magnitude — "at most 12 points may be claimed" — even though
+  // every drawback carries a negative pointCost, so nothing has to do a sign
+  // dance to compare against it. It matches startingTagPoints on purpose:
+  // you can never claim back more than you started with.
+  maxDrawbackPoints Int @default(12)
 
   // How many Desire slots a character has, each of which can be claimed into
   // once every desireSlotLockTurns turns. Same live-editable posture as

@@ -17,6 +17,7 @@ import {
   prerequisiteNames,
   hasPrerequisite,
   negativeTagCount,
+  negativeTagPoints,
   exclusiveConflict,
   conflictingTag,
 } from "@/lib/characterCreation";
@@ -141,6 +142,83 @@ function TagRow({ tag, isSelected, cost, unaffordable, conflictName, onToggle })
   );
 }
 
+// Which ceiling stopped this build, said in words.
+//
+// The bars show the state; this says what to do about it, and it has to name
+// the half that is actually over — "you have too many drawbacks" is useless
+// advice to somebody holding two of them worth fifteen points. When both are
+// over, both are said: fixing one would still leave the build illegal, and
+// discovering that a click later is worse than reading a longer sentence.
+function overCapSentence({
+  overCap,
+  overPointCap,
+  negativeUsed,
+  negativeCap,
+  negativePointsUsed,
+  negativePointCap,
+}) {
+  const parts = [];
+  if (overCap) {
+    const excess = negativeUsed - negativeCap;
+    parts.push(
+      `${negativeUsed} drawbacks taken and the limit is ${negativeCap} — drop ${excess === 1 ? "one" : excess}`,
+    );
+  }
+  if (overPointCap) {
+    parts.push(
+      `they claim back ${negativePointsUsed} points and the limit is ${negativePointCap} — drop ${negativePointsUsed - negativePointCap} points' worth`,
+    );
+  }
+  // Capitalised here rather than in the JSX: the first clause is whichever
+  // limit is over, so nothing else knows which word starts the sentence.
+  const text = parts.join("; ");
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}. ‡`;
+}
+
+// A filled bar for one of the build pane's two budgets.
+//
+// Local to this file on purpose: the app has no progress-bar primitive
+// anywhere — no <progress>, no role="progressbar", nothing in globals.css —
+// and this is its only consumer, so a shared component would be one caller
+// wide. Colours come from tokens, never a literal, so it follows the theme
+// (DESIGN-SYSTEM.md).
+//
+// The number beside it is not decoration: a bar alone says "roughly this
+// full" and a point-buy needs the exact figure, so the bar is the glance and
+// the text is the answer. `over` paints the whole track, since a bar that
+// simply sits at 100% cannot show by how much you overshot.
+function Meter({ label, used, cap, over, children }) {
+  const pct = cap > 0 ? Math.min(100, Math.max(0, (used / cap) * 100)) : 0;
+  const colour = over ? "var(--danger)" : "var(--accent)";
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-2 text-sm">
+        <span className="text-muted">{label}</span>
+        <span className="mono font-bold" style={{ color: over ? "var(--danger)" : "var(--text)" }}>
+          {children}
+        </span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label={label}
+        aria-valuenow={used}
+        aria-valuemin={0}
+        aria-valuemax={cap}
+        style={{
+          height: "0.375rem",
+          borderRadius: "var(--r-full)",
+          // The next rung up the surface ladder, so the empty track reads
+          // against the .panel this sits in without inventing a colour.
+          background: "var(--surface-raised)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ width: `${over ? 100 : pct}%`, height: "100%", background: colour }} />
+      </div>
+    </div>
+  );
+}
+
 export default function PointBuy({
   tags,
   budget,
@@ -151,6 +229,8 @@ export default function PointBuy({
   actions = null,
   negativeCap = null,
   negativeHeld = 0,
+  negativePointCap = null,
+  negativePointsHeld = 0,
   roleSlug = null,
 }) {
   // Full catalog by id, not just what's on offer, so a chain walk
@@ -257,19 +337,32 @@ export default function PointBuy({
   const spent = effectiveTotalCost(selected, byId, grantedIds);
   const remaining = budget - spent;
 
-  // Drawback tags are counted, never discounted — see negativeTagCount.
-  // The cap is soft in exactly the same way the budget is: a click still
+  // Two drawback ceilings, and a build stops at whichever it reaches first
+  // (TAGS.md §4a): how MANY drawbacks, and how many points they claim back.
+  // Neither is discounted by a chain — see negativeTagCount/negativeTagPoints.
+  //
+  // Both are soft in exactly the same way the budget is: a click still
   // selects, and the build pane says why the build isn't legal yet. A dimmed
   // row that swallowed the click would leave the player with no explanation.
   const negativeSelected = negativeTagCount(selected);
   const negativeUsed = negativeHeld + negativeSelected;
   const capped = negativeCap != null;
   const overCap = capped && negativeUsed > negativeCap;
+
+  const negativePointsSelected = negativeTagPoints(selected);
+  const negativePointsUsed = negativePointsHeld + negativePointsSelected;
+  const pointCapped = negativePointCap != null;
+  const overPointCap = pointCapped && negativePointsUsed > negativePointCap;
+
+  // How much room is left before each ceiling, for the row-dimming below.
+  const capRoom = capped ? negativeCap - negativeUsed : Infinity;
+  const pointCapRoom = pointCapped ? negativePointCap - negativePointsUsed : Infinity;
+
   // "Drop one to continue" is only true advice if dropping something in THIS
-  // menu would help. A character grandfathered in over the cap opens /store
+  // menu would help. A character grandfathered in over a ceiling opens /store
   // already over it with an empty cart and nothing to drop, so there the
-  // count still reads red but the instruction stays quiet.
-  const canFixCap = overCap && negativeSelected > 0;
+  // readout still goes red but the instruction stays quiet.
+  const canFixCap = (overCap || overPointCap) && negativeSelected > 0;
 
   function toggle(tag) {
     if (selectedIds.includes(tag.id)) {
@@ -331,12 +424,15 @@ export default function PointBuy({
     // (unmet requiredTag, or an unmet group gate) never reaches here at all:
     // `unlocked` above dropped it, along with its category tab.
     const unaffordable = !isSelected && cost > remaining;
-    // A drawback that would push the tag count past the cap is dimmed the
-    // same way an unaffordable tag is: both are "you can't take this right
-    // now", and reusing the one state means no second visual language for
-    // the same idea. Every qualifying drawback costs exactly one slot of the
-    // cap now, so it's blocked once the cap is already reached.
-    const capBlocked = !isSelected && capped && (tag.pointCost ?? 0) < 0 && negativeUsed >= negativeCap;
+    // A drawback that would push a build past EITHER ceiling is dimmed the
+    // same way an unaffordable tag is: all of them are "you can't take this
+    // right now", and reusing the one state means no second visual language
+    // for the same idea. Every drawback costs exactly one slot of the count,
+    // so that half blocks once the count is reached; the points half blocks
+    // per-tag, since a −2 can still fit where a −7 no longer does.
+    const drawbackWorth = (tag.pointCost ?? 0) < 0 ? -(tag.pointCost ?? 0) : 0;
+    const capBlocked =
+      !isSelected && drawbackWorth > 0 && (capRoom < 1 || drawbackWorth > pointCapRoom);
     // Only against grantedIds: a conflict with another pick is resolved by
     // swapping (toggle), so dimming it too would make the swap look forbidden.
     const conflict = isSelected
@@ -365,11 +461,18 @@ export default function PointBuy({
       >
         <span className="text-muted">Points remaining</span>
         <span className="flex items-center gap-3">
-          {/* The drawback count gates the build the same way the budget
-              does, so on mobile it has to ride the same sticky bar. */}
+          {/* The drawback ceilings gate the build the same way the budget
+              does, so on mobile they ride the same sticky bar. No meters
+              here — this strip is one line and each half has to stay
+              glanceable at a phone width. */}
           {capped && (
             <span style={{ color: overCap ? "var(--danger)" : "var(--muted)" }}>
               {negativeUsed}/{negativeCap} drawbacks
+            </span>
+          )}
+          {pointCapped && (
+            <span style={{ color: overPointCap ? "var(--danger)" : "var(--muted)" }}>
+              {negativePointsUsed}/{negativePointCap} back
             </span>
           )}
           <strong style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}>
@@ -482,22 +585,41 @@ export default function PointBuy({
           <h2 className="panel-header" style={{ margin: 0 }}>
             Your Build
           </h2>
-          <div aria-live="polite">
-            <div
-              className="text-2xl font-bold"
-              style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}
-            >
-              {remaining}
+          <div aria-live="polite" className="flex flex-col gap-3">
+            <div>
+              <div
+                className="text-2xl font-bold"
+                style={{ color: remaining < 0 ? "var(--accent-text)" : "var(--text)" }}
+              >
+                {remaining}
+              </div>
+              <div className="text-sm text-muted">
+                points remaining · {spent} / {budget} spent
+              </div>
             </div>
-            <div className="text-sm text-muted">
-              points remaining · {spent} / {budget} spent
-            </div>
+
+            {/* The drawback allowance, drawn as a budget of its own — because
+                that is what it is. Two ceilings sit on it and a build stops at
+                whichever it reaches first, so the bar carries the points half
+                (the one that moves by different amounts per pick) and the tag
+                count rides underneath it, each going red on its own. Reading
+                which one turned red is how a player learns the rule. */}
+            {pointCapped && (
+              <Meter
+                label="Drawbacks claimed"
+                used={negativePointsUsed}
+                cap={negativePointCap}
+                over={overPointCap}
+              >
+                {negativePointsUsed} / {negativePointCap}
+              </Meter>
+            )}
             {capped && (
               <div
-                className="text-sm font-bold"
-                style={{ color: overCap ? "var(--danger)" : "var(--muted)" }}
+                className="text-sm"
+                style={{ color: overCap ? "var(--danger)" : "var(--muted)", marginTop: "-0.375rem" }}
               >
-                {negativeUsed} / {negativeCap} drawbacks taken
+                {negativeUsed} of {negativeCap} tags
               </div>
             )}
           </div>
@@ -508,8 +630,14 @@ export default function PointBuy({
           )}
           {canFixCap && (
             <p className="text-sm" style={{ color: "var(--danger)" }}>
-              {negativeUsed} drawbacks taken; the limit is {negativeCap}. Drop{" "}
-              {negativeUsed - negativeCap === 1 ? "one" : `${negativeUsed - negativeCap}`} to continue.
+              {overCapSentence({
+                overCap,
+                overPointCap,
+                negativeUsed,
+                negativeCap,
+                negativePointsUsed,
+                negativePointCap,
+              })}
             </p>
           )}
 

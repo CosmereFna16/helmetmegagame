@@ -477,17 +477,21 @@ wizard, the server action, and the GM panel so the number a player is shown
 and the number the server enforces cannot drift apart.
 
 `Tag.pointCost` is **signed**. Positive costs points; negative *grants* them
-(the drawbacks, Old at `-2` and Frail at `-3`). Summing signed costs means
+(the drawbacks, Old and Frail at `-5` each). Summing signed costs means
 both directions fall out of one subtraction, and `remaining >= 0` is the only
 completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
-At most `GameConfig.maxDrawbackTags` drawback **tags** (default 5, live on
-`/gm/dev`) may be **bought** — a cap on the count of drawback tags held, not
-on the sum of what they grant. The role's own starting tags land as
+Drawbacks face **two** ceilings, and a build stops at whichever it reaches
+first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
+default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
+(**12** by default, matching `startingTagPoints` — you can never claim back
+more than you started with). Both are live on `/gm/dev`. Either alone leaves a
+hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
+alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
-Frail and the Headman's Old cost nobody a slot of the cap. `TAGS.md` §4a is
-the full rule.
+Frail and the Headman's Old count against neither. `TAGS.md` §4a is the full
+rule.
 
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
 

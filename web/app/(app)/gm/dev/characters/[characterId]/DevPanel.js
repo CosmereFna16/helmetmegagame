@@ -59,6 +59,7 @@ export default function DevPanel({
   cursed,
   equipSlots,
   maxDrawbackTags,
+  maxDrawbackPoints,
   startingTagPoints,
   openTurn,
   gambitModifier,
@@ -231,6 +232,7 @@ export default function DevPanel({
         held={held}
         equipSlots={equipSlots}
         maxDrawbackTags={maxDrawbackTags}
+        maxDrawbackPoints={maxDrawbackPoints}
         gambitModifier={gambitModifier}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
@@ -402,21 +404,25 @@ function StateStrip({
   held,
   equipSlots,
   maxDrawbackTags,
+  maxDrawbackPoints,
   gambitModifier,
   openTurn,
   hasActed,
   stagedForPush,
 }) {
   const equipped = held.filter((h) => h.equipped).length;
-  // Point-bought drawbacks only, matching the cap PointBuy enforces — a
-  // GM-inflicted wound is not one of the player's tags. Shown as a fact,
-  // not a limit: a GM grant deliberately ignores every gate, this one
-  // included. Counted as tags, not summed as points — see negativeTagCount.
-  const drawbackCount = held.reduce((count, h) => {
-    if (h.source !== "POINT_BUY") return count;
-    return (h.pointCost ?? 0) < 0 ? count + 1 : count;
-  }, 0);
-  const overDrawbackCap = drawbackCount > maxDrawbackTags;
+  // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
+  // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
+  // a limit: a GM grant deliberately ignores every gate, these included.
+  // Both halves, because either one alone tells a GM half the rule.
+  const drawbacks = held.reduce(
+    (acc, h) => {
+      if (h.source !== "POINT_BUY" || (h.pointCost ?? 0) >= 0) return acc;
+      return { count: acc.count + 1, points: acc.points - h.pointCost };
+    },
+    { count: 0, points: 0 },
+  );
+  const overDrawbackCap = drawbacks.count > maxDrawbackTags || drawbacks.points > maxDrawbackPoints;
   // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
   // GM's eye lands on the right group instead of scanning the whole strip.
   // Purely presentational — every value below is unchanged from before.
@@ -443,7 +449,7 @@ function StateStrip({
         [
           "Drawbacks",
           <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>
-            {drawbackCount} / {maxDrawbackTags}
+            {drawbacks.count} / {maxDrawbackTags} · {drawbacks.points} / {maxDrawbackPoints} pts
           </span>,
         ],
         ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],

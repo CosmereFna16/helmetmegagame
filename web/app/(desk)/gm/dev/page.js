@@ -339,6 +339,19 @@ export default async function DevPanelPage({ searchParams }) {
                     <input type="number" name="maxDrawbackTags" min="0" max="20" defaultValue={config.maxDrawbackTags} />
                   </label>
                   <label className="field">
+                    {/* A positive magnitude: "at most this many points may be
+                        claimed back". A build stops at whichever of the two
+                        drawback ceilings it reaches first. */}
+                    <span className="field-label">Max drawback points</span>
+                    <input
+                      type="number"
+                      name="maxDrawbackPoints"
+                      min="0"
+                      max="60"
+                      defaultValue={config.maxDrawbackPoints}
+                    />
+                  </label>
+                  <label className="field">
                     <span className="field-label">Catatonic after N idle turns</span>
                     <input type="number" name="catatonicTurns" min="1" max="60" defaultValue={config.catatonicTurns} />
                   </label>

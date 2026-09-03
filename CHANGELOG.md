@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Drawbacks now run out two ways, not one
+
+✚ A second limit at character creation: your drawbacks can claim back at most 12 points between them, on top of the cap on how many you may take  
+✎ The cap on how many rises from 5 to 6. You stop at whichever limit you reach first  
+✎ Before this, five drawbacks were five drawbacks whether they were worth 5 points or 43, so the only sensible play was to stack the worst afflictions in the book. A build could reach 55 points; it now tops out at 24  
+✎ The creation screen grows a second budget bar showing what you have claimed back, with the tag count under it. Each goes red on its own, so you can see which limit stopped you  
+✎ Both numbers are editable on the dev panel, and neither applies in the store — the limits belong to character creation and stop existing once play starts
+
 ## 2026-09-03 · Nobody can escalate the intercom to @everyone
 
 ✎ The PA's own @here still pings everyone in the zone. A typed @everyone, @here or role mention inside the announcement itself is now inert

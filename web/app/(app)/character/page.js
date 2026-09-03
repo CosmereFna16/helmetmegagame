@@ -114,6 +114,7 @@ async function loadCreationData(discordUserId) {
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
+    maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
     zones: zones
       .map((zone) => ({
@@ -291,6 +292,7 @@ export default async function CharacterPage() {
           desireSlots: true,
           desireSlotLockTurns: true,
           maxDrawbackTags: true,
+          maxDrawbackPoints: true,
           autoTurnAdvanceDisabled: true,
         },
       }),

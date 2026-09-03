@@ -301,8 +301,9 @@ Three things make a category actually hidden rather than merely empty:
 
 `pointCost` is the price in the point-buy menu, and it is **signed**:
 positive costs the player points, negative *grants* them (the drawbacks,
-Old at `-2` and Frail at `-3`). Both directions fall out of one subtraction,
-so `remaining >= 0` is the only rule for whether a build is legal.
+Old and Frail at `-5` each). Both directions fall out of one subtraction, so
+`remaining >= 0` is one of the three rules for whether a build is legal — the
+two drawback ceilings in §4a are the others.
 
 **The display inverts it, and both axes agree.** `formatCost`/`costColor`
 (`web/lib/characterCreation.js`) show the effect on the player's *point
@@ -433,37 +434,64 @@ deliberate outlier as Pack Mule; don't read a pattern into it. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 
-**At character creation, a character may buy at most
-`GameConfig.maxDrawbackTags` drawback TAGS — 5 by default, live on
-`/gm/dev`.** The cap belongs to the wizard and stops existing once play
-starts: `/store` passes no cap and shows no drawback readout, since the one
-drawback it can sell (an Addiction) is meant to be sellable. This is a cap on
-the **count** of drawback tags held, not on their combined point value: a
-character with one −8 drawback and one with eight −1 drawbacks now spend a
-different slice of the cap (the field replaced the old `maxNegativeTags`,
-which — despite its name — summed points; `maxDrawbackTags` does what the
-old name always claimed to, for real; the `drawback_tag_cap` migration,
-Desires rework). Only what was bought through the point-buy menu counts
-(`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the
-Meister's Frail, the Headman's Old) arrives as `GM_GRANT`, and so does
-anything a GM or a turn effect inflicts, so neither eats into a player's
-count. A GM grant can still push someone past the cap, deliberately — the
-same bypass every other gate has (§3). `0` is a real setting: no drawbacks
+**At character creation a build faces TWO ceilings on drawbacks, and it stops
+at whichever it reaches first:**
+
+- **`GameConfig.maxDrawbackTags`** — how many drawback tags may be bought.
+  **6** by default.
+- **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
+  claim back in total, stored as a **positive magnitude**. **12** by default,
+  matching `startingTagPoints` on purpose, so the rule says itself: *you can
+  never claim back more than you started with.*
+
+Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.
 
-The cap has three surfaces. `PointBuy.js` sums it live in the build pane
-(`negativeCap` / `negativeHeld`), shown in red once the count is over the
-cap (`{used} / {cap} drawbacks taken`), dims a drawback that would push the
-count past the limit the same way it dims an unaffordable tag, and — like
-the budget — lets the click through so the pane can say why the build isn't
-legal. `CreateCharacterWizard` folds it into `canAdvance` beside
-`remaining >= 0`. `createCharacter` re-checks it server-side, because a
-server action is a public endpoint. `/store` shows the same line as a
-**readout only**: every drawback is `purchasableAfterStart: false`, so the
-shelf never offers one and the total can't move there. `negativeTagCount()`
-in `web/lib/characterCreation.js` is the shared predicate, counting tags
-with a negative `pointCost` rather than summing `effectiveCost` — a drawback
-never sits in a tier chain, so there is nothing to discount.
+**Neither ceiling works alone, which is the whole reason there are two.** A
+count cap by itself spends the same slot on a −1 and on a −11, so five
+drawbacks are worth −5 to one player and −43 to another — the cap reads as an
+instruction to stack the heaviest tags in the catalog, and the player taking
+five small human flaws is simply playing it wrong. A point cap by itself is
+the mirror problem: one Appendicitis finishes you, while ten −1s are never
+stopped by anything. The game shipped each in turn — `maxNegativeTags`
+(points, retired 2026-08-31) then `maxDrawbackTags` (count) — before landing
+on both. Together they say the thing that was meant all along: a character
+may have a handful of problems, worth only so much trouble in total.
+
+Only what was bought through the point-buy menu counts against either
+(`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the Meister's
+Frail, the Headman's Old) arrives as `GM_GRANT`, and so does anything a GM or
+a turn effect inflicts, so neither eats into a player's allowance. A GM grant
+can still push someone past both, deliberately — the same bypass every other
+gate has (§3).
+
+**The ceilings belong to the wizard and stop existing once play starts.**
+`/store` passes neither and shows no drawback readout at all: the one kind of
+drawback it can sell (an Addiction) is meant to be sellable, and a limit the
+shelf can neither enforce nor move is noise. That is a decision, not an
+omission — a character can trade suffering for points mid-game. It is not a
+farm, because a drawback the store pays for must be one that can never be
+handed back (§4, and the guard in `buyTags`).
+
+They have three surfaces. `PointBuy.js` tracks both live in the build pane
+(`negativeCap` / `negativeHeld`, `negativePointCap` / `negativePointsHeld`):
+the points half is drawn as a **second budget bar** under the points-remaining
+figure, with the tag count as a line beneath it, each going red on its own so
+a player can see *which* ceiling they hit rather than being told they hit one.
+A drawback that would push the build past either is dimmed exactly as an
+unaffordable tag is — the count half blocks once the count is reached, the
+points half blocks per tag, since a −2 can still fit where a −7 no longer
+does — and, like the budget, the click still goes through so the pane can say
+why the build isn't legal. `CreateCharacterWizard` folds both into
+`canAdvance` beside `remaining >= 0`. `createCharacter` re-checks both
+server-side as separate refusals that each name their own limit, because a
+server action is a public endpoint.
+
+`negativeTagCount()` and `negativeTagPoints()` in
+`web/lib/characterCreation.js` are the shared predicates. Both read the raw
+`pointCost` rather than `effectiveCost`: a drawback never sits in a tier
+chain, so there is nothing to discount, and running them through the discount
+would only give a future negative-cost chain a quiet way past the ceiling.
 
 **0 is a real price, not a missing one**, and it is the most common value in
 the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
