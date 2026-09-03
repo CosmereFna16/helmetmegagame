@@ -111,11 +111,11 @@ export async function getCarryReference() {
   const [config, tags] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryWeightLbs: true, carryResourceCap: true } }),
     prisma.tag.findMany({
-      where: { carryMultiplier: { not: null } },
-      select: { slug: true, carryMultiplier: true },
+      where: { carryBonus: { not: null } },
+      select: { slug: true, carryBonus: true },
     }),
   ]);
-  const lines = Object.fromEntries(tags.map((t) => [t.slug, carryBonusLine(config, t.carryMultiplier)]));
+  const lines = Object.fromEntries(tags.map((t) => [t.slug, carryBonusLine(config, t.carryBonus)]));
   return { base: carryCaps(config, MULT_SCALE), lines };
 }
 

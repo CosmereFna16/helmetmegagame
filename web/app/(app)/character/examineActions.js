@@ -9,6 +9,7 @@ import { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } from "@lifeweb/d
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
 import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
+import { examineBlock } from "@lifeweb/db/lib/examineVision";
 
 // Examine — looking at somebody standing where you stand. The second control
 // on the Actions grid that files no Request (see ReadDialog.js for the first):
@@ -39,11 +40,23 @@ async function looker() {
       locationId: true,
       factionId: true,
       discordUserId: true,
-      tags: { select: { tagId: true, tag: { select: { slug: true } } } },
+      // `equipped` and the Location's roof are here for examineVision.js: a
+      // pair of spectacles only corrects your sight while you are wearing it,
+      // and Sun Sensitivity only blinds you outdoors.
+      tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },
+      location: { select: { indoors: true } },
     },
   });
   if (!me) throw new UserError("No living character. ‡");
   return me;
+}
+
+// The vision gate, asked before either action below does any work. The greyed
+// button on the sheet is a hint; this is the lock (see the metagaming note in
+// web/app/components/actionRegistry.js).
+async function blockedFromLooking(me) {
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { phase: true } });
+  return examineBlock(me.tags, { phase: openTurn?.phase ?? null, indoors: me.location?.indoors ?? true });
 }
 
 // Who you can look at: everyone ALIVE standing at your Location, INCLUDING the
@@ -62,6 +75,11 @@ export async function peopleToExamine() {
   return guarded(async () => {
     const me = await looker();
     if (!me.locationId) return { people: [] };
+
+    // Refused here as well as in examineCharacter(), so a blinded player never
+    // gets a roster of who is standing around them as a consolation prize.
+    const blocked = await blockedFromLooking(me);
+    if (blocked) throw new UserError(blocked);
 
     const present = await prisma.character.findMany({
       where: { status: "ALIVE", locationId: me.locationId, id: { not: me.id } },
@@ -103,6 +121,9 @@ export async function peopleToExamine() {
 export async function examineCharacter(targetId) {
   return guarded(async () => {
     const me = await looker();
+
+    const blocked = await blockedFromLooking(me);
+    if (blocked) throw new UserError(blocked);
 
     const subject = await prisma.character.findFirst({
       // Co-presence is the whole gate, and it is in the WHERE clause rather

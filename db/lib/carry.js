@@ -2,8 +2,8 @@
 // (docs/systemdocs/CARRY.md).
 //
 // A character carries two loads against two caps: POUNDS of gear against
-// GameConfig.carryWeightLbs, and ⬢ against carryResourceCap. Both are
-// multiplied by every carryMultiplier they hold. Over a cap is allowed and
+// GameConfig.carryWeightLbs, and ⬢ against carryResourceCap. Both are moved by
+// the SUM of every carryBonus they hold. Over a cap is allowed and
 // grants `overburdened`; over 1.5× it is not allowed at all, and whatever
 // pushed them there is set down where they stand.
 //
@@ -25,9 +25,15 @@ const { pickRandomPublicRoom, formatManifest } = require("./roomStash");
 const { announceInRoom } = require("./roomAnnounce");
 const { sendDm } = require("./dm");
 
-// Multipliers are stored ×1000 as integers so the product of several of them
-// stays exact, never a float epsilon.
+// The combined bonus is carried ×1000 as an integer so the sum of several
+// two-decimal bonuses stays exact, never a float epsilon.
 const MULT_SCALE = 1000;
+
+// The floor under the summed bonuses. Penalties add up, and the catalog holds
+// enough of them that a thoroughly broken body could reach zero or go negative
+// — a 0 lb cap would leave a character permanently Overburdened with nothing
+// they could put down to fix it.
+const MIN_MILLI = 250;
 
 // How far past a cap a character may go before the goods simply cannot be
 // theirs. Between 1× and this they are Overburdened; past it, an acquisition
@@ -39,35 +45,41 @@ const HARD_CAP_RATIO = 1.5;
 // cart rolls, a house does not move at all.
 const WEIGHTLESS_CATEGORY = "Assets";
 
-// Does this row's carryMultiplier count right now?
+// Does this row's carryBonus count right now?
 //
 // A vehicle has to be in your hands: an unequipped Cart is parked, and it
-// hauls nothing. A trait does not — Pack Mule and Strong are bodies rather
-// than gear, are not `equippable` at all, and so could never be equipped.
-// Testing `equippable` rather than listing slugs keeps the rule in the
-// catalog where the rest of the tag's behaviour lives.
+// hauls nothing. A body does not — Pack Mule, Frail and a broken rib are not
+// `equippable` at all, and so could never be equipped. Testing `equippable`
+// rather than listing slugs keeps the rule in the catalog where the rest of a
+// tag's behaviour lives.
 function multiplierApplies(ct) {
-  const m = ct?.tag?.carryMultiplier;
-  if (!(typeof m === "number" && m > 0)) return false;
+  const m = ct?.tag?.carryBonus;
+  if (!(typeof m === "number" && Number.isFinite(m) && m !== 0)) return false;
   return ct.tag.equippable ? ct.equipped === true : true;
 }
 
-// Product of every ACTIVE Tag.carryMultiplier, as a milli-multiplier (1000 =
-// ×1). Per ROW, not per unit: Cart and Pack Mule are non-stackable, so a
-// stack of multipliers cannot exist.
+// SUM of every ACTIVE Tag.carryBonus, as a milli-multiplier (1000 = ×1). Per
+// ROW, not per unit: nothing carrying a bonus is stackable.
+//
+// Additive rather than multiplicative, which matters now that bodies can carry
+// a penalty. Multiplied, Frail ×0.9 took 60 lb off a character pulling a cart
+// and 12 lb off a peasant — the same frailty, five times the bite, decided by
+// gear it has nothing to do with. Added, a frail body costs everyone the same
+// 12 lb.
 function carryMultiplier(characterTags = []) {
-  let product = 1;
-  for (const ct of characterTags) if (multiplierApplies(ct)) product *= ct.tag.carryMultiplier;
-  return Math.round(product * MULT_SCALE);
+  let sum = 0;
+  for (const ct of characterTags) if (multiplierApplies(ct)) sum += ct.tag.carryBonus;
+  return Math.max(MIN_MILLI, Math.round((1 + sum) * MULT_SCALE));
 }
 
-// One line per active multiplier, for the hover breakdown on /character. The
-// player should be able to see exactly what is holding their cap up.
+// One line per active bonus, for the hover breakdown on /character. The player
+// should be able to see exactly what is holding their cap up — or pushing it
+// down.
 function carryBreakdown(characterTags = []) {
   return characterTags.filter(multiplierApplies).map((ct) => ({
     slug: ct.tag.slug,
     name: ct.tag.name,
-    multiplier: ct.tag.carryMultiplier,
+    bonus: ct.tag.carryBonus,
   }));
 }
 
@@ -161,13 +173,19 @@ function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
 }
 
 // The sentence a carry tag's description ends with, computed from the live
-// config: what THIS multiplier adds on top of the base caps. Bascinet's
+// config: what THIS bonus does to the base caps on its own. Bascinet's
 // wording; the ⬢ glyph replaces the word per CLAUDE.md's Resources rule.
-function carryBonusLine(config, multiplier) {
+//
+// Two branches, because a bonus can now be negative and "You can carry -60
+// more lb" is not a sentence anybody should read.
+function carryBonusLine(config, bonus) {
   const base = carryCaps(config, MULT_SCALE);
-  const raised = carryCaps(config, Math.round((multiplier ?? 1) * MULT_SCALE));
-  const lbs = raised.weight - base.weight;
-  const resources = raised.resources - base.resources;
+  const moved = carryCaps(config, Math.round((1 + (bonus ?? 0)) * MULT_SCALE));
+  const lbs = moved.weight - base.weight;
+  const resources = moved.resources - base.resources;
+  if (lbs < 0 || resources < 0) {
+    return `You can carry ${Math.abs(lbs)} lb less, and ${Math.abs(resources)} ⬢ less. ‡`;
+  }
   return `You can carry ${lbs} more lb, and ${resources} ⬢.`;
 }
 
@@ -200,7 +218,7 @@ const CHARACTER_SELECT = {
           tradeable: true,
           weightLbs: true,
           equippable: true,
-          carryMultiplier: true,
+          carryBonus: true,
         },
       },
     },
@@ -211,7 +229,7 @@ let warnedMissingTag = false;
 
 // Draws random UNITS out of the droppable holdings until `excessLbs` pounds
 // have been shed. Returns [{ tagId, tagName, quantity, expiresTurn }]
-// aggregated per tag. Multiplier tags and equipped gear are never in the bag:
+// aggregated per tag. Carry-bonus tags and equipped gear are never in the bag:
 // dropping the Cart to fix being over would shrink the cap again and loop, and
 // being disarmed by an overfull pack reads badly.
 //
@@ -220,7 +238,7 @@ let warnedMissingTag = false;
 function drawDrops(characterTags, excessLbs) {
   const units = [];
   for (const ct of characterTags) {
-    if (!ct.tag.tradeable || ct.equipped || ct.tag.carryMultiplier) continue;
+    if (!ct.tag.tradeable || ct.equipped || ct.tag.carryBonus) continue;
     const each = rowWeight({ ...ct, quantity: 1 });
     if (each <= 0) continue;
     for (let i = 0; i < (ct.quantity ?? 1); i += 1) units.push(ct);

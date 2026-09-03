@@ -6,7 +6,7 @@ doc owns `db/lib/carry.js`, `db/lib/carryPass.js`, `db/lib/roomStash.js`,
 zone move in `db/lib/locationTravel.js`, the `room:` party kind, the merged
 Transfer dialog and the Storage button. Related: `REQUESTS.md` (the two transfer request
 types), `CHANNELS.md` §4 (Rooms), `MAP.md` §3 (the travel gate),
-`TURN-ENGINE.md` (the carry pass), `TAGS.md` §5 (`carryMultiplier`).
+`TURN-ENGINE.md` (the carry pass), `TAGS.md` §5 (`carryBonus`).
 
 ## 1. The caps
 
@@ -17,22 +17,63 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 | Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 120 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
-Both caps are multiplied by every **active** `Tag.carryMultiplier`,
-multiplicatively: Strong ×1.1, Pack Mule ×1.5, Cart ×5. Results are floored.
-Neither stacks, so the product is per row.
+Both caps are moved by the **sum** of every **active** `Tag.carryBonus`, which
+is a signed distance from ×1: Cart `+4`, Giant `+0.75`, Pack Mule `+0.5`, Strong
+`+0.1`, Frail `−0.1`. The cap is `base × (1 + sum)`, floored. Nothing carrying a
+bonus is stackable, so the sum is per row.
+
+**Additive, not multiplicative** — changed 2026-09-03, when bodies started
+carrying penalties. Multiplied, Frail ×0.9 took 60 lb off a character pulling a
+cart and 12 lb off a peasant: the same frailty, five times the bite, decided by
+gear it had nothing to do with. Added, a frail body costs everyone the same 12
+lb. The visible cost is that Cart + Giant is ×5.75 rather than ×8.75, which is
+the point — a cart's wheels do not get better because the man pushing them is
+large.
+
+**There is a floor of ×0.25** (`MIN_MILLI` in `db/lib/carry.js`). Penalties add
+up and the catalog holds enough of them to reach zero; a 0 lb cap would leave a
+character permanently Overburdened with nothing they could put down to fix it.
 
 **Active means equipped, for anything equippable.** A Cart you are not pulling
-hauls nothing, so its multiplier only counts while `CharacterTag.equipped`
-(§3). Strong and Pack Mule are bodies rather than vehicles, are not
-`equippable` at all, and so always count. `multiplierApplies()` tests
-`Tag.equippable` rather than listing slugs, which keeps the rule in the catalog
-where the rest of a tag's behaviour lives.
+hauls nothing, so its bonus only counts while `CharacterTag.equipped` (§3). A
+body — Strong, Pack Mule, Frail, a broken rib — is not `equippable` at all, and
+so always counts. `multiplierApplies()` tests `Tag.equippable` rather than
+listing slugs, which keeps the rule in the catalog where the rest of a tag's
+behaviour lives.
 
-`db/lib/carry.js` holds the math — `carryMultiplier`, `carryWeight`,
+`db/lib/carry.js` holds the math — `carryMultiplier` (the summing function kept
+its name), `carryWeight`,
 `carryCaps`, `carryHardCaps`, `carryAdmits`, `carryStatus` — with no prisma and
 no I/O, so `/character` can render "84 / 120 lb" without dragging the barrel
 into the client bundle. The cap on that row carries a `title=` breakdown: the
-base, then a line per active multiplier.
+base, then a signed line per active bonus.
+
+### 1b. What a body is worth
+
+Bodies were decorative here until 2026-09-03: Frail, Old, Fat and every maiming
+in the catalog said a character was weak and then changed nothing about what
+they could haul, while Giant — the priciest tag in the game at 14 — bought no
+carry at all.
+
+| | slugs | `carryBonus` |
+|---|---|---|
+| Giant | `giant` | `+0.75` |
+| Pack Mule | `pack-mule` | `+0.5` |
+| Strong | `strong` | `+0.1` |
+| Pack Mouse | `pack-mouse` | `−0.5` |
+| standing traits | `frail`, `dwarf` | `−0.1` |
+| standing traits | `old`, `fat` | `−0.05` |
+| maiming | `missing-arm`, `missing-leg`, `crippled-leg` | `−0.1` |
+| maiming | `peg-leg`, `missing-fingers`, `mangled-hand` | `−0.05` |
+| chronic | `arthritis`, `consumptive` | `−0.05` |
+| wounds | `grievous-wound`, `punctured-lung`, `gut-wound`, `broken-bone`, `cracked-ribs` | `−0.1` |
+| wounds | `deep-wound`, `dislocated-shoulder`, `sprained-ankle`, `severe-burns`, `blunt-force-trauma`, `frostbite` | `−0.05` |
+
+**A wound now moves a cap**, so anything that grants or heals one has to
+re-settle carry or the sheet shows a stale number until the next turn pass. The
+web writers already do, through `web/lib/afterInventoryChange.js`; so does the
+bot's `/heal`. `overburdened` itself must never take a `carryBonus` — it is
+granted *by* being over the cap, so lowering the cap from it is a loop.
 
 ## 1a. The weight bands
 

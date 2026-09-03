@@ -308,6 +308,10 @@ export default function RequestActionsProvider({
   transferParties = null,
   // Load vs caps for the Transfer dialog's projection line (CARRY.md).
   carry = null,
+  // Why this character's eyes cannot look anyone over right now, or null.
+  // Resolved server-side in character/page.js (db/lib/examineVision.js) —
+  // examineActions.js refuses with the same sentence.
+  examineBlocked = null,
   hasWorkshop = false,
   canHeal = false,
   healsLeft = null,
@@ -736,6 +740,10 @@ export default function RequestActionsProvider({
       canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
+      canExamine: !examineBlocked,
+      // The sentence ActionGrid appends to a greyed button's tooltip, so a
+      // player reads why instead of DMing to ask.
+      gateReason: { examine: examineBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
@@ -751,6 +759,7 @@ export default function RequestActionsProvider({
       removable,
       consumable,
       canHeal,
+      examineBlocked,
       teachers,
       canTeach,
       hasBird,

@@ -8,7 +8,8 @@ import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
-import { freeMovesLeft } from "@lifeweb/db/lib/locationTravel";
+import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
@@ -38,6 +39,7 @@ import {
   isPlaytestLocked,
   isRoleSelectable,
   DEFAULT_MAX_DRAWBACK_TAGS,
+  DEFAULT_MAX_DRAWBACK_POINTS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
@@ -454,6 +456,15 @@ export default async function CharacterPage() {
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so
   // no allowance math reaches the client bundle.
   const zoneMoves = freeMovesLeft(character, gameConfig, openTurn);
+  const zoneMovesReason = freeZoneMovesReason(character);
+  // Whether their eyes are good enough to look anybody over — Nearsighted
+  // without spectacles on, Sun Sensitivity in daylight. Resolved server-side
+  // so the sentence the grid shows and the one examineActions.js refuses with
+  // are the same sentence.
+  const examineBlocked = examineBlock(character.tags, {
+    phase: openTurn?.phase ?? null,
+    indoors: character.location?.indoors ?? true,
+  });
   // Healing. The medical gate is resolved here, server-side, so no
   // tier-chain math reaches the client bundle.
   const ancestry = buildSkillAncestry(tierRows);
@@ -774,6 +785,8 @@ export default async function CharacterPage() {
       transferParties={transferParties}
       carry={carry}
       zoneMoves={zoneMoves}
+      zoneMovesReason={zoneMovesReason}
+      examineBlocked={examineBlocked}
       hasWorkshop={hasWorkshop}
       tagCatalog={tagCatalog}
       desireSlots={desireSlots}

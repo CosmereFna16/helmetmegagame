@@ -19,15 +19,21 @@ import { ACTION_SECTIONS, ACTION_HELP } from "./actionRegistry";
 // The tooltip is the label plus, where there is one, the sentence explaining
 // what the action actually does — IconButton already renders `label` through
 // Tooltip, so hovering tells you what a glyph means without a second control.
-function tooltipFor({ label, mode }) {
+//
+// A `reason` is appended when the button is greyed out and the pool could say
+// why. Tooltip wraps the button rather than sitting on it, so unlike a native
+// title= it still fires on a disabled element — which is exactly the case that
+// most needs an explanation.
+function tooltipFor({ label, mode }, reason = null) {
   const help = ACTION_HELP[mode];
-  if (!help) return label;
+  if (!help && !reason) return label;
   return (
     <>
       <p>
         <strong>{label}</strong>
       </p>
       {typeof help === "string" ? <p>{help}</p> : help}
+      {reason ? <p>{reason}</p> : null}
     </>
   );
 }
@@ -46,16 +52,19 @@ export default function ActionGrid() {
           <div key={section.key}>
             <p className="field-label mb-1">{section.label}</p>
             <div className="flex flex-wrap gap-1" style={{ maxWidth: "12rem" }}>
-              {visible.map((a) => (
-                <IconButton
-                  key={a.mode}
-                  icon={a.icon}
-                  label={a.label}
-                  tooltip={tooltipFor(a)}
-                  onClick={() => open(a.mode)}
-                  disabled={a.gate ? !pools[a.gate] : false}
-                />
-              ))}
+              {visible.map((a) => {
+                const disabled = a.gate ? !pools[a.gate] : false;
+                return (
+                  <IconButton
+                    key={a.mode}
+                    icon={a.icon}
+                    label={a.label}
+                    tooltip={tooltipFor(a, disabled ? (pools.gateReason?.[a.mode] ?? null) : null)}
+                    onClick={() => open(a.mode)}
+                    disabled={disabled}
+                  />
+                );
+              })}
             </div>
           </div>
         );

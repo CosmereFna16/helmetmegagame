@@ -100,10 +100,12 @@ export const ACTION_SECTIONS = [
     key: "others",
     label: "People here ‡",
     actions: [
-      // No gate, and never one: whether there is anybody to look at is a fact
-      // about who is standing near you, which the rule at the top of this file
-      // forbids greying a button for.
-      { mode: "examine", icon: EyeIcon, label: "Look at ‡" },
+      // The gate is on your EYES, never on who is standing near you — the
+      // rule at the top of this file forbids the second and says nothing
+      // against the first. Nearsighted with your spectacles off, or Sun
+      // Sensitivity in daylight, is a fact about your own sheet and leaks
+      // nothing about the room (db/lib/examineVision.js).
+      { mode: "examine", icon: EyeIcon, label: "Look at ‡", gate: "canExamine" },
       { mode: "heal", icon: BandageIcon, label: "Heal", gate: "canHeal" },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },

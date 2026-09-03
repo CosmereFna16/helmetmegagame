@@ -67,7 +67,7 @@ function InfoToken({ payload }) {
   return <InfoIcon text={payload.trim()} />;
 }
 
-// Payload is a tag slug carrying Tag.carryMultiplier ("pack-mule", "cart").
+// Payload is a tag slug carrying Tag.carryBonus ("pack-mule", "cart").
 // Renders the plain sentence "You can carry N more item tags, and M ⬢.",
 // computed from the live GameConfig caps by getCarryReference
 // (lib/referenceData.js) — see docs/systemdocs/CARRY.md.

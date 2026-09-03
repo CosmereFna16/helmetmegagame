@@ -131,7 +131,11 @@ function ThisTurn({ currentAction, openTurn, pendingOffers = [] }) {
 // purpose: they raise the cap without ever weighing on it (CARRY.md §1).
 function carryCapTitle(carry) {
   const lines = [`Base ${carry.baseWeightCap} lb`];
-  for (const m of carry.breakdown ?? []) lines.push(`${m.name} ×${m.multiplier}`);
+  // Signed, because a body can now push the cap down as well as up: a Cart
+  // reads "+4", Frail reads "−0.1" (CARRY.md §1).
+  for (const m of carry.breakdown ?? []) {
+    lines.push(`${m.name} ${m.bonus > 0 ? "+" : "−"}${Math.abs(m.bonus)}`);
+  }
   lines.push(`= ${carry.weightCap} lb, and ${carry.weightHardCap} lb is the most you could ever hold.`);
   return lines.join("\n");
 }
@@ -143,6 +147,7 @@ export default function StatusPanel({
   openTurn,
   carry = null,
   zoneMoves = null,
+  zoneMovesReason = null,
   pendingOffers = [],
 }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
@@ -223,7 +228,14 @@ export default function StatusPanel({
               does — the first one already does. */}
           {zoneMoves != null && (
             <Row label="Zone moves ‡">
-              <span className="mono" style={zoneMoves === 0 ? { color: "var(--accent-text)" } : undefined}>
+              {/* The reason rides in the hover for the same reason the carry
+                  cap's breakdown does: a bare 0 leaves a lamed or overloaded
+                  player with nothing to act on. */}
+              <span
+                className="mono"
+                title={zoneMovesReason ?? undefined}
+                style={zoneMoves === 0 ? { color: "var(--accent-text)" } : undefined}
+              >
                 {zoneMoves} free ‡
               </span>
             </Row>

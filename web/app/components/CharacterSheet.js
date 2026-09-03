@@ -37,6 +37,8 @@ export default function CharacterSheet({
   transferParties,
   carry = null,
   zoneMoves = null,
+  zoneMovesReason = null,
+  examineBlocked = null,
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
@@ -158,6 +160,7 @@ export default function CharacterSheet({
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}
+            examineBlocked={examineBlocked}
           >
             <div className="flex flex-col gap-6">
               <StatusPanel
@@ -167,6 +170,7 @@ export default function CharacterSheet({
                 openTurn={openTurn}
                 carry={carry}
                 zoneMoves={zoneMoves}
+                zoneMovesReason={zoneMovesReason}
                 pendingOffers={pendingOffers}
               />
 

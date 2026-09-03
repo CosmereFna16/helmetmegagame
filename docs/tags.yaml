@@ -519,17 +519,21 @@ tags:
   # NEW (Claude) --------------------------------------------------------
   # The 5 and 6 bands were nearly empty, and the design doc names "giant" as
   # its own 6-point example.
+  # The biggest body bonus in the game, and the priciest tag, which until now
+  # bought no carry at all (docs/systemdocs/CARRY.md §1).
   giant:
     name: Giant
     category: general
     group: general-traits
-    description: "You are a behemoth among humanity and struggle to fit into confined spaces. However, you could easily crush anyone."
+    description: "You are a behemoth among humanity and struggle to fit into confined spaces. However, you could easily crush anyone. {carry:giant} ‡"
     pointCost: 14
     visible: true
     purchasable: true
     purchasableAfterStart: false
+    carryBonus: 0.75
 
-  # ×1.5 on both carry caps; stacks with Cart (docs/systemdocs/CARRY.md).
+  # +0.5 on both carry caps, i.e. ×1.5 on its own; adds with Cart
+  # (docs/systemdocs/CARRY.md).
   # Priced at 4 by Bascinet's call — between the 2 and 5 bands, deliberately
   # (TAGS.md §4a). {carry:pack-mule} renders the exact bonus from the live
   # config, so the number never drifts from what the caps actually are.
@@ -542,7 +546,20 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: true
-    carryMultiplier: 1.5
+    carryBonus: 0.5
+
+  # The mirror of Pack Mule above, and priced as its mirror: -4 for -0.5.
+  pack-mouse:
+    name: Pack Mouse
+    category: general
+    group: general-traits
+    description: "Narrow shoulders, weak legs, and far too much shame about what you'll haul. {carry:pack-mouse} ‡"
+    pointCost: -4
+    visible: true
+    purchasable: true
+    purchasableAfterStart: true
+    carryBonus: -0.5
+    conflictsWith: [pack-mule]
 
   old:
     name: Old
@@ -550,6 +567,7 @@ tags:
     group: general-traits
     description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
     pointCost: -5
+    carryBonus: -0.05
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -560,6 +578,8 @@ tags:
     group: general-traits
     description: "You are physically weak and fragile. Mustering strength to fight back is almost impossible."
     pointCost: -5
+    conflictsWith: [pack-mule, strong, tough]
+    carryBonus: -0.1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -633,6 +653,7 @@ tags:
     group: general-traits
     description: "Not a good thing to be in Ravenheart."
     pointCost: -2
+    conflictsWith: [light-sleeper]
     purchasable: true
     purchasableAfterStart: false
 
@@ -798,7 +819,12 @@ tags:
     pointCost: 5
     # A body, not a vehicle, so it needs no equipping — unlike Cart and Horse
     # below (docs/systemdocs/CARRY.md §1).
-    carryMultiplier: 1.1
+    #
+    # Matched to Pack Mule's +0.5 rather than left at the old +0.1. At 5 it
+    # cost MORE than Pack Mule's 4 and carried a fifth as much, which made the
+    # honest advice to every player "buy the mule instead". Now Strong is Pack
+    # Mule's carry plus being strong at everything else, for one more point.
+    carryBonus: 0.5
     purchasable: true
     purchasableAfterStart: true
 
@@ -880,6 +906,7 @@ tags:
     group: general-traits
     description: "Blows to the head don't put you out. People frequently tell you this is your best quality."
     pointCost: 2
+    conflictsWith: [glass-jaw]
     purchasable: true
     purchasableAfterStart: true
 
@@ -952,6 +979,7 @@ tags:
     group: general-personality
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. Locks all courage-related Desires. If you act bravely, a GM may bonk you."
     pointCost: -3
+    conflictsWith: [brave]
     purchasable: true
     purchasableAfterStart: false
     removable: false
@@ -965,6 +993,7 @@ tags:
     group: general-traits
     description: "You are very short. You fight at a disadvantage and find some places less accessible."
     pointCost: -5
+    carryBonus: -0.1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1014,15 +1043,33 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Blocks Look at unless a pair of Spectacles is EQUIPPED
+  # (db/lib/examineVision.js). Until now the downside Spectacles promises to
+  # remove did not exist anywhere in the code.
   nearsighted:
     name: Nearsighted
     category: general
     group: general-traits
     description: "Things get blurry past arm's length. Forget aiming!"
     pointCost: -5
+    conflictsWith: [eagle-eyes]
     purchasable: true
     purchasableAfterStart: false
     removable: false
+
+  # Bascinet's line, dictated verbatim, so no ‡. Blocks Look at outdoors at
+  # Dawn only — the Caves and Dusk really are fine, as the text promises.
+  sun-sensitivity:
+    name: Sun Sensitivity
+    category: general
+    group: general-traits
+    description: "You can barely see when it's bright outside. You prefer Dusk or the Caves."
+    pointCost: -2
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: false
+    conflictsWith: [nearsighted]
 
   hard-of-hearing:
     name: Hard of Hearing
@@ -1121,6 +1168,7 @@ tags:
     group: general-traits
     description: "You are less mobile and more easily tired out by physical activity."
     pointCost: -5
+    carryBonus: -0.05
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1154,6 +1202,7 @@ tags:
     group: general-traits
     description: "You can't speak. You mean, you really shouldn't."
     pointCost: 0
+    conflictsWith: [stutter]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1232,6 +1281,7 @@ tags:
     group: general-traits
     description: "People wonder if you were dropped on your face as a child."
     pointCost: -1
+    conflictsWith: [pretty, beautiful]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -2652,6 +2702,7 @@ tags:
     group: health-wounds
     description: "You can walk, but it's a struggle. Wrapping with a splint would help."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2686,6 +2737,7 @@ tags:
     group: health-wounds
     description: "Your skin is destroyed and will scar if healed. If untreated, you'll become {tag:infected}."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2720,6 +2772,7 @@ tags:
     group: health-wounds
     description: "You can see bone or deep tissue. If this wound does not receive medical attention, you will become {tag:infected}."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2774,6 +2827,7 @@ tags:
     group: health-wounds
     description: "Your bone fractured. You need medical attention or your body will heal crooked."
     pointCost: 0
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2790,6 +2844,7 @@ tags:
     group: health-wounds
     description: "Breathing hurts. Hopefully there's nothing else under the surface."
     pointCost: 0
+    carryBonus: -0.1
     purchasable: false
     purchasableAfterStart: false
     removesInto: [recovering]
@@ -2805,6 +2860,7 @@ tags:
     group: health-wounds
     description: "You're badly beat and in pain."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2822,6 +2878,7 @@ tags:
     group: health-wounds
     description: "Your arm hangs out. Someone with experience can push it back in."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2836,6 +2893,7 @@ tags:
     group: health-wounds
     description: "Fingers and toes turn pale and cold. They'll fall off without proper care."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2854,6 +2912,7 @@ tags:
     group: health-wounds
     description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
     pointCost: 0
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2872,6 +2931,7 @@ tags:
     group: health-wounds
     description: "Your intestines aren't currently completely inside you. You need expert medical attention or you will get sepsis."
     pointCost: 0
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -2906,6 +2966,7 @@ tags:
     group: health-wounds
     description: "Your fingers are pointing in random directions."
     pointCost: 0
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -3029,6 +3090,7 @@ tags:
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
     pointCost: -5
+    carryBonus: -0.05
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3040,6 +3102,7 @@ tags:
     group: health-illness
     description: "Your cough's gotten worse over the years. It will take an expert to cure you."
     pointCost: -9
+    carryBonus: -0.05
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -3208,6 +3271,7 @@ tags:
     group: health-mind
     description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
     pointCost: -8
+    conflictsWith: [nearsighted, eagle-eyes]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3240,7 +3304,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: false
-    conflictsWith: [stutter]
+    conflictsWith: [stutter, vow-of-silence]
 
   # --- Maiming -----------------------------------------------------------
 
@@ -3250,6 +3314,7 @@ tags:
     group: health-maiming
     description: "Taken off above the knee."
     pointCost: 0
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -3261,6 +3326,7 @@ tags:
     group: health-maiming
     description: "Gone at the shoulder."
     pointCost: 0
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -3272,6 +3338,8 @@ tags:
     group: health-maiming
     description: "You have a wooden leg."
     pointCost: -5
+    conflictsWith: [quick-footed]
+    carryBonus: -0.05
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3284,6 +3352,7 @@ tags:
     group: health-maiming
     description: "Your face scares children."
     pointCost: -2
+    conflictsWith: [pretty, beautiful]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3301,6 +3370,7 @@ tags:
     group: health-maiming
     description: "One hand is missing several fingers."
     pointCost: -4
+    carryBonus: -0.05
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3312,6 +3382,7 @@ tags:
     group: health-maiming
     description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg — a lot easier."
     pointCost: -7
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -3350,6 +3421,7 @@ tags:
     group: health-maiming
     description: "You've lost all depth perception. But at least it looks kind of cool."
     pointCost: -5
+    conflictsWith: [eagle-eyes, blind]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3663,7 +3735,7 @@ tags:
     tradeable: true
     equippable: true
     # ×5 on both carry caps; stacks with Pack Mule (docs/systemdocs/CARRY.md).
-    carryMultiplier: 5
+    carryBonus: 4
     purchasable: true
     purchasableAfterStart: true
     removable: true
@@ -3844,6 +3916,26 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
+    sellable: true
+    sellablePrice: 3
+
+  # The generator's proper fuel. Imported, so the Merchant has to buy it off
+  # the station with the profit he makes selling everything else — which is the
+  # squeeze the whole Depot economy is built around.
+  coal:
+    name: Coal
+    category: items
+    group: items-gear
+    description: "Feeds the merchant's generator. You can also toss {tag:saltpeter} in instead if you really need to keep it running."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    depotPrice: 8
     sellable: true
     sellablePrice: 3
 
@@ -4044,6 +4136,25 @@ tags:
     removable: true
     sellable: true
     sellablePrice: 1
+
+  # The Depot's currency. Weightless on purpose — the whole point of a coin is
+  # that it compresses a cartload of ⬢ into something you can carry, which is
+  # what makes the Merchant's bank worth walking to. Only he issues them and
+  # only he redeems them, so a purse of these is worth exactly as much as your
+  # ability to reach the Depot. See docs/systemdocs/DEPOT.md.
+  obol:
+    name: Obol
+    category: items
+    group: items-gear
+    description: "Obols (¢) are worth 5 ⬢ at the merchant's depot."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   purse:
     name: Purse
@@ -7403,6 +7514,7 @@ tags:
     group: health-wounds
     description: "No… It can't be— Without treatment it will turn {tag:infected}."
     pointCost: 0
+    carryBonus: -0.1
     visible: true
     purchasable: false
     purchasableAfterStart: false

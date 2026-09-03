@@ -253,9 +253,12 @@ async function syncTagsFromYaml(prisma) {
         }
       }
     }
-    // carryMultiplier scales both carry caps (docs/systemdocs/CARRY.md).
-    if (t.carryMultiplier != null && !(typeof t.carryMultiplier === "number" && t.carryMultiplier > 0)) {
-      throw new Error(`docs/tags.yaml: tag "${t.slug}" has a carryMultiplier that is not a positive number`);
+    // carryBonus moves both carry caps, signed: +4 for a Cart, -0.1 for Frail
+    // (docs/systemdocs/CARRY.md §1). Zero is rejected rather than treated as
+    // "no bonus" — writing it means somebody meant something by it, and the
+    // honest way to say "none" is to leave the key out.
+    if (t.carryBonus != null && !(typeof t.carryBonus === "number" && Number.isFinite(t.carryBonus) && t.carryBonus !== 0)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" has a carryBonus that is not a non-zero number`);
     }
     // sellable/sellablePrice must travel together.
     if (t.sellable && !(Number.isInteger(t.sellablePrice) && t.sellablePrice > 0)) {
@@ -375,7 +378,7 @@ async function syncTagsFromYaml(prisma) {
       exclusive: entry.exclusive ?? false,
       tradeable: entry.tradeable ?? false,
       weightLbs: entry.weight ?? null,
-      carryMultiplier: entry.carryMultiplier ?? null,
+      carryBonus: entry.carryBonus ?? null,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,
       forcedName: entry.forcesName?.trim() ?? null,
@@ -530,7 +533,7 @@ async function syncTagsFromYaml(prisma) {
     }
   }
 
-  // Editing a `weight:` or a `carryMultiplier` in the catalog changes what
+  // Editing a `weight:` or a `carryBonus` in the catalog changes what
   // everyone is carrying, so Overburdened has to be recomputed against the new
   // numbers. `{ drop: false }` settles the STATUS and never sheds: making a
   // sword heavier should make people overburdened, not dump a hundred

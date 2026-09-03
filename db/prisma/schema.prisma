@@ -453,7 +453,7 @@ model GameConfig {
 
   // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
   // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base
-  // values, multiplied by every EQUIPPED Tag.carryMultiplier. Going over is
+  // values, raised or lowered by the sum of every ACTIVE Tag.carryBonus. Going over is
   // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
   // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
   // from the weight load entirely. Live on /gm/dev.
@@ -1539,11 +1539,12 @@ model Tag {
   // discipline the point scale gets in TAGS.md §4a.
   weightLbs Float?
 
-  // Multiplies BOTH carry caps, and only while the row is EQUIPPED
-  // (CharacterTag.equipped) — a cart you are not pulling hauls nothing. Pack
-  // Mule ×1.5 is the exception that needs no equipping, being a body rather
-  // than a vehicle. Multiplicative across held rows; see db/lib/carry.js.
-  carryMultiplier Float?
+  // What this tag adds to BOTH carry caps, as a signed distance from ×1: Cart
+  // +4, Giant +0.75, Frail −0.1. Counted only while the row is EQUIPPED
+  // (CharacterTag.equipped) — a cart you are not pulling hauls nothing. A body
+  // trait like Pack Mule or Frail is not equippable at all, so it always
+  // counts. ADDITIVE across held rows, floored at ×0.25; see db/lib/carry.js.
+  carryBonus Float?
 
   // Whether this tag is a thing a character can wear or carry readied, and so
   // occupies one of their GameConfig.equipSlots. Equipped state lives on

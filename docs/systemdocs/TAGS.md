@@ -627,11 +627,14 @@ has since been deleted outright along with the channel it opened.
   advertises that there is something to go after.
 - `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
-- `carryMultiplier` — **live**: multiplies both carry caps while held (Pack
-  Mule 1.5, Cart 5; they stack). `null` for the rest of the catalog. A
-  description ending in `{carry:slug}` renders the exact bonus from the live
-  config. `db:sync-tags` rebases every holder afterwards so an edited
-  multiplier never reads as "your Cart just left". See `CARRY.md`.
+- `carryBonus` — **live**: what the tag adds to both carry caps while held, as
+  a **signed distance from ×1** (Cart `4`, Pack Mule `0.5`, Giant `0.75`, Frail
+  `-0.1`). They **add**, they do not multiply. `null` for the rest of the
+  catalog, and `0` is rejected — the honest way to say "none" is to leave the
+  key out. A description ending in `{carry:slug}` renders the exact figure from
+  the live config, in either direction. `db:sync-tags` rebases every holder
+  afterwards so an edited bonus never reads as "your Cart just left". See
+  `CARRY.md`.
 - `tradeable` — **live**: whether the tag can change hands at all. It is
   also what counts against the item carry cap — every unit of every
   tradeable tag (`CARRY.md` §1). One flag

@@ -15,6 +15,11 @@ const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted, equippedSlugs } = require("./mounts");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 
+// Legs too badly hurt to walk a whole zone for free. A Peg Leg is absent on
+// purpose — Bascinet's call, a wooden leg still walks. An equipped mount
+// cancels every one of these, because the horse is doing the walking.
+const LAMED_SLUGS = new Set(["crippled-leg", "missing-leg", "sprained-ankle"]);
+
 const CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -38,7 +43,8 @@ const CHARACTER_SELECT = {
 // and it now refreshes every turn rather than once a day — a horse carries you
 // at Dawn and again at Dusk. Being Overburdened takes the lot: that is the
 // cost that replaced the old flat refusal, so an overloaded character can
-// still cross, they just pay their Move to do it.
+// still cross, they just pay their Move to do it. A ruined leg takes it too,
+// unless a horse is doing the walking.
 // How many are LEFT right now, for the surfaces that have to say so before a
 // player commits: the Travel confirm and the character sheet.
 function freeMovesLeft(character, config, openTurn) {
@@ -52,7 +58,24 @@ function freeZoneMoves(character, config) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return 0;
   const base = config?.freeZoneMovesPerTurn ?? 1;
-  return base + (isMounted(equippedSlugs(held)) ? 1 : 0);
+  // A horse carries you whatever your legs are, so it is checked FIRST and
+  // cancels lameness outright rather than adding one to a zero.
+  if (isMounted(equippedSlugs(held))) return base + 1;
+  if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return 0;
+  return base;
+}
+
+// Why a character has no free crossing, as one sentence for the sheet's hover
+// — the number alone leaves a lamed player staring at a bare 0.
+function freeZoneMovesReason(character) {
+  const held = character.tags ?? [];
+  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
+    return "Overburdened: put something down and your free crossing comes back. ‡";
+  }
+  if (isMounted(equippedSlugs(held))) return null;
+  const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
+  if (lamed) return `${lamed.tag.name}: you cannot walk a zone for free. Ride, and you can. ‡`;
+  return null;
 }
 
 // Who `mover` may bring along: anyone in the same ZONE who is a corpse, is
@@ -342,5 +365,6 @@ module.exports = {
   canDrag,
   freeZoneMoves,
   freeMovesLeft,
+  freeZoneMovesReason,
   CHARACTER_SELECT,
 };
