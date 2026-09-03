@@ -55,11 +55,17 @@ honor system stands, it's just the Skill half that's now enforced.
 
 ## 2a. Workshop Equipment
 
-**Smithing and building need a forge.** Any recipe whose `requirement.skills`
-name a `smithing-*` or `builder-*` skill requires **Workshop Equipment** in
-reach: held, or sitting in a Room stash you can get into at your Location
-(`db/lib/equipmentReach.js`, the same predicate the private-room threads are
-synced with). Plain `crafting` needs nothing but your hands.
+**Smithing and building need a forge, where smith's work is unavoidable.** A
+recipe requires **Workshop Equipment** in reach — held, or sitting in a Room
+stash you can get into at your Location (`db/lib/equipmentReach.js`, the same
+predicate the private-room threads are synced with) — when it names a
+`smithing-*` or `builder-*` skill **and does not offer `crafting`**.
+
+That second half matters. Every Dead Simple recipe lists
+`skills: [crafting, smithing]`, and the `crafting` half is what says a work
+knife or a sling is something you can whittle. So the whole Dead Simple rung
+stays anvil-free, and what is gated is the real forge work: 32 recipes today —
+every Simple rung and up, plus the Cart and the Plow.
 
 The rule is read off the recipe's own skills rather than a per-tag flag, so a
 new sword is gated the moment it names a smithing skill and nobody has to

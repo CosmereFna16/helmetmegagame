@@ -43,6 +43,11 @@ export function destroyableTags(characterTags = []) {
 // is: a recipe the dialog says you can make must be one craftRequest accepts.
 const WORKSHOP_SKILL_PREFIXES = ["smithing", "builder"];
 
+// A forge is required only when smith's work is UNAVOIDABLE. Every Dead Simple
+// recipe lists `[crafting, smithing]` — a work knife or a sling is a thing you
+// can whittle, and `crafting` is the path that says so — so a recipe offering
+// `crafting` at all needs no anvil. What is left is the real smith work: a
+// Broadsword naming only `smithing-skilled`, a Cart naming `builder-skilled`.
 //
 // Workshop Equipment itself is exempt, and has to be: it is smith's work that
 // names `smithing-skilled`, so gating it on a workshop would mean nobody could
@@ -50,7 +55,9 @@ const WORKSHOP_SKILL_PREFIXES = ["smithing", "builder"];
 // what lets you do the finer work after.
 export function needsWorkshop(tag) {
   if (tag?.slug === "workshop-equipment") return false;
-  return (tag?.requirementSkills ?? []).some((skill) =>
+  const skills = tag?.requirementSkills ?? [];
+  if (skills.some((skill) => skill.slug === "crafting")) return false;
+  return skills.some((skill) =>
     WORKSHOP_SKILL_PREFIXES.some((prefix) => skill.slug === prefix || skill.slug?.startsWith(`${prefix}-`)),
   );
 }
