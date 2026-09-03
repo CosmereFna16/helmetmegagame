@@ -115,7 +115,8 @@ down there is now most of the reason to go.
    tier at all means no candidates and no labor.
 3. **Scale.** `productionCoefficient` × the location's `current`, both ends,
    rounded. Basic skips both.
-4. **Add tools** for that candidate's kind (§5). Bonuses sum.
+4. **Add tools** for that candidate's kind (§5). Only the best weapon counts;
+   everything else sums.
 5. **Pick the winner** — highest ceiling, tie-broken on the better floor.
 6. **Soft Hands** halves both ends, floor. It lands *after* the tools, so it is
    literally "half of what you make".
@@ -157,9 +158,17 @@ that doesn't exist.
 | Plow | farming | +4 | not equipped; needs a `horse` |
 | Fishing Rod | fishing | +1 | equipped; new |
 
-Bonuses **sum**. `GameConfig.equipSlots` is what stops a hunter wearing every
-weapon in the game at once, and the two that don't need equipping are the two
-that aren't weapons.
+**Weapon bonuses do not stack with each other.** You hunt with one weapon in
+your hands, so only the best-paying tag in the `items-weapons` group counts —
+a Longbow and a Crossbow pay +3, not +6, and the second one is dead weight.
+Everything outside that group sums on top of it, so a Longbow, Trapping Gear
+and Butcher is +3 +3 +2 = **+8**. `GameConfig.equipSlots` still caps how much
+of it you can carry at once.
+
+The group is the whole test, which means a tag's `group:` is now load-bearing
+for laboring: move a bow out of `items-weapons` and it silently starts
+stacking. The Hatchet sits in that group too — it pays into farming rather
+than hunting, so it competes with no other weapon and the rule never bites it.
 
 **Butcher's bonus narrowed.** It used to be a hardcoded flat +2 on every tier
 but farming. It is hunting-only now, and it moved out of code into the YAML.

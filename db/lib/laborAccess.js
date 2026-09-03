@@ -31,6 +31,13 @@ const {
 // is the intended sting.
 const SOFT_HANDS_SLUG = "soft-hands";
 
+// The tag group every weapon lives in. Weapon bonuses do NOT stack with
+// each other — carrying a Longbow and a Crossbow means you hunt with one of
+// them, not both — so only the best-paying weapon counts toward a kind.
+// Everything outside this group (Trapping Gear, a Plow, a Fishing Rod, the
+// Butcher skill) still sums on top.
+const WEAPON_GROUP = "items-weapons";
+
 // What the Lifeweb failing does to the day's work. Not flavor: below the
 // sputter threshold the Tower is not holding the valley together any more, and
 // Basic labor — bare subsistence — stops working at all rather than being
@@ -68,7 +75,10 @@ async function buildLaborContext(prisma, characterId) {
   });
   const tags = await prisma.characterTag.findMany({
     where: { characterId },
-    select: { equipped: true, tag: { select: { slug: true, name: true, laborBonus: true } } },
+    select: {
+      equipped: true,
+      tag: { select: { slug: true, name: true, group: true, laborBonus: true } },
+    },
   });
 
   return {
@@ -103,6 +113,7 @@ function toolsFrom(tagRows) {
       needsEquipped: bonus.equipped !== false,
       requiresTag: bonus.requiresTag ?? null,
       equipped: row.equipped === true,
+      isWeapon: row.tag?.group === WEAPON_GROUP,
     });
   }
   return tools;
@@ -129,15 +140,23 @@ function canLaborAtAll(ctx) {
 }
 
 // Every tool that pays into one kind, honouring `equipped` and `requiresTag`.
-// Bonuses sum: the equip-slot cap (GameConfig.equipSlots) is what keeps a
-// hunter from wearing every weapon in the game at once.
+// Non-weapons sum. Weapons don't: you hunt with one weapon in your hands, so
+// only the best-paying one counts, and a second bow is dead weight rather than
+// a second bonus. Ties keep the first, which is stable because the tag rows
+// come back in a fixed order.
 function toolsFor(ctx, tier) {
-  return (ctx.tools ?? []).filter((tool) => {
+  const eligible = (ctx.tools ?? []).filter((tool) => {
     if (tool.kind !== tier) return false;
     if (tool.needsEquipped && !tool.equipped) return false;
     if (tool.requiresTag && !ctx.tagSlugs.has(tool.requiresTag)) return false;
     return true;
   });
+
+  const bestWeapon = eligible
+    .filter((tool) => tool.isWeapon)
+    .reduce((best, tool) => (best && best.amount >= tool.amount ? best : tool), null);
+
+  return eligible.filter((tool) => !tool.isWeapon || tool === bestWeapon);
 }
 
 // Scores one tier into a full candidate, or null if the character can't work

@@ -57,7 +57,13 @@ async function runAutoLaborPass(prisma, turn) {
     prisma.action.findMany({ where: { turnId: turn.id, characterId: { in: ids } }, select: { characterId: true } }),
     prisma.characterTag.findMany({
       where: { characterId: { in: ids } },
-      select: { characterId: true, equipped: true, tag: { select: { slug: true, name: true, laborBonus: true } } },
+      // `group` is not decoration: toolsFrom reads it to tell a weapon from a
+      // tool, and weapons don't stack with each other (LABORING.md §5).
+      select: {
+        characterId: true,
+        equipped: true,
+        tag: { select: { slug: true, name: true, group: true, laborBonus: true } },
+      },
     }),
     prisma.locationYield.findMany({ select: { locationId: true, kind: true, current: true } }),
     prisma.gameConfig.findUnique({
