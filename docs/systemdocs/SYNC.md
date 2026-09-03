@@ -281,7 +281,7 @@ too.
 same posture as `db:prune-orphan-roles` and `db:doctor`.
 
 **Retiring a chain may take two applies.** Blockers are computed per run, so
-a parent (`laborer-basic` under a removed `laborer-skilled`, a base tag under
+a parent (`laboring-basic` under a removed `laboring-skilled`, a base tag under
 its removed variants) is reported as still-referenced until the run that
 deleted its children is over — run `-- --apply` again and it goes.
 

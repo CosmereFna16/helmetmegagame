@@ -18,11 +18,11 @@ const { computeRate, SPECIALISATION_KINDS } = require("./production");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const {
   EXHAUSTED_SLUG,
-  LABORER_BASIC_SLUG,
-  LABORER_SKILLED_SLUG,
-  LABORER_FARMING_SLUG,
-  LABORER_HUNTING_SLUG,
-  LABORER_FISHING_SLUG,
+  LABORING_BASIC_SLUG,
+  LABORING_SKILLED_SLUG,
+  LABORING_FARMING_SLUG,
+  LABORING_HUNTING_SLUG,
+  LABORING_FISHING_SLUG,
 } = require("./constants");
 
 // Soft Hands halves what you make, rounded down. It lands AFTER the tools, so
@@ -41,17 +41,17 @@ const LIFEWEB_FAILURE_MULTIPLIER = 0.05;
 // The two general tiers, best first. Unlike the old ladder there is no `base`
 // rung underneath: hold neither tag and you cannot labor.
 const GENERAL_TIERS = [
-  { slug: LABORER_SKILLED_SLUG, tier: "skilled" },
-  { slug: LABORER_BASIC_SLUG, tier: "basic" },
+  { slug: LABORING_SKILLED_SLUG, tier: "skilled" },
+  { slug: LABORING_BASIC_SLUG, tier: "basic" },
 ];
 
 // The three side-grades. Each needs its own tag AND a LocationYield row of the
 // matching kind where the character is standing — the row IS the gate, which
 // is why no Location carries a "wilderness" or "water" flag anywhere.
 const SPECIALISATIONS = [
-  { slug: LABORER_HUNTING_SLUG, tier: "hunting" },
-  { slug: LABORER_FARMING_SLUG, tier: "farming" },
-  { slug: LABORER_FISHING_SLUG, tier: "fishing" },
+  { slug: LABORING_HUNTING_SLUG, tier: "hunting" },
+  { slug: LABORING_FARMING_SLUG, tier: "farming" },
+  { slug: LABORING_FISHING_SLUG, tier: "fishing" },
 ];
 
 // Loads everything the rules need for one character: the tags they hold, where

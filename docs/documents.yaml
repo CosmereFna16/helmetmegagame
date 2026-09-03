@@ -155,13 +155,13 @@ documents:
 
       | Skill | Per turn | Where |
       |---|---|---|
-      | {tag:laborer-basic} | {resource:labor:basic} | Anywhere |
-      | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere |
-      | {tag:laborer-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
-      | {tag:laborer-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
-      | {tag:laborer-fishing} | {resource:labor:fishing} | Water, scaled by the place |
+      | {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
+      | {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
+      | {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
+      | {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
+      | {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
 
-      The bottom three need {tag:laborer-skilled} behind them and are side-grades rather than upgrades. Hold as many as you like — laboring always pays the best result you're entitled to where you stand, so there is nothing to switch and nothing to forget. ‡
+      The bottom three need {tag:laboring-skilled} behind them and are side-grades rather than upgrades. Hold as many as you like — laboring always pays the best result you're entitled to where you stand, so there is nothing to switch and nothing to forget. ‡
 
       Those three numbers are what an ordinary spot pays. Real ground is better or worse, and what a place is worth **changes over the course of the game**. Press **Labor?** in any location's channel to see what it yields right now. Hunting swings hardest; farmland is steady until it isn't. ‡
 

@@ -29,14 +29,17 @@ bubbles the tag descriptions render through.
 
 | slug | name | range | gate |
 |---|---|---|---|
-| `laborer-basic` | Laboring (Basic) | 0–2 | — |
-| `laborer-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laborer-basic` |
-| `laborer-hunting` | Laboring (Hunting) | 0–18 | `requiredTag: laborer-skilled` |
-| `laborer-farming` | Laboring (Farming) | 12–16 | `requiredTag: laborer-skilled` |
-| `laborer-fishing` | Laboring (Fishing) | 7–14 | `requiredTag: laborer-skilled` |
+| `laboring-basic` | Laboring (Basic) | 0–2 | — |
+| `laboring-skilled` | Laboring (Skilled) | 1–4 | `parentTag: laboring-basic` |
+| `laboring-hunting` | Laboring (Hunting) | 0–18 | `requiredTag: laboring-skilled` |
+| `laboring-farming` | Laboring (Farming) | 12–16 | `requiredTag: laboring-skilled` |
+| `laboring-fishing` | Laboring (Fishing) | 7–14 | `requiredTag: laboring-skilled` |
 
-The slugs still say `laborer-`; the display names say `Laboring`. That is
-deliberate — the catalog matches on slug, and renaming one costs a prune.
+The slugs were `laborer-*` before this rework and are `laboring-*` now, because
+`db/lib/syncTags.js` enforces that **a slug is always its name, slugified** — so
+anyone reading a slug in code or in a Desire's `requires` knows which tag it is.
+Renaming the display name without the slug is a sync error, not a warning. The
+old rows are cleared by `db:prune-tags -- --apply`.
 
 The bottom two are general: they pay the same everywhere. The top three are
 **side-grades, not rungs**. Holding several is fine and normal, and there is

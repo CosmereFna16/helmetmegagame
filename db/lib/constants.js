@@ -7,11 +7,11 @@ const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
 const EXHAUSTED_SLUG = "exhausted";
-const LABORER_BASIC_SLUG = "laborer-basic";
-const LABORER_SKILLED_SLUG = "laborer-skilled";
-const LABORER_FARMING_SLUG = "laborer-farming";
-const LABORER_HUNTING_SLUG = "laborer-hunting";
-const LABORER_FISHING_SLUG = "laborer-fishing";
+const LABORING_BASIC_SLUG = "laboring-basic";
+const LABORING_SKILLED_SLUG = "laboring-skilled";
+const LABORING_FARMING_SLUG = "laboring-farming";
+const LABORING_HUNTING_SLUG = "laboring-hunting";
+const LABORING_FISHING_SLUG = "laboring-fishing";
 const CATATONIC_SLUG = "catatonic-afk";
 const DISAPPOINTED_SLUG = "disappointed";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
@@ -78,11 +78,11 @@ module.exports = {
   MORTUS_SLUG,
   DRAINED_SLUG,
   EXHAUSTED_SLUG,
-  LABORER_BASIC_SLUG,
-  LABORER_SKILLED_SLUG,
-  LABORER_FARMING_SLUG,
-  LABORER_HUNTING_SLUG,
-  LABORER_FISHING_SLUG,
+  LABORING_BASIC_SLUG,
+  LABORING_SKILLED_SLUG,
+  LABORING_FARMING_SLUG,
+  LABORING_HUNTING_SLUG,
+  LABORING_FISHING_SLUG,
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
   OVERBURDENED_SLUG,

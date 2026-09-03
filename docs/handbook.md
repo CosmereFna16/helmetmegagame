@@ -322,13 +322,13 @@ Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|
-| {tag:laborer-basic} | {resource:labor:basic} | Anywhere |
-| {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere |
-| {tag:laborer-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
-| {tag:laborer-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
-| {tag:laborer-fishing} | {resource:labor:fishing} | Water, scaled by the place |
+| {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
+| {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
+| {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
+| {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
+| {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
 
-The bottom three need {tag:laborer-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing. ‡
+The bottom three need {tag:laboring-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing. ‡
 
 The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Labor?** button in any location's channel to see what it's yielding right now. Hunting is the wildest of the three; a field is a field. ‡
 

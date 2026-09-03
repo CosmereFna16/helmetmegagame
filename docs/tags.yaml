@@ -1525,7 +1525,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  laborer-basic:
+  laboring-basic:
     name: Laboring (Basic)
     category: skills
     group: skills-labor
@@ -1535,14 +1535,14 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  laborer-skilled:
+  laboring-skilled:
     name: Laboring (Skilled)
     category: skills
     group: skills-labor
     teachable: true
     description: "You can provide for yourself and others. Can produce {resource:labor:skilled} every other turn. ‡"
     pointCost: 7
-    parentTag: laborer-basic
+    parentTag: laboring-basic
     purchasable: true
     purchasableAfterStart: true
 
@@ -1550,36 +1550,36 @@ tags:
   # scaled by where you are standing (docs/zones.yaml's per-location `yield:`
   # block), and holding several is fine — a Labor pays the best one you
   # qualify for, so there is nothing to switch and nothing to forget.
-  laborer-hunting:
+  laboring-hunting:
     name: Laboring (Hunting)
     category: skills
     group: skills-labor
     teachable: true
     description: "While laboring in a wilderness location, you produce {resource:labor:hunting}. Certain locations produce far more than others, and what a place is worth changes. ‡"
     pointCost: 7
-    requiredTag: laborer-skilled
+    requiredTag: laboring-skilled
     purchasable: true
     purchasableAfterStart: true
 
-  laborer-farming:
+  laboring-farming:
     name: Laboring (Farming)
     category: skills
     group: skills-labor
     teachable: true
     description: "While laboring in fields and worked ground, you produce {resource:labor:farming}. The Farms are richest, but they are not the only soil. ‡"
     pointCost: 7
-    requiredTag: laborer-skilled
+    requiredTag: laboring-skilled
     purchasable: true
     purchasableAfterStart: true
 
-  laborer-fishing:
+  laboring-fishing:
     name: Laboring (Fishing)
     category: skills
     group: skills-labor
     teachable: true
     description: "While laboring in a location with water, you produce {resource:labor:fishing}. ‡"
     pointCost: 7
-    requiredTag: laborer-skilled
+    requiredTag: laboring-skilled
     purchasable: true
     purchasableAfterStart: true
 
