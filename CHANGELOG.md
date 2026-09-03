@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Nobody can escalate the intercom to @everyone
+
+✎ The PA's own @here still pings everyone in the zone. A typed @everyone, @here or role mention inside the announcement itself is now inert
+
 ## 2026-09-03 · The Baron can wave somebody into his office, and the intercom is a button again
 
 ✚ /add and /remove now work in a private room, not only in conversations — anyone already inside can let in somebody standing in the same place  
