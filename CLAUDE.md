@@ -46,7 +46,9 @@ is Bascinet's signal, not yours.
 - `docs/systemdocs/*` and this file — internal reference, not game text. (A
   few marks already sit in `DESIRES.md` and `TAGS.md` §4a. Those are an older,
   narrower use — a drafted *rule* awaiting sign-off, not copy — and they stay.)
-- Commit messages, and your replies in chat.
+- Commit messages, `CHANGELOG.md`, and your replies in chat. The changelog is
+  internal reference like `docs/systemdocs/*`, and its entries are commit
+  subjects, so it is exempt twice over. Never mark it.
 
 **Never put one in a value something matches on.** This is the caveat that keeps
 the directive from breaking the game. No ‡ in a slug, an id, an enum value, a
@@ -676,6 +678,46 @@ hours ago.
 
 **Pushing to `master` is a deploy.** Read the next section before pushing
 anything that carries a schema change.
+
+### The changelog
+
+**Every push writes an entry in `CHANGELOG.md` and posts the same entry to
+Discord.** `npm run push` does both for you — the entry is written from the
+staged diff *before* the commit, so it rides along inside that commit instead of
+trailing behind in a second one, and the Discord post goes out after the push
+succeeds.
+
+```
+npm run push -- "Message"   # commit, push, log, announce
+npm run changelog           # log HEAD + announce, for a commit made by hand
+npm run changelog -- --dry-run             # preview the CHANGELOG.md entry
+npm run changelog -- --announce --dry-run  # preview the Discord message
+```
+
+Commit by hand and nothing is logged, so run `npm run changelog` afterwards.
+
+The format is three symbols and nothing else — `+` a file arrived, `-` a file
+went away, `✎` a file changed:
+
+````
+## 2026-09-03 · Keyed ways: hold the door open behind you for 24 hours
+
+```
++ db/lib/keyedWays.js
+✎ db/prisma/schema.prisma
+- db/lib/oldGate.js
+```
+````
+
+They sit inside a fenced block on purpose. Both GitHub and Discord read a
+leading `+` or `-` as a list marker and would eat the symbol; a fence renders
+all three literally and keeps the paths aligned.
+
+The Discord half is **best-effort and never fails the push** — a missing
+`DISCORD_TOKEN` or a Discord outage prints a warning and the run stays green.
+The channel id is hardcoded in `scripts/changelog/log.js` for the reason
+`db/lib/roleIds.js` gives: a channel id is not a secret, there is one guild, and
+a missing env var would have failed silently.
 
 ## Deploy workflow
 
