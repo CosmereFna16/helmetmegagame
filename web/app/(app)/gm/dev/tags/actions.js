@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -333,16 +334,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   // Discord's rate limiter. A staged grant hasn't touched anyone's holdings
   // yet, so it's skipped here.
   if (applied.length && !result.staged) {
-    after(async () => {
-      const rows = await prisma.character.findMany({
-        where: { id: { in: applied } },
-        select: { id: true, discordUserId: true, locationId: true, status: true },
-      });
-      for (const row of rows) {
-        await syncCharacterNarrowcastAccess(row.id).catch(() => {});
-        await syncCharacterRoomAccess(prisma, row).catch(() => {});
-      }
-    });
+    after(() => afterInventoryChange(applied));
   }
 
   return result;

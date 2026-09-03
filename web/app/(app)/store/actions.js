@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
@@ -225,8 +226,7 @@ async function buyTagsImpl({ tagIds }) {
 
   // A bought tag can open a narrowcast channel (#watch, #intercom) or a
   // private room the same way a granted one does.
-  await syncCharacterNarrowcastAccess(character.id);
-  await syncCharacterRoomAccess(prisma, character).catch(() => {});
+  await afterInventoryChange(character.id);
   revalidatePath("/store");
   revalidatePath("/character");
   revalidatePath(TURNS_PATH, "page");

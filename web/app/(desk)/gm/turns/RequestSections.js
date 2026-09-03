@@ -188,11 +188,13 @@ export const SECTIONS = {
     heading: "Transfer Tag",
     render: ({ effect, tagsById }) => (
       <>
-        <Line label="Handed over">
-          <TagStack effect={effect} tagsById={tagsById} /> to {effect.toName ?? "?"}
+        <Line label="Moved">
+          <TagStack effect={effect} tagsById={tagsById} /> from {effect.from?.name ?? effect.fromName ?? "?"} to{" "}
+          {effect.to?.name ?? effect.toName ?? "?"}
+          {effect.to?.kind === "room" ? " · stashed ‡" : effect.from?.kind === "room" ? " · taken from a stash ‡" : ""}
         </Line>
         <p className="text-xs text-muted">
-          Undo moves the tag back to its original holder.
+          Undo moves the tag back to where it came from. ‡
         </p>
       </>
     ),

@@ -7,6 +7,7 @@ import { UserError } from "@/lib/actionResult";
 import { requireReason } from "@/lib/requests";
 import { normalizeQuiet } from "@/lib/siloCover";
 import { notifyCharacter } from "@/lib/notifyCharacter";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 
 // The immediate GM transfer — moves ⬢ between any two parties (a character
 // or a faction Silo) right now, from the Dev Panel and from the FactionsPanel
@@ -80,6 +81,9 @@ export async function gmTransferResources({
       },
     });
   });
+
+  // Carry caps (CARRY.md): a GM handing someone 40 ⬢ can push them over.
+  await afterInventoryChange([from, to].filter((p) => p.kind === "character"));
 
   if (from.kind === "character") {
     notifyCharacter({ id: from.id, discordUserId: from.discordUserId }, `${from.name} paid ${amount} ⬢ to ${partyLabel(to)}.`);

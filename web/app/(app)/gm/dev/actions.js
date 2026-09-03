@@ -97,6 +97,8 @@ export async function updateGameConfig(formData) {
       // Floored at 1: it's the denominator of every weighted role's seat cap.
       playerCount: Math.max(1, intOrZero(formData, "playerCount")),
       equipSlots: Math.max(1, intOrZero(formData, "equipSlots")),
+      carryTagCap: Math.max(1, intOrZero(formData, "carryTagCap")),
+      carryResourceCap: Math.max(1, intOrZero(formData, "carryResourceCap")),
       maxDrawbackTags: Math.max(0, intOrZero(formData, "maxDrawbackTags")),
       desireSlots: Math.max(1, intOrZero(formData, "desireSlots")),
       desireSlotLockTurns: Math.max(0, intOrZero(formData, "desireSlotLockTurns")),
@@ -211,6 +213,8 @@ const DEFAULT_GAME_CONFIG = {
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,
+  carryTagCap: 10,
+  carryResourceCap: 25,
   maxDrawbackTags: 5,
   desireSlots: 2,
   desireSlotLockTurns: 2,
@@ -256,6 +260,11 @@ export async function wipeGameData(formData) {
       prisma.desire.deleteMany({}),
       prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
+      // Room stashes (CARRY.md): the rows cascade from nothing the wipe
+      // deletes, so they go explicitly, and the ⬢ column is zeroed like the
+      // Silos below.
+      prisma.roomTag.deleteMany({}),
+      prisma.room.updateMany({ data: { resources: 0 } }),
       prisma.auditLog.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),

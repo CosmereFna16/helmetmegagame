@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { redirect } from "next/navigation";
 import {
   prisma,
@@ -132,6 +133,7 @@ async function depotBuyImpl({ tagId, quantity: rawQuantity, reason: rawReason })
     });
   });
 
+  await afterInventoryChange(character.id);
   revalidateAll();
   return { tagName: tag.name, quantity, total };
 }
@@ -193,6 +195,7 @@ async function depotSellImpl({ tagId, quantity: rawQuantity, reason: rawReason }
     });
   });
 
+  await afterInventoryChange(character.id);
   revalidateAll();
   return { tagName: tag.name, quantity, total };
 }
@@ -285,6 +288,7 @@ async function depotCreditImpl({ direction, amount: rawAmount, reason: rawReason
     });
   });
 
+  await afterInventoryChange(character.id);
   revalidateAll();
   return { direction: draw ? "DRAW" : "REPAY", amount, debtAfter };
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { prisma, isDynastyHead, deleteCharacterRow } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -442,8 +443,7 @@ async function resyncDiscordImpl({ characterId }) {
         fromLocationId: null,
         toLocationId: character.locationId,
       });
-      await syncCharacterNarrowcastAccess(characterId);
-      await syncCharacterRoomAccess(prisma, character);
+      await afterInventoryChange(characterId);
     } catch (err) {
       console.error("Dev Panel resync failed:", err);
     }
@@ -500,8 +500,7 @@ async function teleportCharacterImpl({ characterId, locationId }) {
           toLocationId: updated.locationId,
         });
       } else {
-        await syncCharacterNarrowcastAccess(characterId);
-        await syncCharacterRoomAccess(prisma, updated);
+        await afterInventoryChange(characterId);
       }
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);

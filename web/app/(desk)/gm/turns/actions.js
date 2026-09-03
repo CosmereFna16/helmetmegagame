@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
+import { after } from "next/server";
 import { prisma, rollDie, Prisma } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
@@ -833,13 +835,30 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
       },
     });
 
-    return { status: updated.status, note, changed };
+    // Every character the effect could have touched, for the carry settle
+    // below. Read off the effect generically so adding a request type still
+    // costs one REQUEST_EFFECTS entry and nothing here (REQUESTS.md §2).
+    const e = request.effect ?? {};
+    const touched = [
+      request.characterId,
+      e.targetCharacterId,
+      e.fromCharacterId,
+      e.toCharacterId,
+      ...[e.from, e.to, e.payer].filter((p) => p?.kind === "character").map((p) => p.id),
+    ].filter(Boolean);
+
+    return { status: updated.status, note, changed, touched };
   });
+
+  // An undo moves tags or ⬢ back onto somebody; their carry caps and room
+  // access follow (CARRY.md). Off the critical path, after the commit.
+  const { touched, ...outcome } = result;
+  after(() => afterInventoryChange(touched));
 
   revalidatePath("/gm/audit");
   revalidatePath("/character");
   revalidatePath("/faction");
-  return result;
+  return outcome;
 }
 
 // Fallback kill path for a request naming a kill not yet claimed (REQUESTS.md

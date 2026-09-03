@@ -45,6 +45,8 @@ import {
   formatStack,
   grantTagSlugs,
   moveResources,
+  takeTagFrom,
+  giveTagTo,
 } from "@/lib/requestEffects";
 import {
   HEAL_SKILL_SLUG,
@@ -67,7 +69,9 @@ import {
   killCharacter,
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
+import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
+import { formatManifest } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
@@ -215,6 +219,9 @@ async function transferResourcesRequestImpl({ fromKey, toKey, amount: rawAmount,
       details: effect,
     });
   });
+
+  // Carry caps (CARRY.md): ⬢ moved onto a character can push them over.
+  await afterInventoryChange([from, to].filter((p) => p.kind === "character"));
 
   // Only a character on the receiving end learns anything — a Silo has no
   // one to DM, and loot's "recipient" is the initiator, who already knows.
@@ -402,8 +409,7 @@ async function addTagRequestImpl({
       details: { tagId: tag.id, tagName: tag.name, quantity, resourcesSpent },
     });
   });
-  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, character).catch(() => {});
+  await afterInventoryChange(character.id);
   revalidateAll();
   return {};
 }
@@ -469,8 +475,7 @@ async function removeTagRequestImpl({
       },
     });
   });
-  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, character).catch(() => {});
+  await afterInventoryChange(character.id);
   revalidateAll();
   return {};
 }
@@ -553,8 +558,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
       },
     });
   });
-  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, character).catch(() => {});
+  await afterInventoryChange(character.id);
   revalidateAll();
   return {};
 }
@@ -692,18 +696,204 @@ async function transferTagRequestImpl({
     });
   });
 
-  await Promise.all([
-    syncCharacterNarrowcastAccess(source.id).catch(() => {}),
-    syncCharacterNarrowcastAccess(recipient.id).catch(() => {}),
-    syncCharacterRoomAccess(prisma, source).catch(() => {}),
-    syncCharacterRoomAccess(prisma, recipient).catch(() => {}),
-  ]);
+  await afterInventoryChange([source.id, recipient.id]);
 
   if (isLoot) {
     notifyCharacter(source, `Something was taken off your body: ${formatStack(source.tag.name, quantity)}.`);
   } else {
     notifyCharacter(recipient, `You were handed ${formatStack(source.tag.name, quantity)}.`);
   }
+
+  revalidateAll();
+  return {};
+}
+
+// --- Transfer (the merged dialog) -------------------------------------
+
+// One act that moves any number of tag lines and a ⬢ amount between two
+// parties: yourself, a living player, a Silo, or a Room stash at your
+// Location (docs/systemdocs/CARRY.md). Files one TRANSFER_TAG per tag line
+// and one TRANSFER_RESOURCES for the ⬢, all in one transaction, so a GM can
+// still undo any single piece from /gm/turns.
+//
+// Tags may only leave YOU or a room — browsing another player's inventory
+// is the abuse the send-only rule prevents (REQUESTS.md §3) — and a Silo
+// holds ⬢, not things. ⬢ keeps its old any-party-in-reach rule.
+async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawAmount, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const amount = rawAmount == null || rawAmount === "" ? 0 : parseCount(rawAmount, { min: 0 });
+  if (amount == null) throw new UserError("Amount must be a whole number. ‡");
+  const lines = Array.isArray(rawTags)
+    ? rawTags.map((t) => ({ tagId: String(t?.tagId ?? ""), quantity: parseCount(t?.quantity ?? 1, { min: 1 }) }))
+    : [];
+  if (lines.some((l) => !l.tagId || l.quantity == null)) {
+    throw new UserError("Each line needs a tag and a whole number. ‡");
+  }
+  if (new Set(lines.map((l) => l.tagId)).size !== lines.length) throw new UserError("A tag is listed twice. ‡");
+  if (amount === 0 && lines.length === 0) throw new UserError("Nothing to move. ‡");
+
+  const [from, to] = await Promise.all([resolveParty(fromKey), resolveParty(toKey)]);
+  if (!from) throw new UserError("Unknown source.");
+  if (!to) throw new UserError("Unknown recipient.");
+  if (from.kind === to.kind && from.id === to.id) throw new UserError("Source and recipient are the same.");
+
+  // Both ends have to be somewhere you can stand — checked on submit, not by
+  // filtering the dropdowns, since a range-filtered menu would itself be a
+  // scouting tool. A room adds "and its door opens for you".
+  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  for (const party of [from, to]) {
+    if (!(await canReachParty(character, party, { heldSlugs }))) {
+      throw new UserError(outOfReachMessage(party, party.zoneName));
+    }
+  }
+
+  if (lines.length) {
+    if (from.kind === "faction" || to.kind === "faction") throw new UserError("A Silo holds ⬢, not things. ‡");
+    if (from.kind === "character" && from.id !== character.id) {
+      throw new UserError("You can only hand over your own things. ‡");
+    }
+  }
+  if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);
+
+  // Resolve every tag line against the SOURCE's holdings, snapshotting what
+  // Undo will need to put back.
+  const lineIds = lines.map((l) => l.tagId);
+  let holdings = [];
+  if (lines.length && from.kind === "room") {
+    holdings = await prisma.roomTag.findMany({
+      where: { roomId: from.id, tagId: { in: lineIds } },
+      select: {
+        tagId: true,
+        quantity: true,
+        expiresTurn: true,
+        tag: { select: { name: true, stackable: true, tradeable: true } },
+      },
+    });
+  } else if (lines.length) {
+    holdings = character.tags
+      .filter((ct) => lineIds.includes(ct.tagId))
+      .map((ct) => ({ tagId: ct.tagId, quantity: ct.quantity, expiresTurn: ct.expiresTurn, source: ct.source, tag: ct.tag }));
+  }
+  // A non-stackable tag pins at one per character (tagWrites.js#addToStack),
+  // so a pull out of a room is clamped to 1 here — silently moving 1 while
+  // the request says 2 would make Undo take 2 back. Someone who already
+  // holds one can't take a second at all.
+  const recipientHeld =
+    lines.length && to.kind === "character"
+      ? new Set(
+          (
+            await prisma.characterTag.findMany({
+              where: { characterId: to.id, tagId: { in: lineIds } },
+              select: { tagId: true },
+            })
+          ).map((ct) => ct.tagId),
+        )
+      : new Set();
+  const moves = lines.map((line) => {
+    const held = holdings.find((h) => h.tagId === line.tagId);
+    if (!held) {
+      throw new UserError(from.kind === "room" ? "That isn't there any more. ‡" : "You don't have that tag.");
+    }
+    if (!isTradeable(held.tag)) throw new UserError("That isn't something that can change hands. ‡");
+    let max = held.quantity;
+    if (!held.tag.stackable && to.kind === "character") {
+      if (recipientHeld.has(line.tagId)) throw new UserError(`${to.name} already has ${held.tag.name}. ‡`);
+      max = 1;
+    }
+    const quantity = Math.min(line.quantity, max);
+    return { tagId: line.tagId, quantity, held };
+  });
+
+  const openTurn = await getOpenTurn();
+  const ledger = {
+    actorDiscordUserId: session.discordUserId,
+    actorCharacterId: character.id,
+    actorName: character.name,
+    turnNumber: openTurn?.number ?? null,
+    turnPhase: openTurn?.phase ?? null,
+    note: reason,
+  };
+  const fromParty = { kind: from.kind, id: from.id, name: from.name };
+  const toParty = { kind: to.kind, id: to.id, name: to.name };
+  const fromCharacterId = from.kind === "character" ? from.id : null;
+  const toCharacterId = to.kind === "character" ? to.id : null;
+
+  await prisma.$transaction(async (tx) => {
+    for (const move of moves) {
+      const { tagId, quantity, held } = move;
+      const restore = { source: held.source ?? "EVENT", expiresTurn: held.expiresTurn ?? null, quantity };
+      await takeTagFrom(tx, from, tagId, quantity);
+      await giveTagTo(tx, to, { tagId, quantity, expiresTurn: held.expiresTurn ?? null, source: "EVENT" });
+      await createRequest(tx, {
+        characterId: character.id,
+        turnId: openTurn?.id ?? null,
+        type: "TRANSFER_TAG",
+        reason,
+        payload: { tagId, quantity, fromKey, toKey, direction: "SEND" },
+        effect: {
+          tagId,
+          tagName: held.tag.name,
+          quantity,
+          direction: "SEND",
+          restore,
+          from: fromParty,
+          to: toParty,
+          fromCharacterId,
+          fromName: from.name,
+          toCharacterId,
+          toName: to.name,
+        },
+      });
+      await logRequest(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_transfer_tag",
+        targetCharacterId: toCharacterId ?? fromCharacterId,
+        reason,
+        details: { tagId, tagName: held.tag.name, quantity, from: fromParty, to: toParty, direction: "SEND" },
+      });
+    }
+
+    if (amount > 0) {
+      try {
+        await applyTransfer(tx, { from, to, amount, ledger });
+      } catch (err) {
+        if (!(err instanceof InsufficientResourcesError)) throw err;
+        throw new UserError(err.message);
+      }
+      const effect = { amount, from: fromParty, to: toParty, direction: "SEND" };
+      await createRequest(tx, {
+        characterId: character.id,
+        turnId: openTurn?.id ?? null,
+        type: "TRANSFER_RESOURCES",
+        reason,
+        payload: { fromKey, toKey, amount, direction: "SEND" },
+        effect,
+      });
+      await logRequest(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_transfer_resources",
+        targetCharacterId: toCharacterId ?? fromCharacterId ?? character.id,
+        reason,
+        details: effect,
+      });
+    }
+  });
+
+  await afterInventoryChange([fromCharacterId, toCharacterId]);
+
+  const goods = formatManifest(
+    moves.map((m) => ({ tagName: m.held.tag.name, quantity: m.quantity })),
+    amount,
+  );
+  if (toCharacterId && toCharacterId !== character.id) {
+    notifyCharacter({ id: to.id, discordUserId: to.discordUserId }, `You were handed ${goods}.`);
+  }
+  // The room hears about it, aliased (CARRY.md): leaving something is public
+  // by nature, and so is walking off with it.
+  if (to.kind === "room") after(() => announceInRoom(to, character, `leaves ${goods} here.`));
+  if (from.kind === "room") after(() => announceInRoom(from, character, `takes ${goods}.`));
 
   revalidateAll();
   return {};
@@ -829,8 +1019,7 @@ async function healCharacterRequestImpl({
     });
   });
 
-  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, target).catch(() => {});
+  await afterInventoryChange(target.id);
   if (target.id !== character.id) {
     notifyCharacter(target, `Your ${held.tag.name} was treated.`);
   }
@@ -944,15 +1133,9 @@ async function lootCharacterRequestImpl({
     });
   });
 
-  await Promise.all([
-    target.status === "ALIVE"
-      ? Promise.all([
-          syncCharacterNarrowcastAccess(target.id).catch(() => {}),
-          syncCharacterRoomAccess(prisma, target).catch(() => {}),
-        ])
-      : Promise.resolve(),
-    syncCharacterNarrowcastAccess(character.id).catch(() => {}),
-  ]);
+  // The looter's carry caps and doors, and the target's if they're alive (a
+  // corpse holds nothing that needs settling).
+  await afterInventoryChange([character.id, target.status === "ALIVE" ? target.id : null]);
 
   const lootParts = [
     ...takenTags.map((t) => formatStack(t.tagName, t.quantity)),
@@ -1136,8 +1319,7 @@ async function bindCharacterRequestImpl({ targetCharacterId, reason: rawReason }
     });
   });
 
-  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, target).catch(() => {});
+  await afterInventoryChange(target.id);
   notifyCharacter(target, "Someone bound you.");
   revalidateAll();
   return {};
@@ -1190,8 +1372,7 @@ async function freeCharacterRequestImpl({ targetCharacterId, reason: rawReason }
     });
   });
 
-  await syncCharacterNarrowcastAccess(target.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, target).catch(() => {});
+  await afterInventoryChange(target.id);
   notifyCharacter(target, "Someone freed you.");
   revalidateAll();
   return {};
@@ -1316,8 +1497,7 @@ async function harmCharacterRequestImpl({
     revalidatePath("/gm/players", "layout");
   } else {
     if (tag) {
-      await syncCharacterNarrowcastAccess(target.id).catch(() => {});
-      await syncCharacterRoomAccess(prisma, target).catch(() => {});
+      await afterInventoryChange(target.id);
     }
     notifyCharacter(target, "Someone hurt you.");
   }
@@ -1546,8 +1726,7 @@ async function changeNameRequestImpl({ honorific: rawHonorific, firstName: rawFi
   // re-run it, so a reverted name catches up next time the player saves.
   await ensureCharacterRole(updated).catch(() => {});
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
-  await syncCharacterNarrowcastAccess(character.id).catch(() => {});
-  await syncCharacterRoomAccess(prisma, character).catch(() => {});
+  await afterInventoryChange(character.id);
   if (isDynastyHead(character.role?.slug) && next.lastName !== previous.lastName) {
     await propagateDynastyLastName(next.lastName).catch((err) =>
       console.error("propagateDynastyLastName failed:", err),
@@ -1646,6 +1825,10 @@ export async function removeTagRequest(input) {
 
 export async function transferTagRequest(input) {
   return guarded(() => transferTagRequestImpl(input));
+}
+
+export async function transferRequest(input) {
+  return guarded(() => transferRequestImpl(input));
 }
 
 export async function consumeTagRequest(input) {

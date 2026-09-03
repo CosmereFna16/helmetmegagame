@@ -10,6 +10,7 @@
 // zone, full stop — no officer standing elsewhere extends it, or a besieged
 // faction could be paid by an officer collecting from outside the walls.
 import { prisma, seatZoneIdFor } from "@lifeweb/db";
+import { accessibleRooms, heldTagSlugs } from "@lifeweb/db/lib/roomAccess";
 
 // A character who hasn't been placed yet can't reach anything. Being nowhere
 // is not the same as being everywhere, and the null would otherwise match
@@ -49,8 +50,19 @@ export async function canReachSilo(actor, faction) {
 
 // One entry point for both party kinds, so call sites don't branch. `party` is
 // a resolveParty() result: { kind, id, name, balance, zoneId? }.
-export async function canReachParty(actor, party) {
+//
+// A Room (CARRY.md) is Location-grain where the other two are zone-grain:
+// you have to be standing in its Location, and its door has to open for you
+// — the same accessibleRooms() predicate the thread-membership sync uses, so
+// the transfer gate and the door can never disagree about The Charon.
+// `heldSlugs` may be passed to save the lookup when the caller has it.
+export async function canReachParty(actor, party, { heldSlugs = null } = {}) {
   if (!party) return false;
+  if (party.kind === "room") {
+    if (!actor?.locationId || party.locationId !== actor.locationId) return false;
+    const held = heldSlugs ?? (await heldTagSlugs(prisma, actor.id));
+    return accessibleRooms([party], held).length === 1;
+  }
   if (party.kind === "character") {
     // Reaching yourself is free — you are always where you are.
     if (party.id === actor?.id) return true;
@@ -62,6 +74,7 @@ export async function canReachParty(actor, party) {
 // Kept beside the gate so every call site fails with the same words.
 export function outOfReachMessage(party, zoneName) {
   if (party?.kind === "character") return `${party.name} isn't here.`;
+  if (party?.kind === "room") return `You can't get into ${party.name} from where you stand. ‡`;
   const where = zoneName ? `You're not in ${zoneName}` : `You're nowhere near ${party?.name}`;
   return `${where}.`;
 }

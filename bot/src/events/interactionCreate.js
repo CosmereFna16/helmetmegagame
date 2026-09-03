@@ -20,6 +20,7 @@ const {
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const { syncCharacterRoomAccess, accessibleRooms, heldTagSlugs } = require("@lifeweb/db/lib/roomAccess");
+const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
 const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
@@ -1010,9 +1011,16 @@ async function handleHealPick(interaction, characterId) {
   await reconcileNarrowcastAccess(prisma, target.id, target.discordUserId).catch((err) =>
     console.error(`Heal: narrowcast reconcile failed for ${target.name}:`, err.message ?? err),
   );
+  // Carry first (a cured tag can't change a cap, but the order is the rule
+  // — CARRY.md), then the room doors.
+  const carry = await settleCarry(prisma, target.id).catch((err) => {
+    console.error(`Heal: carry settle failed for ${target.name}:`, err.message ?? err);
+    return null;
+  });
   await syncCharacterRoomAccess(prisma, target).catch((err) =>
     console.error(`Heal: room access sync failed for ${target.name}:`, err.message ?? err),
   );
+  if (carry?.drop) await deliverCarryDrop(prisma, carry).catch(() => {});
 
   await respond(interaction, {
     content: `» *Cleared ${cleared.join(", ")} from ${target.name}.*`,

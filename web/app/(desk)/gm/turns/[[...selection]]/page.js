@@ -57,7 +57,7 @@ function summarize(request) {
     case "TRANSFER_RESOURCES":
       return `${e.amount ?? 0} ⬢: ${e.from?.name ?? "?"} → ${e.to?.name ?? "?"}`;
     case "TRANSFER_TAG":
-      return `${e.tagName ?? "tag"} → ${e.toName ?? "?"}`;
+      return `${e.tagName ?? "tag"}: ${e.from?.name ?? e.fromName ?? "?"} → ${e.to?.name ?? e.toName ?? "?"}`;
     case "CONSUME_TAG":
       return `Used up ${e.tagName ?? "a tag"}${
         (e.granted ?? []).filter((g) => g.added > 0).length

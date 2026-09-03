@@ -1,5 +1,5 @@
 import { bumpBlood } from "@lifeweb/db";
-import { addToStack, dropCharacterTag, grantTagSlugs } from "@lifeweb/db/lib/tagWrites";
+import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, writeSiloRows, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { UserError } from "@/lib/actionResult";
 
@@ -13,16 +13,13 @@ import { UserError } from "@/lib/actionResult";
 // negative — the write IS the check, a conditional update that only matches
 // while the balance still covers the amount, safe under concurrent requests.
 export async function moveResources(tx, party, delta) {
-  const character = party?.kind === "character";
   try {
     await moveParty(tx, party, delta);
   } catch (err) {
     if (!(err instanceof InsufficientResourcesError)) throw err;
-    throw new UserError(
-      character
-        ? `${party.name ?? "That character"} no longer has ${err.amount} ⬢.`
-        : `The ${party?.name ?? "faction"} Silo no longer has ${err.amount} ⬢.`,
-    );
+    if (party?.kind === "character") throw new UserError(`${party.name ?? "That character"} no longer has ${err.amount} ⬢.`);
+    if (party?.kind === "room") throw new UserError(`${party.name ?? "That room"} no longer holds ${err.amount} ⬢. ‡`);
+    throw new UserError(`The ${party?.name ?? "faction"} Silo no longer has ${err.amount} ⬢.`);
   }
 }
 
@@ -97,6 +94,38 @@ export async function restoreCharacterTag(tx, characterId, snapshot) {
 
 export { dropCharacterTag };
 export { grantTagSlugs };
+export { addToRoomStack, dropRoomTag };
+
+// --- party-shaped tag moves ------------------------------------------
+// A TRANSFER_TAG end is a character or a Room stash (CARRY.md); these two
+// branch on `party.kind` so the undo never has to.
+
+// Takes `quantity` of a tag off a party. A room's decrement is the check
+// (two players can pull the same stack in the same tick); a character's
+// holding was snapshotted when the request was filed.
+export async function takeTagFrom(tx, party, tagId, quantity) {
+  if (!party?.id || !tagId) return;
+  if (party.kind === "room") {
+    const ok = await dropRoomTag(tx, party.id, tagId, quantity);
+    if (!ok) throw new UserError(`${party.name ?? "That room"} no longer holds that. ‡`);
+    return;
+  }
+  await dropCharacterTag(tx, party.id, tagId, quantity);
+}
+
+// Puts a snapshot { tagId, quantity, expiresTurn, source } back on a party.
+// Both branches INCREMENT and re-assert the snapshot's clock, so a stash-
+// then-undo can't launder an expiry.
+export async function giveTagTo(tx, party, snapshot) {
+  if (!party?.id || !snapshot?.tagId) return;
+  if (party.kind === "room") {
+    await addToRoomStack(tx, party.id, snapshot.tagId, snapshot.quantity ?? 1, {
+      expiresTurn: snapshot.expiresTurn ?? null,
+    });
+    return;
+  }
+  await restoreCharacterTag(tx, party.id, snapshot);
+}
 
 // --- per-type handlers ------------------------------------------------
 
@@ -292,16 +321,19 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // Either end may be a character or a Room stash. Rows filed before rooms
+  // existed carry only the character ids, so `from`/`to` are synthesized
+  // from those and nothing needs backfilling.
   TRANSFER_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { tagId, tagName, fromCharacterId, toCharacterId, restore, quantity } = request.effect;
-      const n = quantity ?? 1;
-      if (toCharacterId && tagId) await dropCharacterTag(tx, toCharacterId, tagId, n);
-      if (fromCharacterId && tagId) {
-        await restoreCharacterTag(tx, fromCharacterId, { tagId, ...(restore ?? {}), quantity: n });
-      }
-      return `Moved ${formatStack(tagName, quantity)} back to its original holder.`;
+      const e = request.effect;
+      const n = e.quantity ?? 1;
+      const from = e.from ?? (e.fromCharacterId ? { kind: "character", id: e.fromCharacterId, name: e.fromName } : null);
+      const to = e.to ?? (e.toCharacterId ? { kind: "character", id: e.toCharacterId, name: e.toName } : null);
+      if (to && e.tagId) await takeTagFrom(tx, to, e.tagId, n);
+      if (from && e.tagId) await giveTagTo(tx, from, { tagId: e.tagId, ...(e.restore ?? {}), quantity: n });
+      return `Moved ${formatStack(e.tagName, e.quantity)} back to ${from?.name ?? "its original holder"}.`;
     },
   },
 

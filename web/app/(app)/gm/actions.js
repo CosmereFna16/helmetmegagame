@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
@@ -117,16 +118,7 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
     // a key tag lost shuts it. Sequential and after the writes, per
     // ARCHITECTURE.md §5 — never a fan-out of REST calls at Discord's rate
     // limiter.
-    after(async () => {
-      const rows = await prisma.character.findMany({
-        where: { id: { in: ids } },
-        select: { id: true, discordUserId: true, locationId: true, status: true },
-      });
-      for (const row of rows) {
-        await syncCharacterNarrowcastAccess(row.id).catch(() => {});
-        await syncCharacterRoomAccess(prisma, row).catch(() => {});
-      }
-    });
+    after(() => afterInventoryChange(ids));
 
     revalidatePath("/gm/players", "layout");
     revalidatePath("/character");
