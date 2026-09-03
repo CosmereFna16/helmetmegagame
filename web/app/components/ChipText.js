@@ -2,6 +2,7 @@
 
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
+import { useCarryReference } from "./CarryProvider";
 import { useDocuments } from "./DocumentsProvider";
 import ChipLabel from "./ChipLabel";
 import TagChip from "./TagChip";
@@ -26,6 +27,7 @@ import { splitTokens } from "./richTokens";
 export default function ChipText({ text, as: Wrapper = "span", className, inTooltip = false }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
+  const { lines: carryLines } = useCarryReference();
   const { docsByKey } = useDocuments();
 
   if (!text) return null;
@@ -50,6 +52,9 @@ export default function ChipText({ text, as: Wrapper = "span", className, inTool
       if (!rate) return part.raw;
       return <ResourceChip key={`r-${i}`} value={rate.display} />;
     }
+
+    // Plain text either way — a carry sentence has nothing to hover.
+    if (part.kind === "carry") return carryLines[part.payload.trim()] ?? part.raw;
 
     // Always the flat face, never DocumentChip: this renderer exists for text
     // inside a tooltip or a <button>, and a document chip is a link. A link

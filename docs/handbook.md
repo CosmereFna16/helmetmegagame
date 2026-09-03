@@ -252,11 +252,13 @@ Resources in Bascinet are shown with the ⬢ symbol. They represent your access 
 
 Resources are kept either on your character or in your faction's Silo.
 
-### Transferring Resources
+### Transferring & Storage
 
-You can transfer Resources to or from other characters from your [Character](https://ravenheart.quest/character) page. This requires both characters to be in the same Zone.
+**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: to a person in your Zone, to or from your faction's Silo, or into and out of any **room** you're standing in. Every room is a stash. Put things down, come back for them later — and know that anyone else who can get into that room can take them. The room's thread hears about it, without names. ‡
 
-The source can be anyone within your Zone. Yes, this means **you can take ⬢ from another character**. You'll be prompted to provide a reason, which the GMs will see. This is a mugging and should be played out accordingly in the roleplay channels.
+The source of ⬢ can be anyone within your Zone. Yes, this means **you can take ⬢ from another character**. You'll be prompted to provide a reason, which the GMs will see. This is a mugging and should be played out accordingly in the roleplay channels. Items are give-only: you can hand over your own, or pick up what's lying in a room, never reach into someone else's pack. ‡
+
+The **Storage** button on a room's first post lists what's there. ‡
 
 ### Upkeep
 
@@ -361,10 +363,12 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 - **Add Tag** gains a tag by crafting or similar actions. The cost is taken immediately, but you still need to spend your Move on it. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**.
 - **Remove Tag** drops items or otherwise removes applicable tags.
 - **Consume** removes item tags that can be eaten, drunk, or otherwise used.
-- **Transfer Tag** gives a transferable tag to someone else in your Zone. Give only, no take.
+- **Transfer** hands a tag to someone else in your Zone, or stashes it in the room you're in. Give only, no take. ‡
 - **Heal** heals injuries and ailments based on your Medical skill.
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
+
+**Carrying:** You can carry only so much — 10 items and 25 ⬢ to start, where a stack of 4 counts as 4 and skills, wounds and the like don't count at all. A **Cart** or being a **Pack Mule** raises both. You can go over, but you'll be **Overburdened** and unable to cross into another Zone until you stash or hand something off. Lose your cart while you're over the line and the excess ends up on the floor of a random public room where you stand. ‡
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
 

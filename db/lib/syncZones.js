@@ -44,6 +44,7 @@ const {
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { locationAnchorRow } = require("./locationAnchorRow");
+const { roomStarterRow } = require("./roomStarterRow");
 const { entriesOf } = require("./yamlEntries");
 
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -312,8 +313,8 @@ async function findExistingThread(channelId, title, snapshot, kind) {
 
 // Writes a room's starter into a thread that has none recorded: first chunk
 // becomes the starter (pinned in-thread), the rest follow.
-async function writeRoomStarter(threadId, chunks) {
-  const starter = await postMessage(threadId, chunks[0]);
+async function writeRoomStarter(threadId, chunks, components) {
+  const starter = await postMessage(threadId, chunks[0], components);
   for (const chunk of chunks.slice(1)) await postMessage(threadId, chunk);
   // Best-effort: a pin failure must never abort the sync.
   await pinMessage(threadId, starter.id).catch((err) =>
@@ -330,7 +331,10 @@ async function syncRoomThread(prisma, room, location, snapshot) {
   if (!location?.discordChannelId) return "skipped";
 
   const body = buildRoomBody(room);
-  const hash = hashBody(body);
+  // Hashed with its button row, as the anchor is, so adding a button to the
+  // starter re-posts it once and never again.
+  const components = [roomStarterRow(room.id)];
+  const hash = hashBody(body + JSON.stringify(components));
   const chunks = chunkMessage(body);
   const title = room.name.slice(0, 100);
 
@@ -356,7 +360,7 @@ async function syncRoomThread(prisma, room, location, snapshot) {
       await patchThread(thread.id, { archived: false });
       await clearMessagesExcept(thread.id, null);
     }
-    const starterMessageId = await writeRoomStarter(thread.id, chunks);
+    const starterMessageId = await writeRoomStarter(thread.id, chunks, components);
     await prisma.room.update({
       where: { id: room.id },
       data: { discordThreadId: thread.id, starterMessageId, postHash: hash },
@@ -373,7 +377,7 @@ async function syncRoomThread(prisma, room, location, snapshot) {
   if (starterMessageId) {
     await clearMessagesExcept(room.discordThreadId, starterMessageId);
     try {
-      await editMessage(room.discordThreadId, starterMessageId, chunks[0]);
+      await editMessage(room.discordThreadId, starterMessageId, chunks[0], components);
       for (const chunk of chunks.slice(1)) await postMessage(room.discordThreadId, chunk);
     } catch (err) {
       if (err?.status !== 404) throw err;
@@ -382,7 +386,7 @@ async function syncRoomThread(prisma, room, location, snapshot) {
   }
   if (!starterMessageId) {
     await clearMessagesExcept(room.discordThreadId, null);
-    starterMessageId = await writeRoomStarter(room.discordThreadId, chunks);
+    starterMessageId = await writeRoomStarter(room.discordThreadId, chunks, components);
   }
   await patchThread(room.discordThreadId, { name: title, archived: false });
   await prisma.room.update({

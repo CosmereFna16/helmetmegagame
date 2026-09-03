@@ -396,7 +396,9 @@ reason to price one at 5.
 
 14 is the ceiling and −11 the floor; nothing should be priced outside them
 without a deliberate decision recorded here. **Pilgrim is the one deliberate
-exception, priced at 1** — off the scale entirely, Gunboat's call.
+exception, priced at 1** — off the scale entirely, Gunboat's call. **Pack
+Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
+the carry caps landed (`CARRY.md`).
 
 **At character creation, a character may buy at most
 `GameConfig.maxDrawbackTags` drawback TAGS — 5 by default, live on
@@ -563,7 +565,14 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   advertises that there is something to go after.
 - `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
-- `tradeable` — **live**: whether the tag can change hands at all. One flag
+- `carryMultiplier` — **live**: multiplies both carry caps while held (Pack
+  Mule 1.5, Cart 5; they stack). `null` for the rest of the catalog. A
+  description ending in `{carry:slug}` renders the exact bonus from the live
+  config. `db:sync-tags` rebases every holder afterwards so an edited
+  multiplier never reads as "your Cart just left". See `CARRY.md`.
+- `tradeable` — **live**: whether the tag can change hands at all. It is
+  also what counts against the item carry cap — every unit of every
+  tradeable tag (`CARRY.md` §1). One flag
   covers both directions — handing it to someone standing with you
   (`TRANSFER_TAG`) and lifting it off a corpse or a helpless body
   (`LOOT_CHARACTER`). `web/lib/tagRequests.js#isTradeable` is the single

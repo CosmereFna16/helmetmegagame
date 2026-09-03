@@ -36,6 +36,7 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferParties,
+  carry = null,
   tagCatalog,
   otherCharacters,
   desireSlots = 2,
@@ -119,6 +120,7 @@ export default function CharacterSheet({
             resources={character.resources}
             otherCharacters={otherCharacters ?? []}
             transferParties={transferParties}
+            carry={carry}
             canHeal={canHeal}
             hasBird={hasBird}
             isLiterate={isLiterate}
@@ -135,7 +137,7 @@ export default function CharacterSheet({
             harmTags={harmTags}
           >
             <div className="flex flex-col gap-6">
-              <StatusPanel character={character} isSelf={isSelf} currentAction={currentAction} openTurn={openTurn} />
+              <StatusPanel character={character} isSelf={isSelf} currentAction={currentAction} openTurn={openTurn} carry={carry} />
 
               <TagsPanel
                 characterTags={character.tags}

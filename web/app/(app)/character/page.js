@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
+import { accessibleRooms } from "@lifeweb/db/lib/roomAccess";
+import { carryStatus } from "@lifeweb/db/lib/carry";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
@@ -356,10 +358,40 @@ export default async function CharacterPage() {
   // Both ends of a transfer list every Silo and every living player,
   // including yourself. See REQUESTS.md §"the source can be anyone".
   const selfEntry = { id: character.id, name: character.name };
+  // Plus every Room stash at this Location the character can get into
+  // (CARRY.md) — with its contents, since pulling out of one means seeing
+  // what's there. Filtered here, unlike the two lists above: a room you
+  // can't enter isn't a scouting target, it's a locked door.
+  const heldSlugsForRooms = new Set(character.tags.map((ct) => ct.tag.slug));
+  const roomsHere = character.locationId
+    ? await prisma.room.findMany({
+        where: { locationId: character.locationId },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          accessTagSlugs: true,
+          resources: true,
+          tags: {
+            where: { quantity: { gt: 0 } },
+            select: { tagId: true, quantity: true, tag: { select: { name: true, stackable: true } } },
+          },
+        },
+      })
+    : [];
+  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms).map((r) => ({
+    id: r.id,
+    name: r.name,
+    resources: r.resources,
+    tags: r.tags.map((rt) => ({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity, stackable: rt.tag.stackable })),
+  }));
   const transferParties = {
     characters: [...otherCharacters, selfEntry].sort((a, b) => a.name.localeCompare(b.name)),
     factions,
+    rooms,
   };
+  const carry = carryStatus(character, gameConfig);
   // Healing. The medical gate is resolved here, server-side, so no
   // tier-chain math reaches the client bundle.
   const ancestry = buildSkillAncestry(tierRows);
@@ -599,6 +631,7 @@ export default async function CharacterPage() {
       avatarSrc={avatarSrc}
       forcedIdentity={forcedIdentity}
       transferParties={transferParties}
+      carry={carry}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}
       desireSlots={desireSlots}

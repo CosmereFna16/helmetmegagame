@@ -30,6 +30,7 @@ import {
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import PartySelect from "./PartySelect";
+import TransferDialog from "./TransferDialog";
 import Select from "./Select";
 import ChipText from "./ChipText";
 import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
@@ -41,10 +42,9 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import {
   addTagRequest,
   removeTagRequest,
-  transferTagRequest,
+  transferRequest,
   consumeTagRequest,
   healCharacterRequest,
-  transferResourcesRequest,
   lootCharacterRequest,
   moveCharacterRequest,
   bindCharacterRequest,
@@ -309,14 +309,17 @@ export const ACTION_HELP = {
     "into words. Nobody is told you read it.",
   bury:
     "Write the person's name letter by letter—be precise!—or they won't be buried.",
-  resources: (
+  transfer: (
     <>
-      <p>Both ends have to be within reach of you.</p>
+      <p>Hand over things and ⬢, or stash them in a room and pick them up later. ‡</p>
       <p>
         <strong>To a person</strong> Be in the same zone.
       </p>
       <p>
         <strong>To or from a Silo</strong> Be in the faction&apos;s zone.
+      </p>
+      <p>
+        <strong>To or from a room</strong> Be standing in it. Anyone who can get in can take what&apos;s there. ‡
       </p>
     </>
   ),
@@ -325,10 +328,9 @@ export const ACTION_HELP = {
 const TITLES = {
   add: "Add Tag",
   remove: "Remove Tag",
-  transfer: "Transfer Tag",
+  transfer: "Transfer ‡",
   consume: "Consume Tag",
   heal: "Heal",
-  resources: "Transfer Resources",
   loot: "Loot",
   move: "Move Player",
   bind: "Bind",
@@ -357,6 +359,8 @@ export default function RequestActionsProvider({
   resources = 0,
   otherCharacters = [],
   transferParties = null,
+  // Load vs caps for the Transfer dialog's projection line (CARRY.md).
+  carry = null,
   canHeal = false,
   healTargets = [],
   healParties = null,
@@ -533,7 +537,8 @@ export default function RequestActionsProvider({
       setTargetId("");
       setFromKey(selfId ? `character:${selfId}` : "");
       setToKey("");
-      setAmount("1");
+      // Transfer's ⬢ is optional, so it starts at nothing rather than one.
+      setAmount(next === "transfer" ? "0" : "1");
       setPicks({});
       setZoneId("");
       setLocationId("");
@@ -603,14 +608,13 @@ export default function RequestActionsProvider({
           reason,
         });
       case "transfer":
-        return transferTagRequest({
-          tagId,
-          quantity,
-          toCharacterId: recipient,
+        return transferRequest({
+          fromKey,
+          toKey,
+          tags: Object.entries(picks).map(([id, q]) => ({ tagId: id, quantity: q })),
+          amount,
           reason,
         });
-      case "resources":
-        return transferResourcesRequest({ fromKey, toKey, amount, reason });
       case "loot":
         return lootCharacterRequest({
           targetCharacterId: targetId,
@@ -660,7 +664,7 @@ export default function RequestActionsProvider({
       case "bird":
         return Boolean(targetId && zoneId && birdBody.trim().length > 0);
       case "transfer":
-        return Boolean(tagId && recipient);
+        return Boolean(fromKey && toKey && !sameParty && takingSomething);
       case "heal":
         return Boolean(
           patientId &&
@@ -668,8 +672,6 @@ export default function RequestActionsProvider({
           affliction &&
           !affliction.missingSkills.length,
         );
-      case "resources":
-        return Boolean(fromKey && toKey && !sameParty);
       case "loot":
         return Boolean(targetId && takingSomething);
       case "move":
@@ -691,7 +693,6 @@ export default function RequestActionsProvider({
     () => ({
       canAdd: addable.length > 0,
       canRemove: removable.length > 0,
-      canTransfer: transferable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
@@ -703,7 +704,6 @@ export default function RequestActionsProvider({
     [
       addable,
       removable,
-      transferable,
       consumable,
       canHeal,
       hasBird,
@@ -719,7 +719,7 @@ export default function RequestActionsProvider({
 
   const title = TITLES[mode] ?? "Request";
   const dialogWidth =
-    mode === "add" || mode === "harm" || mode === "loot" ? "wide" : undefined;
+    mode === "add" || mode === "harm" || mode === "loot" || mode === "transfer" ? "wide" : undefined;
 
   return (
     <RequestActionsContext.Provider value={value}>
@@ -923,96 +923,24 @@ export default function RequestActionsProvider({
             )}
 
             {mode === "transfer" && (
-              <>
-                <label className="field">
-                  <span className="field-label">
-                    Item or Asset to hand over
-                  </span>
-                  <Select
-                    value={tagId ?? ""}
-                    onChange={(e) => pick(e.target.value || null)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Choose a tag…
-                    </option>
-                    {transferable.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                        {t.quantity > 1 ? ` ×${t.quantity}` : ""}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                {stacking && (
-                  <QuantityField
-                    value={quantity}
-                    onChange={setQuantity}
-                    max={heldCount}
-                    label={`How many? (you have ${heldCount})`}
-                  />
-                )}
-                <label className="field">
-                  <span className="field-label">Give it to</span>
-                  <Select
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    required
-                  >
-                    <option value="" disabled>
-                      Choose a player…
-                    </option>
-                    {otherCharacters.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              </>
-            )}
-
-            {mode === "resources" && (
-              <>
-                <div className="flex flex-wrap items-end gap-3">
-                  <PartySelect
-                    label="From"
-                    value={fromKey}
-                    onChange={setFromKey}
-                    hint="Choose a source…"
-                    characters={transferParties?.characters ?? []}
-                    factions={transferParties?.factions ?? []}
-                  />
-                  <PartySelect
-                    label="To"
-                    value={toKey}
-                    onChange={setToKey}
-                    hint="Choose a recipient…"
-                    characters={transferParties?.characters ?? []}
-                    factions={transferParties?.factions ?? []}
-                  />
-                  <label className="field" style={{ width: "6rem" }}>
-                    <span className="field-label">Amount</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      required
-                    />
-                  </label>
-                </div>
-                {sameParty && (
-                  <p className="text-xs text-accent">
-                    Source and recipient are the same.
-                  </p>
-                )}
-                <p className="text-xs text-muted">
-                  Both the source and the recipient have to share a zone. Say
-                  why in the reason above.
-                  {selfName ? ` You are ${selfName}.` : ""}
-                </p>
-              </>
+              <TransferDialog
+                selfId={selfId}
+                parties={transferParties}
+                transferable={transferable}
+                carry={carry}
+                fromKey={fromKey}
+                toKey={toKey}
+                onFrom={(key) => {
+                  setFromKey(key);
+                  setPicks({});
+                }}
+                onTo={setToKey}
+                picks={picks}
+                onTogglePick={togglePick}
+                onPickQuantity={setPickQuantity}
+                amount={amount}
+                onAmount={setAmount}
+              />
             )}
 
             {mode === "loot" && (

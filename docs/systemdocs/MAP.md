@@ -71,6 +71,11 @@ gates it, enforced by a **conditional `updateMany`** whose `WHERE` clause
 hunger decrement and the mount's daily claim use, so two clicks in one tick
 can't both pass. A refusal reports the exact seconds left.
 
+**An Overburdened character can't cross into another zone at all.** Over a
+carry cap (`CARRY.md` §2), `performLocationMove` refuses the crossing with a
+plain `{ ok: false, reason }` before it opens its transaction; hops inside the
+zone stay free so they can walk to a room and stash. Only the mover is gated.
+
 **A hop whose edge crosses into another zone costs the character's Move,
 exactly like the old zone-level travel did.** It's written as a real,
 auto-resolved `Action` (`type: MOVE`, `status: CONFIRMED`,

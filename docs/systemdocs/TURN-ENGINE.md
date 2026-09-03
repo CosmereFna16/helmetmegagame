@@ -152,6 +152,12 @@ each arrived at by getting them wrong first.
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
+8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
+   final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
+   happen earlier in the close and none of them may settle in place.
+   `settleCarry` for every ALIVE character holding a tradeable tag,
+   Overburdened, or more ⬢ than the base cap — one transaction each — and the
+   overflow drops ride back for the thunk (`CARRY.md` §3).
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and roll its weather (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,

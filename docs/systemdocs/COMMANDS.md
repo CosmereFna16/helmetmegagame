@@ -167,6 +167,7 @@ parsed by literal `startsWith` + `slice`.
 | `loc:who:{locationId}` | Button | Reply privately with who's standing here (§ below) |
 | `loc:secret:{locationId}` | Button | Reply privately with the private Rooms and Conversations here you can see |
 | `loc:converse:{locationId}` | Button | Offer the Rooms you can link a new Conversation to |
+| `room:storage:{roomId}` | Button | Reply privately with what's lying in the Room's stash (`CARRY.md` §7) |
 | `conv:room:{locationId}` | Select | Pick which Room to link the Conversation to, then show the Converse modal |
 | `conv:new:{roomId}` | Modal | Create the Conversation |
 | `move:open` | Button | Show the Move modal |

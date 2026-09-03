@@ -299,8 +299,12 @@ auto-archive after 10080 minutes (a week) idle, and the sync re-asserts
 `archived: false` on every run — so a Room that idled into the archive comes
 back at the next `db:sync-zones`, not seven days of dead air.
 
-Each Room's first message is its body (name + description), reconciled by
-content hash on `Room.postHash`; a changed body is rewritten **in place**
+Each Room's first message is its body (name + description) plus one button,
+**Storage** (`db/lib/roomStarterRow.js`, `room:storage:{id}`), which prints
+what is lying in the room's stash — every Room holds unlimited ⬢ and tags,
+moved through the web's Transfer and surviving the Dawn wipe since they live
+in the database (`CARRY.md` §5). The message is reconciled by content hash on
+`Room.postHash` (body + button row); a changed body is rewritten **in place**
 (clear every reply but the starter, edit it, re-post overflow). Because a
 thread's starter has its own message id, distinct from the thread id itself —
 unlike a forum post, where they're the same — `Room.starterMessageId` is

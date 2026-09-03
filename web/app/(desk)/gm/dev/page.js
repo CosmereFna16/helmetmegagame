@@ -289,6 +289,20 @@ export default async function DevPanelPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label panel-header--with-icon">
+                      Carry cap: items ‡
+                      <InfoIcon text={CONFIG_HELP.carryTagCap} />
+                    </span>
+                    <input type="number" name="carryTagCap" min="1" defaultValue={config.carryTagCap} />
+                  </label>
+                  <label className="field">
+                    <span className="field-label panel-header--with-icon">
+                      Carry cap: ⬢ ‡
+                      <InfoIcon text={CONFIG_HELP.carryResourceCap} />
+                    </span>
+                    <input type="number" name="carryResourceCap" min="1" defaultValue={config.carryResourceCap} />
+                  </label>
+                  <label className="field">
+                    <span className="field-label panel-header--with-icon">
                       Desire slots
                       <InfoIcon text={CONFIG_HELP.desireSlots} />
                     </span>

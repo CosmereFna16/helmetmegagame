@@ -6,9 +6,11 @@ import {
   getVisibleTags,
   getProductionRates,
   getDocumentIndex,
+  getCarryReference,
 } from "@/lib/referenceData";
 import TagsProvider from "./components/TagsProvider";
 import ProductionRatesProvider from "./components/ProductionRatesProvider";
+import CarryProvider from "./components/CarryProvider";
 import DocumentsProvider from "./components/DocumentsProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import { RefreshProvider } from "./components/useRefresh";
@@ -59,6 +61,7 @@ export default async function RootLayout({ children }) {
   const tagsPromise = getVisibleTags().catch(() => []);
   const ratesPromise = getProductionRates().catch(() => null);
   const docsPromise = getDocumentIndex().catch(() => []);
+  const carryPromise = getCarryReference().catch(() => null);
 
   const turn = await getOpenTurn();
   // BASCINET_THEME pins the whole environment to one theme, which is the only
@@ -88,7 +91,9 @@ export default async function RootLayout({ children }) {
           <ConfirmProvider>
             <TagsProvider tagsPromise={tagsPromise}>
               <ProductionRatesProvider ratesPromise={ratesPromise}>
-                <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
+                <CarryProvider carryPromise={carryPromise}>
+                  <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
+                </CarryProvider>
               </ProductionRatesProvider>
             </TagsProvider>
           </ConfirmProvider>

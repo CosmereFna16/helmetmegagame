@@ -1,4 +1,5 @@
 import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
+import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
@@ -98,6 +99,22 @@ export async function getProductionRates() {
   );
 
   return { coefficient, rates };
+}
+
+// The {carry:slug} token (RichText.js): the sentence a carry tag's
+// description ends with, pre-formatted per tag from the live caps so the
+// client never imports @lifeweb/db. Keyed by slug so a description only
+// names itself and the multiplier stays single-sourced in docs/tags.yaml.
+export async function getCarryReference() {
+  const [config, tags] = await Promise.all([
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryTagCap: true, carryResourceCap: true } }),
+    prisma.tag.findMany({
+      where: { carryMultiplier: { not: null } },
+      select: { slug: true, carryMultiplier: true },
+    }),
+  ]);
+  const lines = Object.fromEntries(tags.map((t) => [t.slug, carryBonusLine(config, t.carryMultiplier)]));
+  return { base: carryCaps(config, MULT_SCALE), lines };
 }
 
 const EXCERPT_CHARS = 160;

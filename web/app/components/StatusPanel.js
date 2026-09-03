@@ -110,7 +110,7 @@ function ThisTurn({ currentAction, openTurn }) {
   );
 }
 
-export default function StatusPanel({ character, isSelf, currentAction, openTurn }) {
+export default function StatusPanel({ character, isSelf, currentAction, openTurn, carry = null }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
   // exactly what gets applied.
@@ -184,7 +184,27 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
 
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
-          <Row label="Resources">{character.resources} ⬢</Row>
+          {/* Load against the carry caps (CARRY.md). `carry` is computed
+              server-side by character/page.js for the owner's own sheet
+              only; another player's sheet shows the bare balance. Over a
+              cap reads in accent — the Overburdened tag says the rest. */}
+          <Row label="Resources">
+            {carry ? (
+              <span className="mono" style={carry.resources > carry.resourcesCap ? { color: "var(--accent-text)" } : undefined}>
+                {carry.resources} / {carry.resourcesCap} ⬢
+              </span>
+            ) : (
+              <>{character.resources} ⬢</>
+            )}
+          </Row>
+
+          {carry && (
+            <Row label="Carrying ‡">
+              <span className="mono" style={carry.tagsUsed > carry.tagsCap ? { color: "var(--accent-text)" } : undefined}>
+                {carry.tagsUsed} / {carry.tagsCap} items ‡
+              </span>
+            </Row>
+          )}
 
           <Row label="Gambit">
             {total ? (

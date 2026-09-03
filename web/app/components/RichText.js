@@ -2,6 +2,7 @@
 
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
+import { useCarryReference } from "./CarryProvider";
 import { useDocuments } from "./DocumentsProvider";
 import { useCharacterMentions } from "./CharacterMentionsProvider";
 import TagChip from "./TagChip";
@@ -66,9 +67,19 @@ function InfoToken({ payload }) {
   return <InfoIcon text={payload.trim()} />;
 }
 
+// Payload is a tag slug carrying Tag.carryMultiplier ("pack-mule", "cart").
+// Renders the plain sentence "You can carry N more item tags, and M ⬢.",
+// computed from the live GameConfig caps by getCarryReference
+// (lib/referenceData.js) — see docs/systemdocs/CARRY.md.
+function CarryToken({ payload, fallback }) {
+  const { lines } = useCarryReference();
+  return lines[payload.trim()] ?? fallback;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
+  carry: CarryToken,
   document: DocumentToken,
   char: CharToken,
   info: InfoToken,

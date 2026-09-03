@@ -6,7 +6,6 @@ import {
   PlusIcon,
   TrashIcon,
   HandOffIcon,
-  ResourcesIcon,
   MealIcon,
   BandageIcon,
   LootIcon,
@@ -60,17 +59,14 @@ const ACTIONS = [
     help: "Cure yourself or drop an item.",
     gate: "canRemove",
   },
+  // One Transfer for tags and ⬢ alike, to a person, a Silo or a Room stash
+  // (docs/systemdocs/CARRY.md). No gate: you can always move ⬢ or put
+  // something down, and the rule above forbids greying for who is near you.
   {
     mode: "transfer",
     icon: HandOffIcon,
-    label: "Transfer Tag",
-    gate: "canTransfer",
-  },
-  {
-    mode: "resources",
-    icon: ResourcesIcon,
-    label: "Transfer Resources",
-    help: ACTION_HELP.resources,
+    label: "Transfer ‡",
+    help: ACTION_HELP.transfer,
   },
   {
     mode: "consume",

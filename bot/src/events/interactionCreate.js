@@ -42,6 +42,8 @@ const {
   SECRET_ROOMS_PREFIX,
   CONVERSE_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
+const { ROOM_STORAGE_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
+const { handleRoomStorage } = require("../lib/roomStorage");
 const {
   buildConverseModal,
   CONVERSE_MODAL_PREFIX,
@@ -1063,6 +1065,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith(WHOS_HERE_PREFIX)) {
           return void (await handleWhosHere(interaction, interaction.customId.slice(WHOS_HERE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(ROOM_STORAGE_PREFIX)) {
+          return void (await handleRoomStorage(interaction, interaction.customId.slice(ROOM_STORAGE_PREFIX.length)));
         }
         if (interaction.customId.startsWith(SECRET_ROOMS_PREFIX)) {
           return void (await handleSecretRooms(interaction, interaction.customId.slice(SECRET_ROOMS_PREFIX.length)));

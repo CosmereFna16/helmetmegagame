@@ -93,12 +93,12 @@ reason.
 
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
-| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
+| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach — a player, a Silo, or a Room stash at your Location (`CARRY.md`). `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
 | `ADD_TAG` | Makes a Craftable tag, optionally paying ⬢. Craftable is the whole gate — the point-priced half of the menu is gone, and lives in `/store`. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c) | cost | Restores the tag and its count, takes back the aftermath it granted, refunds the cost |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back |
+| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, or into or out of a Room stash at your Location, in a quantity if it stacks. The merged Transfer dialog files one of these per tag line (`CARRY.md` §6). `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back to where they came from |
 | `FULFILL_DESIRE` | Claims one active, slotted Desire (`desireId`, not "the" active one — a character can hold several at once, one per slot) | Tag Points awarded | Revokes the points and reopens the *row*. Because a GM Fulfil/Cancel operates on a specific `desireId` rather than "whatever's in the slot now," an Undo is safe even after a new Desire has since been set in that same slot — it only ever touches the row it snapshotted, never the slot's current occupant |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
