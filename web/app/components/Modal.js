@@ -140,7 +140,7 @@ export default function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className={`modal-header${actions ? " flex items-center justify-between gap-3" : ""}`}>
+          <div className="modal-header">
             {/* .section-title, not .panel-header: the heading sits beside
                 something else here, so panel-header's border-bottom would
                 underline just the text rather than span the panel. Four
@@ -148,7 +148,26 @@ export default function Modal({
             <h2 className="section-title" id={headingId}>
               {title}
             </h2>
-            {actions}
+            <div className="modal-header-actions">
+              {actions}
+              {/* The only exit a phone has. Escape needs a keyboard and the
+                  backdrop is down to a 16px gutter once a `widest` panel is on
+                  a 390px screen, so before this the Add Tag and Spend Tag
+                  Points dialogs were genuinely inescapable there. `onClose`
+                  is called straight, not through the ref: callers that must
+                  not close mid-flight already guard inside their own handler
+                  (`() => !pending && close()`). */}
+              {onClose && (
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => onClose()}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         )}
         {children}

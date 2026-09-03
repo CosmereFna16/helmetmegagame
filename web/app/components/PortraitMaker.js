@@ -254,11 +254,6 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
       title="Customize Appearance"
       width="widest"
       onClose={onClose}
-      actions={
-        <button type="button" className="btn-quiet" onClick={onClose}>
-          Close
-        </button>
-      }
     >
       <div>
         {loadError ? (

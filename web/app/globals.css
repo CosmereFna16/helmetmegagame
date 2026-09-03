@@ -1294,6 +1294,9 @@ input[type="radio"]:disabled {
 }
 
 .modal-overlay {
+  /* The pinned .modal-header's own height, declared where every descendant
+     inherits it — .modal-substick offsets against it. */
+  --modal-head-h: 3.5rem;
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -1372,11 +1375,66 @@ input[type="radio"]:disabled {
   overflow-y: auto;
 }
 
+/* Pinned, not just a flex row. The panel is ONE scroll box — header, body and
+   .modal-actions footer together — so on a phone the Add Tag dialog's Cancel
+   sat below a tag catalog nobody could scroll past, and the dialogs with no
+   footer at all (Spend Tag Points, Claim a Desire) had no exit but Escape,
+   which a phone does not have. Sticking the header keeps the ✕ on screen
+   however long the body gets. It bleeds back out of .modal-panel's padding
+   (the negative margin + matching padding) and sticks at that same negative
+   offset, so it lands flush with the panel's top edge rather than leaving a
+   16px strip of scrolling content above it. */
 .modal-header {
+  position: sticky;
+  top: calc(var(--sp-4) * -1);
+  z-index: 2;
+  margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) 0;
+  padding: var(--sp-4);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* 44px of tappable area — the reason this exists is thumbs — pulled back out
+   of the flow with a negative margin so it doesn't grow the header on a
+   desktop, where the glyph alone is the whole control. */
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px -10px -10px 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover,
+.modal-close:focus-visible {
+  color: var(--accent-text);
+}
+
+/* For a bar a modal body sticks to its own top — PointBuy's mobile budget
+   readout, DesireCatalog's target slot. At top:0 they would slide under the
+   pinned header, which occupies exactly that band. */
+.modal-substick {
+  position: sticky;
+  top: var(--modal-head-h, 3.5rem);
+  z-index: 1;
 }
 
 /* Same serif and size as .panel-header, deliberately without the hairline
@@ -2078,13 +2136,21 @@ input[type="radio"]:disabled {
   box-shadow: var(--e-3);
 }
 
+/* Pinned for the same reason .modal-header is: this row carries the sheet's
+   only ✕, and .doc-sheet is one 86vh scroll box, so on a phone the close
+   scrolled away a screen into a long document. Bleeds out of .doc-sheet's
+   own var(--sp-6) padding and sticks flush at that negative offset. */
 .doc-sheet-head {
+  position: sticky;
+  top: calc(var(--sp-6) * -1);
+  z-index: 2;
+  background: var(--surface-raised);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-  padding-bottom: var(--sp-3);
+  margin: calc(var(--sp-6) * -1) calc(var(--sp-6) * -1) var(--sp-4);
+  padding: var(--sp-6) var(--sp-6) var(--sp-3);
   border-bottom: 1px solid var(--border);
 }
 
