@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Devoted Follower needs somebody to follow
+
+✚ Night Blind and Blind can no longer be taken together — curing Blind already leaves you Night Blind  
+✚ Devoted Follower is closed to Migrants, Mercenaries, Bums, Outsiders and Pushers — nobody to be devoted to  
+✎ Sewer Key weighs half a pound, like every other key
+
 ## 2026-09-03 · Hard of Hearing is worth less, and rules out Deaf
 
 ✎ Hard of Hearing gives 4 points instead of 5  
