@@ -163,7 +163,8 @@ carrying throws; clear the holdings first.
 the room — `roomAccess.js#accessibleRooms`, the same predicate the
 thread-membership sync uses, so the transfer gate and the door can never
 disagree about The Charon. `web/lib/transferReach.js#canReachParty` carries
-the rule; note it is Location-grain where every other reach rule is zone-grain.
+the rule. Since the 9/2026 roster change every reach rule is Location-grain
+(`db/lib/presence.js`), so a room and a person are judged at the same grain.
 
 **A public stash is public.** Anyone at the Location can list its contents
 (the Storage button, or the Transfer dialog) and walk off with them. That is
@@ -173,7 +174,9 @@ through. Private rooms leak nothing to anyone their key doesn't admit.
 The stash survives the Dawn wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag` and zeroes
 `Room.resources`), and cascades away with its Room when `db:sync-zones` prunes
-one. Deleting a Tag from the catalog cascades its stacks too.
+one. Deleting a Tag from the catalog cascades its **room** stacks
+(`RoomTag.tagId` cascades) but not the copies people carry
+(`CharacterTag.tagId` is RESTRICT) — see the trap above.
 
 ## 6. Transfer
 
