@@ -504,11 +504,16 @@ async function syncTagsFromYaml(prisma) {
     }
   }
 
-  // A changed carryMultiplier must never read as "a Cart just left": rebase
-  // every holder's carryMultiplierSeen without dropping anything, so the
-  // next real settle compares against the new catalog (CARRY.md).
+  // Editing a `weight:` or a `carryMultiplier` in the catalog changes what
+  // everyone is carrying, so Overburdened has to be recomputed against the new
+  // numbers. `{ drop: false }` settles the STATUS and never sheds: making a
+  // sword heavier should make people overburdened, not dump a hundred
+  // inventories onto the floor (CARRY.md §5).
+  //
+  // Every holder of a tradeable tag, not just the multiplier holders it used
+  // to be — under weight, a catalog edit moves everybody's load.
   const holders = await prisma.character.findMany({
-    where: { status: "ALIVE", tags: { some: { tag: { carryMultiplier: { not: null } } } } },
+    where: { status: "ALIVE", tags: { some: { tag: { tradeable: true } } } },
     select: { id: true },
   });
   let rebased = 0;

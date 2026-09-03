@@ -2318,7 +2318,8 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
   const recipientIsLiterate = recipient.tags.some((ct) => ct.tag.slug === LITERATE_SLUG);
 
   // In-game DAY, not a turn id — two turns run per day, and keying on the
-  // turn would hand out two letters a day. Same trap as fastTravelTurnId.
+  // turn would hand out two letters a day. (The mount's claim shared this trap
+  // until it became a per-turn allowance — CARRY.md §2a.)
   const dayKey = String(describeTurn(openTurn).day);
 
   let birdMessageId = null;

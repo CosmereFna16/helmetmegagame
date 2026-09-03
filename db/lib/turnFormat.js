@@ -56,7 +56,8 @@ function expiryFor(tag, openTurn) {
 
 // The in-game DAY of a turn: two turns (Dawn, Dusk) make one day. This is
 // the formula web/lib/turnFormat.js#describeTurn shows, and the claim key
-// Character.fastTravelTurnId / birdTurnId store.
+// Character.birdTurnId stores. (The mount's claim used to be keyed this way
+// too; it is per-TURN now — CARRY.md §2a.)
 function turnDay(turn) {
   return Math.ceil(turn.number / 2);
 }

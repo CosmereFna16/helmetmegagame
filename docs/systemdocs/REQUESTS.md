@@ -729,9 +729,12 @@ mount adds one to the free-zone-move allowance every character gets each turn,
 and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
 §2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.
 
-The passenger seats survive as `db/lib/mounts.js#fastTravelCapacity`, read by
-the Travel picker's drag list rather than by a request of its own, and they
-now read the mount only while it is equipped.
+`db/lib/mounts.js#fastTravelCapacity` survives with **no live caller** — it
+was the retired request's seat count, and ordinary travel gates dragging on
+`canDrag` (corpse, helpless, or your own faction) rather than on seats. It is
+kept because the catalog text still promises a horse carries two and a cart
+six, and whatever enforces that later should use this rather than re-derive it.
+It now reads the mount only while equipped.
 
 Old `FAST_TRAVEL` rows stay undoable; nothing files a new one.
 
