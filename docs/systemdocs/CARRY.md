@@ -36,6 +36,14 @@ base, then a line per active multiplier.
 
 ## 1a. The weight bands
 
+**0 is a real rung.** A key, a letter, a badge, a pair of spectacles: nobody's
+carry is decided by their keyring, and pricing paperwork just makes players do
+arithmetic about it. Written as an explicit `0` rather than omitted — omitting
+`weight:` means the tag is not cargo at all, which is a different claim. A
+0-weight unit is also never a candidate for the overflow drop (§5): shedding it
+could not help, so the shuffle would only waste draws on letters while the
+anvil stayed put.
+
 **Price an item off this table, not by feel** — the same discipline the point
 scale gets in [`TAGS.md`](TAGS.md) §4a. `db/lib/syncTags.js` throws if a
 tradeable `items` tag omits `weight:`, so new gear cannot arrive weighing
@@ -43,8 +51,9 @@ nothing.
 
 | Band | lb | Examples |
 |---|---|---|
-| Trivial | 0.5 | ring, letter, vial, coin, key |
-| Light | 2 | knife, meal, tonic, flask, hand tool |
+| Negligible | 0 | key, letter, badge, coin, spectacles |
+| Trivial | 0.5 | vial, tonic, dagger, sling, Graga sac |
+| Light | 2 | meal, flask, hand tool, cudgel |
 | Medium | 5 | sword, helm, lantern, fishing rod |
 | Heavy | 12 | crossbow, shield, greatsword, trap |
 | Very Heavy | 28 | mail shirt, breastplate, pavise |

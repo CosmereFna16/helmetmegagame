@@ -83,6 +83,12 @@
 #                     rest, so 3 of a 2-turn tag lose one every 2 turns.
 #   weight          - what ONE UNIT weighs, in pounds, against
 #                     GameConfig.carryWeightLbs (docs/systemdocs/CARRY.md §1).
+#                     0 IS A REAL RUNG, not a mistake: a key, a letter, a
+#                     badge, a pair of spectacles. Nobody's carry is decided
+#                     by their keyring, and pretending otherwise just makes
+#                     players do arithmetic about paperwork. Write `0`
+#                     explicitly rather than omitting it — omission means the
+#                     tag is not cargo at all, which is a different claim.
 #                     Omit it for anything weightless: every skill, status,
 #                     injury and belief; every Asset, since a horse carries
 #                     itself and a house does not move at all; and any
@@ -90,8 +96,9 @@
 #                     (nobody hauls a graft out of their own neck).
 #                     PRICE IT OFF THE BAND, never by feel, the same way a
 #                     point cost is priced off TAGS.md §4a:
-#                       0.5  Trivial      ring, letter, vial, coin, key
-#                       2    Light        knife, meal, tonic, flask, hand tool
+#                       0    Negligible   key, letter, badge, coin, spectacles
+#                       0.5  Trivial      vial, tonic, dagger, sling, sac
+#                       2    Light        meal, flask, hand tool, cudgel
 #                       5    Medium       sword, helm, lantern, fishing rod
 #                       12   Heavy        crossbow, shield, greatsword, trap
 #                       28   Very Heavy   mail shirt, breastplate, pavise
@@ -3904,7 +3911,7 @@ tags:
     description: "Can open a locked door. Afterwards, it's unusable."
     pointCost: 5
     tradeable: true
-    weight: 0.5
+    weight: 0
     stackable: false
     visible: false
     purchasable: true
@@ -3975,7 +3982,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
-    weight: 0.5
+    weight: 0
     # Stackable as of the Merchant Update: a trader turns up with a handful,
     # Starting Wares grants two, and the Depot's Sell counter takes a stack in
     # one go. Equippable + stackable is already how the revolver works.
@@ -4036,7 +4043,7 @@ tags:
     description: "The Merchant might buy this."
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     stackable: true
     visible: false
     purchasable: false
@@ -4052,7 +4059,7 @@ tags:
     description: "Consume this to gain 3 ⬢."
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     stackable: true
     visible: false
     purchasable: false
@@ -4223,7 +4230,7 @@ tags:
     description: "You can see clearly when you wear these, removing the downside of {tag:nearsighted}. Be careful with them: they're hard to obtain."
     pointCost: 2
     tradeable: true
-    weight: 0.5
+    weight: 0
     stackable: true
     visible: worn
     purchasable: true
@@ -4254,7 +4261,7 @@ tags:
     description: "A key to the Underquarter's sewers. ‡"
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
 
   elevator-key:
@@ -4264,7 +4271,7 @@ tags:
     description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
 
   the-barons-key:
@@ -4274,7 +4281,7 @@ tags:
     description: "Opens the Charon."
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
 
   #Uncraftable
@@ -5325,7 +5332,7 @@ tags:
     description: "Swirling with color; immensely fragile. Shatter it in somebody's face to blind them temporarily. You are unaffected. Single use."
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     stackable: true
     visible: false
     purchasable: false
@@ -5371,7 +5378,7 @@ tags:
     pointCost: 5
     requiredTag: courtier
     tradeable: true
-    weight: 0.5
+    weight: 0
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -5387,7 +5394,7 @@ tags:
     pointCost: 5
     requiredTag: courtier
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -5423,7 +5430,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
-    weight: 0.5
+    weight: 0
     visible: worn
     purchasable: false
     purchasableAfterStart: false
@@ -5436,7 +5443,7 @@ tags:
     description: "Swallow this stone and be somewhere else — anywhere else. Single use. DM the GMs with where you went."
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     stackable: true
     visible: false
     purchasable: false
@@ -5581,7 +5588,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
     purchasableAfterStart: false
 
@@ -5625,7 +5632,7 @@ tags:
     description: "It bears the Merchant's face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to use the Depot or call down the Merchant's supply ship: a quick escape route. Additionally, whoever holds this won't be shot at by the Depot's mini-turret. The poor Dockers will, though."
     pointCost: 0
     tradeable: true
-    weight: 0.5
+    weight: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -5640,7 +5647,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
     purchasableAfterStart: false
 
@@ -5653,7 +5660,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
     purchasableAfterStart: false
 
@@ -5692,7 +5699,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
     purchasableAfterStart: false
 
@@ -6116,7 +6123,7 @@ tags:
     sellable: true
     sellablePrice: 32
     tradeable: true
-    weight: 0.5
+    weight: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -7221,7 +7228,7 @@ tags:
     pointCost: 0
     visible: true
     tradeable: true
-    weight: 0.5
+    weight: 0
     purchasable: false
     purchasableAfterStart: false
 
