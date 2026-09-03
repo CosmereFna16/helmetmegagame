@@ -27,10 +27,21 @@ const INTERCOM_ROOM_SLUG = "council-room";
 const OUT_OF_RANGE_ZONE_SLUGS = ["east-forests"];
 
 // The body is player-typed, so `parse: ["everyone"]` is doing two jobs: it
-// lets the @here through, and it blocks every user and role ping somebody
+// lets OUR @here through, and it blocks every user and role ping somebody
 // might type into the box. That is the same posture proxy.js takes with
 // character speech, pointed the other way.
+//
+// But `parse: ["everyone"]` is one permission covering both @everyone and
+// @here — Discord has no way to allow the quieter one alone. So the body is
+// defanged first (below). Otherwise anybody at that table could escalate to
+// @everyone, which wakes people who are offline, just by typing it.
 const ALLOWED_MENTIONS = { parse: ["everyone"] };
+
+// Break a typed @everyone/@here without eating the word: a zero-width space
+// after the @ stops Discord matching it, and reads identically.
+function defang(text) {
+  return text.replace(/@(everyone|here)\b/gi, "@\u200b$1");
+}
 
 // Discord caps a message at 2000 characters and the modal caps the input well
 // under that, so this is always one message — which matters, because chunking
@@ -42,7 +53,7 @@ function intercomLine(text) {
   // doesn't read "…intercom: get to the wall.." — but a body that is NOTHING
   // but dots strips to empty, so keep the trimmed original in that case rather
   // than announcing a sentence with nothing in it.
-  const trimmed = String(text ?? "").trim().slice(0, MAX_BODY);
+  const trimmed = defang(String(text ?? "").trim().slice(0, MAX_BODY));
   const stripped = trimmed.replace(/[.\s]+$/, "");
   return ambientLine(`@here You hear a voice from the intercom: ${stripped || trimmed}.`);
 }
