@@ -12,8 +12,7 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
-const { isMounted } = require("./mounts");
-const { turnDay } = require("./turnFormat");
+const { isMounted, equippedSlugs } = require("./mounts");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 
 const CHARACTER_SELECT = {
@@ -26,8 +25,34 @@ const CHARACTER_SELECT = {
   factionId: true,
   isLeader: true,
   buriedAt: true,
-  tags: { select: { tag: { select: { slug: true } } } },
+  zoneMovesTurnId: true,
+  zoneMovesUsed: true,
+  tags: { select: { equipped: true, tag: { select: { slug: true } } } },
 };
+
+// How many zone crossings this character gets for free this turn, before a
+// crossing starts spending their Move (docs/systemdocs/CARRY.md §2).
+//
+// Everyone gets GameConfig.freeZoneMovesPerTurn. An EQUIPPED mount adds one,
+// and it now refreshes every turn rather than once a day — a horse carries you
+// at Dawn and again at Dusk. Being Overburdened takes the lot: that is the
+// cost that replaced the old flat refusal, so an overloaded character can
+// still cross, they just pay their Move to do it.
+// How many are LEFT right now, for the surfaces that have to say so before a
+// player commits: the Travel confirm and the character sheet.
+function freeMovesLeft(character, config, openTurn) {
+  const allowance = freeZoneMoves(character, config);
+  if (!openTurn) return allowance;
+  const spent = character?.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
+  return Math.max(0, allowance - spent);
+}
+
+function freeZoneMoves(character, config) {
+  const held = character.tags ?? [];
+  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return 0;
+  const base = config?.freeZoneMovesPerTurn ?? 1;
+  return base + (isMounted(equippedSlugs(held)) ? 1 : 0);
+}
 
 // Who `mover` may bring along: anyone in the same ZONE who is a corpse, is
 // helpless (INCAPACITATING_SLUGS), or is in the mover's faction if the mover
@@ -108,26 +133,21 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
 
   let openTurn = null;
   if (crossedZone) {
-    // Over a carry cap (db/lib/carry.js). Only the mover is gated — the
-    // dragged are corpses and the helpless — and only a zone crossing: a hop
-    // inside the zone stays free so they can walk to a room and stash.
-    if (character.tags?.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
-      return {
-        ok: false,
-        reason: "You're overburdened. Stash or hand off some of what you carry before you cross into another zone. ‡",
-      };
-    }
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
   }
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
-    select: { locationMoveCooldownSeconds: true, archiveTravelEvents: true },
+    select: {
+      locationMoveCooldownSeconds: true,
+      archiveTravelEvents: true,
+      freeZoneMovesPerTurn: true,
+    },
   });
   const cooldownMs = Math.max(0, config?.locationMoveCooldownSeconds ?? 60) * 1000;
 
   const now = new Date();
-  const outcome = { spentTurn: false, usedHorse: false, draggedRows: [] };
+  const outcome = { spentTurn: false, usedFreeMove: false, freeMovesLeft: null, draggedRows: [] };
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -150,29 +170,51 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
       }
 
       if (crossedZone) {
-        // Acting and crossing zones are mutually exclusive within a turn, in
-        // either order. @@unique([characterId, turnId]) is the enforcement;
-        // the read here is for the message — and for the mount, which buys
-        // ONE extra crossing a day, claimed by a conditional updateMany whose
-        // WHERE is the check (two tabs cannot both pass).
-        const existing = await tx.action.findFirst({
-          where: { characterId: character.id, turnId: openTurn.id },
-          select: { id: true },
-        });
-        if (existing) {
-          const heldSlugs = new Set((character.tags ?? []).map((ct) => ct.tag.slug));
-          if (!isMounted(heldSlugs)) throw new MoveRefused("You've already acted this turn.");
-          const dayKey = String(turnDay(openTurn));
+        // A crossing spends a FREE ZONE MOVE first, and only when those run
+        // out does it spend the Move (docs/systemdocs/CARRY.md §2). So a
+        // peasant walks town -> forest for nothing, then pays their Move to
+        // reach the fortress, and the way back waits for the next turn.
+        //
+        // The allowance is claimed by a conditional updateMany whose WHERE is
+        // the check, so two tabs cannot both spend the last one. A turn id
+        // that differs from the stored one resets the counter in the same
+        // statement, which is why nothing ever has to sweep this field.
+        const allowance = freeZoneMoves(character, config);
+        const spentFree = character.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
+
+        if (spentFree < allowance) {
           const claimed = await tx.character.updateMany({
-            where: {
-              id: character.id,
-              OR: [{ fastTravelTurnId: null }, { fastTravelTurnId: { not: dayKey } }],
-            },
-            data: { fastTravelTurnId: dayKey },
+            where:
+              character.zoneMovesTurnId === openTurn.id
+                ? { id: character.id, zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree }
+                : {
+                    id: character.id,
+                    // `{ not: x }` never matches NULL in SQL, so the null case
+                    // has to be spelled out or a character who has not moved
+                    // this turn could never claim their first free move.
+                    OR: [{ zoneMovesTurnId: null }, { zoneMovesTurnId: { not: openTurn.id } }],
+                  },
+            data: { zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree + 1 },
           });
-          if (claimed.count === 0) throw new MoveRefused("Your mount has already carried you today.");
-          outcome.usedHorse = true;
+          if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment. ‡");
+          outcome.usedFreeMove = true;
+          outcome.freeMovesLeft = allowance - (spentFree + 1);
         } else {
+          // Out of free moves, so this costs the Move. Acting and crossing are
+          // mutually exclusive within a turn, in either order;
+          // @@unique([characterId, turnId]) is the real enforcement and the
+          // read here is for the message.
+          const existing = await tx.action.findFirst({
+            where: { characterId: character.id, turnId: openTurn.id },
+            select: { id: true },
+          });
+          if (existing) {
+            throw new MoveRefused(
+              allowance === 0
+                ? "You're overburdened, so you have no free moves left, and you've already acted this turn. ‡"
+                : "You're out of free moves this turn, and you've already acted. ‡",
+            );
+          }
           await tx.action.create({
             data: {
               characterId: character.id,
@@ -190,6 +232,7 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
           });
           outcome.spentTurn = true;
         }
+        outcome.freeMovesLeft ??= 0;
         await tx.character.update({
           where: { id: character.id },
           data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
@@ -283,9 +326,17 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     targetZone: targetLocation.zone,
     crossedZone,
     spentTurn: outcome.spentTurn,
-    usedHorse: outcome.usedHorse,
+    usedFreeMove: outcome.usedFreeMove,
+    freeMovesLeft: outcome.freeMovesLeft,
     moved,
   };
 }
 
-module.exports = { performLocationMove, dragCandidates, canDrag, CHARACTER_SELECT };
+module.exports = {
+  performLocationMove,
+  dragCandidates,
+  canDrag,
+  freeZoneMoves,
+  freeMovesLeft,
+  CHARACTER_SELECT,
+};

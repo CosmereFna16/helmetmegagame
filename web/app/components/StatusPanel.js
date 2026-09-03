@@ -127,7 +127,24 @@ function ThisTurn({ currentAction, openTurn, pendingOffers = [] }) {
   );
 }
 
-export default function StatusPanel({ character, isSelf, currentAction, openTurn, carry = null, pendingOffers = [] }) {
+// What holds a carry cap up, as one hover string. Assets are absent on
+// purpose: they raise the cap without ever weighing on it (CARRY.md §1).
+function carryCapTitle(carry) {
+  const lines = [`Base ${carry.baseWeightCap} lb`];
+  for (const m of carry.breakdown ?? []) lines.push(`${m.name} ×${m.multiplier}`);
+  lines.push(`= ${carry.weightCap} lb, and ${carry.weightHardCap} lb is the most you could ever hold.`);
+  return lines.join("\n");
+}
+
+export default function StatusPanel({
+  character,
+  isSelf,
+  currentAction,
+  openTurn,
+  carry = null,
+  zoneMoves = null,
+  pendingOffers = [],
+}) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
   // exactly what gets applied.
@@ -201,6 +218,17 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
 
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
+          {/* Free zone crossings left this turn (CARRY.md §2). Past these a
+              crossing spends the Move; at zero — which is what Overburdened
+              does — the first one already does. */}
+          {zoneMoves != null && (
+            <Row label="Zone moves ‡">
+              <span className="mono" style={zoneMoves === 0 ? { color: "var(--accent-text)" } : undefined}>
+                {zoneMoves} free ‡
+              </span>
+            </Row>
+          )}
+
           {/* Load against the carry caps (CARRY.md). `carry` is computed
               server-side by character/page.js for the owner's own sheet
               only; another player's sheet shows the bare balance. Over a
@@ -217,8 +245,16 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
 
           {carry && (
             <Row label="Carrying ‡">
-              <span className="mono" style={carry.tagsUsed > carry.tagsCap ? { color: "var(--accent-text)" } : undefined}>
-                {carry.tagsUsed} / {carry.tagsCap} items ‡
+              {/* The cap carries a title= breakdown so a player can see what is
+                  holding it up — the base, then one line per active
+                  multiplier. Native tooltip on purpose: it needs no state, no
+                  portal, and it works on the desk and the phone alike. */}
+              <span
+                className="mono"
+                title={carryCapTitle(carry)}
+                style={carry.weightUsed > carry.weightCap ? { color: "var(--accent-text)" } : undefined}
+              >
+                {carry.weightUsed} / {carry.weightCap} lb ‡
               </span>
             </Row>
           )}

@@ -81,6 +81,22 @@
 #                     unaffected. Fine to combine with durationTurns: each
 #                     expiry sheds one unit and restarts the timer for the
 #                     rest, so 3 of a 2-turn tag lose one every 2 turns.
+#   weight          - what ONE UNIT weighs, in pounds, against
+#                     GameConfig.carryWeightLbs (docs/systemdocs/CARRY.md §1).
+#                     Omit it for anything weightless: every skill, status,
+#                     injury and belief, and every Asset — a horse carries
+#                     itself, a house does not move at all.
+#                     PRICE IT OFF THE BAND, never by feel, the same way a
+#                     point cost is priced off TAGS.md §4a:
+#                       0.5  Trivial      ring, letter, vial, coin, key
+#                       2    Light        knife, meal, tonic, flask, hand tool
+#                       5    Medium       sword, helm, lantern, fishing rod
+#                       12   Heavy        crossbow, shield, greatsword, trap
+#                       28   Very Heavy   mail shirt, breastplate, pavise
+#                       55   Massive      plate armor, a creature's corpse
+#                       100  Immense      workshop equipment, a motorcycle
+#                     db/lib/syncTags.js THROWS if an `items` tag omits it, so
+#                     new gear can never sneak in weighing nothing.
 #   consumable      - whether a player can use this tag up from their
 #                     character sheet — eat the meal, unpack the crate.
 #                     Default false. Consuming always takes exactly ONE
@@ -759,8 +775,11 @@ tags:
     name: Strong
     category: general
     group: general-traits
-    description: "Functional strength."
+    description: "Functional strength. {carry:strong} ‡"
     pointCost: 5
+    # A body, not a vehicle, so it needs no equipping — unlike Cart and Horse
+    # below (docs/systemdocs/CARRY.md §1).
+    carryMultiplier: 1.1
     purchasable: true
     purchasableAfterStart: true
 
@@ -3548,9 +3567,10 @@ tags:
     name: Horse
     category: assets
     group: assets-companions
-    description: "You have a horse and you know how to ride it. Once per day, you may enter an adjacent zone without spending a turn, but you'll be easily visible. Do not use through caves. Can carry 2 people."
+    description: "You have a horse and you know how to ride it. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible. Do not use through caves. Can carry 2 people. It waits outside indoors. ‡"
     pointCost: 9
     tradeable: true
+    equippable: true
     purchasable: true
     visible: true
     purchasableAfterStart: false
@@ -3604,26 +3624,15 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  workshop:
-    name: Workshop
-    category: assets
-    group: assets-property
-    description: "Your workbench, your tools, and a place to think. You don't need this to craft, but it sure helps."
-    pointCost: 2
-    visible: false
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-
   cart:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Upgrades the {tag:horse}, allowing you to carry up to 6 people total on fast travel. {carry:cart} ‡"
+    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Only counts while it's equipped, and it waits outside indoors. Upgrades the {tag:horse}, letting you carry up to 6 people total. {carry:cart} ‡"
     pointCost: 5
     visible: true
     tradeable: true
+    equippable: true
     # ×5 on both carry caps; stacks with Pack Mule (docs/systemdocs/CARRY.md).
     carryMultiplier: 5
     purchasable: true
@@ -3697,6 +3706,7 @@ tags:
     description: "Cut from a dead Graga. It's useful in many tonics. The Merchant is always looking for more."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -3717,6 +3727,7 @@ tags:
     description: "The extracted, wrinkled mass of a skinless. A miraculous organ, prized for its alchemical properties."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -3753,6 +3764,7 @@ tags:
     description: "A spindly, hungry creature that roams in groups. It is often seen on the surface after battles, eating the corpses. Can be butchered to produce {tag:nekker-pheromones}. ‡"
     pointCost: 0
     tradeable: true
+    weight: 55
     stackable: false
     visible: true
     purchasable: false
@@ -3767,6 +3779,7 @@ tags:
     description: "A bloated, off-green, hulking humanoid. Its legs barely support it. Can be butchered to produce {tag:graga-sac}. ‡"
     pointCost: 0
     tradeable: true
+    weight: 55
     stackable: false
     visible: true
     purchasable: false
@@ -3781,6 +3794,7 @@ tags:
     description: "A pink humanoid, often carrying weapons. They stalk the depths in service of their masters. Can be butchered to produce {tag:skinless-brain}. ‡"
     pointCost: 0
     tradeable: true
+    weight: 55
     stackable: false
     visible: true
     purchasable: false
@@ -3795,6 +3809,7 @@ tags:
     description: "Mined. Can be refined into {tag:gunpowder-grenade}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -3813,6 +3828,7 @@ tags:
     pointCost: 14
     requiredTag: watchman
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -3825,6 +3841,7 @@ tags:
     description: "A bracelet. It receives only. Tuned to the Watch's frequency."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     equippable: true
@@ -3838,6 +3855,7 @@ tags:
     description: "Strong spring jaws with a pressure plate."
     pointCost: 2
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -3857,6 +3875,7 @@ tags:
     description: "Can open a locked door. Afterwards, it's unusable."
     pointCost: 5
     tradeable: true
+    weight: 0.5
     stackable: false
     visible: false
     purchasable: true
@@ -3872,6 +3891,7 @@ tags:
     pointCost: 7
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -3891,6 +3911,7 @@ tags:
     description: "You can see the deer on the mountainside."
     pointCost: 5
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: true
@@ -3904,6 +3925,7 @@ tags:
     description: "Makeup, a change of clothes, an array of false mustaches... (Change your name temporarily. Takes 1 turn to apply, and lasts 3. You need the {tag:artist} trait to impersonate someone specific.)"
     pointCost: 5
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: true
@@ -3924,6 +3946,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 0.5
     # Stackable as of the Merchant Update: a trader turns up with a handful,
     # Starting Wares grants two, and the Depot's Sell counter takes a stack in
     # one go. Equippable + stackable is already how the revolver works.
@@ -3956,6 +3979,7 @@ tags:
     description: "A painting of middling beauty. It'll fetch a good price—owning it is a valid Desire too, especially for nobles."
     pointCost: 0
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: false
@@ -3983,6 +4007,7 @@ tags:
     description: "The Merchant might buy this."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -3998,6 +4023,7 @@ tags:
     description: "Consume this to gain 3 ⬢."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -4014,6 +4040,7 @@ tags:
     description: "This is probably edible."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -4030,6 +4057,7 @@ tags:
     description: "This is probably edible."
     pointCost: 0
     tradeable: true
+    weight: 12
     stackable: true
     visible: false
     purchasable: false
@@ -4048,6 +4076,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -4061,6 +4090,7 @@ tags:
     description: "Blocks vision, makes people choke."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -4076,6 +4106,7 @@ tags:
     description: "Is it still active?"
     pointCost: 0
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: false
@@ -4089,6 +4120,7 @@ tags:
     description: "Using this heals you immediately, clearing all minor and moderate wounds (remove the tags yourself.)"
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -4108,6 +4140,7 @@ tags:
     description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a small trader's stock, should you wish to go into business. Its real value is in what you can talk somebody into paying for it.]"
     pointCost: 14
     tradeable: true
+    weight: 12
     purchasable: true
     purchasableAfterStart: false
     consumable: true
@@ -4141,6 +4174,7 @@ tags:
     pointCost: 7
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -4160,6 +4194,7 @@ tags:
     description: "You can see clearly when you wear these, removing the downside of {tag:nearsighted}. Be careful with them: they're hard to obtain."
     pointCost: 2
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     purchasable: true
@@ -4177,6 +4212,7 @@ tags:
     description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards — whatever you need."
     pointCost: 7
     tradeable: true
+    weight: 2
     purchasable: true
     purchasableAfterStart: false
     visible: false
@@ -4189,6 +4225,7 @@ tags:
     description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
     pointCost: 0
     tradeable: true
+    weight: 0.5
     purchasable: false
 
   the-barons-key:
@@ -4198,6 +4235,7 @@ tags:
     description: "Opens the Charon."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     purchasable: false
 
   #Uncraftable
@@ -4210,6 +4248,7 @@ tags:
     pointCost: 14
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: worn
     purchasable: true
@@ -4230,6 +4269,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -4245,6 +4285,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: worn
     purchasable: false
@@ -4274,6 +4315,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     purchasable: true
@@ -4297,6 +4339,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -4323,6 +4366,7 @@ tags:
     laborBonus: { kind: fishing, amount: 1 }
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4347,6 +4391,7 @@ tags:
     laborBonus: { kind: hunting, amount: 3 }
     equippable: true
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -4363,11 +4408,13 @@ tags:
     depotPrice: 26
 
   # No `equipped` on the bonus: a plow is not something you hold, it is
-  # something in your shed. The horse is the whole cost of it.
+  # something in your shed. The horse is the whole cost of it — and that is
+  # also why it is an Asset rather than an Item, so it never weighs on your
+  # back (docs/systemdocs/CARRY.md §1).
   plow:
     name: Plow
-    category: items
-    group: items-gear
+    category: assets
+    group: assets-property
     description: "It breaks the earth, but something has to pull it. If you also have a {tag:horse}, Farming produces +4 ⬢. ‡"
     pointCost: 5
     laborBonus: { kind: farming, amount: 4, equipped: false, requiresTag: horse }
@@ -4395,6 +4442,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     purchasable: true
@@ -4417,6 +4465,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4439,6 +4488,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -4461,6 +4511,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4484,6 +4535,7 @@ tags:
     pointCost: 2
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -4508,6 +4560,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4531,6 +4584,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     purchasable: true
@@ -4554,6 +4608,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     purchasable: true
@@ -4577,6 +4632,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4600,6 +4656,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4624,6 +4681,7 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true
@@ -4647,6 +4705,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4670,6 +4729,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4693,6 +4753,7 @@ tags:
     pointCost: 5
     equippable: true
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: worn
     purchasable: true
@@ -4717,6 +4778,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -4740,6 +4802,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4763,6 +4826,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -4787,6 +4851,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4810,6 +4875,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4833,6 +4899,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4856,6 +4923,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4879,6 +4947,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4902,6 +4971,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -4925,6 +4995,7 @@ tags:
     requiredTag: melee-basic
     equippable: true
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -4949,6 +5020,7 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     tradeable: true
+    weight: 12
     stackable: true
     visible: true
     purchasable: true
@@ -4974,6 +5046,7 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: true
     purchasable: true
@@ -4998,6 +5071,7 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: worn
     purchasable: true
@@ -5021,6 +5095,7 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -5046,6 +5121,7 @@ tags:
     depotPrice: 28
     equippable: true
     tradeable: true
+    weight: 2
     visible: worn
     purchasable: true
     purchasableAfterStart: false
@@ -5066,6 +5142,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -5097,6 +5174,7 @@ tags:
     description: "Meat, cut from a person. It keeps you alive as well as anything else does. ‡"
     pointCost: 0
     tradeable: true
+    weight: 5
     stackable: true
     visible: false
     purchasable: false
@@ -5114,6 +5192,7 @@ tags:
     description: "An honest, well-made meal. Makes an ordinary person happy; expected by {tag:nobility}…"
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -5134,6 +5213,7 @@ tags:
     description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs 1 hard-to-get exotic ingredient on top of the resource cost."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -5148,18 +5228,47 @@ tags:
       skills: [cooking-skilled]
       gambit: false
 
-  # --- Medical kit --------------------------------------------------------
+  # --- The two kits -------------------------------------------------------
+  # Neither is gear you wear; both are gear you have to GET TO. Each is
+  # satisfied by holding it OR by one sitting in a room you can reach at your
+  # Location (db/lib/equipmentReach.js), which is what lets a Sanctuary
+  # operating theatre or a Factory floor serve everyone standing in it.
+  workshop-equipment:
+    name: Workshop Equipment
+    category: items
+    group: items-gear
+    description: |-
+      An anvil, a bellows, a vice and a rack of tools. Smithing and building need it: hold it, or stand somewhere it's already set up. Ordinary crafting needs nothing but your hands. It weighs what you'd expect. ‡
+    pointCost: 9
+    visible: true
+    tradeable: true
+    weight: 100
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    # High Quality rung of the smithing ladder (docs/systemdocs/SMITHING.md §2).
+    requirement:
+      turnsCost: 2
+      resourceCost: 26
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 30
+    depotPrice: 68
+
   surgical-equipment:
     name: Surgical Equipment
     category: items
     description: |-
-      A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures, and also generally increases medical outcomes across the board.
+      A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures. Hold it, or stand somewhere it's already set up, and every medical Gambit you roll gets +1. ‡
     pointCost: 9
     visible: true
     purchasable: true
     purchasableAfterStart: false
     requiredTag: medical-basic
     tradeable: true
+    weight: 12
     sellable: true
     sellablePrice: 17
     depotPrice: 38
@@ -5177,6 +5286,7 @@ tags:
     description: "Swirling with color; immensely fragile. Shatter it in somebody's face to blind them temporarily. You are unaffected. Single use."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5192,6 +5302,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 12
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5204,6 +5315,7 @@ tags:
     description: "Shuts down anything electric, or electronic, in a 10-foot radius. Single use."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -5220,6 +5332,7 @@ tags:
     pointCost: 5
     requiredTag: courtier
     tradeable: true
+    weight: 0.5
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -5235,6 +5348,7 @@ tags:
     pointCost: 5
     requiredTag: courtier
     tradeable: true
+    weight: 0.5
     purchasable: true
     purchasableAfterStart: false
     removable: true
@@ -5250,6 +5364,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 28
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5269,6 +5384,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 0.5
     visible: worn
     purchasable: false
     purchasableAfterStart: false
@@ -5281,6 +5397,7 @@ tags:
     description: "Swallow this stone and be somewhere else — anywhere else. Single use. DM the GMs with where you went."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5307,6 +5424,7 @@ tags:
     description: "Good luck hauling this one out of the Caves."
     pointCost: 0
     tradeable: true
+    weight: 100
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5324,6 +5442,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 5
     stackable: true
     visible: worn
     purchasable: false
@@ -5337,6 +5456,7 @@ tags:
     description: "An arrow no bow has ever touched. You feel compelled to stab yourself with it, hard."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5353,6 +5473,7 @@ tags:
     description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must be {tag:literate} to understand its contents.]"
     pointCost: 0
     tradeable: true
+    weight: 5
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -5379,6 +5500,7 @@ tags:
     pointCost: 0
     equippable: true
     tradeable: true
+    weight: 2
     stackable: false
     visible: true
     purchasable: false
@@ -5394,6 +5516,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -5406,6 +5529,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -5418,6 +5542,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5430,6 +5555,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -5442,6 +5568,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -5459,6 +5586,7 @@ tags:
     description: "It bears the Merchant's face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to use the Depot or call down the Merchant's supply ship: a quick escape route. Additionally, whoever holds this won't be shot at by the Depot's mini-turret. The poor Dockers will, though."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -5473,6 +5601,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5485,6 +5614,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5497,6 +5627,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -5509,6 +5640,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5521,6 +5653,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5533,6 +5666,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5545,6 +5679,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -5557,6 +5692,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5569,6 +5705,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 5
     purchasable: false
     purchasableAfterStart: false
 
@@ -5609,6 +5746,7 @@ tags:
     sellable: true
     sellablePrice: 1
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -5627,6 +5765,7 @@ tags:
     sellable: true
     sellablePrice: 1
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -5646,6 +5785,7 @@ tags:
     sellable: true
     sellablePrice: 1
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5664,6 +5804,7 @@ tags:
     sellable: true
     sellablePrice: 2
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5683,6 +5824,7 @@ tags:
     sellable: true
     sellablePrice: 2
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -5702,6 +5844,7 @@ tags:
     sellable: true
     sellablePrice: 2
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -5723,6 +5866,7 @@ tags:
     sellable: true
     sellablePrice: 2
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -5743,6 +5887,7 @@ tags:
     sellable: true
     sellablePrice: 5
     tradeable: true
+    weight: 5
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5758,6 +5903,7 @@ tags:
     sellable: true
     sellablePrice: 6
     tradeable: true
+    weight: 2
     equippable: true
     visible: true
     purchasable: false
@@ -5774,6 +5920,7 @@ tags:
     sellable: true
     sellablePrice: 6
     tradeable: true
+    weight: 2
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5794,6 +5941,7 @@ tags:
     sellable: true
     sellablePrice: 12
     tradeable: true
+    weight: 0.5
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -5809,6 +5957,7 @@ tags:
     sellable: true
     sellablePrice: 11
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -5825,6 +5974,7 @@ tags:
     sellable: true
     sellablePrice: 15
     tradeable: true
+    weight: 5
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5840,6 +5990,7 @@ tags:
     sellable: true
     sellablePrice: 18
     tradeable: true
+    weight: 12
     equippable: true
     visible: true
     purchasable: false
@@ -5888,6 +6039,7 @@ tags:
     sellable: true
     sellablePrice: 24
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5906,6 +6058,7 @@ tags:
     sellable: true
     sellablePrice: 28
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5924,6 +6077,7 @@ tags:
     sellable: true
     sellablePrice: 32
     tradeable: true
+    weight: 0.5
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -5939,6 +6093,7 @@ tags:
     sellable: true
     sellablePrice: 40
     tradeable: true
+    weight: 2
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5954,6 +6109,7 @@ tags:
     sellable: true
     sellablePrice: 44
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -5970,8 +6126,9 @@ tags:
     name: Steam Automobile
     category: assets
     group: assets-property
-    description: "Fill it with water, warm it up, and move along a straight path without any obstacles. Once per day, you may enter an adjacent zone without spending a turn, but you will be easily visible. Do not use through caves."
+    description: "Fill it with water, warm it up, and move along a straight path without any obstacles. While it's equipped, you get 1 extra free zone move each turn, but you will be easily visible. Do not use through caves. It waits outside indoors. ‡"
     pointCost: 0
+    equippable: true
     depotPrice: 164
     sellable: true
     sellablePrice: 72
@@ -5992,6 +6149,7 @@ tags:
     sellable: true
     sellablePrice: 80
     tradeable: true
+    weight: 2
     equippable: true
     visible: worn
     purchasable: false
@@ -6007,6 +6165,7 @@ tags:
     description: "Many different kinds of fungus: all of them are pale and taste like mud. An important ingredient in a great many recipes. Eaten raw, it will get you {tag:high} for a couple of turns."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -6029,6 +6188,7 @@ tags:
     description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in a turn. It makes anyone, even Nobility, happy."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -6057,6 +6217,7 @@ tags:
     description: "Properly boiled and refined cave fungus; will give you a greater high. Still doesn't taste great."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6082,6 +6243,7 @@ tags:
     description: "Dark as a raven's blood. Ravenheart's only export. A fair object of desire."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -6111,6 +6273,7 @@ tags:
     description: "Bottled with rotting flesh. When uncorked, gives {tag:vomiting} to everyone in a closed room."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6139,6 +6302,7 @@ tags:
     description: "Poop. Cuts with it on a blade will give {tag:infected}. How dishonorable!"
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: false
@@ -6158,6 +6322,7 @@ tags:
     description: "Cures a minor infection outright, but does not help against {tag:festering}. 1 turn yields 2."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6180,6 +6345,7 @@ tags:
     description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 1 turn."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6205,6 +6371,7 @@ tags:
     description: "Soothes pain, but is rapidly addictive. Grants you {tag:opium-high}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6229,6 +6396,7 @@ tags:
     description: "A bottle of alcohol and a rag. Light it, throw it, and run."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -6250,6 +6418,7 @@ tags:
     description: "Refined from a common forest herb. Whoever takes it dies frothing in public — it inflicts {tag:choking}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6273,6 +6442,7 @@ tags:
     description: "A bomb, and priced like one. Refined from {tag:saltpeter} mined out of the Caves."
     pointCost: 0
     tradeable: true
+    weight: 2
     stackable: true
     visible: false
     purchasable: false
@@ -6295,6 +6465,7 @@ tags:
     description: "The perfect silent killer. Two turns of careful work to make. Inflicts {tag:phrygian-toxin}. ‡"
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6317,6 +6488,7 @@ tags:
     description: "Poppy refined into something uncannily pure. Grants {tag:pain-immunity}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6341,6 +6513,7 @@ tags:
     description: "Made with rendered {tag:graga-sac}. Grants 2 turns of {tag:brutish-strength}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6365,6 +6538,7 @@ tags:
     description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the conditon of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6387,6 +6561,7 @@ tags:
     description: "Cures a poisoning of any kind. Made with the heart of a rainbow trout, which somebody has to have caught."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6409,6 +6584,7 @@ tags:
     description: "Eye drops refined from {tag:cave-fungus}. {tag:increased-accuracy} for 2 turns."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6433,6 +6609,7 @@ tags:
     description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery}. Goes down smoothly."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6457,6 +6634,7 @@ tags:
     description: "Brewed from leaves found in the forest. Consume for {tag:stimulant-high}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6482,6 +6660,7 @@ tags:
     description: "A vial full of a clear acid drawn from cave fungus. Grants {tag:hallucinating}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6511,6 +6690,7 @@ tags:
     description: "Milky but tastes like nothing. Grants a new name and appearance to those with honest regrets."
     pointCost: 2
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: true
@@ -6526,6 +6706,7 @@ tags:
     description: "Distilled from a {tag:graga-sac}. Grants {tag:invisible} for 2 turns."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6550,6 +6731,7 @@ tags:
     description: "Wrung out of a dead nekker. Grants {tag:pheromones}. ‡"
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6568,6 +6750,7 @@ tags:
     description: "Needs the blood of a willing lover. Grants {tag:mindreading}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6592,6 +6775,7 @@ tags:
     description: "Made with the eye of a raven. If consumed, you can send a single message to anyone anywhere. DM the GMs the message."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6614,6 +6798,7 @@ tags:
     description: "Made with the heart of an Aberrant. For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6641,6 +6826,7 @@ tags:
     description: "Made with a {tag:skinless-brain}. When you drink it before sleeping, you can ask the universe anything. Let a GM know what you're asking."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6666,6 +6852,7 @@ tags:
     description: "Requires someone's tears. Whoever drinks it forgets the last 3 days."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6688,6 +6875,7 @@ tags:
     description: "Needs a lock of hair from {tag:nobility}. You are granted supreme beauty for 3 turns."
     pointCost: 0
     tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -6717,6 +6905,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 12
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6736,6 +6925,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 2
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6755,6 +6945,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 5
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6775,6 +6966,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 5
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6794,6 +6986,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 5
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6813,6 +7006,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 12
     purchasable: true
     removable: true
     purchasableAfterStart: false
@@ -6833,6 +7027,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 28
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6853,6 +7048,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 28
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6873,6 +7069,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 12
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6892,6 +7089,7 @@ tags:
     equippable: true
     visible: worn
     tradeable: true
+    weight: 28
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6911,6 +7109,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 28
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6931,6 +7130,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 55
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6952,6 +7152,7 @@ tags:
     equippable: true
     visible: true
     tradeable: true
+    weight: 12
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6981,6 +7182,7 @@ tags:
     pointCost: 0
     visible: true
     tradeable: true
+    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 
@@ -7144,6 +7346,7 @@ tags:
     description: "An analog camera. It prints the photo out right there."
     pointCost: 2
     tradeable: true
+    weight: 2
     stackable: true
     visible: true
     purchasable: true

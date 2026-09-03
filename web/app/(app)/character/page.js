@@ -7,6 +7,7 @@ import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { BUTCHER_SLUG } from "@lifeweb/db/lib/constants";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { freeMovesLeft } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
@@ -397,7 +398,13 @@ export default async function CharacterPage() {
           resources: true,
           tags: {
             where: { quantity: { gt: 0 } },
-            select: { tagId: true, quantity: true, tag: { select: { name: true, stackable: true } } },
+            select: {
+              tagId: true,
+              quantity: true,
+              // weightLbs/category ride along so the Transfer dialog can
+              // project what pulling a stash out would do to your load.
+              tag: { select: { name: true, stackable: true, weightLbs: true, category: true } },
+            },
           },
         },
       })
@@ -406,7 +413,13 @@ export default async function CharacterPage() {
     id: r.id,
     name: r.name,
     resources: r.resources,
-    tags: r.tags.map((rt) => ({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity, stackable: rt.tag.stackable })),
+    tags: r.tags.map((rt) => ({
+      tagId: rt.tagId,
+      name: rt.tag.name,
+      quantity: rt.quantity,
+      stackable: rt.tag.stackable,
+      weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+    })),
   }));
   // Every body in reach, for Butcher and Bury (docs/systemdocs/CORPSES.md).
   // Handed the ALREADY-FILTERED room list so it costs no second round-trip and
@@ -422,6 +435,9 @@ export default async function CharacterPage() {
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
   const carry = carryStatus(character, gameConfig);
+  // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so
+  // no allowance math reaches the client bundle.
+  const zoneMoves = freeMovesLeft(character, gameConfig, openTurn);
   // Healing. The medical gate is resolved here, server-side, so no
   // tier-chain math reaches the client bundle.
   const ancestry = buildSkillAncestry(tierRows);
@@ -708,6 +724,7 @@ export default async function CharacterPage() {
       forcedIdentity={forcedIdentity}
       transferParties={transferParties}
       carry={carry}
+      zoneMoves={zoneMoves}
       tagCatalog={tagCatalog}
       desireSlots={desireSlots}
       desireSlotLockTurns={desireSlotLockTurns}

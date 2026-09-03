@@ -15,6 +15,8 @@ const {
   rememberDrag,
   takeDrag,
   forgetDrag,
+  freeMovesLeft,
+  stowedSlugs,
   performMove,
 } = require("../lib/locationTravel");
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
@@ -469,11 +471,30 @@ async function handleTravelPick(interaction) {
   const dragRow = buildDragRow(locationId, candidates);
   const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
 
+  // The cost model in one line, and — when they are about to walk a day's road
+  // with a horse still in their pocket — a warning before the Confirm rather
+  // than a regret after it (docs/systemdocs/CARRY.md §2).
+  const crossing = Boolean(character.locationId) && character.zoneId !== target.zoneId;
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { freeZoneMovesPerTurn: true },
+  });
+  const openTurn = crossing ? await prisma.turn.findFirst({ where: { status: "OPEN" } }) : null;
+  const left = crossing ? freeMovesLeft(character, config, openTurn) : null;
+
   const cost = !character.locationId
     ? "-# Arriving costs you nothing. ‡"
-    : character.zoneId === target.zoneId
+    : !crossing
       ? "-# A step inside the zone is free. ‡"
-      : `-# Crossing into ${target.zone.name} spends your Move for this turn. ‡`;
+      : left > 0
+        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn. ‡`
+        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move. ‡`;
+
+  const stowed = crossing ? stowedSlugs(character.tags) : [];
+  const stowedLine =
+    stowed.length > 0
+      ? `-# You're carrying ${stowed.length === 1 ? "a" : ""} ${stowed.join(" and a ")} you haven't equipped — ${stowed.length === 1 ? "it does" : "they do"} nothing for you stowed. ‡`
+      : null;
 
   await respond(
     interaction,
@@ -481,6 +502,7 @@ async function handleTravelPick(interaction) {
       content: [
         `Move to **${target.name}**?`,
         cost,
+        stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25. ‡` : null,
       ]
         .filter(Boolean)
@@ -542,8 +564,14 @@ async function handleTravelConfirm(interaction, locationId) {
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
   const parts = [`» Moved to **${target.name}**.`];
-  if (result.spentTurn) parts.push("Your turn is spent.");
-  if (result.usedHorse) parts.push("Your mount carried you.");
+  if (result.spentTurn) parts.push("Your Move is spent.");
+  if (result.usedFreeMove) {
+    parts.push(
+      result.freeMovesLeft > 0
+        ? `${result.freeMovesLeft} free ${result.freeMovesLeft === 1 ? "move" : "moves"} left this turn.`
+        : "That was your last free move this turn.",
+    );
+  }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
 
   await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });

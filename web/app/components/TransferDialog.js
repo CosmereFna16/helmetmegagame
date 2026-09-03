@@ -50,7 +50,15 @@ export default function TransferDialog({
   // hold. From a room: its stash. Anything else: nothing.
   const offered =
     fromKey === selfKey
-      ? transferable.map((t) => ({ tagId: t.id, name: t.name, quantity: t.quantity, stackable: t.stackable }))
+      ? transferable.map((t) => ({
+          tagId: t.id,
+          name: t.name,
+          quantity: t.quantity,
+          stackable: t.stackable,
+          // Assets weigh nothing on your back (CARRY.md §1), so the
+          // projection must not charge you for handing one over either.
+          weightLbs: t.category === "Assets" ? 0 : (t.weightLbs ?? 0),
+        }))
       : (fromRoom?.tags ?? []);
   const canOfferTags = fromKey === selfKey || Boolean(fromRoom);
   const balance =
@@ -64,15 +72,20 @@ export default function TransferDialog({
   // Projection: what YOUR load looks like after this moves. Only meaningful
   // when one end is you.
   const picked = offered.filter((t) => t.tagId in picks);
-  const units = picked.reduce((n, t) => n + (Number(picks[t.tagId]) || 1), 0);
+  const lbs = picked.reduce((n, t) => n + (t.weightLbs ?? 0) * (Number(picks[t.tagId]) || 1), 0);
   const moved = Number(amount) || 0;
+  const round = (n) => Math.round(n * 100) / 100;
   let projected = null;
   if (carry && fromKey === selfKey) {
-    projected = { tags: carry.tagsUsed - units, resources: carry.resources - moved };
+    projected = { weight: round(carry.weightUsed - lbs), resources: carry.resources - moved };
   } else if (carry && toKey === selfKey) {
-    projected = { tags: carry.tagsUsed + units, resources: carry.resources + moved };
+    projected = { weight: round(carry.weightUsed + lbs), resources: carry.resources + moved };
   }
-  const overAfter = projected && (projected.tags > carry.tagsCap || projected.resources > carry.resourcesCap);
+  const overAfter = projected && (projected.weight > carry.weightCap || projected.resources > carry.resourcesCap);
+  // Past the ceiling the server refuses outright, so say so rather than
+  // letting them submit into an error (CARRY.md §1).
+  const refusedAfter =
+    projected && (projected.weight > carry.weightHardCap || projected.resources > carry.resourcesHardCap);
 
   return (
     <>
@@ -147,10 +160,15 @@ export default function TransferDialog({
       </div>
 
       {projected && (
-        <p className={`text-xs ${overAfter ? "text-accent" : "text-muted"}`}>
-          After this you carry {projected.tags} / {carry.tagsCap} items and {projected.resources} /{" "}
+        <p className={`text-xs ${overAfter || refusedAfter ? "text-accent" : "text-muted"}`}>
+          After this you carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
           {carry.resourcesCap} ⬢.
-          {overAfter ? " That's more than you can manage — you'll be Overburdened until you set some down." : ""} ‡
+          {refusedAfter
+            ? " That's more than you could hold even overburdened, so it won't go through."
+            : overAfter
+              ? " That's more than you can manage — you'll be Overburdened until you set some down."
+              : ""}{" "}
+          ‡
         </p>
       )}
       <p className="text-xs text-muted">

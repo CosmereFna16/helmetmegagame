@@ -36,8 +36,10 @@ export const CONFIG_HELP = {
     "How many Desire slots every character gets. Each slot cools down independently of the others, and the bottom one is the slot an Addiction binds. Lowering this hides a slot rather than deleting what was claimed in it.",
   desireSlotLockTurns:
     "Whole turns a slot stays shut after a Desire is claimed into it. At 2, a claim on turn 40 leaves that slot shut through turn 42 and open on 43. Remember a turn is half a day.",
-  carryTagCap:
-    "How many UNITS of tradeable tags a character can carry before they're Overburdened. A stack of 4 counts 4; skills and injuries never count. Pack Mule and Cart multiply it. ‡",
+  carryWeightLbs:
+    "How many POUNDS of gear a character can carry before they're Overburdened. Skills, injuries and Assets — a horse, a cart, a house — never weigh anything. Strong, Pack Mule and an equipped Cart multiply it. Past 1.5× this, goods can't be theirs at all. ‡",
   carryResourceCap:
-    "How many ⬢ a character can carry before they're Overburdened. Income still lands; they just can't cross into another zone until they stash some. Pack Mule and Cart multiply it. ‡",
+    "How many ⬢ a character can carry before they're Overburdened. Income still lands; they just lose their free zone move until they stash some. Strong, Pack Mule and an equipped Cart multiply it. ‡",
+  freeZoneMovesPerTurn:
+    "Zone crossings a character gets each turn before crossing starts spending their Move. An equipped mount adds 1 on top; being Overburdened takes them all away. ‡",
 };

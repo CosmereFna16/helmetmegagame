@@ -201,6 +201,19 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" is in category "${t.category}" but does not set tradeable — say true or false explicitly, since it decides whether the tag can be handed over or looted off a body`,
       );
     }
+    // `weight` must be explicit for items, for the same reason `tradeable`
+    // must: silence would default to weightless and a new sword would cost
+    // nobody anything to carry. Assets are deliberately exempt — a horse
+    // carries itself and a house does not move (docs/systemdocs/CARRY.md §1).
+    if (t.category === "items" && typeof t.weight !== "number") {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" is an item but sets no weight — give it a pounds figure off the band table in the header of that file`,
+      );
+    }
+    if (typeof t.weight === "number" && !(t.weight >= 0)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" has a negative weight`);
+    }
+
     // consumesInto is validated here, against slugs already known from this
     // document, so a typo fails cleanly instead of half-applying.
     for (const { slug, unlessTags, oneOf } of normalizeConsumesInto(t.consumesInto)) {
@@ -334,6 +347,7 @@ async function syncTagsFromYaml(prisma) {
       // web/lib/characterCreation.js#exclusiveConflict.
       exclusive: entry.exclusive ?? false,
       tradeable: entry.tradeable ?? false,
+      weightLbs: entry.weight ?? null,
       carryMultiplier: entry.carryMultiplier ?? null,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,

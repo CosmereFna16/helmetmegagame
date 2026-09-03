@@ -289,10 +289,10 @@ export default async function DevPanelPage({ searchParams }) {
                   </label>
                   <label className="field">
                     <span className="field-label panel-header--with-icon">
-                      Carry cap: items ‡
-                      <InfoIcon text={CONFIG_HELP.carryTagCap} />
+                      Carry cap: lb ‡
+                      <InfoIcon text={CONFIG_HELP.carryWeightLbs} />
                     </span>
-                    <input type="number" name="carryTagCap" min="1" defaultValue={config.carryTagCap} />
+                    <input type="number" name="carryWeightLbs" min="1" defaultValue={config.carryWeightLbs} />
                   </label>
                   <label className="field">
                     <span className="field-label panel-header--with-icon">
@@ -300,6 +300,19 @@ export default async function DevPanelPage({ searchParams }) {
                       <InfoIcon text={CONFIG_HELP.carryResourceCap} />
                     </span>
                     <input type="number" name="carryResourceCap" min="1" defaultValue={config.carryResourceCap} />
+                  </label>
+                  <label className="field">
+                    <span className="field-label panel-header--with-icon">
+                      Free zone moves ‡
+                      <InfoIcon text={CONFIG_HELP.freeZoneMovesPerTurn} />
+                    </span>
+                    <input
+                      type="number"
+                      name="freeZoneMovesPerTurn"
+                      min="0"
+                      max="5"
+                      defaultValue={config.freeZoneMovesPerTurn}
+                    />
                   </label>
                   <label className="field">
                     <span className="field-label panel-header--with-icon">

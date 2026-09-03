@@ -20,6 +20,7 @@ const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = re
 const { applyPendingInvites } = require("./threadInvites");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { settleCarry, deliverCarryDrop } = require("./carry");
+const { parkMountsIndoors, parkedMessage } = require("./indoors");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -166,6 +167,16 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
 async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId }) {
   if (!characterId || !toLocationId) return;
   if (fromLocationId === toLocationId) return;
+
+  // Before the Discord guard below, because this one is a DB change and has to
+  // happen whether or not there is a token to talk to Discord with. Also
+  // before the settle further down, so the settle sees the reduced cap and
+  // grants Overburdened in the same pass (docs/systemdocs/CARRY.md §3).
+  const parked = await parkMountsIndoors(prisma, characterId, toLocationId).catch((err) => {
+    console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
+    return [];
+  });
+
   if (!process.env.DISCORD_TOKEN) return;
 
   const [fromLocation, toLocation, character] = await Promise.all([
@@ -207,6 +218,12 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     await swapRole(discordUserId, fromLocation?.zone?.discordRoleId ?? null, toLocation.zone?.discordRoleId ?? null, "zone");
     await reconcileNarrowcastAccess(prisma, characterId, discordUserId).catch((err) =>
       console.error(`Move: narrowcast reconcile failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+
+  if (parked.length > 0) {
+    await sendDm(prisma, discordUserId, parkedMessage(parked, toLocation.name)).catch((err) =>
+      console.error(`Move: parked-mount DM to ${discordUserId} failed:`, err.message ?? err),
     );
   }
 

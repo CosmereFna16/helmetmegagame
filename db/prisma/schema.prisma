@@ -451,13 +451,19 @@ model GameConfig {
   // as startingTagPoints above.
   equipSlots Int @default(6)
 
-  // Carry caps: how many UNITS of tradeable tags and how many ⬢ a character
+  // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
   // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base
-  // values, multiplied by every held Tag.carryMultiplier. Going over is
-  // allowed; it grants the `overburdened` status, which blocks zone
-  // crossings until they stash or hand something off. Live on /gm/dev.
-  carryTagCap      Int @default(10)
+  // values, multiplied by every EQUIPPED Tag.carryMultiplier. Going over is
+  // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
+  // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
+  // from the weight load entirely. Live on /gm/dev.
+  carryWeightLbs   Int @default(120)
   carryResourceCap Int @default(25)
+
+  // Free zone crossings per character per turn, before a crossing starts
+  // spending the Move (docs/systemdocs/CARRY.md §2). An equipped mount adds
+  // one on top; Overburdened zeroes the allowance. Live on /gm/dev.
+  freeZoneMovesPerTurn Int @default(1)
 
   // How many drawback TAGS a character may buy through the point-buy menu —
   // a cap on the COUNT of negative-cost tags picked, not on their combined
@@ -772,6 +778,13 @@ model Location {
   // Authoring order within the zone, from the YAML — channel order under the
   // category and picker order.
   sortOrder Int @default(0)
+
+  // A place you walk INTO: the Cathedral, the Sanctuary, the Inn, the Keep,
+  // the Undercroft, the Factory. A cart or a mount is unequipped on arrival
+  // (db/lib/locationMove.js) and cannot be equipped while you stand here, so
+  // its carry bonus is parked at the door with it. Authored as `indoors: true`
+  // in docs/zones.yaml; the anchor message says so in its own -# line.
+  indoors Boolean @default(false)
 
   zoneId String
   zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
@@ -1151,15 +1164,6 @@ model Character {
   // only the licensed one can ever move it. See docs/systemdocs/DEPOT.md §5.
   depotDebt Int @default(0)
 
-  // Product of held Tag.carryMultipliers at the last db/lib/carry.js
-  // settleCarry, stored ×1000 as an integer (Cart × Pack Mule = 7500) so
-  // "has it shrunk?" compares exactly. It is how the settle notices a Cart
-  // just left without any caller saying so: a smaller product than the one
-  // seen is what triggers the overflow drop. Only the multiplier is kept,
-  // never the derived cap — a GM lowering GameConfig.carryTagCap must make
-  // people Overburdened, not dump a hundred inventories onto the floor.
-  carryMultiplierSeen Int @default(1000)
-
   // When this body went into the ground, set by a BURY_CHARACTER request.
   // Nullable, so the column is both the flag and the record of when. A buried
   // corpse is out of the world: it cannot be looted, dragged or bound, and it
@@ -1169,17 +1173,22 @@ model Character {
 
   // The in-game DAY a FAST_TRAVEL was last claimed on — despite the name,
   // NOT a turn id. A day is TWO turns (Dawn/Dusk), so this stores
-  // String(describeTurn(openTurn).day) (web/lib/turnFormat.js), written by a
-  // conditional updateMany whose WHERE is the check, the same structural
-  // shape the hunger decrement uses. (An earlier version keyed this on the
-  // turn's own id, which let a rider claim a free hop in both turns of one
-  // day — fixed in web/app/(app)/character/requestActions.js.) Counting the
-  // character's Requests afterwards would let two tabs both pass and put the
-  // rider two zones away, which is exactly the bug db/lib/travel.js
-  // documents above its Action create. Not a foreign key on purpose — it is
-  // a claim token, and a turn being deleted should never cascade into a
-  // character row.
-  fastTravelTurnId String?
+  // The free zone crossings this character has already spent, and the turn
+  // they were spent in (docs/systemdocs/CARRY.md §2). Everyone gets
+  // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds one; being
+  // Overburdened takes them all away. Past the allowance a crossing spends the
+  // Move instead, exactly as it always did.
+  //
+  // Keyed on the TURN, not the day — a mount now carries you in both halves of
+  // one day, which is the whole point of the rework. Claimed by a conditional
+  // updateMany whose WHERE is the check, the same structural shape the hunger
+  // decrement uses: counting a character's Actions afterwards would let two
+  // tabs both pass and put the rider two zones away. A differing turn id
+  // resets the counter in the same statement, so nothing has to sweep it.
+  // Not a foreign key on purpose — it is a claim token, and deleting a turn
+  // must never cascade into a character row.
+  zoneMovesTurnId String?
+  zoneMovesUsed   Int     @default(0)
 
   // The in-game DAY this character's bird last flew — the same claim token as
   // fastTravelTurnId above, for the same reason and with the same trap. A day
@@ -1446,9 +1455,19 @@ model Tag {
   // default below can never silently make new gear unmovable.
   tradeable Boolean @default(false)
 
-  // Multiplies both carry caps while held (Pack Mule 1.5, Cart 5); null for
-  // the rest of the catalog. Multipliers stack multiplicatively. See
-  // docs/systemdocs/CARRY.md.
+  // What one UNIT of this tag weighs, in pounds — the load half of
+  // docs/systemdocs/CARRY.md §1, against GameConfig.carryWeightLbs. Null means
+  // weightless: every skill, status, injury and belief, plus the Assets, which
+  // carry themselves (a horse) or do not move at all (a house).
+  //
+  // Price it off the band table in CARRY.md §1a, never by feel — the same
+  // discipline the point scale gets in TAGS.md §4a.
+  weightLbs Float?
+
+  // Multiplies BOTH carry caps, and only while the row is EQUIPPED
+  // (CharacterTag.equipped) — a cart you are not pulling hauls nothing. Pack
+  // Mule ×1.5 is the exception that needs no equipping, being a body rather
+  // than a vehicle. Multiplicative across held rows; see db/lib/carry.js.
   carryMultiplier Float?
 
   // Whether this tag is a thing a character can wear or carry readied, and so

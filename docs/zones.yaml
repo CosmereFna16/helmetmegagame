@@ -36,6 +36,13 @@
 # - description: prose. A Location's is the -# subtext on its channel's
 #   pinned anchor and the channel topic; a Room's is its thread's starter
 #   message.
+# - indoors (locations only): true for a place you walk INTO rather than
+#   across. A cart or a mount is unequipped on arrival, with a DM, and cannot
+#   be equipped while a character stands here — so its carry bonus is parked
+#   at the door with it (docs/systemdocs/CARRY.md §3). The anchor message says
+#   so in a -# line of its own, written by syncZones, so nobody has to be told
+#   twice. Default false; a Room never carries it, since a Room is inside its
+#   Location by definition.
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -141,6 +148,7 @@ zones:
       # it a place you walk to. Its prose is unchanged.
       old-cock-inn:
         name: The Old Cock Inn
+        indoors: true
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
         rooms: {}
@@ -153,6 +161,7 @@ zones:
         rooms: {}
       church:
         name: Cathedral
+        indoors: true
         description: >-
           Stained limestone erected modestly upon a tall wooded hill on the western edge of the town — still within the walls. Hundreds of candles light the ornate interior.
         rooms:
@@ -174,6 +183,7 @@ zones:
               It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
       sanctuary:
         name: Sanctuary
+        indoors: true
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
         rooms:
@@ -269,6 +279,7 @@ zones:
         rooms: {}
       keep:
         name: Keep
+        indoors: true
         description: |-
           Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
 
@@ -342,6 +353,7 @@ zones:
               Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
       undercroft:
         name: Undercroft
+        indoors: true
         description: >-
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
         rooms:
@@ -541,6 +553,7 @@ zones:
         rooms: {}
       factory:
         name: Factory
+        indoors: true
         description: >-
           A hall of rusted frames standing in six inches of water, roofed where the roof has held. Something in it still turns — you can feel it through the boards before you hear it. The village will not say who keeps it running, only that it has always been running. ‡
         rooms: {}

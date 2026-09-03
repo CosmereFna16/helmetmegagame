@@ -369,6 +369,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       slug: location.id,
       name: location.name ?? location.id,
       description: location.description ?? "",
+      indoors: location.indoors === true,
       sortOrder: index,
       zoneSlug,
       yields: collectYields(location, problems),
@@ -475,6 +476,12 @@ function buildAnchorBody(location, rooms) {
         .map((paragraph) => `-# ${paragraph.trim().replace(/\s*\n+\s*/g, " ")}`)
         .join("\n"),
     );
+  }
+  // Said once, on the pinned message, so nobody has to be told at the door
+  // every time (docs/systemdocs/CARRY.md §3). It rides the same content hash
+  // as the rest of the body, so it appears on the next sync and never again.
+  if (location.indoors) {
+    parts.push("-# Indoors: carts and horses cannot be equipped in here. ‡");
   }
   const publicRooms = rooms
     .filter((r) => r.kind === "PUBLIC" && r.discordThreadId)
@@ -853,6 +860,7 @@ async function syncZonesFromYaml(prisma) {
     const data = {
       name: entry.name,
       description: entry.description,
+      indoors: entry.indoors,
       sortOrder: entry.sortOrder,
       zoneId: zone.id,
     };

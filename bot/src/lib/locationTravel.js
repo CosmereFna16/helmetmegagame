@@ -3,8 +3,10 @@ const { prisma } = require("@lifeweb/db");
 const {
   performLocationMove,
   dragCandidates,
+  freeMovesLeft,
   CHARACTER_SELECT,
 } = require("@lifeweb/db/lib/locationTravel");
+const { stowedSlugs } = require("@lifeweb/db/lib/mounts");
 const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove");
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
@@ -236,4 +238,6 @@ module.exports = {
   forgetDrag,
   performMove,
   restoreStandingRoles,
+  freeMovesLeft,
+  stowedSlugs,
 };

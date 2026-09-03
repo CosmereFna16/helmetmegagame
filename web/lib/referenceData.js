@@ -109,7 +109,7 @@ export async function getProductionRates() {
 // names itself and the multiplier stays single-sourced in docs/tags.yaml.
 export async function getCarryReference() {
   const [config, tags] = await Promise.all([
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryTagCap: true, carryResourceCap: true } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryWeightLbs: true, carryResourceCap: true } }),
     prisma.tag.findMany({
       where: { carryMultiplier: { not: null } },
       select: { slug: true, carryMultiplier: true },

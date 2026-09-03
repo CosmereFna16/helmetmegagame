@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
+import { STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
 
 // Equipping is instant and writes no Request and no AuditLog. That is
@@ -19,19 +21,30 @@ export async function toggleEquip(characterTagId) {
   // anyone equip things on someone else's sheet.
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true },
+    select: { id: true, location: { select: { indoors: true, name: true } } },
   });
   if (!character) return { error: "No living character." };
 
   const held = await prisma.characterTag.findFirst({
     where: { id: characterTagId ?? "", characterId: character.id },
-    select: { id: true, equipped: true, tag: { select: { equippable: true, name: true } } },
+    select: { id: true, equipped: true, tag: { select: { equippable: true, name: true, slug: true } } },
   });
   if (!held) return { error: "You aren't holding that." };
   if (!held.tag.equippable) return { error: `${held.tag.name} isn't something you can equip.` };
 
+  // A cart does not come into a chapel (docs/systemdocs/CARRY.md §3). Arriving
+  // already unequipped it; this stops it going straight back on. Unequipping
+  // is always allowed — only the equip direction is gated.
+  if (!held.equipped && STOWABLE_SLUGS.has(held.tag.slug) && character.location?.indoors) {
+    return { error: `You can't set up ${held.tag.name} inside ${character.location.name}. ‡` };
+  }
+
   if (held.equipped) {
     await prisma.characterTag.update({ where: { id: held.id }, data: { equipped: false } });
+    // Unequipping a Cart shrinks the carry cap, so the sheet has to be settled
+    // against it — Overburdened goes on. Nothing is dropped for a shrink
+    // (CARRY.md §1), so putting the cart down at an inn door is safe.
+    await afterInventoryChange([character.id]);
     revalidatePath("/character");
     return { equipped: false };
   }
@@ -57,6 +70,8 @@ export async function toggleEquip(characterTagId) {
     throw err;
   }
 
+  // Equipping a Cart raises the cap, which can clear Overburdened.
+  await afterInventoryChange([character.id]);
   revalidatePath("/character");
   return { equipped: true };
 }
