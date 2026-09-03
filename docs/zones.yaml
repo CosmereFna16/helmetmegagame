@@ -4,32 +4,35 @@
 # entries here are upserted into the DB and Discord by `id` slug, and any
 # Zone/Location/Room NOT listed here gets its Discord objects deleted and its
 # DB row removed — for a Zone that means a whole category, its #summary and
-# its "Zone: {Name}" role; for a Location its channel and its "Location:
-# {Name}" role; for a Room one thread. Removing an entry is a real delete —
-# there's no undo short of re-adding it (which provisions brand-new Discord
-# objects, since a removed/re-added entry loses its old Discord IDs).
+# its "Zone: {Name}" role; for a Location its channel; for a Room one thread.
+# Removing an entry is a real delete — there's no undo short of re-adding it
+# (which provisions brand-new Discord objects, since a removed/re-added entry
+# loses its old Discord IDs).
 #
 # Zones, levels, locations and rooms are maps keyed by `id` (`town:`, not
 # `- id: town`). See docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
 #
 # A ZONE is a region: a Discord category, a #summary channel anyone in the
 # zone reads, and a "Zone: {Name}" role. A LOCATION is where a character
-# actually STANDS: one text channel under the zone's category, opened by a
-# "Location: {Name}" role held by exactly the characters there. A ROOM is a
-# thread under its Location's channel — public (a public thread everyone in
-# the Location sees) or private (a private thread whose members are exactly
-# the characters holding one of its `access:` tag slugs; the bot adds and
-# removes them as tags come and go). Every presence zone needs at least one
-# Location, and a Location may have no Rooms.
+# actually STANDS: one text channel under the zone's category. A Location
+# wears NO role — the channel is opened to whoever is standing in it by a
+# per-member permission overwrite, because 56 locations would otherwise have
+# eaten 56 of the guild's 250 roles. A ROOM is a thread under its Location's
+# channel — public (a public thread everyone in the Location sees) or private
+# (a private thread whose members are exactly the characters holding one of
+# its `access:` tag slugs; the bot adds and removes them as tags come and go).
+# Every presence zone needs at least one Location, and a Location may have no
+# Rooms.
 #
 # - id: a stable slug, used to match this entry to its DB row across syncs.
 #   Zones, locations and rooms share ONE slug namespace. Renaming an entry
 #   later means changing `name` here, NOT `id` — a changed `id` is treated as
 #   a brand-new entry (old one pruned, new one provisioned from scratch)
-#   instead of a rename.
+#   instead of a rename. A Location's id is also its Discord channel name.
 # - name: display name (Title Case). Only used as the Discord channel/
 #   category/role name the FIRST time an entry is provisioned — renaming it
-#   here later does not rename already-provisioned Discord objects.
+#   here later does not rename already-provisioned Discord objects. NEVER put
+#   a ‡ in one: the channel doctor matches on these.
 # - description: prose. A Location's is the -# subtext on its channel's
 #   pinned anchor and the channel topic; a Room's is its thread's starter
 #   message.
@@ -43,34 +46,78 @@
 # real paragraph breaks, in which case it takes `|-` instead, with ONE blank
 # line between paragraphs. An unwritten value is literally `""`.
 #
-# map: where a Zone sits on the old /map plate. Dormant data since the map
-# panel was retired — still synced to Zone.mapPolygon/mapLabelX/mapLabelY,
-# read by nothing. Left in place for the map's return.
+# The dormant `map:` block is gone. It described the retired /map plate's four
+# rhombi, and the geography it described no longer exists.
 #
-# connections: the whole travel graph, as pairs of `zone/location`. A hop
-# between two Locations of the SAME zone is free, on the cooldown set on
-# /gm/dev (GameConfig.locationMoveCooldownSeconds). A hop whose pair crosses
-# into ANOTHER zone costs the character's Move — once a turn, twice with a
-# mount — exactly as zone travel used to. A `kind: group` zone's own id may
-# never appear here; only its levels' locations are places.
-
+# THE WILDERNESS IS NUMBERED ON PURPOSE. Most nodes outside the built-up
+# places are named after their zone and a number — "Forest 7", "Depths 3" —
+# with a description of their own. The traveller is meant to learn one stretch
+# of woods from the next by walking them, not by reading a name. The `id`
+# keeps the number from Bascinet's hand-drawn map rather than the public one,
+# so the file and the drawing can always be lined up; the `# map node NN`
+# comments say which is which.
+#
+# ---------------------------------------------------------------------------
+# connections: the whole travel graph. ONE entry per edge — it is undirected,
+# and stating it twice is an error the parser catches. A hop between two
+# Locations of the SAME zone is free, on the cooldown set on /gm/dev
+# (GameConfig.locationMoveCooldownSeconds). A hop whose pair crosses into
+# ANOTHER zone costs the character's Move — once a turn, twice with a mount.
+# A `kind: group` zone's own id may never appear here; only its levels'
+# locations are places.
+#
+# Two forms. A bare pair is a plain open road, which is most of the map:
+#
+#   - [town/town-square, town/church]
+#
+# Anything else is a mapping. The keys compose, because one edge really is
+# two things at once:
+#
+#   - pair: [fortress/gatehouse, fortress/road]
+#     announce: true_name          # a MANNED gate. Posts the crosser's real
+#                                  #   name into the destination zone's
+#                                  #   #summary. /conceal does not help: there
+#                                  #   is a watchman here reading papers.
+#     announce: concealed          # an UNMANNED gate. Posts only what a
+#                                  #   passer-by would have seen — "An old
+#                                  #   woman has entered the Gate."
+#     locked: <tag-slug>           # crossing needs the tag. LISTED, so a
+#                                  #   player sees the door and learns what
+#                                  #   opens it.
+#     hidden: <tag-slug>           # crossing needs the tag AND the way is
+#                                  #   absent from the travel list, so a
+#                                  #   player without it never learns it is
+#                                  #   there. Refuses in the same words a
+#                                  #   nonexistent edge does, deliberately.
+#     modular:                     # an Open/Close button on both endpoints'
+#       roles: [watchman]          #   anchors. Impassable while shut. `roles`
+#       tags: [watch-badge]        #   are Role slugs from docs/roles.yaml and
+#       open: true                 #   `tags` are Tag slugs; holding any one is
+#                                  #   authority to work it. `open` is what the
+#                                  #   gate is BORN as — a re-sync never
+#                                  #   reopens one somebody shut in play.
+#
+# `locked` and `hidden` are the same requirement with different visibility, so
+# an entry may carry one or the other, never both. Role and Tag slugs are NOT
+# validated here, because tags and roles sync AFTER zones (SYNC.md's working
+# order) — the same trade the room `access:` list already makes. db:doctor
+# checks them instead.
+# ---------------------------------------------------------------------------
 zones:
-  # --- Surface zones ---
   town:
     name: Town
     kind: surface
     sort: 1
     description: >-
       Ants in the marshy chaff. The town is surrounded by an old wall of ancient ceramite, so old it looks exhumed from the ground, patched by wooden palisade. Decayed electric lights illuminate the narrow streets. Speakers blare the Baron's words. It is claustrophobic — salt-of-the-earth, virtuous, and degenerate types all in one disease-ridden congregation.
-    map:
-      polygon:
-        - [50, 30]
-        - [95, 30]
-        - [95, 75]
-        - [55, 80]
-        - [40, 55]
-      label: { x: 58.4, y: 65.4 }
     locations:
+      # Named "Gate" in play; the id is north-gate because the Gatehouse
+      # already owns the slug "gate" for its own room.
+      north-gate:
+        name: Gate
+        description: >-
+          The northern way in, and the one the road actually uses. Two towers, a chain, and a brazier that is kept lit because the Baron pays for the wood. Nobody is posted here at night, which everybody knows. ‡
+        rooms: {}
       # Old location id "town" collides with this zone's own id (all slugs
       # share one namespace) — hence "town-square".
       town-square:
@@ -90,14 +137,12 @@ zones:
             name: Smithery
             description: >-
               The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
-          old-cock-inn:
-            name: The Old Cock Inn
-            description: >-
-              The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
-      fields:
-        name: Fields
+      # Promoted out of the Square, where it was a room, because the map makes
+      # it a place you walk to. Its prose is unchanged.
+      old-cock-inn:
+        name: The Old Cock Inn
         description: >-
-          Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
+          The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
         rooms: {}
       church:
         name: Cathedral
@@ -158,10 +203,20 @@ zones:
             name: Bathhouse
             description: >-
               One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color — it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for a coin inserted into a slot.
-      forest:
-        name: Forest
+      the-hole:
+        name: The Hole
         description: >-
-          Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
+          A subsidence in the middle of the poor quarter that nobody has filled in, because filling it in would mean admitting whose fault it is. Three streets drain into it. The buildings around the rim lean inward, propped against each other, and the people who live in them have made the slope into stairs. ‡
+        rooms: {}
+      south-gate:
+        name: South Gate
+        description: >-
+          A postern, really — one arch, one bar, one man's width. It faces the woods and the cave road, which is why the respectable traffic uses the north gate and this one gets everything else. There has not been a watchman on it in living memory. ‡
+        rooms: {}
+      farms:
+        name: Farms
+        description: >-
+          Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
         rooms: {}
 
   fortress:
@@ -172,13 +227,6 @@ zones:
       The fortress and its small surrounding estates rise nobly from the wooded hills, the keep itself visible behind the walls. They look down upon the town. A stone bridge fords the river.
 
       The Lifeweb emits primordial green fires.
-    map:
-      polygon:
-        - [5, 5]
-        - [50, 5]
-        - [50, 45]
-        - [5, 45]
-      label: { x: 35.0, y: 40.2 }
     locations:
       gatehouse:
         name: Gatehouse
@@ -191,10 +239,6 @@ zones:
             name: Gate
             description: >-
               Menacing iron, with several inset windows, built by a paranoid man. There are old logs to the side, piled and bound.
-          lifeweb:
-            name: Lifeweb
-            description: >-
-              A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
           yard:
             name: Yard
             description: >-
@@ -203,6 +247,18 @@ zones:
             name: Stables
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
+      # Promoted out of the Gatehouse, where it was a room. On Bascinet's map
+      # this is the node drawn as "Gardens". Its prose is unchanged.
+      lifeweb:
+        name: Lifeweb
+        description: >-
+          A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
+        rooms: {}
+      servant-wing:
+        name: Servant Wing
+        description: >-
+          Where the fortress actually runs from: laundries, sculleries, a back stair that reaches every floor without passing a single door the nobility use. The people here know more about the Keep than anyone in it, and are paid partly in the understanding that they will not say so. ‡
+        rooms: {}
       keep:
         name: Keep
         description: |-
@@ -228,10 +284,6 @@ zones:
             name: Swimming Pool
             description: >-
               An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown. You swear you can see something shiny at the bottom.
-          servants-wing:
-            name: Servant's Wing
-            description: >-
-              A small corridor leads into the kitchen and pantry. A few ovens line the back of the room, with a firepit and stew pot stationed at the center. Latrines can be found on the other side of the corridor.
           library:
             name: Library
             description: >-
@@ -304,159 +356,511 @@ zones:
             name: Ancient Shrine
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
+      # map node 11
+      road:
+        name: Road
+        description: >-
+          The approach, running from the gatehouse down between the estates. Metalled, drained, and swept — the only stretch of road in the barony that is any of those things. Riding up it is a declaration. Walking up it is a request. ‡
+        rooms: {}
+      manors:
+        name: Manors
+        description: >-
+          The lesser houses, strung along the ridge where the air is better and the smell of the town does not reach. Each has a wall, a gate, and a family that would rather you used them. Between them, orchards nobody picks. ‡
+        rooms: {}
 
-  windlands:
-    name: Windlands
+  forest:
+    name: Forest
     kind: surface
     sort: 3
     description: >-
-      Little monsters, puddles, and lizards, scorched by foul sunlight and buffeted by hurricane winds. Shadowy, unexplored openings in the mountains lead into the caves.
-    map:
-      polygon:
-        - [5, 65]
-        - [95, 65]
-        - [95, 98]
-        - [5, 98]
-      label: { x: 52.2, y: 82.4 }
+      Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
     locations:
-      warcamp:
-        name: Warcamp
+      # map node 1
+      forest-1:
+        name: Forest 1
         description: >-
-          An arbitrary array of tents, shields, and banners rise against the mountainside.
-        rooms:
-          war-pavilion:
-            name: War Pavilion
-            description: >-
-              Inside the enormous tent is a round table, with a parchment map of Ravenheart and its surroundings strewn across it.
-          common-grounds:
-            name: Common Grounds
-            description: >-
-              The wide open area features a round sparring ground with training weapons strewn around the perimeter. Nearby is the well—don't fall in.
-          healers-tents:
-            name: Healer's Tents
-            description: >-
-              A handful of individual bunks under small tents surround the larger healer's tent. Inside the main tent, a central slab serves as an operating table, with very basic instruments and herbal remedies in drawers around it.
-          warcamp-fields:
-            name: Fields
-            description: >-
-              Ranch animals — some distant descendants of the cow — mull around. The crops grown here are measly and bitter due to the great distance from the Lifeweb.
-          mess-hall:
-            name: Mess Hall
-            description: >-
-              There are tables lined up to form rows with stools situated on either side. At the far end of the pavilion is a large pot, gently bubbling over some coals.
-      broken-spears-camp:
-        name: Broken Spears Camp
-        description: >-
-          The Broken Spears have claimed this part of the camp as their own. Despite the signs of revelry — a hookah tent, flagons are scattered across the tables, tentholes torn in from scuffles — this is clearly a place of survivors, efficient and minimal.
+          The river comes out of the rock here, cold enough to ache. Beyond it the trees give up and the land goes to scree. Nobody has any reason to be this far west, which is its own kind of reason. ‡
         rooms: {}
-      windriders-camp:
-        name: Windriders Camp
+      # map node 2
+      forest-2:
+        name: Forest 2
         description: >-
-          The Windriders have established themselves here. Tents are placed in orderly rows with equipment in convenient locations, ready to be equipped at a moments notice. There are banners woven out of human hair.
+          The ground rises toward the fortress cliffs, and the spruce grow crooked out of them. Somewhere above, water runs through stone that was cut, not worn. There is an old service door in the hillside, and it has a keyhole. ‡
         rooms: {}
-      mountains:
-        name: Mountains
+      # map node 3
+      forest-3:
+        name: Forest 3
         description: >-
-          Great peaks which rise above the landscape, shielding the valley from the worst of the winds. Traversing them will not be easy — the easiest route would be around and through the river valley, into the Town.
+          Four ways meet under a beech old enough to have a name nobody remembers. The undergrowth is trodden flat in a ring around it. People stop here. Not all of them go on. ‡
+        rooms: {}
+      # map node 4
+      forest-4:
+        name: Forest 4
+        description: >-
+          The road proper, rutted by cart wheels and kept clear by the Baron's men. It runs downhill toward the town's north gate and uphill toward the manors. Walking it means being seen. ‡
+        rooms: {}
+      # map node 5
+      forest-5:
+        name: Forest 5
+        description: >-
+          A bog that has been swallowing this stretch of path for a century. Boards have been laid across the worst of it and then laid again on top of the rotted ones. Do not step where the moss looks freshest. ‡
+        rooms: {}
+      # map node 6
+      forest-6:
+        name: Forest 6
+        description: >-
+          Charcoal burners worked here once. The clearings are circles of black earth where nothing has grown back, and the stacked kilns have collapsed into shapes that look, at dusk, like people sitting. ‡
+        rooms: {}
+      # map node 7
+      forest-7:
+        name: Forest 7
+        description: >-
+          Deadfall from a storm nobody alive remembers, piled two men high and going soft. Threading it takes an hour. Going around takes three. Things live in it. ‡
+        rooms: {}
+      # map node 8
+      forest-8:
+        name: Forest 8
+        description: >-
+          Where every southern path knots together: the town's south gate above, the farms east, the cave mouth below. There is a shrine at the junction and somebody keeps it swept, though no one will admit to it. ‡
+        rooms: {}
+      # map node 9
+      forest-9:
+        name: Forest 9
+        description: >-
+          Terraced ground the farmers gave up on, sliding slowly downhill. The old irrigation channels still run, and they run somewhere. Cargo comes up out of the ground near here and nobody asks whose. ‡
+        rooms: {}
+      # map node 10
+      forest-10:
+        name: Forest 10
+        description: >-
+          The eastern bank, where the river turns and the water goes quiet and deep. There is a culvert in the bank, grated once. The grate is gone. ‡
+        rooms: {}
+      # map node 36
+      forest-36:
+        name: Forest 11
+        description: >-
+          Coppiced woodland, cut on a cycle so old it looks natural until you notice every trunk is the same age. The farms begin where the stools end. ‡
         rooms: {}
 
-  # --- Caves (group) ---
-  # Category + GM seat only, NOT a standable place: no #summary, no "Zone:
-  # Caves" access role, and it never appears in connections. Its `levels:`
-  # map is what actually gets flattened by the sync into three real zones
-  # (caverns / railroad / aberrant-pits), each shaped like a surface zone
-  # minus `kind`; their Location channels parent to this one category.
-  caves:
-    name: Caves
-    kind: group
+  east-forests:
+    name: East Forests
+    kind: surface
     sort: 4
     description: >-
+      Older woodland across the river, where the barony's writ thins out and then stops. The trees stand further apart than they have any right to and the ground between them is too clear. People who go in come back with stories that do not agree with each other. ‡
+    locations:
+      # map node 12
+      east-forests-12:
+        name: East Forests 1
+        description: >-
+          Where the mountain road finally comes down out of the rock. The trees here are wrong — taller, further apart, quieter — and the ground between them is clear in a way no forest manages by itself. ‡
+        rooms: {}
+      # map node 13
+      east-forests-13:
+        name: East Forests 2
+        description: >-
+          The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
+        rooms: {}
+      # map node 25
+      east-forests-25:
+        name: East Forests 3
+        description: >-
+          Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
+        rooms: {}
+      # map node 26
+      east-forests-26:
+        name: East Forests 4
+        description: >-
+          The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. Someone has built a cairn. Someone else has knocked it down. ‡
+        rooms: {}
+      # map node 27
+      east-forests-27:
+        name: East Forests 5
+        description: >-
+          A crossroads of deer paths in a stand of black pine, so dense that noon reads as evening. Sound does not carry. Neither do shouts. ‡
+        rooms: {}
+      # map node 28
+      east-forests-28:
+        name: East Forests 6
+        description: >-
+          Ruins under moss: footings, a doorstep, the stub of a chimney, all laid out in a grid too regular for a village. Whatever stood here was planned by somebody with a straight edge. ‡
+        rooms: {}
+      # map node 29
+      east-forests-29:
+        name: East Forests 7
+        description: >-
+          A dead end that does not look like one until you are in it — a bowl of ground ringed by rock, floored in fern. Excellent for hiding. Terrible for leaving. ‡
+        rooms: {}
+      # map node 30
+      east-forests-30:
+        name: East Forests 8
+        description: >-
+          The eastern edge, where the forest thins into scrub and the ground starts its long fall toward the marsh. The air changes here. You can taste it before you see it. ‡
+        rooms: {}
+
+  marshes:
+    name: Marshes
+    kind: surface
+    sort: 5
+    description: >-
+      Standing water from horizon to horizon, threaded by channels somebody dug and reeds nobody planted. The ground here is a rumour. What lives on it has built out of what the water gives up, and what the water gives up is not from around here. ‡
+    locations:
+      village:
+        name: Village
+        description: >-
+          Houses on stilts, joined by walkways, with boats tied under every doorstep. They pay the Baron nothing and he sends nobody to collect it. The people are courteous, incurious about you, and extremely curious about what you brought. ‡
+        rooms: {}
+      factory:
+        name: Factory
+        description: >-
+          A hall of rusted frames standing in six inches of water, roofed where the roof has held. Something in it still turns — you can feel it through the boards before you hear it. The village will not say who keeps it running, only that it has always been running. ‡
+        rooms: {}
+      # map node 31
+      marshes-31:
+        name: Marshes 1
+        description: >-
+          Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
+        rooms: {}
+      # map node 32
+      marshes-32:
+        name: Marshes 2
+        description: >-
+          Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
+        rooms: {}
+      # map node 33
+      marshes-33:
+        name: Marshes 3
+        description: >-
+          Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
+        rooms: {}
+      # map node 34
+      marshes-34:
+        name: Marshes 4
+        description: >-
+          Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
+        rooms: {}
+      # map node 35
+      marshes-35:
+        name: Marshes 5
+        description: >-
+          The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
+        rooms: {}
+
+  # --- Underground (group) ---
+  # Category + GM seat only, NOT a standable place: no #summary, no "Zone:
+  # Underground" access role, and it never appears in connections. Its
+  # `levels:` map is flattened by the sync into two real zones (caves /
+  # depths), each shaped like a surface zone minus `kind`; their Location
+  # channels parent to this one category.
+  #
+  # The kinds are kept rather than promoting Caves and Depths to surface
+  # zones because the Caving Die only rolls on a CAVE_LEVEL arrival
+  # (docs/systemdocs/CAVING.md), and a CAVE_LEVEL needs a CAVE_GROUP parent.
+  # Sharing a parent also means they share one GM seat, which is what the
+  # Caves seat already did across three levels.
+  underground:
+    name: Underground
+    kind: group
+    sort: 6
+    description: >-
       The mouth to the other world.
-    map:
-      polygon: []
-      label: { x: 15.9, y: 74.7 }
     levels:
-      caverns:
-        name: Caverns
+      caves:
+        name: Caves
         sort: 1
         description: >-
           Wet, dimly-lit caves. The main paths have been smoothed down by centuries of traffic, but side paths and natural holes descend into darkness.
-        map:
-          polygon:
-            - [5, 62]
-            - [21, 62]
-            - [21, 74]
-            - [5, 74]
-          label: { x: 13, y: 68 }
         locations:
           customs:
             name: Customs
             description: >-
-              The sentry beholds migrants and mercenaries as they talk around the fire. To the side, there's the merchant's depot; crates of a foreign design are scattered around a decayed metal frame. Light flows forth, powered by their own basic generator. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the depot's light — there is an automated small-caliber mounted on the outside wall to account for that. It's off.
+              The sentry beholds migrants and mercenaries as they talk around the fire. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the light — there is an automated small-caliber mounted on the outside wall to account for that. It's off. ‡
             rooms: {}
-
-      railroad:
-        name: Railroad
+          depot:
+            name: Depot
+            description: >-
+              The merchant's depot: crates of a foreign design scattered around a decayed metal frame, light flowing forth, powered by their own basic generator. Everything imported into Ravenheart comes through this room, and the ledger that says so is the most valuable object in the caves. ‡
+            rooms: {}
+          # map node 14
+          caves-14:
+            name: Caves 1
+            description: >-
+              The first proper dark. The floor is smooth from centuries of boots and the walls are close enough to touch on both sides, which is a comfort until you think about it. ‡
+            rooms: {}
+          # map node 15
+          caves-15:
+            name: Caves 2
+            description: >-
+              A junction chamber with too many exits. Cold air comes from one of them and warm air from another, and the difference is the only navigation you have. Somebody has scratched arrows. They disagree. ‡
+            rooms: {}
+          # map node 16
+          caves-16:
+            name: Caves 3
+            description: >-
+              The old freight run — a level, worked passage, wide enough for two carts abreast, cut by people with better tools than anyone has now. It goes somewhere. It always went somewhere. ‡
+            rooms: {}
+          # map node 17
+          caves-17:
+            name: Caves 4
+            description: >-
+              The stair head, where the smoothed paths end and the descending ones begin. Everything below this point is colder. There is a rope handrail, and it is not old. ‡
+            rooms: {}
+      depths:
+        name: Depths
         sort: 2
-        description: "A powered train station looming over an inscrutable abyss. You could get on, but where would you go? There are openings in the subway tunnels leading into ancient, unused maintenance areas. Where the tunnels break into open air, you can indeed see the pits, deformed and warped into unnatural stone. There's reflective metal down there. Chrome? Ceramite?"
-        map:
-          polygon:
-            - [3, 76]
-            - [19, 76]
-            - [19, 88]
-            - [3, 88]
-          label: { x: 11, y: 82 }
-        locations:
-          station:
-            name: Station
-            description: >-
-              A powered train station looming over an inscrutable abyss. You could get on, but where would you go? Openings in the subway tunnels lead into ancient, unused maintenance areas; where they break into open air, the pits show below, deformed and warped into unnatural stone. ‡
-            rooms: {}
-
-      aberrant-pits:
-        name: Aberrant Pits
-        sort: 3
         description: >-
-          The start and end of all things. What madness brought you down here? The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome — cities within the deep.
-        map:
-          polygon:
-            - [1, 90]
-            - [17, 90]
-            - [17, 99]
-            - [1, 99]
-          label: { x: 9, y: 95 }
+          Below the worked passages, where the stone stops behaving. The walls are cut and the floors are level, and neither was done by anybody who left a name. Cold, and getting colder, and the cold is coming from somewhere. ‡
         locations:
-          chrome-city:
-            name: Chrome City
+          # map node 18
+          depths-18:
+            name: Depths 1
             description: >-
-              The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome rise ahead — a city within the deep, and nobody to say who built it. ‡
+              A dead end, and a wrong one. The passage simply stops at a face of worked stone with no seam, no door, and no reason. People come here to look at it and then leave quickly. ‡
+            rooms: {}
+          # map node 19
+          depths-19:
+            name: Depths 2
+            description: >-
+              Water to the ankle, and it is moving, which means it is going somewhere, which means there is a somewhere. The sound is enormous in the dark. ‡
+            rooms: {}
+          # map node 20
+          depths-20:
+            name: Depths 3
+            description: >-
+              A gallery so wide your light does not reach the far wall. The floor is flat and swept. Nothing down here sweeps. ‡
+            rooms: {}
+          # map node 21
+          depths-21:
+            name: Depths 4
+            description: >-
+              The junction under the stair, where the routes from above finally braid together. Every party that comes down passes through. Not every party passes back. ‡
+            rooms: {}
+          # map node 22
+          depths-22:
+            name: Depths 5
+            description: >-
+              The long eastern run, mile after mile of the same worked passage, and then a place where the wall has been broken through from the other side. ‡
+            rooms: {}
+          # map node 23
+          depths-23:
+            name: Depths 6
+            description: >-
+              Where the deep passage rises again and the air turns salt. There is light ahead that is not yours, and it is not warm. ‡
+            rooms: {}
+          # map node 24
+          depths-24:
+            name: Depths 7
+            description: >-
+              The eastern mouth, opening onto scree above the sea. The way out is here, if you count a two-hundred-foot climb as a way out. ‡
             rooms: {}
 
-# The whole travel graph, as `zone/location` pairs. A pair inside one zone
-# is a free walk (on the cooldown); a pair crossing zones costs the Move. A
-# `kind: group` zone (caves) may never appear here — only its levels' locations.
 connections:
-  # Town
-  - [town/town-square, town/church]
-  - [town/town-square, town/sanctuary]
-  - [town/town-square, town/underquarter]
-  - [town/town-square, town/fields]
-  - [town/fields, town/forest]
-  # Fortress
-  - [fortress/gatehouse, fortress/keep]
-  - [fortress/gatehouse, fortress/garrison]
+  # --- Fortress ---------------------------------------------------------
+  - [fortress/servant-wing, fortress/lifeweb]
+  - [fortress/servant-wing, fortress/keep]
+  - [fortress/servant-wing, fortress/undercroft]
+  - [fortress/lifeweb, fortress/gatehouse]
   - [fortress/keep, fortress/undercroft]
-  - [fortress/garrison, fortress/undercroft]
-  # Windlands
-  - [windlands/warcamp, windlands/broken-spears-camp]
-  - [windlands/warcamp, windlands/windriders-camp]
-  - [windlands/warcamp, windlands/mountains]
-  # Between zones — each of these costs the Move.
-  - [town/forest, fortress/gatehouse]
-  - [town/fields, windlands/mountains]
-  - [town/forest, caverns/customs]
-  - [windlands/mountains, caverns/customs]
-  - [fortress/undercroft, railroad/station]
-  - [windlands/mountains, railroad/station]
-  - [caverns/customs, railroad/station]
-  - [railroad/station, aberrant-pits/chrome-city]
+  - [fortress/keep, fortress/garrison]
+  - [fortress/keep, fortress/gatehouse]
+  - [fortress/garrison, fortress/gatehouse]
+  - [fortress/road, fortress/manors]
+  # The one edge that is two things at once. A watchman on the gate reads
+  # everyone's papers, and the portcullis winch can be dropped by anyone with
+  # the authority to work it.
+  - pair: [fortress/gatehouse, fortress/road]
+    announce: true_name
+    modular:
+      roles: [watchman, captain, baron, hand]
+      tags: [knighted, watch-badge]
+      open: true
+
+  # --- Town -------------------------------------------------------------
+  - [town/north-gate, town/church]
+  - [town/north-gate, town/sanctuary]
+  - [town/church, town/town-square]
+  - [town/sanctuary, town/town-square]
+  - [town/sanctuary, town/old-cock-inn]
+  - [town/sanctuary, town/underquarter]
+  - [town/underquarter, town/old-cock-inn]
+  - [town/town-square, town/the-hole]
+  - [town/town-square, town/south-gate]
+  - [town/the-hole, town/old-cock-inn]
+  - [town/the-hole, town/south-gate]
+
+  # --- Forest -----------------------------------------------------------
+  - [forest/forest-1, forest/forest-2]
+  - [forest/forest-1, forest/forest-3]
+  - [forest/forest-2, forest/forest-3]
+  - [forest/forest-2, forest/forest-4]
+  - [forest/forest-3, forest/forest-5]
+  - [forest/forest-3, forest/forest-6]
+  - [forest/forest-4, forest/forest-10]
+  - [forest/forest-5, forest/forest-6]
+  - [forest/forest-5, forest/forest-7]
+  - [forest/forest-6, forest/forest-7]
+  - [forest/forest-7, forest/forest-8]
+  - [forest/forest-8, forest/forest-9]
+  - [forest/forest-10, forest/forest-36]
+
+  # --- East Forests -----------------------------------------------------
+  - [east-forests/east-forests-12, east-forests/east-forests-13]
+  - [east-forests/east-forests-12, east-forests/east-forests-25]
+  - [east-forests/east-forests-25, east-forests/east-forests-26]
+  - [east-forests/east-forests-25, east-forests/east-forests-27]
+  - [east-forests/east-forests-26, east-forests/east-forests-27]
+  - [east-forests/east-forests-26, east-forests/east-forests-28]
+  - [east-forests/east-forests-28, east-forests/east-forests-29]
+  - [east-forests/east-forests-28, east-forests/east-forests-30]
+  - [east-forests/east-forests-29, east-forests/east-forests-30]
+
+  # --- Marshes ----------------------------------------------------------
+  - [marshes/marshes-31, marshes/marshes-32]
+  - [marshes/marshes-31, marshes/village]
+  - [marshes/marshes-32, marshes/marshes-33]
+  - [marshes/marshes-33, marshes/factory]
+  - [marshes/marshes-34, marshes/village]
+  - [marshes/marshes-34, marshes/marshes-35]
+  - [marshes/marshes-35, marshes/factory]
+  - [marshes/village, marshes/factory]
+
+  # --- Caves ------------------------------------------------------------
+  - [caves/customs, caves/caves-14]
+  - [caves/caves-14, caves/caves-17]
+  - [caves/caves-15, caves/caves-16]
+  - [caves/caves-16, caves/caves-17]
+  # The freight run's own door into the depot, which is how the merchant's
+  # crates get in without passing the sentry at Customs.
+  - pair: [caves/depot, caves/caves-16]
+    hidden: TODO-depot-tunnel
+
+  # --- Depths -----------------------------------------------------------
+  - [depths/depths-18, depths/depths-19]
+  - [depths/depths-19, depths/depths-20]
+  - [depths/depths-20, depths/depths-21]
+  - [depths/depths-21, depths/depths-22]
+  - [depths/depths-22, depths/depths-23]
+  - [depths/depths-23, depths/depths-24]
+
+  # --- Between zones — each of these costs the Move ----------------------
+  - [fortress/manors, forest/forest-4]
+  - [forest/forest-8, town/farms]
+  - [forest/forest-9, town/farms]
+  - [forest/forest-36, town/farms]
+  - [forest/forest-8, caves/customs]
+  - [forest/forest-9, caves/depot]
+  - [forest/forest-10, east-forests/east-forests-13]
+  - [caves/caves-17, depths/depths-20]
+  - [caves/caves-17, depths/depths-21]
+  - [depths/depths-24, east-forests/east-forests-30]
+  - [east-forests/east-forests-27, marshes/marshes-31]
+  - [east-forests/east-forests-27, marshes/marshes-32]
+  - [east-forests/east-forests-30, marshes/marshes-31]
+
+  # The town's two gates. Neither is manned, so both record what a passer-by
+  # would have seen rather than who it actually was.
+  - pair: [forest/forest-4, town/north-gate]
+    announce: concealed
+  - pair: [forest/forest-8, town/south-gate]
+    announce: concealed
+
+  # The Baron's elevator: the Undercroft's deeper passages come out in the
+  # forest below the cliffs. Given as a starting tag to the Hand and the
+  # Baron.
+  - pair: [fortress/undercroft, forest/forest-2]
+    hidden: elevator-key
+
+  # The mountain road east. Listed, not hidden — you can see the pass from
+  # the road and understand perfectly well that you cannot climb it.
+  - pair: [fortress/road, east-forests/east-forests-12]
+    locked: mountaineer
+
+  # The four remaining ways off the map's beaten paths. Each is drawn as a
+  # dashed line on Bascinet's map and each is HIDDEN; the tags are still to be
+  # chosen, and db:doctor reports every TODO- slug here until they are.
+  - pair: [forest/forest-9, caves/caves-15]
+    hidden: TODO-forest-shaft
+  - pair: [forest/forest-10, town/underquarter]
+    hidden: TODO-culvert
+  - pair: [caves/caves-15, marshes/marshes-33]
+    hidden: TODO-marsh-passage
+  - pair: [depths/depths-22, marshes/marshes-35]
+    hidden: TODO-marsh-stair
+
+# ===========================================================================
+# RETIRED PLACES
+#
+# Windlands and the deeper two cave levels came off the map in the Bascinet 2
+# geography rebuild. Their prose is kept here, and only here, because it is
+# good and because a later map may want it back. Nothing below is parsed —
+# it is a comment.
+#
+# --- Zone: Windlands -------------------------------------------------------
+# Little monsters, puddles, and lizards, scorched by foul sunlight and
+# buffeted by hurricane winds. Shadowy, unexplored openings in the mountains
+# lead into the caves.
+#
+#   Warcamp
+#     An arbitrary array of tents, shields, and banners rise against the
+#     mountainside.
+#
+#     War Pavilion — Inside the enormous tent is a round table, with a
+#       parchment map of Ravenheart and its surroundings strewn across it.
+#     Common Grounds — The wide open area features a round sparring ground
+#       with training weapons strewn around the perimeter. Nearby is the
+#       well—don't fall in.
+#     Healer's Tents — A handful of individual bunks under small tents
+#       surround the larger healer's tent. Inside the main tent, a central
+#       slab serves as an operating table, with very basic instruments and
+#       herbal remedies in drawers around it.
+#     Fields — Ranch animals — some distant descendants of the cow — mull
+#       around. The crops grown here are measly and bitter due to the great
+#       distance from the Lifeweb.
+#     Mess Hall — There are tables lined up to form rows with stools situated
+#       on either side. At the far end of the pavilion is a large pot, gently
+#       bubbling over some coals.
+#
+#   Broken Spears Camp
+#     The Broken Spears have claimed this part of the camp as their own.
+#     Despite the signs of revelry — a hookah tent, flagons are scattered
+#     across the tables, tentholes torn in from scuffles — this is clearly a
+#     place of survivors, efficient and minimal.
+#
+#   Windriders Camp
+#     The Windriders have established themselves here. Tents are placed in
+#     orderly rows with equipment in convenient locations, ready to be
+#     equipped at a moments notice. There are banners woven out of human hair.
+#
+#   Mountains
+#     Great peaks which rise above the landscape, shielding the valley from
+#     the worst of the winds. Traversing them will not be easy — the easiest
+#     route would be around and through the river valley, into the Town.
+#
+# --- Cave level: Railroad --------------------------------------------------
+# A powered train station looming over an inscrutable abyss. You could get on,
+# but where would you go? There are openings in the subway tunnels leading
+# into ancient, unused maintenance areas. Where the tunnels break into open
+# air, you can indeed see the pits, deformed and warped into unnatural stone.
+# There's reflective metal down there. Chrome? Ceramite?
+#
+#   Station
+#     A powered train station looming over an inscrutable abyss. You could get
+#     on, but where would you go? Openings in the subway tunnels lead into
+#     ancient, unused maintenance areas; where they break into open air, the
+#     pits show below, deformed and warped into unnatural stone.
+#
+# --- Cave level: Aberrant Pits ---------------------------------------------
+# The start and end of all things. What madness brought you down here? The
+# stone curves into strange, meandering passageways, but ceramite catches your
+# torchlight. Monuments of chrome — cities within the deep.
+#
+#   Chrome City
+#     The stone curves into strange, meandering passageways, but ceramite
+#     catches your torchlight. Monuments of chrome rise ahead — a city within
+#     the deep, and nobody to say who built it.
+#
+# --- Also retired ----------------------------------------------------------
+# Town's Forest location, whose prose became the Forest ZONE's description
+# above, and the Customs description's depot paragraph, which became the
+# Depot's own.
+# ===========================================================================

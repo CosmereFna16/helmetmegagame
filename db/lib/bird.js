@@ -17,11 +17,11 @@ const { encodeGribble } = require("./gribble");
 const BIRD_SLUG = "bird";
 const LITERATE_SLUG = "literate";
 
-// A bird will not fly into the deep caves, and will not carry a letter out of
-// them either. Both directions, on purpose: one-way would let someone sitting
-// on the Railroad send freely while being unreachable, which is a hiding place
-// with a mail service.
-const UNREACHABLE_ZONE_SLUGS = new Set(["railroad", "aberrant-pits"]);
+// A bird will not fly underground, and will not carry a letter out either.
+// Both directions, on purpose: one-way would let someone sitting in the
+// Depths send freely while being unreachable, which is a hiding place with a
+// mail service.
+const UNREACHABLE_ZONE_SLUGS = new Set(["caves", "depths"]);
 
 // Long enough for a real letter, short enough that the ciphered form stays
 // inside Discord's 2000-character message limit: 900 characters of ASCII

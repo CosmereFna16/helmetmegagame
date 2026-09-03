@@ -32,7 +32,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | | |
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) |
-| Zone | `caverns` — Customs. Reading the list works anywhere; trading needs him standing there. |
+| Location | `depot` — its own room in the Caves since the Bascinet 2 map, where it used to be a paragraph inside the Customs description and the gate was the whole Caverns zone. Reading the list works anywhere; trading needs him standing in that one room. |
 | Gate | the `merchants-license` tag, **not** the Merchant role |
 | Requests | `DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT` — auto-applied, GM-reviewed, undoable |
 | Constants | `db/lib/depot.js` |

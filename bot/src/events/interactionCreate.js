@@ -18,6 +18,7 @@ const {
   performMove,
 } = require("../lib/locationTravel");
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
+const { travelOptions, canToggleGate, endpoints } = require("@lifeweb/db/lib/locationGraph");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const { syncCharacterRoomAccess, accessibleRooms, heldTagSlugs } = require("@lifeweb/db/lib/roomAccess");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
@@ -41,7 +42,9 @@ const {
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
   CONVERSE_PREFIX,
+  GATE_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
+const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
 const { ROOM_STORAGE_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
@@ -225,38 +228,138 @@ async function handleTravelOpen(interaction) {
 
   let current = null;
   let destinations;
+  let shut = [];
   if (!character.locationId) {
     destinations = await prisma.location.findMany({
       where: { zone: { kind: { not: "CAVE_GROUP" } } },
       include: { zone: true },
     });
+    destinations.sort(
+      (a, b) => (a.zone?.name ?? "").localeCompare(b.zone?.name ?? "") || a.name.localeCompare(b.name),
+    );
   } else {
     current = await prisma.location.findUnique({
       where: { id: character.locationId },
-      include: { zone: true, connectsTo: { include: { zone: true } } },
+      include: { zone: true },
     });
-    destinations = [...(current?.connectsTo ?? [])];
+    // travelOptions has already dropped the hidden ways this character holds
+    // no key to, and sorted the rest. A locked or shut one is still offered:
+    // seeing the door and being told what opens it is the point of the locked
+    // form, as against the hidden one.
+    const rows = await travelOptions(prisma, character, character.locationId);
+    destinations = rows.filter((row) => row.passable).map((row) => row.location);
+    shut = rows.filter((row) => !row.passable);
   }
-  destinations.sort(
-    (a, b) => (a.zone?.name ?? "").localeCompare(b.zone?.name ?? "") || a.name.localeCompare(b.name),
-  );
 
-  if (destinations.length === 0) {
+  if (destinations.length === 0 && shut.length === 0) {
     await respond(interaction, "» *Nowhere to go from here.* ‡");
     return;
   }
 
   // Never truncate silently: a missing destination reads as a broken map.
   const truncated = destinations.length - Math.min(destinations.length, MENU_OPTION_LIMIT);
+  const shutLine =
+    shut.length > 0
+      ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}. ‡`
+      : null;
   await respond(interaction, {
     content: [
-      "Where would you like to go? ‡",
+      destinations.length > 0 ? "Where would you like to go? ‡" : "» *Every way out of here is closed to you.* ‡",
+      shutLine,
       truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25. ‡` : null,
     ]
       .filter(Boolean)
       .join("\n"),
-    components: [buildLocationSelectRow(destinations, current)],
+    components: destinations.length > 0 ? [buildLocationSelectRow(destinations, current)] : [],
   });
+}
+
+// loc:gate:{linkId} — the Open/Close button on a modular gate's two anchors.
+//
+// The button is only rendered on the anchor, which anyone standing in the
+// location can see, so authority is re-checked here rather than trusted:
+// holding one of the gate's opener tags, or playing one of its opener Roles.
+// A rendered button is a hint, not a lock.
+//
+// The flip is a conditional updateMany whose WHERE clause carries the state
+// the clicker saw, the same shape the move cooldown and the mount claim use.
+// Two watchmen clicking "Close" in the same second means one close and one
+// "somebody just did", never a double toggle that lands back open.
+async function handleGateToggle(interaction, linkId) {
+  await ack(interaction);
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      locationId: true,
+      role: { select: { slug: true } },
+      tags: { select: { tag: { select: { slug: true } } } },
+    },
+  });
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+
+  const link = await prisma.locationLink.findUnique({
+    where: { id: linkId },
+    include: { a: true, b: true },
+  });
+  if (!link?.modular) {
+    await respond(interaction, "» *There's no gate here to work.* ‡");
+    return;
+  }
+  // You have to be standing on one side of it.
+  if (character.locationId !== link.aId && character.locationId !== link.bId) {
+    await respond(interaction, "» *You aren't standing at that gate.* ‡");
+    return;
+  }
+
+  const allowed = canToggleGate(link, {
+    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+    roleSlug: character.role?.slug ?? null,
+  });
+  if (!allowed) {
+    await respond(interaction, "» *The gate's mechanism doesn't answer to you.* ‡");
+    return;
+  }
+
+  const wantOpen = !link.isOpen;
+  const claim = await prisma.locationLink.updateMany({
+    where: { id: link.id, isOpen: link.isOpen },
+    data: { isOpen: wantOpen },
+  });
+  if (claim.count === 0) {
+    await respond(interaction, "» *Somebody just beat you to it.* ‡");
+    return;
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: interaction.user.id,
+      actionType: wantOpen ? "gate_opened" : "gate_closed",
+      targetCharacterId: character.id,
+      details: { linkId: link.id, between: [link.a.name, link.b.name], isOpen: wantOpen },
+    },
+  });
+
+  // Both sides: the gate has a button on each anchor, and shutting it from
+  // one must not leave the other advertising "Open".
+  for (const locationId of [link.aId, link.bId]) {
+    await refreshLocationAnchor(prisma, locationId).catch((err) =>
+      console.error(`Gate anchor refresh failed for ${locationId}:`, err.message ?? err),
+    );
+  }
+
+  const farName = endpoints(link, character.locationId).far.name;
+  await respond(
+    interaction,
+    wantOpen
+      ? `» *You open the way to ${farName}.* ‡`
+      : `» *You shut the way to ${farName}.* ‡`,
+  );
 }
 
 // One message carries both the passenger list and the confirmation, because
@@ -1076,6 +1179,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith(CONVERSE_PREFIX)) {
           return void (await handleConverseOpen(interaction, interaction.customId.slice(CONVERSE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(GATE_PREFIX)) {
+          return void (await handleGateToggle(interaction, interaction.customId.slice(GATE_PREFIX.length)));
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));

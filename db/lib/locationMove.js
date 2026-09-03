@@ -9,11 +9,20 @@
 // Every call here is .catch-logged, never thrown; the channel doctor's
 // post-turn pass (config.autoReconcileEnabled) is the safety net for
 // anything a call here missed.
-const { addMemberRole, removeMemberRole, putChannelOverwrite, deleteChannelOverwrite } = require("./discordRest");
+const {
+  addMemberRole,
+  removeMemberRole,
+  putChannelOverwrite,
+  deleteChannelOverwrite,
+  postMessage,
+} = require("./discordRest");
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { settleCarry, deliverCarryDrop } = require("./carry");
+const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
+const { linkBetween } = require("./locationGraph");
+const { aliasSubject } = require("./concealedIdentity");
 
 // Mirrors web/lib/discordGuild.js's PERM_VIEW_CHANNEL / PERM_SEND_MESSAGES —
 // duplicated rather than imported because db/ cannot reach into web/.
@@ -68,8 +77,57 @@ async function swapRole(discordUserId, fromRoleId, toRoleId, label) {
   }
 }
 
+// The Location half of a move, and the reason a Location wears no Discord
+// role: one per-member overwrite on the destination channel, one taken off
+// the origin. Same grant-before-revoke ordering and the same two REST calls
+// the role swap cost, but it spends none of the guild's 250 roles — see the
+// header of db/lib/zoneChannelSpec.js.
+async function swapLocationOverwrite(discordUserId, fromChannelId, toChannelId) {
+  if (toChannelId) {
+    await putChannelOverwrite(toChannelId, discordUserId, {
+      allow: String(LOCATION_MEMBER_ALLOW),
+      type: 1,
+    }).catch((err) =>
+      console.error(`Move: failed to open ${toChannelId} to ${discordUserId}:`, err.message ?? err),
+    );
+  }
+  if (fromChannelId && fromChannelId !== toChannelId) {
+    await deleteChannelOverwrite(fromChannelId, discordUserId).catch((err) =>
+      console.error(`Move: failed to close ${fromChannelId} to ${discordUserId}:`, err.message ?? err),
+    );
+  }
+}
+
+// A gate crossing, announced in the destination zone's #summary. This is
+// game narration rather than the character speaking, so it is a plain bot
+// message and NOT postAsCharacter — a webhook post under the traveller's own
+// name and face would defeat the whole point of the unmanned form.
+//
+// The two forms differ only in who the line names. A manned gate has a
+// watchman on it, so it reads the traveller's papers: their true name, and
+// /conceal does not help. An unmanned one has nobody to read anything, so it
+// records what a passer-by would have seen — "An old woman" — and never the
+// name behind it.
+//
+// Derived from the edge rather than passed in, so every writer of
+// Character.locationId gets this for free. A GM's teleport onto a
+// non-adjacent location finds no link and announces nothing, which is right.
+async function announceGateCrossing(prisma, character, fromLocationId, toLocation) {
+  if (!fromLocationId) return;
+  const channelId = toLocation.zone?.discordSummaryChannelId ?? null;
+  if (!channelId) return;
+
+  const link = await linkBetween(prisma, fromLocationId, toLocation.id);
+  if (!link || link.announce === "NONE") return;
+
+  const who = link.announce === "TRUE_NAME" ? character.name : aliasSubject(character);
+  if (!who) return;
+  await postMessage(channelId, `» ${who} has entered ${toLocation.name}. ‡`);
+}
+
 // Everything a location change must do in Discord once the DB write has
-// landed: swap the location role; if the zone changed too, swap the zone
+// landed: swap the location overwrite; announce a gate crossing; if the zone
+// changed too, swap the zone
 // role and reconcile narrowcast access; then private-room membership for
 // wherever they now stand, and any standing conversation invites there.
 // `entry` is { characterId, fromLocationId, toLocationId } — zones are read
@@ -85,13 +143,30 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     prisma.location.findUnique({ where: { id: toLocationId }, include: { zone: true } }),
     prisma.character.findUnique({
       where: { id: characterId },
-      select: { id: true, discordUserId: true, locationId: true, status: true },
+      select: {
+        id: true,
+        name: true,
+        discordUserId: true,
+        locationId: true,
+        status: true,
+        concealed: true,
+        age: true,
+        gender: true,
+      },
     }),
   ]);
   if (!character?.discordUserId || !toLocation) return;
   const discordUserId = character.discordUserId;
 
-  await swapRole(discordUserId, fromLocation?.discordRoleId ?? null, toLocation.discordRoleId ?? null, "location");
+  await swapLocationOverwrite(
+    discordUserId,
+    fromLocation?.discordChannelId ?? null,
+    toLocation.discordChannelId ?? null,
+  );
+
+  await announceGateCrossing(prisma, character, fromLocationId, toLocation).catch((err) =>
+    console.error(`Move: gate announcement failed for ${characterId}:`, err.message ?? err),
+  );
 
   if (fromLocation?.zoneId !== toLocation.zoneId) {
     await swapRole(discordUserId, fromLocation?.zone?.discordRoleId ?? null, toLocation.zone?.discordRoleId ?? null, "zone");

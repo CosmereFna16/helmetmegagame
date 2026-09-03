@@ -6,6 +6,8 @@ const {
   CHARACTER_SELECT,
 } = require("@lifeweb/db/lib/locationTravel");
 const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove");
+const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
+const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 
 // The gateway half of the Travel flow. Every rule and every database write
@@ -16,8 +18,9 @@ const { sendDm } = require("@lifeweb/db/lib/dm");
 // Custom ids, all "loc:"-namespaced (COMMANDS.md): loc:open (the #turns
 // console button, unchanged since the zone rework and baked into consoles
 // already posted), loc:pick, loc:drag:{locationId}, loc:confirm:{locationId},
-// loc:cancel. The anchor buttons loc:who / loc:secret / loc:converse are
-// defined in db/lib/locationAnchorRow.js, because the sync posts them.
+// loc:cancel. The anchor buttons loc:who / loc:secret / loc:converse, and
+// loc:gate:{linkId} for a modular gate, are defined in
+// db/lib/locationAnchorRow.js, because the sync posts them.
 
 // Discord's hard cap on select-menu options, and on max_values with them.
 const MENU_OPTION_LIMIT = 25;
@@ -184,19 +187,36 @@ async function performMove(character, targetLocation, dragged = []) {
   return result;
 }
 
-// A rejoining player comes back with every role stripped by Discord, so this
-// is a pure re-grant with nothing to move away from — the same shape Revive
-// uses (CHARACTERS.md §5b). Gateway-side because guildMemberAdd already
-// holds the member.
+// A rejoining player comes back with every role stripped by Discord AND with
+// their Location overwrite swept by the guildMemberRemove path, so this is a
+// pure re-grant with nothing to move away from — the same shape Revive uses
+// (CHARACTERS.md §5b). Gateway-side because guildMemberAdd already holds the
+// member; the Location half is REST, because an overwrite is a channel edit
+// rather than a member edit.
 async function restoreStandingRoles(member, character) {
-  for (const [roleId, label] of [
-    [character.location?.discordRoleId, character.location?.name ?? "location"],
-    [character.zone?.discordRoleId, character.zone?.name ?? "zone"],
-  ]) {
-    if (!roleId) continue;
+  const zoneRoleId = character.zone?.discordRoleId ?? null;
+  if (zoneRoleId) {
     await member.roles
-      .add(roleId)
-      .catch((err) => console.error(`Failed to grant ${member.id} the ${label} role:`, err.message));
+      .add(zoneRoleId)
+      .catch((err) =>
+        console.error(
+          `Failed to grant ${member.id} the ${character.zone?.name ?? "zone"} role:`,
+          err.message,
+        ),
+      );
+  }
+
+  const channelId = character.location?.discordChannelId ?? null;
+  if (channelId) {
+    await putChannelOverwrite(channelId, member.id, {
+      allow: String(LOCATION_MEMBER_ALLOW),
+      type: 1,
+    }).catch((err) =>
+      console.error(
+        `Failed to reopen ${character.location?.name ?? "location"} to ${member.id}:`,
+        err.message,
+      ),
+    );
   }
 }
 

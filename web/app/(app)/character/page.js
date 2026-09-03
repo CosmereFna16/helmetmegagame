@@ -3,6 +3,7 @@ import { peopleHere } from "@/lib/peopleHere";
 import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/lib/lessons";
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
 import { accessibleRooms } from "@lifeweb/db/lib/roomAccess";
+import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
@@ -587,29 +588,22 @@ export default async function CharacterPage() {
   const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
 
   // Where you may walk someone: the neighbours of YOUR OWN location, the same
-  // edge an ordinary walk uses. Each option carries its zone so the dialog can
-  // warn that the hop crosses one.
+  // edge an ordinary walk uses, gated the same way. travelOptions drops the
+  // hidden ways this character holds no key to, and `passable` drops the
+  // locked and the shut — a walk-someone dialog has no room to explain a
+  // refusal, so it only ever offers a hop that will actually work. Each
+  // option carries its zone so the dialog can warn that the hop crosses one.
   const moveLocations = character.locationId
-    ? (
-        (
-          await prisma.location.findUnique({
-            where: { id: character.locationId },
-            select: {
-              connectsTo: {
-                select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
-                orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
-              },
-            },
-          })
-        )?.connectsTo ?? []
-      ).map((l) => ({
-        id: l.id,
-        name: l.name,
-        zoneName: l.zone?.name ?? null,
-        // The UI says "crosses into Fortress" only for an edge that leaves
-        // the zone you're standing in.
-        crossesZone: l.zoneId !== character.zoneId,
-      }))
+    ? (await travelOptions(prisma, character, character.locationId))
+        .filter((row) => row.passable)
+        .map((row) => ({
+          id: row.location.id,
+          name: row.location.name,
+          zoneName: row.location.zone?.name ?? null,
+          // The UI says "crosses into Fortress" only for an edge that leaves
+          // the zone you're standing in.
+          crossesZone: row.crossesZone,
+        }))
     : [];
 
   // Only fetched for someone who holds a bird. Recipient list is EVERY

@@ -14,9 +14,10 @@ const path = require("node:path");
 const TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.DISCORD_GUILD_ID;
 
-// The four zone categories. Everything inside them is a scene; everything
-// outside (Gameplay, GM, Radio, Text Channels) is deliberately untouched.
-const RP_CATEGORIES = ["Town", "Fortress", "Windlands", "Caves"];
+// The zone categories. Everything inside them is a scene; everything outside
+// (Gameplay, GM, Radio, Text Channels) is deliberately untouched. "Underground"
+// is the group category that Caves and Depths share.
+const RP_CATEGORIES = ["Town", "Fortress", "Forest", "East Forests", "Marshes", "Underground"];
 
 const P = {
   ADD_REACTIONS: 1n << 6n,

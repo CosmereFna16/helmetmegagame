@@ -169,13 +169,20 @@ Sometimes Discord may take a few seconds to update your message with the bot's v
 
 ### Channels And Locations
 
-There are six Zones in Bascinet:
-- The Fortress  
-- The Town  
-- The Windlands  
-- The Caves (3 separate Zones)
+There are seven Zones in Bascinet:
+- The Fortress
+- The Town
+- The Forest
+- The East Forests
+- The Marshes
+- The Caves
+- The Depths
 
 Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move. ‡
+
+Out in the wild, Locations are named after their Zone and a number — Forest 7, Depths 3. That is deliberate. One stretch of woods is not signposted differently from the next, and learning which is which is something you do by walking them. ‡
+
+Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all. ‡
 
 Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons. ‡
 | Channel | What it's for |
@@ -461,8 +468,8 @@ Your character may die. Several of your characters may die. Luckily, that doesn'
 
 When your character dies:
 
-- Their body stays where it fell. Their ⬢ and anything portable they carried can be **looted**, and the body can be moved elsewhere or buried. What can't be carried off a corpse — a house, a workshop, something grafted into them — stays with them.
+- Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a workshop, something grafted into them — stays with them. ‡
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
 - As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary`, a Location channel or a public Room and the bot will post a haunting line there. ‡ That's your only voice, and it's a reminder to others that your body remains unburied.
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
-- The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone standing over the body can do so). A buried body can no longer be looted or moved.
+- The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you. ‡

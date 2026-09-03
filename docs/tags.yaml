@@ -1507,6 +1507,15 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  mountaineer:
+    name: Mountaineer
+    category: skills
+    teachable: true
+    description: "You can climb mountains, granting you access to certain locations. ‡"
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
   artist:
     name: Artist
     category: skills
@@ -4079,6 +4088,15 @@ tags:
     purchasableAfterStart: false
     visible: false
     requiredTag: brigand
+
+  elevator-key:
+    name: Elevator Key
+    category: items
+    group: items-gear
+    description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
+    pointCost: 0
+    tradeable: true
+    purchasable: false
 
   the-barons-key:
     name: "The Baron's Key"

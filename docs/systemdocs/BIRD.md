@@ -57,13 +57,12 @@ Three more disclosures are closed off the same way:
 
 ## 3. Where a bird will not go
 
-Only four zones are addressable: **Town, Fortress, Windlands, Caverns**. The
-Railroad and the Aberrant Pits are out, and so is the Caves group zone, which
-nobody stands in anyway (`MAP.md` §1).
+Only the five above-ground zones are addressable: **Town, Fortress, Forest,
+East Forests, Marshes**. Caves and Depths are out, and so is the Underground
+group zone, which nobody stands in anyway (`MAP.md` §1).
 
-**Both directions.** You cannot send a letter into the deep caves, and you
-cannot send one out of them. One-way would make the Railroad a hiding place
-with a mail service.
+**Both directions.** You cannot send a letter underground, and you cannot send
+one out. One-way would make the Depths a hiding place with a mail service.
 
 `db/lib/bird.js#birdZones` is the only place that rule lives; the picker and
 the server action's re-check both read it.

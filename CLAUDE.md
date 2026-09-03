@@ -449,8 +449,8 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | Role | Source | What it gates |
 |---|---|---|
 | **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`/`#intercom`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
-| **Location role** | `Location.discordRoleId`, one per Location ("Location: Square"), created by `db:sync-zones` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change (`db/lib/locationMove.js`); reconciled by the channel doctor. |
-| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone and Location roles** instead (`CHANNELS.md` §3). |
+| **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
+| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
@@ -461,8 +461,8 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 One more gate exists that is **not** a Discord role, and it's the only soft
 one in the app. `GmAssignment` (one row per seat, keyed on the pair
 `discordUserId` + `zoneId`, set from `/gm/gamemasters`) seats a zone-GM over
-one or more of the four **seat** zones — Town, Fortress, Windlands, Caves,
-never one of the three cave levels. All it does is decide which zones that GM's
+one or more of the six **seat** zones — Town, Fortress, Forest, East Forests,
+Marshes, Underground — never one of the two cave levels. All it does is decide which zones that GM's
 tables *open* on. No query is scoped by it, and no row is hidden — a Move
 crosses zones by nature, so hiding rows would break the job. Every other row in
 the table above is real enforcement; this one is just convenience. Read

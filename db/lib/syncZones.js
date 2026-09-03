@@ -40,12 +40,12 @@ const {
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,
-  locationRoleName,
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
-const { locationAnchorRow } = require("./locationAnchorRow");
+const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
 const { roomStarterRow } = require("./roomStarterRow");
 const { entriesOf } = require("./yamlEntries");
+const { orderEndpoints, linksFor, endpoints } = require("./locationGraph");
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
@@ -150,21 +150,23 @@ function parseZonesYaml(doc) {
   // connections: pairs of "zone/location".
   const locationByRef = new Map(locationEntries.map((l) => [`${l.zoneSlug}/${l.slug}`, l]));
   const connections = [];
-  for (const pair of doc?.connections ?? []) {
-    if (!Array.isArray(pair) || pair.length !== 2) {
-      problems.push(`connections entry ${JSON.stringify(pair)} is not a pair`);
-      continue;
-    }
-    const resolved = pair.map((ref) => {
-      const location = locationByRef.get(String(ref));
-      if (!location) problems.push(`connections references unknown location "${ref}" (want zone/location)`);
-      return location?.slug ?? null;
-    });
-    if (resolved.every(Boolean)) connections.push(resolved);
+  for (const raw of doc?.connections ?? []) {
+    const entry = parseConnection(raw, locationByRef, problems);
+    if (entry) connections.push(entry);
+  }
+
+  // Two entries for one pair would each try to claim the same unique row,
+  // and the later one would silently win. Almost always a copy-paste of a
+  // mirrored edge that the format no longer wants stated twice.
+  const seenPairs = new Set();
+  for (const entry of connections) {
+    const key = [entry.a, entry.b].sort().join(" <-> ");
+    if (seenPairs.has(key)) problems.push(`connections lists ${key} twice`);
+    seenPairs.add(key);
   }
 
   // A location with no road is legal but almost always a typo.
-  const connected = new Set(connections.flat());
+  const connected = new Set(connections.flatMap((c) => [c.a, c.b]));
   for (const location of locationEntries) {
     if (!connected.has(location.slug)) {
       warnings.push(`location "${location.zoneSlug}/${location.slug}" appears in no connections entry — it is unreachable`);
@@ -175,6 +177,128 @@ function parseZonesYaml(doc) {
     throw new Error(`docs/zones.yaml is invalid:\n  - ${problems.join("\n  - ")}`);
   }
   return { zoneEntries, locationEntries, roomEntries, connections, warnings };
+}
+
+// One `connections:` entry. Two forms, both legal:
+//
+//   - [town/square, town/cathedral]              a plain open road
+//   - pair: [fortress/gatehouse, fortress/road]  anything else
+//     announce: true_name | concealed
+//     locked: <tag-slug>
+//     hidden: <tag-slug>
+//     modular: { roles: [...], tags: [...], open: true }
+//
+// The bare-pair form is kept because most of the map is plain roads, and a
+// mapping for each of them would triple the file for nothing.
+//
+// `locked` and `hidden` are the same requirement with different visibility,
+// so they share one column and `hidden` sets the flag as well. Tag and Role
+// slugs are NOT validated here: tags and roles sync after zones (SYNC.md's
+// working order), so an FK or a catalog lookup would make the master
+// unloadable. db:doctor validates them instead — the same trade the room
+// `access:` list already makes.
+const ANNOUNCE_BY_KEYWORD = new Map([
+  ["true_name", "TRUE_NAME"],
+  ["gate", "TRUE_NAME"],
+  ["concealed", "CONCEALED"],
+  ["unmanned", "CONCEALED"],
+]);
+
+const CONNECTION_KEYS = new Set(["pair", "announce", "locked", "hidden", "modular"]);
+
+function parseConnection(raw, locationByRef, problems) {
+  const isPair = Array.isArray(raw);
+  const spec = isPair ? { pair: raw } : raw;
+  if (!spec || typeof spec !== "object") {
+    problems.push(`connections entry ${JSON.stringify(raw)} is neither a pair nor a mapping`);
+    return null;
+  }
+  if (!isPair) {
+    for (const key of Object.keys(spec)) {
+      if (!CONNECTION_KEYS.has(key)) {
+        problems.push(`connections entry has unknown key "${key}" (want ${[...CONNECTION_KEYS].join(", ")})`);
+      }
+    }
+  }
+
+  const pair = spec.pair;
+  if (!Array.isArray(pair) || pair.length !== 2) {
+    problems.push(`connections entry ${JSON.stringify(raw)} is not a pair`);
+    return null;
+  }
+  const resolved = pair.map((ref) => {
+    const location = locationByRef.get(String(ref));
+    if (!location) problems.push(`connections references unknown location "${ref}" (want zone/location)`);
+    return location?.slug ?? null;
+  });
+  if (!resolved.every(Boolean)) return null;
+  if (resolved[0] === resolved[1]) {
+    problems.push(`connections entry ${JSON.stringify(pair)} joins a location to itself`);
+    return null;
+  }
+
+  const entry = {
+    a: resolved[0],
+    b: resolved[1],
+    announce: "NONE",
+    requiredTagSlug: null,
+    hidden: false,
+    modular: false,
+    isOpen: true,
+    openerRoleSlugs: [],
+    openerTagSlugs: [],
+  };
+
+  if (spec.announce != null) {
+    const announce = ANNOUNCE_BY_KEYWORD.get(String(spec.announce).toLowerCase());
+    if (!announce) {
+      problems.push(
+        `connections ${entry.a} <-> ${entry.b} has announce "${spec.announce}" (want ${[...ANNOUNCE_BY_KEYWORD.keys()].join(", ")})`,
+      );
+    } else {
+      entry.announce = announce;
+    }
+  }
+
+  if (spec.locked != null && spec.hidden != null) {
+    problems.push(`connections ${entry.a} <-> ${entry.b} sets both locked and hidden — hidden already requires its tag`);
+  }
+  for (const [key, hides] of [["locked", false], ["hidden", true]]) {
+    if (spec[key] == null) continue;
+    if (typeof spec[key] !== "string" || !spec[key].trim()) {
+      problems.push(`connections ${entry.a} <-> ${entry.b} has a non-slug ${key}: ${JSON.stringify(spec[key])}`);
+      continue;
+    }
+    entry.requiredTagSlug = spec[key].trim();
+    entry.hidden = hides;
+  }
+
+  if (spec.modular != null) {
+    const modular = spec.modular === true ? {} : spec.modular;
+    if (typeof modular !== "object" || Array.isArray(modular)) {
+      problems.push(`connections ${entry.a} <-> ${entry.b} has a modular that is not a mapping`);
+    } else {
+      const slugList = (value, label) => {
+        if (value == null) return [];
+        if (!Array.isArray(value) || value.some((v) => typeof v !== "string")) {
+          problems.push(`connections ${entry.a} <-> ${entry.b} modular.${label} is not a list of slugs`);
+          return [];
+        }
+        return value.map((v) => v.trim()).filter(Boolean);
+      };
+      entry.modular = true;
+      entry.openerRoleSlugs = slugList(modular.roles, "roles");
+      entry.openerTagSlugs = slugList(modular.tags, "tags");
+      entry.isOpen = modular.open !== false;
+      if (entry.openerRoleSlugs.length === 0 && entry.openerTagSlugs.length === 0) {
+        problems.push(
+          `connections ${entry.a} <-> ${entry.b} is modular but names no roles or tags — nobody could ever open it`,
+        );
+      }
+    }
+  }
+
+  return entry;
 }
 
 function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems) {
@@ -215,6 +339,12 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
 // The overwrite targets this sync may DELETE. @everyone is deliberately NOT
 // in the set: its ViewChannel deny is the overwrite the whole privacy model
 // rests on, so no future spec edit can strip a channel's privacy here.
+//
+// Neither is any MEMBER target, and that is now load-bearing rather than
+// incidental. A Location channel is opened to whoever is standing in it by a
+// per-member overwrite that no spec names, so a wildcard here — or a member
+// id finding its way into roleIds — would evict every player from the map on
+// the next sync. Only role ids belong in this set.
 function managedOverwriteIds(roleIds) {
   return new Set(
     [process.env.DISCORD_GM_ROLE_ID, SPECTATOR_ROLE_ID, cursedRoleId(), ...roleIds].filter(Boolean),
@@ -398,13 +528,33 @@ async function syncRoomThread(prisma, room, location, snapshot) {
   return "updated";
 }
 
+// The modular gates on one location, shaped for locationGateRow. Reads the
+// graph rather than taking it from the sync's own state, because the button
+// handler refreshes an anchor too and has no sync state to hand.
+async function gatesFor(prisma, locationId) {
+  const links = await linksFor(prisma, locationId);
+  return links
+    .filter((link) => link.modular)
+    .map((link) => ({
+      linkId: link.id,
+      isOpen: link.isOpen,
+      farName: endpoints(link, locationId).far.name,
+    }))
+    .sort((x, y) => x.farName.localeCompare(y.farName));
+}
+
 // The pinned anchor message in a location's channel. Hash-gated on body +
 // components; a message a GM deleted by hand is reposted.
+//
+// A gate's open/shut state is part of the components, so it is part of the
+// hash: flipping a gate changes the hash, which is what makes the button
+// re-render itself rather than sit there lying about its own state.
 async function syncLocationAnchor(prisma, location, rooms) {
   if (!location.discordChannelId) return "skipped";
 
   const body = buildAnchorBody(location, rooms);
-  const components = [locationAnchorRow(location.id)];
+  const components = [locationAnchorRow(location.id), await gatesFor(prisma, location.id).then(locationGateRow)]
+    .filter(Boolean);
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
   if (location.anchorMessageId && location.anchorHash === hash) return "unchanged";
@@ -646,24 +796,54 @@ async function syncZonesFromYaml(prisma) {
     roomsBySlug.set(entry.slug, room);
   }
 
-  // Pass 1d: the travel graph — both directions explicit.
-  const neighbors = new Map();
-  for (const [a, b] of connections) {
-    if (!neighbors.has(a)) neighbors.set(a, new Set());
-    if (!neighbors.has(b)) neighbors.set(b, new Set());
-    neighbors.get(a).add(b);
-    neighbors.get(b).add(a);
-  }
-  for (const location of locationsBySlug.values()) {
-    const set = [...(neighbors.get(location.slug) ?? [])].map((slug) => ({
-      id: locationsBySlug.get(slug).id,
-    }));
-    await prisma.location.update({ where: { id: location.id }, data: { connectsTo: { set } } });
+  // Pass 1d: the travel graph. ONE LocationLink row per undirected edge,
+  // endpoints in ascending slug order (db/lib/locationGraph.js#orderEndpoints
+  // is the shared rule), so an attribute cannot disagree between the two
+  // directions.
+  //
+  // The YAML is the master, so an edge it no longer lists is deleted. The one
+  // thing NOT taken from the YAML on an existing row is `isOpen`: a modular
+  // gate someone shut in play stays shut across a re-sync, or every sync
+  // would silently reopen the Gatehouse. `modular.open` is therefore the
+  // value a link is BORN with, not one the sync re-asserts.
+  const wantedLinkKeys = new Set();
+  for (const entry of connections) {
+    const locA = locationsBySlug.get(entry.a);
+    const locB = locationsBySlug.get(entry.b);
+    const { aId, bId } = orderEndpoints(entry.a, locA.id, entry.b, locB.id);
+    wantedLinkKeys.add(`${aId}:${bId}`);
+
+    const data = {
+      announce: entry.announce,
+      requiredTagSlug: entry.requiredTagSlug,
+      hidden: entry.hidden,
+      modular: entry.modular,
+      openerRoleSlugs: entry.openerRoleSlugs,
+      openerTagSlugs: entry.openerTagSlugs,
+    };
+    await prisma.locationLink.upsert({
+      where: { aId_bId: { aId, bId } },
+      update: data,
+      create: { aId, bId, ...data, isOpen: entry.isOpen },
+    });
   }
 
-  // Pass 2a: roles — one per presence zone, one per location. Created when
+  const staleLinks = await prisma.locationLink.findMany({ select: { id: true, aId: true, bId: true } });
+  for (const link of staleLinks) {
+    if (wantedLinkKeys.has(`${link.aId}:${link.bId}`)) continue;
+    await prisma.locationLink.delete({ where: { id: link.id } });
+    report.linksPruned = (report.linksPruned ?? 0) + 1;
+  }
+  report.links = wantedLinkKeys.size;
+
+  // Pass 2a: roles — one per presence zone, and nothing else. Created when
   // null OR the recorded role was deleted by hand (doctor reports it, this
   // repairs it).
+  //
+  // Locations deliberately get NO role. 56 of them would have cost 56 of the
+  // guild's 250 roles on top of one personal role per living character; a
+  // Location channel is opened by a per-member overwrite instead, written by
+  // db/lib/locationMove.js and reconciled by the doctor's occupancy check.
   const liveRoles = new Set((await getGuildRoles()).map((r) => r.id));
   for (const zone of zonesBySlug.values()) {
     if (zone.kind === "CAVE_GROUP") continue;
@@ -672,13 +852,6 @@ async function syncZonesFromYaml(prisma) {
     await prisma.zone.update({ where: { id: zone.id }, data: { discordRoleId: role.id } });
     zone.discordRoleId = role.id;
     report.rolesCreated.push(zoneRoleName(zone));
-  }
-  for (const location of locationsBySlug.values()) {
-    if (location.discordRoleId && liveRoles.has(location.discordRoleId)) continue;
-    const role = await ensureRole(locationRoleName(location), liveRoles);
-    await prisma.location.update({ where: { id: location.id }, data: { discordRoleId: role.id } });
-    location.discordRoleId = role.id;
-    report.rolesCreated.push(locationRoleName(location));
   }
 
   // Pass 2b: categories + channels, create-only. Groups before levels.
@@ -722,10 +895,7 @@ async function syncZonesFromYaml(prisma) {
 
   // Pass 3: reconcile everything already provisioned. Freshly provisioned
   // targets skip the overwrite reconcile but still get threads + anchors.
-  const managed = managedOverwriteIds([
-    ...[...zonesBySlug.values()].map((z) => z.discordRoleId),
-    ...[...locationsBySlug.values()].map((l) => l.discordRoleId),
-  ]);
+  const managed = managedOverwriteIds([...zonesBySlug.values()].map((z) => z.discordRoleId));
 
   for (const zone of zonesBySlug.values()) {
     if (zone.justProvisioned) continue;
@@ -793,8 +963,9 @@ async function syncZonesFromYaml(prisma) {
   );
 
   // Pass 4: prune. Rooms first (threads under location channels), then
-  // locations (channel, role, row — characters standing there are set null
-  // and the doctor reports them), then zones.
+  // locations (channel and row — characters standing there are set null and
+  // the doctor reports them; deleting the channel takes every occupant
+  // overwrite with it), then zones.
   const staleRooms = await prisma.room.findMany({ where: { slug: { notIn: [...roomsBySlug.keys()] } } });
   for (const room of staleRooms) {
     if (room.discordThreadId) await deleteThread(room.discordThreadId);
@@ -807,7 +978,6 @@ async function syncZonesFromYaml(prisma) {
   });
   for (const location of staleLocations) {
     if (location.discordChannelId) await deleteChannel(location.discordChannelId);
-    if (location.discordRoleId) await deleteGuildRole(location.discordRoleId);
     await prisma.location.delete({ where: { id: location.id } });
     report.locationsPruned.push(location.name);
   }
@@ -832,9 +1002,25 @@ async function syncZonesFromYaml(prisma) {
   return report;
 }
 
+// Reposts one location's anchor from current state. The gate button handler
+// calls this after flipping a link, on BOTH endpoints — the gate has a button
+// on each side and shutting it from one must not leave the other reading
+// "Open".
+async function refreshLocationAnchor(prisma, locationId) {
+  const location = await prisma.location.findUnique({ where: { id: locationId } });
+  if (!location) return "skipped";
+  const rooms = await prisma.room.findMany({
+    where: { locationId },
+    orderBy: { sortOrder: "asc" },
+  });
+  return syncLocationAnchor(prisma, location, rooms);
+}
+
 module.exports = {
   syncZonesFromYaml,
+  parseZonesYaml,
   reconcileChannelOverwrites,
   managedOverwriteIds,
   buildAnchorBody,
+  refreshLocationAnchor,
 };

@@ -6,10 +6,12 @@ game side.
 
 ## 1. The model
 
-There are two levels now. A **`Zone`** (Town, Fortress, Windlands, Caves) is
-a region — a category, and for a `SURFACE` zone a `#summary` channel. A
-**`Location`** is where a character actually **stands**: one text channel
-under its zone's category, opened by its own `Location: {Name}` role.
+There are two levels now. A **`Zone`** (Town, Fortress, Forest, East Forests,
+Marshes, and the two underground levels Caves and Depths) is a region — a
+category, and for a `SURFACE` zone a `#summary` channel. A **`Location`** is
+where a character actually **stands**: one text channel under its zone's
+category, opened by a **per-member permission overwrite** rather than a role
+of its own (`CHANNELS.md` §3 for why).
 `Character.locationId` is the authoritative "where is this character"
 answer; `Character.zoneId` is a **denormalized mirror** of
 `location.zoneId` — every writer of `locationId` writes both, and the
@@ -21,9 +23,17 @@ semantics, including the format). Zones still come in three kinds:
 
 | `kind` | Zones | Standable itself? | Discord |
 |---|---|---|---|
-| `SURFACE` | Town, Fortress, Windlands | no — its Locations are | category + `#summary`; each Location its own channel |
-| `CAVE_GROUP` | Caves | no | the shared "Caves" category only |
-| `CAVE_LEVEL` | Caverns, Railroad, Aberrant Pits | no — its Locations are | no channels of its own; its Locations parent onto the Caves category |
+| `SURFACE` | Town, Fortress, Forest, East Forests, Marshes | no — its Locations are | category + `#summary`; each Location its own channel |
+| `CAVE_GROUP` | Underground | no | the shared "Underground" category only |
+| `CAVE_LEVEL` | Caves, Depths | no — its Locations are | no channels of its own; its Locations parent onto the Underground category |
+
+`Underground` exists only to be that parent. The kinds are kept rather than
+promoting Caves and Depths to surface zones because the Caving Die fires on a
+`CAVE_LEVEL` arrival and a `CAVE_LEVEL` needs a `CAVE_GROUP` above it; sharing
+one parent also means Caves and Depths share one GM seat, which is what the old
+Caves seat already did across three levels. The consequence to know about is
+that neither has a `#summary` of its own, so **a gate underground would have
+nowhere to announce** — none is drawn there today.
 
 A zone itself is never a place you can stand in any more — only a Location
 is. Every presence zone (`SURFACE` or `CAVE_LEVEL`) must list at least one
@@ -40,17 +50,70 @@ of its `starting_zone`.
 
 ## 2. The adjacency graph
 
-`connections:` in `docs/zones.yaml` is a flat list of `zone/location` pairs,
-synced into `Location.connectsTo` **both directions explicitly**, so only
-`connectsTo` is ever read — the graph is over Locations now, not zones, and
-it can span zones freely (Town's Forest connects straight to the Fortress's
-Gatehouse).
+`connections:` in `docs/zones.yaml` is the master. Each entry becomes **one
+`LocationLink` row** — one row per undirected edge, not a mirrored pair, with
+`aId`/`bId` held in ascending Location slug order. That is what makes an
+attribute impossible to disagree between the two directions, and a modular gate
+impossible to leave open one way and shut the other. The graph is over
+Locations, not zones, and spans zones freely.
 
-`performLocationMove` refuses a hop not in the graph with "You can't get
-there directly from here," and refuses standing still with "You're already
-there." A presence zone with no Location reachable from anywhere is legal in
-principle (a one-way starting spot) but almost always a typo — not checked
-by the sync today, unlike the old zone-level warning.
+**Nothing reads `LocationLink` directly.** `db/lib/locationGraph.js` is the one
+module that knows an edge could have your location on either side:
+
+| Function | Use |
+|---|---|
+| `linksFor(prisma, locationId)` | every edge touching a location |
+| `linkBetween(prisma, a, b)` | the one edge between two locations, either way round |
+| `crossingCheck(link, { tagSlugs })` | the pure verdict: `{ listed, passable, refusal }` |
+| `canToggleGate(link, { tagSlugs, roleSlug })` | may this character work a modular gate |
+| `resolveNeighbors(prisma, character, locationId)` | every destination, gated and sorted |
+| `travelOptions(…)` | the same, filtered to what may be *shown* |
+
+`performLocationMove` refuses a hop with no edge — or one the character may not
+use — with the verdict `crossingCheck` returns, and refuses standing still with
+"You're already there." An unreachable Location is a sync **warning**, not an
+error.
+
+### 2a. Typed edges
+
+An edge is not just "you may walk this." Six behaviours, and they **compose** —
+the Gatehouse-to-Road edge is a manned gate *and* a modular one at once, which
+is why `LocationLink` carries fields rather than one enum.
+
+| Behaviour | Column | Effect |
+|---|---|---|
+| Open | — | the default |
+| Gate | `announce: TRUE_NAME` | posts the crosser's **real name** into the destination zone's `#summary`. `/conceal` does not help: there is a watchman here reading papers |
+| Unmanned gate | `announce: CONCEALED` | posts only what a passer-by would have seen — "An old woman has entered the Gate" |
+| Locked | `requiredTagSlug` | crossing needs the tag, and the way is **listed**, so a player sees the door and learns what opens it |
+| Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
+| Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on **both** endpoints' anchors; impassable while shut |
+
+Two things about the gating that are easy to get wrong:
+
+- **`listed` is weaker than `passable`.** A locked edge is listed and refuses.
+  A hidden one is neither. Any surface that renders a list must filter on
+  `listed`; the mover checks `passable`. `travelOptions` does the first for you.
+- **The refusal is re-derived server-side, every time.** A picker that dropped
+  an option is a hint; `performLocationMove` and the web's `MOVE_CHARACTER`
+  both run `crossingCheck` again on their own, because a server action is a
+  public endpoint and a client can post any location id it likes.
+
+A gate's **announcement is posted from the Discord half**
+(`applyLocationMoveSideEffects`), derived from the edge rather than passed in,
+so every writer of `Character.locationId` gets it for free and a GM's teleport
+onto a non-adjacent Location announces nothing. It is a plain bot message, not
+`postAsCharacter` — a webhook post under the traveller's own name and face
+would defeat the whole point of the unmanned form.
+
+The **modular button** is `loc:gate:{linkId}` on the Location anchor
+(`db/lib/locationAnchorRow.js#locationGateRow`). Authority is re-checked in the
+handler against the edge's opener Roles and tags; the flip is a conditional
+`updateMany` carrying the state the clicker saw, so two watchmen clicking at
+once means one close and one "somebody just did." Both endpoints' anchors are
+reposted, because the gate has a button on each side. **A re-sync never reopens
+a gate somebody shut in play** — `modular.open` in the YAML is the value a link
+is *born* with, not one the sync re-asserts.
 
 ## 3. What a move costs
 
@@ -81,7 +144,7 @@ exactly like the old zone-level travel did.** It's written as a real,
 auto-resolved `Action` (`type: MOVE`, `status: CONFIRMED`,
 `moveReviewStatus: SOLVED`, `gmNotes: "auto:zone_change"`), landing in
 `/gm/turns`' Moves history rather than the pending queue. Its `zoneId` is the
-**seat** zone of the destination (`seatZoneIdFor`) — a hop onto the Railroad
+**seat** zone of the destination (`seatZoneIdFor`) — a hop into the Depths
 files work the Caves GM can see. **Acting and crossing are mutually
 exclusive within a turn, in either order** — the enforcement is
 `@@unique([characterId, turnId])` on `Action`, checked inside the same
@@ -160,9 +223,10 @@ The drawn Ravenheart plate, its pointcrawl overlay and the depth strip
 (`web/app/(app)/map/*`) were retired along with per-zone-only travel — a
 player-facing graph over dozens of Locations spanning multiple zones needs a
 different UI than four rhombus nodes, and nobody's built its replacement
-yet. `map: { polygon, label }` in `docs/zones.yaml` is still synced onto
-`Zone.mapPolygon`/`mapLabelX`/`mapLabelY` — **dormant data**, read by
-nothing — left in place for the panel's eventual return.
+yet. The dormant `map: { polygon, label }` block is gone from
+`docs/zones.yaml` as well: it described the retired plate's four rhombi, and
+the geography it described no longer exists. The
+`Zone.mapPolygon`/`mapLabelX`/`mapLabelY` columns remain, now always null.
 
 ## 7. Where the code lives
 
@@ -175,4 +239,5 @@ nothing — left in place for the panel's eventual return.
 | `db/lib/seatZone.js` | `seatZoneIdFor` — the presence-zone → seat-zone mapping |
 | `db/lib/mounts.js` | `FAST_TRAVEL_SLUGS`, `isMounted`, `fastTravelCapacity` |
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
-| `docs/zones.yaml` | The master: zones, Locations, Rooms, `connections:`, `map:` node anchors (dormant) |
+| `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
+| `docs/zones.yaml` | The master: zones, Locations, Rooms, and `connections:` with its edge types |

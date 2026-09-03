@@ -1,7 +1,14 @@
 // Strips everything that grants a character sight of the game — the zone
-// and location roles, and any per-member channel overwrites (the special channels' grants,
-// plus whatever strays the pre-rework member-overwrite model left behind).
-// Used on death, on guildMemberRemove, and — in bulk — by Restart Game.
+// role, and every per-member channel overwrite: the Location channel they
+// were standing in, the special channels' grants, and any strays. Used on
+// death, on guildMemberRemove, and — in bulk — by Restart Game.
+//
+// The Location channel sweep is load-bearing now rather than tidy-up. A
+// Location wears no Discord role since the overwrite rework, so a dead
+// character's sight of the room they died in is an overwrite, and this is
+// the only thing that takes it away (the doctor's occupancy check is the
+// safety net). allAccessChannelIds() already enumerates every Location
+// channel, which is why the shape below did not have to change.
 //
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
@@ -37,27 +44,21 @@ async function allAccessChannelIds(prisma) {
   return channelIds.filter(Boolean);
 }
 
-// One character's full revoke: every zone AND location role stripped
-// (removing a role the member doesn't hold is a no-op, so all of them cost
-// less than working out which they held from possibly-stale state), then
-// their member overwrites swept from every zone channel and special channel.
+// One character's full revoke: every zone role stripped (removing a role the
+// member doesn't hold is a no-op, so all of them cost less than working out
+// which they held from possibly-stale state), then their member overwrites
+// swept from every Location channel, zone channel and special channel.
 async function revokeAllCharacterAccess(prisma, character) {
   const targetIds = [character.discordUserId, character.discordRoleId].filter(Boolean);
   const failures = [];
   let attempted = 0;
 
   if (character.discordUserId) {
-    const [zoneRoles, locationRoles] = await Promise.all([
-      prisma.zone.findMany({
-        where: { discordRoleId: { not: null } },
-        select: { discordRoleId: true, name: true },
-      }),
-      prisma.location.findMany({
-        where: { discordRoleId: { not: null } },
-        select: { discordRoleId: true, name: true },
-      }),
-    ]);
-    for (const row of [...zoneRoles, ...locationRoles]) {
+    const zoneRoles = await prisma.zone.findMany({
+      where: { discordRoleId: { not: null } },
+      select: { discordRoleId: true, name: true },
+    });
+    for (const row of zoneRoles) {
       attempted += 1;
       try {
         await removeMemberRole(character.discordUserId, row.discordRoleId);
@@ -99,6 +100,7 @@ async function revokeAllCharacterAccess(prisma, character) {
 // Two halves, both bulk-shaped rather than per-character:
 //   1. Role strip: one paginated member-list read, then one removal per
 //      (member × zone role actually held) — never a blind per-character loop.
+//      Zone roles only; a Location grants sight by overwrite, swept below.
 //   2. Overwrite sweep, channel-major: read each channel once, delete only
 //      the member overwrites actually present that belong to the roster.
 //      Same read-then-delete shape as the sync's reconcile, and what keeps a
@@ -116,11 +118,11 @@ async function revokeAccessForCharacters(prisma, characters) {
   let rolesRemoved = 0;
   let failed = 0;
 
-  const [zoneRoles, locationRoles] = await Promise.all([
-    prisma.zone.findMany({ where: { discordRoleId: { not: null } }, select: { discordRoleId: true } }),
-    prisma.location.findMany({ where: { discordRoleId: { not: null } }, select: { discordRoleId: true } }),
-  ]);
-  const zoneRoleIds = new Set([...zoneRoles, ...locationRoles].map((z) => z.discordRoleId));
+  const zoneRoles = await prisma.zone.findMany({
+    where: { discordRoleId: { not: null } },
+    select: { discordRoleId: true },
+  });
+  const zoneRoleIds = new Set(zoneRoles.map((z) => z.discordRoleId));
   if (zoneRoleIds.size > 0) {
     try {
       const members = await listGuildMembers();

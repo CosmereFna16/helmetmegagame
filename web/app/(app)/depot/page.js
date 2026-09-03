@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import {
   prisma,
   MERCHANT_LICENSE_SLUG,
-  DEPOT_ZONE_SLUG,
+  DEPOT_LOCATION_SLUG,
   DEPOT_CREDIT_CAP,
   DEPOT_MAX_QUANTITY,
   creditAvailable,
@@ -43,7 +43,7 @@ export default async function DepotPage() {
       id: true,
       resources: true,
       depotDebt: true,
-      zone: { select: { slug: true } },
+      location: { select: { slug: true } },
     },
   });
   // A superadmin with no licensed character reads the shelf; everyone else
@@ -100,9 +100,9 @@ export default async function DepotPage() {
     .sort((a, b) => a.price - b.price);
 
   // The second gate, and the same one the Lifeweb applies at the tower: the
-  // Depot is a shuttle parked at Customs. He can read the price list from
-  // anywhere; trading needs his boots on that ground.
-  const atDepot = !spectating && character.zone?.slug === DEPOT_ZONE_SLUG;
+  // Depot is a shuttle parked in one room of the caves. He can read the price
+  // list from anywhere; trading needs his boots on that ground.
+  const atDepot = !spectating && character.location?.slug === DEPOT_LOCATION_SLUG;
   const debt = spectating ? 0 : (character.depotDebt ?? 0);
 
   return (

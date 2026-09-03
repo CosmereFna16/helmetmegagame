@@ -129,6 +129,7 @@ zones:
               - Ravenhearter
               - Nobility
               - The Baron's Key
+              - Elevator Key
               - Baron's Scepter
               - Brigandine
               - Sabre
@@ -248,6 +249,7 @@ zones:
               - Courtier
               - Literate
               - Hand's Pin
+              - Elevator Key
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -1164,7 +1166,7 @@ zones:
             difficulty: hard
             multiple: false
             starting_resources: 10
-            starting_zone: caverns
+            starting_zone: caves
             leader: true
             starting_tags:
               - Cart
@@ -1188,7 +1190,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 1
-            starting_zone: caverns
+            starting_zone: caves
             starting_tags: []
             doc_elements:
               - townstarting
@@ -1207,7 +1209,7 @@ zones:
             multiple: true
             weight: unlimited
             starting_resources: 1
-            starting_zone: caverns
+            starting_zone: caves
             starting_tags: [Pale]
             doc_elements: [caving]
           mercenary:
@@ -1223,7 +1225,7 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 4
-            starting_zone: caverns
+            starting_zone: caves
             starting_tags:
               - Melee (Basic)
               - Ranged (Basic)

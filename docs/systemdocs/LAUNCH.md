@@ -35,8 +35,9 @@ Note what the last three mean in practice: after a wipe, player topics **never
 expire** and the doctor **never runs post-turn**, until you re-tick them.
 
 **The wipe resets the playtest lock, and the `#turns` repost is best-effort.**
-`playtestModeEnabled` — the switch that locks the Merchant and every
-Windlands role out of character creation — is reset to `false` by the wipe
+`playtestModeEnabled` — the switch that holds back
+`PLAYTEST_LOCKED_ROLE_SLUGS` and `PLAYTEST_LOCKED_ZONE_NAMES`, both empty
+since the Bascinet 2 rebuild — is reset to `false` by the wipe
 like everything else, so a playtest that wants those locked has to re-tick it
 afterwards. Separately, `finishGameWipe` reposts the `#turns` console for the
 fresh Turn 1 itself, so the channel is no longer left empty on Day 1 — but that
@@ -123,7 +124,7 @@ The order, and why:
     wipe reposts it, but the step is best-effort — restart the bot if the
     channel is empty (§1).
 11. Re-enter Game Config from the screenshot, including **Playtest mode** if
-    you want the Merchant and the Windlands locked, and the three passes that
+    you have named something for it to hold back, and the three passes that
     default to off: message wipe, thread expiry, auto-reconcile.
 12. **Tick "Open to players" last.** A player also needs the player role —
     the two together are "the doors are open" and "you are on the list".

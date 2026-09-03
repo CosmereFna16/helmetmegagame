@@ -14,6 +14,7 @@ const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted } = require("./mounts");
 const { turnDay } = require("./turnFormat");
+const { linkBetween, crossingCheck } = require("./locationGraph");
 
 const CHARACTER_SELECT = {
   id: true,
@@ -81,11 +82,21 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     }
     currentLocation = await prisma.location.findUnique({
       where: { id: character.locationId },
-      include: { zone: true, connectsTo: { where: { id: targetLocation.id }, select: { id: true } } },
+      include: { zone: true },
     });
-    if (!currentLocation || currentLocation.connectsTo.length === 0) {
+    if (!currentLocation) {
       return { ok: false, reason: "You can't get there directly from here." };
     }
+
+    // The edge, and what it lets this character do. A missing edge, a hidden
+    // one they hold no key to, a locked one and a shut modular gate all
+    // refuse here — the picker filters the same verdict, but a client can
+    // post any location id it likes, so this is the check that counts.
+    const link = await linkBetween(prisma, currentLocation.id, targetLocation.id);
+    const gate = crossingCheck(link, {
+      tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+    });
+    if (!gate.passable) return { ok: false, reason: gate.refusal };
   }
 
   // A first placement (no current location) is free — it isn't travel, it's

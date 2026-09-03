@@ -704,10 +704,10 @@ acted: riding is not acting.
 
 **The caves have one mouth for a horse.** Fast travel INTO a cave level is
 allowed — the way in is right off the road — and riding back OUT is allowed
-from the **Caverns** only, since that top level opens onto the surface. A
+from the **Caves** only, since that upper level opens onto the surface. A
 rider anywhere deeper, or one trying to ride between levels, is refused: no
-horse fits the tunnels. So `caverns → town` rides, `caverns → railroad` does
-not, and neither does anything starting in the Railroad or the Aberrant Pits.
+horse fits the tunnels. So `caves → town` rides, `caves → depths` does not,
+and neither does anything starting in the Depths.
 Origin and destination both decide, checked in `fastTravelRequestImpl` before
 the adjacency check so the refusal is the specific one.
 

@@ -24,7 +24,7 @@ export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
 // Roster held back while GameConfig.playtestModeEnabled is on.
 export const PLAYTEST_LOCKED_ROLE_SLUGS = [];
-export const PLAYTEST_LOCKED_ZONE_NAMES = ["Windlands"];
+export const PLAYTEST_LOCKED_ZONE_NAMES = [];
 
 export function isPlaytestLocked({ role, zoneName }) {
   return (

@@ -45,17 +45,17 @@ by `db/lib/zoneChannelSpec.js#zoneChannelSpec` (the zone's category and
 create payloads — and both first-time provisioning and the every-run reconcile
 build from them, so the two can never disagree.
 
-**A zone** (Town, Fortress, Windlands, Caves) is a category and, for a
+**A zone** (Town, Fortress, Forest, East Forests, Marshes, Underground) is a category and, for a
 `SURFACE` zone only, a `#summary` channel:
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
 | `#summary` | text | Abstracted, big-picture play. Adjudication results and Default Move summaries land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
 
-The `CAVE_GROUP` row (Caves) owns the shared category and nothing else — no
-`#summary`, no role. Each `CAVE_LEVEL` (Caverns, Railroad, Aberrant Pits) has
-no channels of its own either; its Locations' channels parent straight onto
-the Caves category, interleaved across levels in
+The `CAVE_GROUP` row (Underground) owns the shared category and nothing else —
+no `#summary`, no role. Each `CAVE_LEVEL` (Caves, Depths) has no channels of
+its own either; its Locations' channels parent straight onto the Underground
+category, interleaved across levels in
 `level.sortOrder * 10 + location.sortOrder` order, so the three levels' rooms
 sit together the way `docs/zones.yaml` lists them rather than clumped by
 level.
@@ -65,7 +65,7 @@ named after its slug, parented to its zone's category (or the Caves category
 for a cave-level Location). Its topic is the Location's `description`
 (truncated to Discord's 1024-character cap). Top-level messages in it are the
 Location's open street; its Rooms (§4) are threads under it that only the bot
-may create. It carries its own access role, `Location: {Name}` (§3).
+may create. It is opened by a per-member overwrite, not a role (§3).
 
 **Creation is one-time; a lot is reconciled every run.** The sync only creates
 a channel/category/role whose id column is null, and channel *names* are
@@ -86,16 +86,39 @@ repair path for a zone or Location whose channels drifted.
 
 ## 3. Visibility: two access roles, zone and Location
 
-Every channel is hidden from `@everyone` and opened by one of **two** roles
-the sync creates: a **zone role**, `Zone: {Name}` (e.g. `Zone: Town`), held by
-every living character standing anywhere in that zone, and a **Location
-role**, `Location: {Name}` (e.g. `Location: Square`), held by exactly the
-living characters standing in that one Location. The zone role opens
-`#summary`, `#turns` (§3a) and the narrowcast channels (§7); the Location role
-opens that Location's own channel — and therefore its Rooms, which inherit
-channel visibility the way any thread does. A character always holds exactly
-one of each while alive. Travel swaps both roles as needed (§ below); nothing
+Every channel is hidden from `@everyone` and opened by one of **two**
+different mechanisms, and the difference matters.
+
+A **zone role**, `Zone: {Name}` (e.g. `Zone: Town`), is a real Discord role,
+created by the sync and held by every living character standing anywhere in
+that zone. It opens `#summary`, `#turns` (§3a) and the narrowcast channels
+(§7).
+
+A **Location** opens its own channel with a **per-member permission
+overwrite** instead — one `ViewChannel` grant per character standing there,
+written directly onto the channel. There is no `Location: {Name}` role any
+more, and nothing creates one.
+
+> **Why the asymmetry.** There are 5 presence zones with locations in them but
+> **56 Locations**, and Discord caps a guild at **250 roles** while capping a
+> channel at **1000 permission overwrites**. A role per Location would have
+> spent a quarter of the guild's role budget on geography, on top of one
+> personal name-token role per living character, and broken outright somewhere
+> past a hundred players. Overwrites have no ceiling this game can reach. The
+> cost is that an overwrite is invisible in the member list and has no
+> equivalent of `db:prune-orphan-roles`, which is why the doctor's occupancy
+> check (§6) exists.
+
+Either way a Location's Rooms inherit channel visibility the way any thread
+does, and a character always has exactly one zone role and exactly one
+Location overwrite while alive. Travel swaps both as needed (§ below); nothing
 else grants access to either.
+
+> **`managedOverwriteIds()` must never learn to delete a member target.**
+> `db/lib/syncZones.js` reconciles each channel's overwrites against a spec,
+> and that function is the allowlist of targets it is permitted to DELETE. It
+> contains only role ids. A wildcard there — or a member id finding its way
+> into it — would evict every player from every Location on the next sync.
 
 > **A channel does not reliably inherit its category.** Discord "syncs" a
 > channel to its category by *copying* the overwrites at creation; the two
@@ -117,10 +140,13 @@ The overwrites every target carries (`baseOverwrites`):
 - **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
-`AddReactions` on `#summary`. The Location role gets `ViewChannel` +
-`SendMessages` + `SendMessagesInThreads` + `AddReactions` on its own channel —
-top-level talk is allowed (the open street), and thread talk covers both a
-public and a private Room.
+`AddReactions` on `#summary`. Each character standing in a Location gets
+`ViewChannel` + `SendMessages` + `SendMessagesInThreads` + `AddReactions` on
+that channel, as a member overwrite (`LOCATION_MEMBER_ALLOW` in
+`db/lib/zoneChannelSpec.js`) — top-level talk is allowed (the open street),
+and thread talk covers both a public and a private Room. Note that this grant
+is **not** part of `locationChannelSpec`: the spec is the channel's standing
+shape, and who is standing there changes every turn.
 
 **Room and Conversation creation is denied to `@everyone` on every Location
 channel.** `CREATE_PUBLIC_THREADS` and `CREATE_PRIVATE_THREADS` are both
@@ -226,8 +252,10 @@ database half only (validation, the cooldown or the Move it files, dragging;
 same function for the Discord half:
 
 `db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)` — grants
-the new Location role before revoking the old one, and (only if the zone
-changed too) swaps the zone role and reconciles narrowcast access; then
+the member overwrite on the destination channel before deleting the one on the
+origin, announces the crossing if the edge is a gate (`MAP.md` §2a), and (only
+if the zone changed too) swaps the zone role and reconciles narrowcast access;
+then
 resyncs private-Room membership for wherever the character now stands
 (`db/lib/roomAccess.js#syncCharacterRoomAccess`) and replays any standing
 Conversation invites there (`db/lib/threadInvites.js#applyPendingInvites`).
@@ -242,22 +270,29 @@ swap leaves the player seeing two Locations for a moment (harmless,
 self-healing) rather than none (a lockout a player can't diagnose).
 
 Any new writer of `Character.locationId` must call
-`applyLocationMoveSideEffects`. A raw Prisma write alone leaves the old roles
-held and the new ones missing, and the player either sees the wrong place or
-none.
+`applyLocationMoveSideEffects`. A raw Prisma write alone leaves the old
+overwrite standing and the new one missing, and the player either sees the
+wrong place or none.
 
 ### Death and departure
 
-`db/lib/accessSweep.js#revokeAllCharacterAccess` strips every zone **and**
-Location role (a removal of a role the member doesn't hold is a no-op, so this
-costs less than working out which ones they held from possibly-stale state)
-and sweeps their member overwrites off every zone channel, Location channel
-and special channel. Its callers are `killCharacter`, `guildMemberRemove` and
+`db/lib/accessSweep.js#revokeAllCharacterAccess` strips every zone role (a
+removal of a role the member doesn't hold is a no-op, so this costs less than
+working out which ones they held from possibly-stale state) and sweeps their
+member overwrites off every Location channel, zone channel and special
+channel. Its callers are `killCharacter`, `guildMemberRemove` and
 `wipeGameData`; any new path that ends a character must call it too.
 
+**That overwrite sweep is load-bearing now, not tidy-up.** A Location grants
+sight by overwrite, and an overwrite has no equivalent of the role strip
+`db:prune-orphan-roles` performs — so this is the only thing that stops a
+corpse from going on reading the room it died in. `allAccessChannelIds()`
+already enumerates every Location channel, which is why the shape did not have
+to change when the roles went away.
+
 `revokeAccessForCharacters` in the same file is the bulk form for Restart Game:
-one paginated member-list read, then one removal per (member × zone/Location
-role actually held), plus a channel-major overwrite sweep — read each channel once,
+one paginated member-list read, then one removal per (member × zone role
+actually held), plus a channel-major overwrite sweep — read each channel once,
 delete only what's actually on it. That's what keeps a full-roster wipe at
 hundreds of calls instead of tens of thousands. Both return counts and failure
 lists rather than nothing, because a revoke that silently fails leaves a
@@ -390,19 +425,30 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 
 Two scopes:
 
-- **cheap** — role membership (zone roles vs `Character.zoneId`, **Location
-  roles vs `Character.locationId`**, turn-ping vs `turnPingOptIn`, cursed vs
-  the dead-and-not-yet-rerolled set), character roles existing/orphaned, and
-  the structural checks: zone **and Location** channels and roles exist, a
-  **`character-place` check** that `Character.zoneId` agrees with
-  `location.zoneId` (repaired from the location, the authority), the **bot's
-  own highest role sits above every zone and Location role** (or the swaps
-  403 — report-only, moving roles is a human decision), cursed colour 0, and
-  no seat-scoped `zoneId` pointing at a cave level. One member-list read plus
-  a handful of requests.
+- **cheap** — role membership (zone roles vs `Character.zoneId`, turn-ping vs
+  `turnPingOptIn`, cursed vs the dead-and-not-yet-rerolled set), character
+  roles existing/orphaned, **`location-occupancy`** (below), a
+  **`connection-slug`** check that every tag and Role a `LocationLink` names
+  actually exists in the catalogs — they cannot be foreign keys, because tags
+  and roles sync *after* zones — and the structural checks: zone channels and
+  roles exist, Location channels exist, a **`character-place` check** that
+  `Character.zoneId` agrees with `location.zoneId` (repaired from the location,
+  the authority), the **bot's own highest role sits above every zone role** (or
+  the swaps 403 — report-only, moving roles is a human decision), cursed colour
+  0, and no seat-scoped `zoneId` pointing at a cave level. One member-list read
+  plus a handful of requests.
+
+  **`location-occupancy` is the successor to the old Location-role membership
+  check, and it matters more than that one did.** The member overwrites on a
+  Location channel must be exactly the living characters standing there;
+  extras are deleted and missing ones added. It is the only sweep that catches
+  a location grant the move pipeline failed to swap, or one a dead character
+  kept — an overwrite has no `db:prune-orphan-roles` to fall off through. It
+  costs no extra requests, because the overwrites arrive on the channel object
+  the structure pass already fetched.
 - **full** — all of the above plus the expensive halves: zone and **Location
-  channel overwrites** vs the spec, leftover per-member overwrites on zone and
-  Location channels, **`room-thread`** (a Room's thread exists and is
+  channel overwrites** vs the spec (the *role* half; occupancy is cheap-scope),
+  leftover per-member overwrites on zone channels, **`room-thread`** (a Room's thread exists and is
   unarchived — recreating a missing one is the sync's job, so this is
   report-only), **`room-membership`** (a private Room's actual thread
   membership vs who currently holds one of its `accessTagSlugs` and stands in
@@ -440,7 +486,7 @@ two access twins and the wipe.
 | Channel | Who sees it | Who speaks |
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
-| `#intercom` | **every zone role except the Windlands** — five presence zones, a static `roleViewZones` grant; the hurricane winds drown the PA out there | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
+| `#intercom` | **every above-ground zone role** — Town, Fortress, Forest, East Forests, Marshes, a static `roleViewZones` grant; the rock swallows the PA below | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
 
 The Radio and Intercom tags are transferable, so possession is what matters —
 a bracelet handed to a non-Watch character still opens `#watch`.
@@ -450,9 +496,8 @@ per-member view overwrite spanned a whole Zone and was drifting toward
 Discord's ~100-overwrite-per-channel ceiling. Five role entries replace ~100
 member entries. The speak half stays per-member, and its gate moved from
 "standing in the Keep" to "standing in the Fortress zone" because the Keep is
-prose now. The Windlands is deliberately off the list — the hurricane winds
-drown the PA out, so a character standing there can't hear `#intercom` at
-all. The sync enforces both halves: it grants the listed zone roles view
+prose now. Caves and Depths are deliberately off the list — the rock swallows
+the PA, so a character standing underground can't hear `#intercom` at all. The sync enforces both halves: it grants the listed zone roles view
 *and* deletes any zone-role grant the registry no longer lists, so dropping a
 zone from `roleViewZones` really silences the channel there on the next run.
 

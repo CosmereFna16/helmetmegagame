@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import {
   prisma,
   MERCHANT_LICENSE_SLUG,
-  DEPOT_ZONE_SLUG,
+  DEPOT_LOCATION_SLUG,
   DEPOT_CREDIT_CAP,
   creditAvailable,
   normalizeQuantity,
@@ -40,14 +40,14 @@ async function requireLicensedMerchant() {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    include: { tags: { include: { tag: true } }, zone: { select: { slug: true } } },
+    include: { tags: { include: { tag: true } }, location: { select: { slug: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
   if (!character.tags.some((ct) => ct.tag.slug === MERCHANT_LICENSE_SLUG)) {
     throw new UserError("The Depot only deals with a licensed Merchant.");
   }
-  if (character.zone?.slug !== DEPOT_ZONE_SLUG) {
-    throw new UserError("The Depot is down at Customs. You have to be standing there.");
+  if (character.location?.slug !== DEPOT_LOCATION_SLUG) {
+    throw new UserError("The Depot is its own room in the caves. You have to be standing in it. ‡");
   }
   return { session, character };
 }

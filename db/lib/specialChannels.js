@@ -31,14 +31,15 @@ const SPECIAL_CHANNELS = [
     slug: "intercom",
     configKey: "intercomChannelId",
     categoryConfigKey: "radioCategoryId",
-    topic: "Ravenheart's PA system. Audible everywhere but the Windlands, where the hurricane winds drown it out. Accessed from the Fortress.",
+    topic: "Ravenheart's PA system. Audible everywhere above ground; the rock swallows it below. Accessed from the Fortress. ‡",
     tupper: true,
     wipe: "clear",
     ghostsMaySee: true,
-    // Audible by everyone with a character, wherever they stand, except the
-    // Windlands. Grant view to the zone ROLES rather than a per-member
-    // overwrite each, to stay under Discord's per-channel overwrite cap.
-    roleViewZones: ["town", "fortress", "caverns", "railroad", "aberrant-pits"],
+    // Audible by everyone with a character standing above ground; the two
+    // underground zones are deliberately out of range. Grant view to the zone
+    // ROLES rather than a per-member overwrite each, to stay under Discord's
+    // per-channel overwrite cap.
+    roleViewZones: ["town", "fortress", "forest", "east-forests", "marshes"],
     // Speaking needs the Intercom tag and standing in the Fortress zone.
     member: (ctx) => {
       if (ctx.tagSlugs.has("intercom") && ctx.zoneSlug === FORTRESS_SLUG) {

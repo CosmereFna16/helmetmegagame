@@ -688,19 +688,21 @@ model GmAssignment {
 
 /// Where a character STANDS — the unit of presence and channel access since
 /// Bascinet 2. One Discord text channel per Location under its zone's
-/// category, opened by one "Location: {Name}" role (discordRoleId) held by
-/// exactly the living characters standing here. Its Rooms are threads under
-/// that channel. Mastered by docs/zones.yaml's per-zone `locations:` maps
-/// (db/lib/syncZones.js); everything Discord-side is create-once and
+/// category. A Location wears NO Discord role: the channel is opened to
+/// whoever is standing in it by a per-member permission overwrite, written by
+/// db/lib/locationMove.js and reconciled by the channel doctor's
+/// location-occupancy check. 56 locations would otherwise have cost 56 of the
+/// guild's 250 roles on top of one personal role per living character;
+/// Discord allows 1000 overwrites per channel instead. Its Rooms are threads
+/// under that channel. Mastered by docs/zones.yaml's per-zone `locations:`
+/// maps (db/lib/syncZones.js); everything Discord-side is create-once and
 /// reconciled every run, the way zones are.
 ///
-/// connectsTo/connectedFrom back the single undirected travel graph, mastered
-/// by docs/zones.yaml's `connections:`. The sync writes each Location's full
-/// neighbour set both directions explicitly, so only connectsTo is ever read;
-/// connectedFrom exists because Prisma requires both sides of a self-relation
-/// named. A hop between two Locations of the same zone is free (on the
-/// GameConfig.locationMoveCooldownSeconds cooldown); a hop whose edge crosses
-/// into another zone costs the Move, exactly as zone travel used to.
+/// linksA/linksB are the two halves of the undirected travel graph, which is
+/// LocationLink — see that model. A hop between two Locations of the same
+/// zone is free (on the GameConfig.locationMoveCooldownSeconds cooldown); a
+/// hop whose edge crosses into another zone costs the Move, exactly as zone
+/// travel used to.
 model Location {
   id   String @id @default(cuid())
   slug String @unique
@@ -717,12 +719,14 @@ model Location {
   zoneId String
   zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
-  connectsTo    Location[] @relation("LocationConnections")
-  connectedFrom Location[] @relation("LocationConnections")
+  // Both halves of the undirected travel graph. Never read directly: go
+  // through db/lib/locationGraph.js, which normalises the two sides into one
+  // neighbour list and applies each link's gating.
+  linksA LocationLink[] @relation("LinkA")
+  linksB LocationLink[] @relation("LinkB")
 
-  // The Location's text channel and its access role, null until provisioned.
+  // The Location's text channel, null until provisioned.
   discordChannelId String?
-  discordRoleId    String? @unique
 
   // The pinned anchor message (name, description, the Public Rooms index and
   // the Who's here? / Secret rooms? / Converse buttons), content-hash
@@ -739,6 +743,64 @@ model Location {
   updatedAt DateTime @updatedAt
 
   @@index([zoneId])
+}
+
+/// One edge of the travel graph, mastered by docs/zones.yaml's `connections:`.
+///
+/// Undirected, and stored as ONE row rather than a mirrored pair: aId/bId are
+/// held in ascending Location.slug order by the sync, so an attribute cannot
+/// disagree between the two directions and a modular gate cannot end up open
+/// one way and shut the other. Readers must therefore match on either side —
+/// db/lib/locationGraph.js is the only thing that should ever do so.
+///
+/// The behaviours compose rather than enumerate, because one real edge on the
+/// map (the Gatehouse to the Road) is a manned gate AND a modular one:
+///
+///   announce         GATE / UNMANNED GATE. Posts into the destination zone's
+///                    #summary on crossing — TRUE_NAME with the traveller's
+///                    real name, CONCEALED with only their concealed alias.
+///   requiredTagSlug  LOCKED. Crossing needs this tag. Held as a slug, not an
+///                    FK, because tags sync AFTER zones and an FK would make
+///                    the master unloadable in the working order; db:doctor
+///                    validates it instead.
+///   hidden           HIDDEN. requiredTagSlug plus omission from the travel
+///                    list, so a player without the tag never learns the edge
+///                    is there.
+///   modular          An Open/Close button on both endpoints' anchors.
+///                    Impassable while isOpen is false. openerRoleSlugs are
+///                    Role slugs from docs/roles.yaml and openerTagSlugs are
+///                    Tag slugs; holding any one of them is authority to
+///                    flip it.
+model LocationLink {
+  id String @id @default(cuid())
+
+  aId String
+  bId String
+  a   Location @relation("LinkA", fields: [aId], references: [id], onDelete: Cascade)
+  b   Location @relation("LinkB", fields: [bId], references: [id], onDelete: Cascade)
+
+  announce LinkAnnounce @default(NONE)
+
+  requiredTagSlug String?
+  hidden          Boolean @default(false)
+
+  modular         Boolean  @default(false)
+  isOpen          Boolean  @default(true)
+  openerRoleSlugs String[]
+  openerTagSlugs  String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([aId, bId])
+  @@index([bId])
+}
+
+/// What crossing a gate announces in the destination zone's #summary.
+enum LinkAnnounce {
+  NONE
+  TRUE_NAME
+  CONCEALED
 }
 
 /// A thread under a Location's channel, sync-owned: the starter message is the

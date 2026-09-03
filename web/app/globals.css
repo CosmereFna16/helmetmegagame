@@ -108,11 +108,20 @@
 
      Fortress deviates from the map here: the roof terracotta #9c4132
      measures 2.00 against this surface, so it is lifted in L with hue and
-     saturation held. Do not "fix" it back to the map value. */
+     saturation held. Do not "fix" it back to the map value.
+
+     Seven zones since the Bascinet 2 map. Forest keeps the green the retired
+     Windlands wore; East Forests, Marshes and Depths take the blue-grey,
+     grey-green and mauve of their regions on Bascinet's drawing. There is no
+     --zone-underground: that zone is a category and a GM seat, never a place,
+     so nothing ever renders a chip for it. */
   --zone-fortress: #c7604f;
   --zone-town: #998d6b;
-  --zone-windlands: #7f8c64;
+  --zone-forest: #7f8c64;
+  --zone-east-forests: #79899b;
+  --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
+  --zone-depths: #8f7f9c;
 }
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
@@ -137,11 +146,14 @@
 
   /* Zone code -- see the dusk block for what these are and why they are not
      gated at AA. Fortress is lifted again (#9c4132 measures 2.12 on this
-     surface); the other three ship the map hex untouched. */
+     surface); the others ship the map hex untouched. */
   --zone-fortress: #c45947;
   --zone-town: #998d6b;
-  --zone-windlands: #7f8c64;
+  --zone-forest: #7f8c64;
+  --zone-east-forests: #79899b;
+  --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
+  --zone-depths: #8f7f9c;
 }
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
@@ -178,11 +190,15 @@
 
   /* Zone code -- see the dusk block. On a near-white surface the deviation
      inverts: Fortress ships the map hex at full strength (6.26), and it is
-     CAVES that has to darken, its stone grey #939d9e measuring 2.66 here. */
+     the pale ones that have to darken — Caves' stone grey #939d9e measures
+     2.66 here, and East Forests, Marshes and Depths sit in the same band. */
   --zone-fortress: #9c4132;
   --zone-town: #998d6b;
-  --zone-windlands: #7f8c64;
+  --zone-forest: #7f8c64;
+  --zone-east-forests: #6c7c8e;
+  --zone-marshes: #7f8677;
   --zone-caves: #838e90;
+  --zone-depths: #82728f;
 }
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected
@@ -1157,8 +1173,11 @@ input[type="radio"]:disabled {
 
 .zone-chip[data-zone="fortress"] { border-left-color: var(--zone-fortress); }
 .zone-chip[data-zone="town"] { border-left-color: var(--zone-town); }
-.zone-chip[data-zone="windlands"] { border-left-color: var(--zone-windlands); }
+.zone-chip[data-zone="forest"] { border-left-color: var(--zone-forest); }
+.zone-chip[data-zone="east-forests"] { border-left-color: var(--zone-east-forests); }
+.zone-chip[data-zone="marshes"] { border-left-color: var(--zone-marshes); }
 .zone-chip[data-zone="caves"] { border-left-color: var(--zone-caves); }
+.zone-chip[data-zone="depths"] { border-left-color: var(--zone-depths); }
 
 /* No faction at all -- not a fifth zone. Reads as absent rather than as a
    colour nobody has learned yet. */

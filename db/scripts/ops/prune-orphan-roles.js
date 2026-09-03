@@ -66,17 +66,13 @@ async function main() {
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId) throw new Error("DISCORD_GUILD_ID is not set.");
 
-  const [roles, characters, zones, locations, members] = await Promise.all([
+  const [roles, characters, zones, members] = await Promise.all([
     discordRequest(`/guilds/${guildId}/roles`),
     prisma.character.findMany({
       where: { discordRoleId: { not: null } },
       select: { discordRoleId: true, name: true, status: true },
     }),
     prisma.zone.findMany({
-      where: { discordRoleId: { not: null } },
-      select: { discordRoleId: true },
-    }),
-    prisma.location.findMany({
       where: { discordRoleId: { not: null } },
       select: { discordRoleId: true },
     }),
@@ -98,9 +94,10 @@ async function main() {
   // The zone-access roles ("Zone: Town") are standing infrastructure, owned
   // by db:sync-zones. Their signature (unmentionable, color 0) already fails
   // looksLikeCharacterRole, but protecting them by id keeps this script safe
-  // against any future signature change.
+  // against any future signature change. Locations wear no role at all since
+  // the overwrite rework, so there is nothing of theirs to protect; a
+  // leftover "Location: X" role is db:prune-stale-channels' to retire.
   for (const zone of zones) protectedIds.add(zone.discordRoleId);
-  for (const location of locations) protectedIds.add(location.discordRoleId);
 
   // Held by at least one member — never a candidate, whatever else is true.
   const held = new Set();

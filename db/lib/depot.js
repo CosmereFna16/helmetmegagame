@@ -13,8 +13,13 @@ const MERCHANT_LICENSE_SLUG = "merchants-license";
 
 // Where the shuttle is parked. Buying and selling both require standing here,
 // the same way the Lifeweb requires the Fortress — you cannot trade with a
-// craft you are not next to. A zone slug from docs/zones.yaml.
-const DEPOT_ZONE_SLUG = "caverns";
+// craft you are not next to.
+//
+// A LOCATION slug from docs/zones.yaml, not a zone one. The Depot used to be
+// a paragraph inside the Customs description and the gate was the whole
+// Caverns zone, which meant trading from anywhere underground. Bascinet 2
+// draws it as its own place, so standing there is now literal.
+const DEPOT_LOCATION_SLUG = "depot";
 
 // The ceiling on ⬢ outstanding against the Company's credit line at any one
 // moment (Character.depotDebt). Not a per-game lever and not GM-tunable: it
@@ -51,7 +56,7 @@ function normalizeQuantity(raw) {
 
 module.exports = {
   MERCHANT_LICENSE_SLUG,
-  DEPOT_ZONE_SLUG,
+  DEPOT_LOCATION_SLUG,
   DEPOT_CREDIT_CAP,
   DEPOT_MAX_QUANTITY,
   creditAvailable,

@@ -8,9 +8,9 @@ colour vocabulary that tells them at a glance whose row is whose.
 ## 1. The shape of it
 
 Lifeweb runs with **one master** — the superadmin (`web/lib/superadmin.js`) —
-and zone-GMs seated over the four **seat** zones: **Fortress, Town, Windlands,
-Caves**. (Characters stand in six *presence* zones, because the Caves seat
-covers three cave levels — §2a.)
+and zone-GMs seated over the six **seat** zones: **Fortress, Town, Forest,
+East Forests, Marshes, Underground**. (Characters stand in seven *presence*
+zones, because the Underground seat covers both cave levels — §2a.)
 
 **A GM may hold more than one seat.** With five GMs and four zones somebody
 covers two, so `GmAssignment` is one row per seat rather than one row per GM.
@@ -36,20 +36,22 @@ ergonomics. Do not "harden" it without re-reading the paragraph above.
 
 ### 2a. Presence zones vs seat zones
 
-Since the zone rework, **presence is six zones and the seats are still four.**
-Characters stand in Town, Fortress, Windlands, Caverns, Railroad or Aberrant
-Pits; the GM seats are Town, Fortress, Windlands and **Caves**, with the whole
-cave system belonging to the Caves seat.
+Since the Bascinet 2 map, **presence is seven zones and the seats are six.**
+Characters stand in Town, Fortress, Forest, East Forests, Marshes, Caves or
+Depths; the GM seats are Town, Fortress, Forest, East Forests, Marshes and
+**Underground**, with both cave levels belonging to the Underground seat.
+Underground is the only seat that is not itself a place — it is a `CAVE_GROUP`,
+a category and a seat and nothing else.
 
 That mapping is denormalized onto **`Zone.seatZoneId`** by `db:sync-zones`
 (`parentZoneId ?? id`), and `db/lib/seatZone.js#seatZoneIdFor` is the single
 reader every writer goes through. **Never stamp a seat-scoped row with
 `zone.id`.** Every `Action`, `Note`, `DefaultEffort` and `StagedMessage`
-`zoneId` is the *seat* zone — a character acting on the Railroad who filed
-against the Railroad row would file work no Caves GM can see.
+`zoneId` is the *seat* zone — a character acting in the Depths who filed
+against the Depths row would file work no Underground GM can see.
 
 The seat pickers list `kind != "CAVE_LEVEL"` (`/gm/turns`, `/gm/gamemasters`),
-which is the same four rows from the other direction. The channel doctor checks
+which is the same six rows from the other direction. The channel doctor checks
 the invariant from a third: no stamped `zoneId` may point at a `CAVE_LEVEL`
 row, and it counts the offenders if any exist (`CHANNELS.md` §6).
 
@@ -88,14 +90,20 @@ map's palette rather than an invented one:
 |---|---|---|
 | Fortress | the castle's red roofs | `#9c4132` terracotta ruby |
 | Town | the timber cluster's thatch | `#998d6b` brown linen |
-| Windlands | the olive scrub, bottom-centre | `#7f8c64` desaturated lime |
+| Forest | the olive scrub the retired Windlands wore | `#7f8c64` desaturated lime |
+| East Forests | the blue-grey of its region on the drawing | `#79899b` slate |
+| Marshes | the drab grey-green of the wet ground | `#8d9384` reed |
 | Caves | mountain rock | `#939d9e` stone grey |
+| Depths | the mauve band along the map's edge and floor | `#8f7f9c` bruise |
 
-They are `--zone-fortress` / `--zone-town` / `--zone-windlands` /
-`--zone-caves`, declared **inside each `[data-theme]` block** in `globals.css`
-(not on `:root`) so `audit-contrast.js` picks them up with no parser change.
+They are `--zone-fortress` / `--zone-town` / `--zone-forest` /
+`--zone-east-forests` / `--zone-marshes` / `--zone-caves` / `--zone-depths`,
+declared **inside each `[data-theme]` block** in `globals.css` (not on `:root`)
+so `audit-contrast.js` picks them up with no parser change. There is no
+`--zone-underground`: that zone is a category and a seat, never a place, so
+nothing ever renders a chip for it.
 
-Three of the twelve values deviate from the map, and the comments in
+A few of the values deviate from the map, and the comments in
 `globals.css` say why: Fortress's terracotta measures **2.00** on dusk's
 surface and **2.12** on dawn's, so it is lifted in lightness with hue and
 saturation held; Caves' stone grey measures **2.66** on limestone, so it

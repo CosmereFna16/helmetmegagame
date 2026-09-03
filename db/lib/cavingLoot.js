@@ -13,8 +13,14 @@
 const TIERS = ["ultracommon", "common", "uncommon", "rare", "extremely-rare", "nearly-impossible"];
 
 // Column sums to 1 (checked by validateCavingLoot).
+// Two columns since the Bascinet 2 map, which replaced the three cave levels
+// (Caverns / Railroad / Aberrant Pits) with two: Caves and Depths. Caves keeps
+// the old Caverns column unchanged. Depths takes the old Aberrant Pits column
+// unchanged, rather than the middle Railroad one, because it is now the only
+// deep place on the map and has to carry what all three tiers below the
+// surface used to.
 const WEIGHTS_BY_ZONE = {
-  caverns: {
+  caves: {
     ultracommon: 0.65,
     common: 0.25,
     uncommon: 0.08,
@@ -22,15 +28,7 @@ const WEIGHTS_BY_ZONE = {
     "extremely-rare": 0,
     "nearly-impossible": 0.0005,
   },
-  railroad: {
-    ultracommon: 0.35,
-    common: 0.3,
-    uncommon: 0.22,
-    rare: 0.12,
-    "extremely-rare": 0.005,
-    "nearly-impossible": 0.005,
-  },
-  "aberrant-pits": {
+  depths: {
     ultracommon: 0.15,
     common: 0.22,
     uncommon: 0.28,
@@ -102,8 +100,8 @@ async function validateCavingLoot(prisma) {
   }
 }
 
-// Draws a tier for the given cave-level zone slug (caverns/railroad/
-// aberrant-pits), then a slug uniformly within it. Returns { tier, slug }.
+// Draws a tier for the given cave-level zone slug (caves/depths), then a slug
+// uniformly within it. Returns { tier, slug }.
 function drawLoot(zoneSlug) {
   const weights = WEIGHTS_BY_ZONE[zoneSlug];
   if (!weights) throw new Error(`db/lib/cavingLoot.js: no loot weights for zone "${zoneSlug}"`);

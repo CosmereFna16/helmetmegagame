@@ -39,7 +39,7 @@ async function main() {
         discordRoleId: true,
       },
     }),
-    prisma.location.findMany({ select: { discordChannelId: true, discordRoleId: true } }),
+    prisma.location.findMany({ select: { discordChannelId: true } }),
     prisma.room.findMany({ select: { discordThreadId: true } }),
   ]);
 
@@ -66,12 +66,14 @@ async function main() {
   );
 
   // --- roles ------------------------------------------------------------
-  // A "Zone: X" / "Location: X" role is standing infrastructure owned by
-  // db:sync-zones. One the DB no longer names belongs to a retired layout;
-  // deleting it strips it from every holder in a single call.
-  const liveRoleIds = new Set(
-    [...zones.map((z) => z.discordRoleId), ...locations.map((l) => l.discordRoleId)].filter(Boolean),
-  );
+  // A "Zone: X" role is standing infrastructure owned by db:sync-zones. One
+  // the DB no longer names belongs to a retired layout; deleting it strips it
+  // from every holder in a single call.
+  //
+  // EVERY "Location: X" role is stale by definition now. Locations stopped
+  // wearing roles when the overwrite rework landed, so nothing recreates one
+  // and this is what retires the ones an older sync left behind.
+  const liveRoleIds = new Set(zones.map((z) => z.discordRoleId).filter(Boolean));
   const staleRoles = roles.filter(
     (r) => /^(Zone|Location): /.test(r.name) && !liveRoleIds.has(r.id),
   );

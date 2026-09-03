@@ -110,14 +110,46 @@ zones:
             description: >-
             access: [the-barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
     levels:               # groups only; each becomes a standable CAVE_LEVEL zone
-      caverns:
+      caves:
         locations:
           ...
 
-connections:              # the whole travel graph, as zone/location pairs
+connections:              # the whole travel graph. ONE entry per edge — it is
+                          # undirected, and listing it twice is an error.
   - [town/town-square, fortress/gatehouse]   # crosses zones: costs the Move
   - [town/town-square, town/cathedral]       # same zone: free, on the cooldown
+
+  - pair: [fortress/gatehouse, fortress/road]   # the mapping form, for an
+    announce: true_name                         #   edge that is not a plain
+    modular:                                    #   open road
+      roles: [watchman]
+      tags: [watch-badge]
+      open: true
+  - pair: [fortress/undercroft, forest/forest-2]
+    hidden: elevator-key
+  - pair: [fortress/road, east-forests/east-forests-12]
+    locked: mountaineer
 ```
+
+A `connections` entry is either a **bare pair** — a plain open road, which is
+most of the map — or a **mapping** carrying the edge's type. The keys compose,
+because one real edge is a manned gate *and* a modular one at once:
+
+| Key | Effect |
+|---|---|
+| `announce: true_name` | a **manned gate**: posts the crosser's real name into the destination zone's `#summary`. `/conceal` does not help |
+| `announce: concealed` | an **unmanned gate**: posts only their concealed alias |
+| `locked: <tag-slug>` | crossing needs the tag; the way is still **listed** |
+| `hidden: <tag-slug>` | needs the tag **and** is absent from the travel list |
+| `modular: { roles, tags, open }` | an Open/Close button on both anchors, impassable while shut |
+
+`locked` and `hidden` are the same requirement with different visibility, so an
+entry may carry one or the other, never both. Each entry becomes exactly one
+`LocationLink` row with endpoints in ascending slug order — see `MAP.md` §2a.
+
+**`modular.open` is what a link is BORN with, not something the sync
+re-asserts.** A gate somebody shut in play stays shut across a re-sync;
+otherwise every sync would silently reopen the Gatehouse.
 
 A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
 belong on its levels), and its own id may never appear in `connections` — it
@@ -131,12 +163,19 @@ there doesn't fail the sync; it just makes a room nobody can ever hold a key
 to, and the channel doctor's `room-membership` check (`CHANNELS.md` §6) is
 where that shows up, not this one.
 
+The Tag and Role slugs a connection names — `locked`, `hidden`, and
+`modular`'s `roles`/`tags` — are unvalidated here for exactly the same reason,
+and the doctor's **`connection-slug`** check is where a typo surfaces. It
+matters more than the room case: a locked way naming a tag that does not exist
+is a way nobody can ever pass, and a *hidden* one is that plus invisible, so
+nobody would even report it missing.
+
 ### Strict vs soft validation
 
 Most references throw rather than half-apply — an unknown `parentTag`,
 `requiredTag`, `starting_zone` or `starting_tags` name aborts the run. A
-`starting_zone` must additionally be a **presence** zone: the Caves group is a
-container, and a character can't start inside a container.
+`starting_zone` must additionally be a **presence** zone: the Underground group
+is a container, and a character can't start inside a container.
 
 The one soft case is `connections` coverage: a Location in no pair at all is
 **warned** about, not thrown on. It's legal in principle (a dead end nobody

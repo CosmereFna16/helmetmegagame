@@ -7,22 +7,31 @@ and travel), `TURN-ENGINE.md` (where this hooks into a turn advance),
 `TAGS.md` (the catalog fields `sellable`/`sellablePrice`/
 `consumesIntoResources`/`consumesIntoOneOf` live in).
 
-## 1. The three levels
+## 1. The two levels
 
-`docs/zones.yaml`'s `caves` entry is a `kind: group` row — a GM seat and a
-Discord category, never a place a character can stand — whose `levels:` list
-is flattened by the sync into three real, standable `CAVE_LEVEL` zones:
-Caverns, Railroad, Aberrant Pits (`caverns` / `railroad` / `aberrant-pits`).
-Each level is its own zone with its own Locations (Customs, the Station,
-Chrome City), chained one zone crossing apart in `docs/zones.yaml`'s
-`connections:` — so they need no special cost rule. Moving from Caverns to
-Railroad to Aberrant Pits costs three separate turns, mount or no.
+`docs/zones.yaml`'s `underground` entry is a `kind: group` row — a GM seat and
+a Discord category, never a place a character can stand — whose `levels:` list
+is flattened by the sync into two real, standable `CAVE_LEVEL` zones: **Caves**
+and **Depths** (`caves` / `depths`). Each is its own zone with its own
+Locations, joined by ordinary zone-crossing edges in `docs/zones.yaml`'s
+`connections:` — so they need no special cost rule. Going from the surface to
+the Caves to the Depths costs a separate turn each, mount or no.
+
+The kinds are kept, rather than promoting both to surface zones, because the
+Die fires on a `CAVE_LEVEL` arrival and a `CAVE_LEVEL` needs a `CAVE_GROUP`
+above it. Sharing `underground` as that parent also means the two share one GM
+seat, which is what the old Caves seat already did across three levels.
+
+The Bascinet 2 map replaced the old three levels — Caverns, Railroad and
+Aberrant Pits, with their Customs, Station and Chrome City — with this pair.
+Caves keeps Customs and gains the **Depot** as a Location of its own; the
+Station and Chrome City are retired, their prose kept in a comment at the
+bottom of `docs/zones.yaml`.
 
 The public **Caving** document (`docs/documents.yaml`, key `caving`) is the
-player-facing brief — what the three levels are, what to bring, and that the
-die exists. `Role.docElements` grants it to `migrant` and `mercenary`, the
-two roles that start in the Depths (Railroad and Caverns respectively), and
-it's public so anyone else can find it too.
+player-facing brief — what the levels are, what to bring, and that the die
+exists. `Role.docElements` grants it to `migrant` and `mercenary`, and it's
+public so anyone else can find it too.
 
 ## 2. The Caving Die
 
@@ -99,19 +108,24 @@ weighted draw), not player-facing catalog data the way a tag's price is. A
 `FIND` draws in two stages: a tier by the standing zone's column below, then
 a slug uniformly within that tier.
 
-| Tier | Caverns | Railroad | Aberrant Pits |
-|---|---|---|---|
-| Ultracommon | 65% | 35% | 15% |
-| Common | 25% | 30% | 22% |
-| Uncommon | 8% | 22% | 28% |
-| Rare | 1.95% | 12.0% | 25% |
-| Extremely rare | 0% | 0.5% | 7% |
-| Nearly impossible | 0.05% | 0.5% | 3% |
+| Tier | Caves | Depths |
+|---|---|---|
+| Ultracommon | 65% | 15% |
+| Common | 25% | 22% |
+| Uncommon | 8% | 28% |
+| Rare | 1.95% | 25% |
+| Extremely rare | 0% | 7% |
+| Nearly impossible | 0.05% | 3% |
 
-Each column sums to 1. The Caverns is where ultracommon loot dominates —
-that's where people go to farm `{tag:cave-fungus}` — while Nearly
-Impossible barely exists there (a fixed 0.05%) and grows to 3% in the Pits;
-that top tier is meant to come mostly from GM-run quests, not the die.
+Each column sums to 1, asserted by `validateCavingLoot()` at startup. The Caves
+is where ultracommon loot dominates — that's where people go to farm
+`{tag:cave-fungus}` — while Nearly Impossible barely exists there (a fixed
+0.05%) and grows to 3% in the Depths; that top tier is meant to come mostly
+from GM-run quests, not the die.
+
+The Depths took the **old Aberrant Pits column unchanged**, rather than the
+middle Railroad one, because it is now the only deep place on the map and has
+to carry what all three tiers below the surface used to.
 
 `LOOT_TABLE`'s contents, by tier — see the file for the exact slug lists;
 weapon/armor entries pull representative slugs off `SMITHING.md` §3/§4's

@@ -3,7 +3,8 @@
 // reports every mismatch, and (with apply) repairs it. Runs on bot restart
 // and after each turn advance (cheap scope), and from finishGameWipe (full).
 //
-// "cheap": role membership + structural checks, safe on every restart.
+// "cheap": role membership, Location channel occupancy, and structural
+// checks — safe on every restart.
 // "full": adds channel overwrites, thread/invite bookkeeping, and
 // narrowcast overwrites — the expensive halves.
 //
@@ -26,7 +27,11 @@ const {
 const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { hashNameToColor } = require("./roleColor");
 const { cursedRoleId, ensureCursedRoleAppearance } = require("./cursedAccess");
-const { zoneChannelSpec, locationChannelSpec } = require("./zoneChannelSpec");
+const {
+  zoneChannelSpec,
+  locationChannelSpec,
+  LOCATION_MEMBER_ALLOW,
+} = require("./zoneChannelSpec");
 const { accessibleRooms, heldTagSlugs } = require("./roomAccess");
 const { reconcileChannelOverwrites, managedOverwriteIds } = require("./syncZones");
 const { SPECIAL_CHANNELS, buildNarrowcastContext, computeNarrowcastAccess } = require("./specialChannels");
@@ -156,19 +161,59 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       await report("zone-structure", zone.name, "zone has no locations — nobody can stand in it (check docs/zones.yaml)");
     }
   }
+  // A Location wears no role, so its structure is just its channel. The live
+  // channel object is kept, because its permission_overwrites are what the
+  // occupancy check below diffs — reading it twice would double the doctor's
+  // REST cost for nothing.
+  const liveLocationChannels = new Map();
   for (const location of locations) {
     const label = `${location.zoneName}/${location.name}`;
-    if (!location.discordRoleId) {
-      await report("location-structure", label, "location has no role recorded (run db:sync-zones)");
-    } else if (!rolesById.has(location.discordRoleId)) {
-      await report("location-structure", label, "recorded location role no longer exists (run db:sync-zones)");
-    }
     if (!location.discordChannelId) {
       await report("location-structure", label, "location has no channel recorded (run db:sync-zones)");
-    } else {
-      const live = await getChannel(location.discordChannelId, { allow404: true }).catch(() => undefined);
-      if (live === null) {
-        await report("location-structure", label, "recorded channel no longer exists (run db:sync-zones)");
+      continue;
+    }
+    const live = await getChannel(location.discordChannelId, { allow404: true }).catch(() => undefined);
+    if (live === null) {
+      await report("location-structure", label, "recorded channel no longer exists (run db:sync-zones)");
+    } else if (live) {
+      liveLocationChannels.set(location.id, live);
+    }
+  }
+
+  // Every slug a LocationLink names, checked against the live catalogs.
+  //
+  // These CANNOT be foreign keys and cannot be validated at zone-sync time,
+  // because tags and roles sync AFTER zones (SYNC.md's working order) — the
+  // same trade the room `access:` list makes. So this is where a typo
+  // surfaces, and it matters more here than for a room: a locked way naming
+  // a tag that does not exist is a way nobody can ever pass, and a HIDDEN one
+  // is that plus invisible, so nobody would even report it missing.
+  //
+  // Report-only. The fix is an edit to docs/zones.yaml, which is the master;
+  // there is nothing sensible for --apply to guess.
+  const links = await prisma.locationLink.findMany({ include: { a: true, b: true } });
+  if (links.length > 0) {
+    const [tagSlugs, roleSlugs] = await Promise.all([
+      prisma.tag.findMany({ select: { slug: true } }).then((rows) => new Set(rows.map((r) => r.slug))),
+      prisma.role.findMany({ select: { slug: true } }).then((rows) => new Set(rows.map((r) => r.slug))),
+    ]);
+    for (const link of links) {
+      const label = `${link.a.name} <-> ${link.b.name}`;
+      const missing = [];
+      if (link.requiredTagSlug && !tagSlugs.has(link.requiredTagSlug)) {
+        missing.push(`${link.hidden ? "hidden" : "locked"} tag "${link.requiredTagSlug}"`);
+      }
+      for (const slug of link.openerTagSlugs ?? []) {
+        if (!tagSlugs.has(slug)) missing.push(`opener tag "${slug}"`);
+      }
+      for (const slug of link.openerRoleSlugs ?? []) {
+        if (!roleSlugs.has(slug)) missing.push(`opener role "${slug}"`);
+      }
+      if (missing.length > 0) {
+        await report("connection-slug", label, `names ${missing.join(", ")} — no such entry (check docs/zones.yaml)`);
+      }
+      if (link.modular && (link.openerTagSlugs ?? []).length === 0 && (link.openerRoleSlugs ?? []).length === 0) {
+        await report("connection-slug", label, "is modular but names no opener — nobody can ever work it");
       }
     }
   }
@@ -202,13 +247,8 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         await report("zone-structure", zone.name, "zone role sits above the bot's highest role — swaps will 403");
       }
     }
-    for (const location of locations) {
-      const role = location.discordRoleId ? rolesById.get(location.discordRoleId) : null;
-      if (role && role.position >= botTop) {
-        await report("location-structure", location.name, "location role sits above the bot's highest role — swaps will 403");
-      }
-    }
   }
+
 
   // Cursed appearance: color 0, so ghosts aren't visually outed.
   const cursed = cursedRoleId() ? rolesById.get(cursedRoleId()) : null;
@@ -232,16 +272,45 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     });
   }
 
-  // Location roles: exactly the living characters standing in each location.
+  // Location occupancy: the per-member overwrites on a Location channel must
+  // be exactly the living characters standing there. This is the successor to
+  // the old "Location: X" role membership check, and it is the ONLY sweep
+  // that catches a location grant the move pipeline failed to swap — or one
+  // a dead character kept, since an overwrite has no equivalent of the role
+  // strip that prune-orphan-roles used to perform.
+  //
+  // Costs no extra requests: the overwrites arrive on the channel object the
+  // structure pass above already fetched. Member targets only (type 1) — the
+  // role overwrites belong to locationChannelSpec and are reconciled by the
+  // full pass, not here.
   for (const location of locations) {
-    if (!location.discordRoleId) continue;
-    await reconcileRoleMembership({
-      roleId: location.discordRoleId,
-      label: `Location: ${location.name}`,
-      shouldHave: alive.filter((c) => c.locationId === location.id).map((c) => c.discordUserId),
-      members,
-      report,
-    });
+    const live = liveLocationChannels.get(location.id);
+    if (!live) continue;
+    const label = `${location.zoneName}/${location.name}`;
+    const shouldHave = new Set(
+      alive.filter((c) => c.locationId === location.id).map((c) => c.discordUserId).filter(Boolean),
+    );
+    const has = new Set(
+      (live.permission_overwrites ?? [])
+        .filter((o) => Number(o.type) === 1)
+        .map((o) => o.id),
+    );
+
+    for (const userId of shouldHave) {
+      if (has.has(userId)) continue;
+      await report("location-occupancy", label, `${userId} stands here but the channel is closed to them`, () =>
+        putChannelOverwrite(location.discordChannelId, userId, {
+          allow: String(LOCATION_MEMBER_ALLOW),
+          type: 1,
+        }),
+      );
+    }
+    for (const userId of has) {
+      if (shouldHave.has(userId)) continue;
+      await report("location-occupancy", label, `${userId} can read this channel but does not stand here`, () =>
+        deleteChannelOverwrite(location.discordChannelId, userId),
+      );
+    }
   }
 
   // Turn-ping: living characters' preferences, nobody else.
@@ -279,7 +348,6 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   const claimedRoleIds = new Set(characters.map((c) => c.discordRoleId).filter(Boolean));
   const standing = standingRoleIds();
   const zoneRoleIds = new Set(zones.map((z) => z.discordRoleId).filter(Boolean));
-  const locationRoleIds = new Set(locations.map((l) => l.discordRoleId).filter(Boolean));
   for (const c of alive) {
     if (!c.discordRoleId) {
       await report("character-role", c.name, "living character has no Discord role recorded");
@@ -288,7 +356,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
   }
   for (const role of liveRoles) {
-    if (claimedRoleIds.has(role.id) || standing.has(role.id) || zoneRoleIds.has(role.id) || locationRoleIds.has(role.id)) continue;
+    if (claimedRoleIds.has(role.id) || standing.has(role.id) || zoneRoleIds.has(role.id)) continue;
     if (!looksLikeCharacterRole(role)) continue;
     if (role.managed || role.permissions !== "0") continue;
     const held = memberList.some((m) => m.roles.includes(role.id));
@@ -317,7 +385,10 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   // --- full: overwrites + threads --------------------------------------
 
   if (scope === "full") {
-    const managed = managedOverwriteIds([...zoneRoleIds, ...locationRoleIds]);
+    // Zone roles only. A member target must never enter this set — it is the
+    // allowlist of overwrites the reconcile may DELETE, and every occupant of
+    // every Location channel is a member overwrite (CHANNELS.md §3).
+    const managed = managedOverwriteIds([...zoneRoleIds]);
     const characterUserIds = new Set(characters.map((c) => c.discordUserId));
 
     const overwriteTargets = [];
