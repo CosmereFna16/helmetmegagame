@@ -58,7 +58,7 @@ Three more disclosures are closed off the same way:
 ## 3. Where a bird will not go
 
 Only the five above-ground zones are addressable: **Town, Fortress, Forest,
-East Forests, Marshes**. Caves and Depths are out, and so is the Underground
+Black Hills, Marshes**. Caves and Depths are out, and so is the Underground
 group zone, which nobody stands in anyway (`MAP.md` §1).
 
 **Both directions.** You cannot send a letter underground, and you cannot send

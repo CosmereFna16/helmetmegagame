@@ -33,6 +33,11 @@ player-facing brief — what the levels are, what to bring, and that the die
 exists. `Role.docElements` grants it to `migrant` and `mercenary`, and it's
 public so anyone else can find it too.
 
+**The Caving *skill* is a different thing entirely.** `caving` (5 points) opens
+the four hidden crawls between the caves and the surface (`MAP.md` §2a). It has
+no effect on the Die, and the Die does not care whether you have it — one is a
+key, the other is what the dark does to you regardless.
+
 ## 2. The Caving Die
 
 Every `ALIVE` character standing in a `CAVE_LEVEL` zone gets one roll at turn

@@ -1,3 +1,4 @@
+const { MessageType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { sendAsCharacter } = require("../lib/proxy");
@@ -19,6 +20,20 @@ const MAX_MENTION_RELAYS = 10;
 module.exports = {
   name: "messageCreate",
   async execute(message) {
+    // Discord drops a "started a thread" line into the parent channel every
+    // time a thread is made, and the sync makes one per Room — 36 of them on a
+    // fresh provision, in the channels players actually read. Delete them.
+    //
+    // This sits ABOVE the bot guard on purpose: the bot is what creates every
+    // Room and Conversation, so the system message is bot-authored and the
+    // guard below would return before ever seeing it.
+    if (message.type === MessageType.ThreadCreated) {
+      await message.delete().catch((err) =>
+        console.error(`Failed to clear a thread-created notice in ${message.channelId}:`, err.message),
+      );
+      return;
+    }
+
     if (message.author.bot || message.webhookId) return;
 
     if (!message.inGuild()) {

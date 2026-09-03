@@ -6,7 +6,7 @@ game side.
 
 ## 1. The model
 
-There are two levels now. A **`Zone`** (Town, Fortress, Forest, East Forests,
+There are two levels now. A **`Zone`** (Town, Fortress, Forest, Black Hills,
 Marshes, and the two underground levels Caves and Depths) is a region — a
 category, and for a `SURFACE` zone a `#summary` channel. A **`Location`** is
 where a character actually **stands**: one text channel under its zone's
@@ -23,7 +23,7 @@ semantics, including the format). Zones still come in three kinds:
 
 | `kind` | Zones | Standable itself? | Discord |
 |---|---|---|---|
-| `SURFACE` | Town, Fortress, Forest, East Forests, Marshes | no — its Locations are | category + `#summary`; each Location its own channel |
+| `SURFACE` | Town, Fortress, Forest, Black Hills, Marshes | no — its Locations are | category + `#summary`; each Location its own channel |
 | `CAVE_GROUP` | Underground | no | the shared "Underground" category only |
 | `CAVE_LEVEL` | Caves, Depths | no — its Locations are | no channels of its own; its Locations parent onto the Underground category |
 
@@ -97,7 +97,11 @@ attribute impossible to disagree between the two directions, and a modular gate
 impossible to leave open one way and shut the other. The graph is over
 Locations, not zones, and spans zones freely.
 
-**Nothing reads `LocationLink` directly.** `db/lib/locationGraph.js` is the one
+**Nothing decides passability outside `db/lib/locationGraph.js`.** A few places
+read `LocationLink` rows for other reasons — the doctor validates the slugs an
+edge names, and the bot's gate and keyed handlers read one row to check
+*authority* — but no second implementation of "may this character cross"
+exists, and none should. `db/lib/locationGraph.js` is the one
 module that knows an edge could have your location on either side:
 
 | Function | Use |
@@ -129,6 +133,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
 | Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on **both** endpoints' anchors; impassable while shut |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
+| On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is refused at the threshold |
 
 Two things about the gating that are easy to get wrong:
 
@@ -171,6 +176,26 @@ lapse halfway down it and render as both open and shut at once.
 
 `db:sync-zones` never rewrites `openUntil`, for the same reason it never
 rewrites `isOpen`: both are play state, not authoring.
+
+### 2c. On-foot ways
+
+`onFoot` is the edge-level sibling of `Location.indoors`: same effect, earlier
+moment. Both keep a horse and a cart out of somewhere they do not fit, but
+`indoors` **parks** the mount on arrival (`db/lib/indoors.js#parkMountsIndoors`)
+whereas `onFoot` **refuses the crossing**.
+
+That difference is the whole reason it exists. An equipped mount buys one extra
+free zone-crossing per turn (`freeZoneMoves`, `db/lib/locationTravel.js`), so a
+rider who is only dismounted on arrival has already spent it — which made every
+secret passage into the Fortress rideable. Refusing at the threshold is the only
+thing that closes that.
+
+It is also the one gate that reads what a character has **equipped** rather than
+what they hold: `isMounted(equippedSlugs(tags))`, so a horse stowed in a pack is
+not a horse you are riding. `resolveNeighbors` therefore loads tags in
+equip-shape rather than through `heldTagSlugs`, which returns bare slugs and
+would have counted a stowed horse. The refusal is listed rather than hidden,
+because unequipping the horse is a fix the traveller can apply on the spot.
 
 The **modular button** is `loc:gate:{linkId}` on the Location anchor
 (`db/lib/locationAnchorRow.js#locationGateRow`). Authority is re-checked in the

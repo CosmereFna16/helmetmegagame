@@ -132,7 +132,8 @@ connections:              # the whole travel graph. ONE entry per edge — it is
   - pair: [fortress/undercroft, forest/forest-2]
     hidden: elevator-key
   - pair: [fortress/road, east-forests/east-forests-12]
-    locked: mountaineer
+    locked: mountaineering
+    on_foot: true
 ```
 
 A `connections` entry is either a **bare pair** — a plain open road, which is
@@ -147,6 +148,7 @@ because one real edge is a manned gate *and* a modular one at once:
 | `hidden: <tag-slug>` | needs the tag **and** is absent from the travel list |
 | `modular: { roles, tags, open }` | an Open/Close button on both anchors, impassable while shut |
 | `keyed: true` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — needs a `locked` or `hidden` tag, since an open way has nothing to hold |
+| `on_foot: true` | no horse or cart fits: a **mounted** character is refused at the threshold (`MAP.md` §2c) |
 
 `locked` and `hidden` are the same requirement with different visibility, so an
 entry may carry one or the other, never both. Each entry becomes exactly one

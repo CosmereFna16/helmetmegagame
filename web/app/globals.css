@@ -111,7 +111,7 @@
      saturation held. Do not "fix" it back to the map value.
 
      Seven zones since the Bascinet 2 map. Forest keeps the green the retired
-     Windlands wore; East Forests, Marshes and Depths take the blue-grey,
+     Windlands wore; the Black Hills, Marshes and Depths take the blue-grey,
      grey-green and mauve of their regions on Bascinet's drawing. There is no
      --zone-underground: that zone is a category and a GM seat, never a place,
      so nothing ever renders a chip for it. */
@@ -191,7 +191,7 @@
   /* Zone code -- see the dusk block. On a near-white surface the deviation
      inverts: Fortress ships the map hex at full strength (6.26), and it is
      the pale ones that have to darken — Caves' stone grey #939d9e measures
-     2.66 here, and East Forests, Marshes and Depths sit in the same band. */
+     2.66 here, and the Black Hills, Marshes and Depths sit in the same band. */
   --zone-fortress: #9c4132;
   --zone-town: #998d6b;
   --zone-forest: #7f8c64;

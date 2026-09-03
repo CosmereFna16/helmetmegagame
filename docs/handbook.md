@@ -173,7 +173,7 @@ There are seven Zones in Bascinet:
 - The Fortress
 - The Town
 - The Forest
-- The East Forests
+- The Black Hills
 - The Marshes
 - The Caves
 - The Depths
@@ -183,6 +183,8 @@ Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in 
 Out in the wild, Locations are named after their Zone and a number — Forest 7, Depths 3. That is deliberate. One stretch of woods is not signposted differently from the next, and learning which is which is something you do by walking them. ‡
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all. ‡
+
+Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. You'll be turned back at those while you're mounted. Unequip the animal and you can go through on your own two feet. ‡
 
 If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you. ‡
 
@@ -380,7 +382,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand. ‡
 
-**Carts and horses have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft or the Factory — so they're left at the door for you when you walk in, and you take them up again on the way out. ‡
+**Carts and horses have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the Factory, the Mountain, or anywhere underground — so they're left at the door for you when you walk in, and you take them up again on the way out. ‡
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
 

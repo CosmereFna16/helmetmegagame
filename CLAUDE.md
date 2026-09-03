@@ -464,7 +464,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 One more gate exists that is **not** a Discord role, and it's the only soft
 one in the app. `GmAssignment` (one row per seat, keyed on the pair
 `discordUserId` + `zoneId`, set from `/gm/gamemasters`) seats a zone-GM over
-one or more of the six **seat** zones — Town, Fortress, Forest, East Forests,
+one or more of the six **seat** zones — Town, Fortress, Forest, Black Hills,
 Marshes, Underground — never one of the two cave levels. All it does is decide which zones that GM's
 tables *open* on. No query is scoped by it, and no row is hidden — a Move
 crosses zones by nature, so hiding rows would break the job. Every other row in

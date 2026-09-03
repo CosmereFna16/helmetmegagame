@@ -855,6 +855,14 @@ model Location {
 ///                    Role slugs from docs/roles.yaml and openerTagSlugs are
 ///                    Tag slugs; holding any one of them is authority to
 ///                    flip it.
+///   onFoot           Too tight, too steep or too enclosed for a horse or a
+///                    cart. A MOUNTED character is refused at the threshold —
+///                    which is the point, because Location.indoors only parks
+///                    a mount on ARRIVAL, and by then the rider has already
+///                    spent the extra free zone-crossing an equipped mount
+///                    buys (freeZoneMoves, db/lib/locationTravel.js). This is
+///                    the edge-level sibling of indoors: same effect, earlier
+///                    moment. Unequipping the horse is the way through.
 ///   keyed            On crossing, the key-holder is DM'd "Leave open for the
 ///                    next 24 hours?". Yes stamps openUntil, and until then
 ///                    the edge ignores requiredTagSlug AND is listed even when
@@ -881,6 +889,8 @@ model LocationLink {
 
   keyed     Boolean   @default(false)
   openUntil DateTime?
+
+  onFoot Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -189,6 +189,7 @@ function parseZonesYaml(doc) {
 //     hidden: <tag-slug>
 //     modular: { roles: [...], tags: [...], open: true }
 //     keyed: true
+//     on_foot: true
 //
 // The bare-pair form is kept because most of the map is plain roads, and a
 // mapping for each of them would triple the file for nothing.
@@ -206,7 +207,7 @@ const ANNOUNCE_BY_KEYWORD = new Map([
   ["unmanned", "CONCEALED"],
 ]);
 
-const CONNECTION_KEYS = new Set(["pair", "announce", "locked", "hidden", "modular", "keyed"]);
+const CONNECTION_KEYS = new Set(["pair", "announce", "locked", "hidden", "modular", "keyed", "on_foot"]);
 
 function parseConnection(raw, locationByRef, problems) {
   const isPair = Array.isArray(raw);
@@ -250,6 +251,7 @@ function parseConnection(raw, locationByRef, problems) {
     openerRoleSlugs: [],
     openerTagSlugs: [],
     keyed: false,
+    onFoot: false,
   };
 
   if (spec.announce != null) {
@@ -274,6 +276,19 @@ function parseConnection(raw, locationByRef, problems) {
     }
     entry.requiredTagSlug = spec[key].trim();
     entry.hidden = hides;
+  }
+
+  // A way no horse or cart fits through. Unlike everything else here it gates
+  // on what the traveller has EQUIPPED rather than what they hold, and unlike
+  // Location.indoors it refuses at the threshold instead of parking the mount
+  // on arrival — which is the point, since arrival is after the free crossing
+  // an equipped mount buys has already been spent.
+  if (spec.on_foot != null) {
+    if (typeof spec.on_foot !== "boolean") {
+      problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean on_foot: ${JSON.stringify(spec.on_foot)}`);
+    } else {
+      entry.onFoot = spec.on_foot;
+    }
   }
 
   // `keyed` only means anything on a way that is shut to somebody: it offers
@@ -961,6 +976,7 @@ async function syncZonesFromYaml(prisma) {
       openerRoleSlugs: entry.openerRoleSlugs,
       openerTagSlugs: entry.openerTagSlugs,
       keyed: entry.keyed,
+      onFoot: entry.onFoot,
     };
     await prisma.locationLink.upsert({
       where: { aId_bId: { aId, bId } },

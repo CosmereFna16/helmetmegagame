@@ -45,7 +45,7 @@ by `db/lib/zoneChannelSpec.js#zoneChannelSpec` (the zone's category and
 create payloads — and both first-time provisioning and the every-run reconcile
 build from them, so the two can never disagree.
 
-**A zone** (Town, Fortress, Forest, East Forests, Marshes, Underground) is a category and, for a
+**A zone** (Town, Fortress, Forest, Black Hills, Marshes, Underground) is a category and, for a
 `SURFACE` zone only, a `#summary` channel:
 
 | Channel | Type | Purpose | Notes |
@@ -486,7 +486,7 @@ two access twins and the wipe.
 | Channel | Who sees it | Who speaks |
 |---|---|---|
 | `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
-| `#intercom` | **every above-ground zone role** — Town, Fortress, Forest, East Forests, Marshes, a static `roleViewZones` grant; the rock swallows the PA below | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
+| `#intercom` | **every above-ground zone role** — Town, Fortress, Forest, Black Hills, Marshes, a static `roleViewZones` grant; the rock swallows the PA below | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
 
 The Radio and Intercom tags are transferable, so possession is what matters —
 a bracelet handed to a non-Watch character still opens `#watch`.

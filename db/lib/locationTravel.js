@@ -121,6 +121,9 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     const link = await linkBetween(prisma, currentLocation.id, targetLocation.id);
     const gate = crossingCheck(link, {
       tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+      // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
+      // for exactly this kind of question.
+      mounted: isMounted(equippedSlugs(character.tags ?? [])),
     });
     if (!gate.passable) return { ok: false, reason: gate.refusal };
   }

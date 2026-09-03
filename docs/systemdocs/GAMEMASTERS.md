@@ -9,7 +9,7 @@ colour vocabulary that tells them at a glance whose row is whose.
 
 Lifeweb runs with **one master** — the superadmin (`web/lib/superadmin.js`) —
 and zone-GMs seated over the six **seat** zones: **Fortress, Town, Forest,
-East Forests, Marshes, Underground**. (Characters stand in seven *presence*
+Black Hills, Marshes, Underground**. (Characters stand in seven *presence*
 zones, because the Underground seat covers both cave levels — §2a.)
 
 **A GM may hold more than one seat.** With five GMs and four zones somebody
@@ -37,8 +37,8 @@ ergonomics. Do not "harden" it without re-reading the paragraph above.
 ### 2a. Presence zones vs seat zones
 
 Since the Bascinet 2 map, **presence is seven zones and the seats are six.**
-Characters stand in Town, Fortress, Forest, East Forests, Marshes, Caves or
-Depths; the GM seats are Town, Fortress, Forest, East Forests, Marshes and
+Characters stand in Town, Fortress, Forest, Black Hills, Marshes, Caves or
+Depths; the GM seats are Town, Fortress, Forest, Black Hills, Marshes and
 **Underground**, with both cave levels belonging to the Underground seat.
 Underground is the only seat that is not itself a place — it is a `CAVE_GROUP`,
 a category and a seat and nothing else.
@@ -91,7 +91,7 @@ map's palette rather than an invented one:
 | Fortress | the castle's red roofs | `#9c4132` terracotta ruby |
 | Town | the timber cluster's thatch | `#998d6b` brown linen |
 | Forest | the olive scrub the retired Windlands wore | `#7f8c64` desaturated lime |
-| East Forests | the blue-grey of its region on the drawing | `#79899b` slate |
+| Black Hills | the blue-grey of its region on the drawing | `#79899b` slate (token is still `--zone-east-forests`, the slug) |
 | Marshes | the drab grey-green of the wet ground | `#8d9384` reed |
 | Caves | mountain rock | `#939d9e` stone grey |
 | Depths | the mauve band along the map's edge and floor | `#8f7f9c` bruise |

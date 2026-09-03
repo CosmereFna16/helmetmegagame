@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
+import { isMounted, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import {
   MAX_BIRD_BODY,
@@ -1409,6 +1410,8 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetLocationId, r
   const link = await linkBetween(prisma, character.locationId, targetLocation.id);
   const gate = crossingCheck(link, {
     tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+    // The FILER's mount, since they are the one leading the way through.
+    mounted: isMounted(equippedSlugs(character.tags ?? [])),
   });
   if (!gate.passable) throw new UserError(gate.refusal);
 

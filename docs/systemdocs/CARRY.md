@@ -135,6 +135,10 @@ while stowed — no carry multiplier, no extra zone move, no passenger seats.
 They compete for the same six `GameConfig.equipSlots` as armour and weapons,
 which is the point: a cart should cost you something to keep out.
 
+A **connection** can keep a mount out too — `on_foot: true`, which refuses a
+mounted character rather than parking them on arrival (`MAP.md` §2c). The two
+are complements: `indoors` covers a place, `on_foot` covers a way in.
+
 A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
 Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk
 into, and you do not bring a horse into a chapel. On arrival

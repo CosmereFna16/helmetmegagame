@@ -1539,12 +1539,21 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  mountaineer:
-    name: Mountaineer
+  mountaineering:
+    name: Mountaineering
     category: skills
     teachable: true
     description: "You can climb mountains, granting you access to certain locations. ‡"
-    pointCost: 4
+    pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  caving:
+    name: Caving
+    category: skills
+    teachable: true
+    description: "Unlocks secret passages through the caves. ‡"
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -3350,6 +3359,9 @@ tags:
     pointCost: -5
     purchasable: true
     purchasableAfterStart: false
+    # Blind's removesInto lands here, so the two are the same eye at two
+    # depths — holding both would be paying twice for one pair of eyes.
+    conflictsWith: [blind]
 
   scarred:
     name: Scarred
@@ -4230,6 +4242,15 @@ tags:
     purchasableAfterStart: false
     visible: false
     requiredTag: brigand
+
+  sewer-key:
+    name: Sewer Key
+    category: items
+    group: items-gear
+    description: "A key to the Underquarter's sewers. ‡"
+    pointCost: 0
+    tradeable: true
+    purchasable: false
 
   elevator-key:
     name: Elevator Key

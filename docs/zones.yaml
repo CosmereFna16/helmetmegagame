@@ -490,64 +490,74 @@ zones:
         rooms: {}
 
   east-forests:
-    name: East Forests
+    # Renamed to the Black Hills. The `id` deliberately does NOT move: changing
+    # it would prune every location under it, and the slugs are what tie each
+    # node back to the numbers on Bascinet's drawing.
+    name: Black Hills
     kind: surface
     sort: 4
     description: >-
       Older woodland across the river, where the barony's writ thins out and then stops. The trees stand further apart than they have any right to and the ground between them is too clear. People who go in come back with stories that do not agree with each other. ‡
     locations:
+      mountain:
+        name: Mountain
+        indoors: true
+        description: >-
+          The pass over the peak, and the only way across the range on foot. Cut steps where the rock allows and a fixed rope where it does not, both maintained by nobody in particular. From the top you can see the fortress on one side and the western woods on the other, which is the only place in the barony where both are true at once. ‡
+        rooms: {}
+
       # map node 12
       east-forests-12:
-        name: East Forests 1
+        name: Black Hills 1
         description: >-
           Where the mountain road finally comes down out of the rock. The trees here are wrong — taller, further apart, quieter — and the ground between them is clear in a way no forest manages by itself. ‡
         yield: { hunting: 0.8 }
         rooms: {}
       # map node 13
       east-forests-13:
-        name: East Forests 2
+        name: Black Hills 2
         description: >-
           The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
         yield: { hunting: 0.8 }
         rooms: {}
       # map node 25
       east-forests-25:
-        name: East Forests 3
+        name: Black Hills 3
         description: >-
           Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
         yield: { hunting: 0.8 }
         rooms: {}
       # map node 26
       east-forests-26:
-        name: East Forests 4
+        name: Black Hills 4
         description: >-
           The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. Someone has built a cairn. Someone else has knocked it down. ‡
         yield: { hunting: 0.8 }
         rooms: {}
       # map node 27
       east-forests-27:
-        name: East Forests 5
+        name: Black Hills 5
         description: >-
           A crossroads of deer paths in a stand of black pine, so dense that noon reads as evening. Sound does not carry. Neither do shouts. ‡
         yield: { hunting: 1.3, fishing: 0.8 }
         rooms: {}
       # map node 28
       east-forests-28:
-        name: East Forests 6
+        name: Black Hills 6
         description: >-
           Ruins under moss: footings, a doorstep, the stub of a chimney, all laid out in a grid too regular for a village. Whatever stood here was planned by somebody with a straight edge. ‡
         yield: { hunting: 0.8 }
         rooms: {}
       # map node 29
       east-forests-29:
-        name: East Forests 7
+        name: Black Hills 7
         description: >-
           A dead end that does not look like one until you are in it — a bowl of ground ringed by rock, floored in fern. Excellent for hiding. Terrible for leaving. ‡
         yield: { hunting: 0.8 }
         rooms: {}
       # map node 30
       east-forests-30:
-        name: East Forests 8
+        name: Black Hills 8
         description: >-
           The eastern edge, where the forest thins into scrub and the ground starts its long fall toward the marsh. The air changes here. You can taste it before you see it. ‡
         yield: { hunting: 1.1 }
@@ -634,11 +644,13 @@ zones:
         locations:
           customs:
             name: Customs
+            indoors: true
             description: >-
               The sentry beholds migrants and mercenaries as they talk around the fire. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the light — there is an automated small-caliber mounted on the outside wall to account for that. It's off. ‡
             rooms: {}
           depot:
             name: Depot
+            indoors: true
             attributes:
               depot: true
             description: >-
@@ -647,6 +659,7 @@ zones:
           # map node 14
           caves-14:
             name: Caves 1
+            indoors: true
             description: >-
               The first proper dark. The floor is smooth from centuries of boots and the walls are close enough to touch on both sides, which is a comfort until you think about it. ‡
             yield: { hunting: 0.4 }
@@ -654,6 +667,7 @@ zones:
           # map node 15
           caves-15:
             name: Caves 2
+            indoors: true
             description: >-
               A junction chamber with too many exits. Cold air comes from one of them and warm air from another, and the difference is the only navigation you have. Somebody has scratched arrows. They disagree. ‡
             yield: { hunting: 0.4 }
@@ -661,6 +675,7 @@ zones:
           # map node 16
           caves-16:
             name: Caves 3
+            indoors: true
             description: >-
               The old freight run — a level, worked passage, wide enough for two carts abreast, cut by people with better tools than anyone has now. It goes somewhere. It always went somewhere. ‡
             yield: { hunting: 0.4 }
@@ -668,6 +683,7 @@ zones:
           # map node 17
           caves-17:
             name: Caves 4
+            indoors: true
             description: >-
               The stair head, where the smoothed paths end and the descending ones begin. Everything below this point is colder. There is a rope handrail, and it is not old. ‡
             yield: { hunting: 0.4 }
@@ -681,6 +697,7 @@ zones:
           # map node 18
           depths-18:
             name: Depths 1
+            indoors: true
             description: >-
               A dead end, and a wrong one. The passage simply stops at a face of worked stone with no seam, no door, and no reason. People come here to look at it and then leave quickly. ‡
             yield: { hunting: 0.6 }
@@ -688,6 +705,7 @@ zones:
           # map node 19
           depths-19:
             name: Depths 2
+            indoors: true
             description: >-
               Water to the ankle, and it is moving, which means it is going somewhere, which means there is a somewhere. The sound is enormous in the dark. ‡
             yield: { hunting: 1.8 }
@@ -695,6 +713,7 @@ zones:
           # map node 20
           depths-20:
             name: Depths 3
+            indoors: true
             description: >-
               A gallery so wide your light does not reach the far wall. The floor is flat and swept. Nothing down here sweeps. ‡
             yield: { hunting: 0.6 }
@@ -702,6 +721,7 @@ zones:
           # map node 21
           depths-21:
             name: Depths 4
+            indoors: true
             description: >-
               The junction under the stair, where the routes from above finally braid together. Every party that comes down passes through. Not every party passes back. ‡
             yield: { hunting: 0.6 }
@@ -709,6 +729,7 @@ zones:
           # map node 22
           depths-22:
             name: Depths 5
+            indoors: true
             description: >-
               The long eastern run, mile after mile of the same worked passage, and then a place where the wall has been broken through from the other side. ‡
             yield: { hunting: 0.6 }
@@ -716,6 +737,7 @@ zones:
           # map node 23
           depths-23:
             name: Depths 6
+            indoors: true
             description: >-
               Where the deep passage rises again and the air turns salt. There is light ahead that is not yours, and it is not warm. ‡
             yield: { hunting: 1.6 }
@@ -723,6 +745,7 @@ zones:
           # map node 24
           depths-24:
             name: Depths 7
+            indoors: true
             description: >-
               The eastern mouth, opening onto scree above the sea. The way out is here, if you count a two-hundred-foot climb as a way out. ‡
             yield: { hunting: 0.6 }
@@ -777,7 +800,7 @@ connections:
   - [forest/forest-8, forest/forest-9]
   - [forest/forest-10, forest/forest-36]
 
-  # --- East Forests -----------------------------------------------------
+  # --- Black Hills ------------------------------------------------------
   - [east-forests/east-forests-12, east-forests/east-forests-13]
   - [east-forests/east-forests-12, east-forests/east-forests-25]
   - [east-forests/east-forests-25, east-forests/east-forests-26]
@@ -806,7 +829,8 @@ connections:
   # The freight run's own door into the depot, which is how the merchant's
   # crates get in without passing the sentry at Customs.
   - pair: [caves/depot, caves/caves-16]
-    hidden: TODO-depot-tunnel
+    hidden: caving
+    on_foot: true
 
   # --- Depths -----------------------------------------------------------
   - [depths/depths-18, depths/depths-19]
@@ -847,23 +871,40 @@ connections:
   - pair: [fortress/undercroft, forest/forest-2]
     hidden: elevator-key
     keyed: true
+    on_foot: true
 
-  # The mountain road east. Listed, not hidden — you can see the pass from
-  # the road and understand perfectly well that you cannot climb it.
+  # The three climbs. All LOCKED rather than hidden — you can see a mountain
+  # perfectly well from the road, and understand just as well that you cannot
+  # get up it. All on foot: no horse goes over a pass.
   - pair: [fortress/road, east-forests/east-forests-12]
-    locked: mountaineer
+    locked: mountaineering
+    on_foot: true
+  - pair: [fortress/servant-wing, east-forests/mountain]
+    locked: mountaineering
+    on_foot: true
+  - pair: [forest/forest-1, east-forests/mountain]
+    locked: mountaineering
+    on_foot: true
 
-  # The four remaining ways off the map's beaten paths. Each is drawn as a
-  # dashed line on Bascinet's map and each is HIDDEN; the tags are still to be
-  # chosen, and db:doctor reports every TODO- slug here until they are.
+  # The four crawls. Hidden, so a player without Caving never learns they are
+  # there at all, and on foot, because they are crawls.
   - pair: [forest/forest-9, caves/caves-15]
-    hidden: TODO-forest-shaft
-  - pair: [forest/forest-10, town/underquarter]
-    hidden: TODO-culvert
+    hidden: caving
+    on_foot: true
   - pair: [caves/caves-15, marshes/marshes-33]
-    hidden: TODO-marsh-passage
+    hidden: caving
+    on_foot: true
   - pair: [depths/depths-22, marshes/marshes-35]
-    hidden: TODO-marsh-stair
+    hidden: caving
+    on_foot: true
+
+  # The culvert into the Underquarter's sewers. LOCKED rather than hidden —
+  # a grating in a riverbank is not a secret — and keyed, so whoever unlocks it
+  # is asked whether to leave it open behind them.
+  - pair: [forest/forest-10, town/underquarter]
+    locked: sewer-key
+    keyed: true
+    on_foot: true
 
 # ===========================================================================
 # RETIRED PLACES

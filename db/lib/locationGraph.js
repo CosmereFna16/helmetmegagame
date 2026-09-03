@@ -12,6 +12,7 @@
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { heldTagSlugs } = require("./roomAccess");
+const { isMounted, equippedSlugs } = require("./mounts");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -88,7 +89,11 @@ function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
 // makes a hidden one listed. That is deliberate and is the entire feature: a
 // door somebody held open has to be visible to the people meant to follow
 // them through it.
-function crossingCheck(link, { tagSlugs, now = new Date() } = {}) {
+//
+// `mounted` is the ONE input here that is not about tags-you-hold but about
+// tags-you-have-out. Pass it from isMounted(equippedSlugs(tags)); a horse in
+// your pocket is not a horse you are riding.
+function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {}) {
   if (!link) {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
@@ -106,6 +111,17 @@ function crossingCheck(link, { tagSlugs, now = new Date() } = {}) {
   }
   if (link.modular && !link.isOpen) {
     return { listed: true, passable: false, refusal: "The way is shut. ‡" };
+  }
+  // Last, because it is the one refusal the traveller can fix on the spot: a
+  // way too tight for a horse is listed, and unequipping the horse is the way
+  // through. Location.indoors would only have parked the mount on arrival,
+  // which is after the free crossing was already spent.
+  if (link.onFoot && mounted) {
+    return {
+      listed: true,
+      passable: false,
+      refusal: "No horse or cart fits through there. Unequip it and go on foot. ‡",
+    };
   }
   return { listed: true, passable: true, refusal: null };
 }
@@ -133,9 +149,20 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   const links = await linksFor(prisma, locationId);
   if (links.length === 0) return [];
 
-  const tagSlugs = character?.tags
-    ? new Set(character.tags.map((ct) => ct.tag?.slug).filter(Boolean))
-    : await heldTagSlugs(prisma, character?.id);
+  // The fallback used to call heldTagSlugs, which returns BARE slugs with no
+  // equip state — and a stowed horse must not read as a mount. So when the
+  // caller hands us no tags we load them in the shape equippedSlugs expects
+  // rather than the cheaper flat set.
+  const tags =
+    character?.tags ??
+    (character?.id
+      ? await prisma.characterTag.findMany({
+          where: { characterId: character.id },
+          select: { equipped: true, tag: { select: { slug: true } } },
+        })
+      : []);
+  const tagSlugs = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
+  const mounted = isMounted(equippedSlugs(tags));
 
   const zoneId = fromZoneId ?? character?.zoneId ?? null;
   // One clock for the whole list, so a propped-open way cannot lapse halfway
@@ -149,7 +176,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         location: far,
         link,
         crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
-        ...crossingCheck(link, { tagSlugs, now }),
+        ...crossingCheck(link, { tagSlugs, mounted, now }),
       };
     })
     .sort(
