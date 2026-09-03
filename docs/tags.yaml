@@ -4250,6 +4250,7 @@ tags:
     description: "A key to the Underquarter's sewers. ‡"
     pointCost: 0
     tradeable: true
+    weight: 0.5
     purchasable: false
 
   elevator-key:
