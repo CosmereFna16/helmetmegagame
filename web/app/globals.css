@@ -2602,8 +2602,65 @@ input[type="radio"]:disabled {
   background: var(--field-bg);
 }
 
-.desk-qty {
-  width: 4rem;
+/* QuantityField.js — the one quantity control in the app (− / number / +).
+   It replaced nine hand-rolled number inputs whose widths had drifted to
+   4rem, 7rem and 10rem depending on which surface you landed on.
+
+   The native spinners are hidden because the − / + buttons ARE the spinner,
+   and two sets of arrows on one control reads as a bug. The input keeps
+   type="number" regardless: it's what gets a numeric keypad on a phone. */
+.qty {
+  display: inline-flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+}
+
+.qty-input {
+  width: 3.5rem;
+  text-align: center;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 4px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+}
+
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.qty-input[type="number"] {
+  appearance: textfield;
+}
+
+.qty-btn {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--r-sm);
+  width: 1.9rem;
+  font-size: var(--fs-base);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: var(--row-hover);
+}
+
+.qty-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The boxed form keeps .field's stacked label but must not stretch the
+   control to the label's width. */
+.qty-field {
+  align-items: flex-start;
 }
 
 /* The push preview's clickable lines: a plain-text button, not a chip — it

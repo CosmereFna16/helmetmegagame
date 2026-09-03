@@ -80,6 +80,12 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         defaultDurationTurns: true,
         parentTagId: true,
         requiredTagId: true,
+        // The treated-wound aftermath (TAGS.md §5c). The Dev Panel's Holds
+        // row needs it to warn before an IMMEDIATE removal: removing a Broken
+        // Bone leaves Splinted behind, and re-adding the Broken Bone does not
+        // clear it, so that one gesture is the one that can't be undone by
+        // repeating its inverse.
+        removesInto: true,
         requirementTurns: true,
         requirementResources: true,
         requirementGambit: true,
@@ -301,6 +307,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       defaultDurationTurns: t.defaultDurationTurns,
       parentTagId: t.parentTagId,
       requiredTagId: t.requiredTagId,
+      // Slugs, resolved to names client-side against this same list.
+      removesInto: t.removesInto,
       group: t.group,
       // Precomputed server-side so the Heal-all and Inflict-wound
       // staging buttons and the server action agree on what an

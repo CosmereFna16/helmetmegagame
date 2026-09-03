@@ -3,6 +3,7 @@
 import PartySelect from "./PartySelect";
 import Select from "./Select";
 import { needsWorkshop } from "@/lib/tagRequests";
+import QuantityField from "./QuantityField";
 
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
 // RequestActionsProvider like every other mode — this is the form.
@@ -95,11 +96,17 @@ export default function CraftDialog({
           {picker}
           {chosen && (
             <>
+              {/* 99 is the server's own clamp (craftRequestImpl's parseCount),
+                  not an arbitrary UI bound. The per-turn caps on Dead Simple
+                  and medical work are enforced server-side and can't be known
+                  here. */}
               {stacking && (
-                <label className="field" style={{ width: "10rem" }}>
-                  <span className="field-label">How many?</span>
-                  <input type="number" min="1" max="99" value={quantity} onChange={(e) => onQuantity(e.target.value)} />
-                </label>
+                <QuantityField
+                  label="How many? ‡"
+                  max={99}
+                  value={quantity}
+                  onChange={onQuantity}
+                />
               )}
               {cost > 0 && (
                 <PartySelect

@@ -7,6 +7,7 @@ import { FilterBar, TableScroll, SortHeader, useTableState } from "./DataTable";
 import Pager from "./Pager";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
+import QuantityField from "./QuantityField";
 
 // Module constants, not inline literals: useTableState lists both in the
 // dependency arrays of its `options` and `visible` memos, so a fresh array
@@ -199,16 +200,12 @@ function Counter({ buying, rows, resources, maxQuantity, disabled }) {
         {open && (
           <>
             {max > 1 && (
-              <label className="field">
-                <span className="field-label">How many? (up to {max})</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={max}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, Math.min(max, Number(e.target.value) || 1)))}
-                />
-              </label>
+              <QuantityField
+                label={`How many? (up to ${max}) ‡`}
+                max={max}
+                value={String(quantity)}
+                onChange={(v) => setQuantity(Math.max(1, Math.min(max, Number(v) || 1)))}
+              />
             )}
             <p className="text-sm text-muted">
               {open.price} ⬢ each · <span className="mono">{total} ⬢</span> total

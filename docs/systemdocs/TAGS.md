@@ -821,7 +821,11 @@ about `quantity`; everything else goes through them:
 `stackable` describes the shape of the row rather than who may hold what, and
 a quantity on a holds-it-or-doesn't flag is just a corrupt row. So the
 quantity stepper is rendered **only on a `stackable` tag** — in the Dev Panel
-Tags tab and in the turn desk's effect composer alike (`DEV-PANEL.md` §5) —
+Tags tab and in the turn desk's effect composer alike (`DEV-PANEL.md` §5). On
+the Dev Panel's Holds row that stepper sets the **resulting count** rather than
+a delta, staged as a `patch quantity`, so taking a stack from seven to three is
+one gesture; zero there means the whole holding, converted to a `remove` before
+it is sent. Elsewhere the stepper still reads as "how many" —
 `mergeTagOp` (`web/lib/tagOpAlgebra.js`) pins a non-stackable `add` back to 1
 so repeated clicks can't accumulate either, and `validateTagOps`
 (`db/lib/tagOps.js`) refuses `quantity > 1` outright. This used to be

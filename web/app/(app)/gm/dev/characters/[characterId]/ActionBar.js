@@ -50,10 +50,15 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 //     form deliberately does NOT carry (status, the Action row, Discord), so
 //     they can be used mid-edit without racing anything.
 //
-//   STAGING — inflict wound, heal all, feed, refund points. These make no
-//     server call at all: they push ops into the same pending diff the Tags
-//     tab uses, so they show in the pending count, go through the one tag
-//     write path, and are undone by Cancel like any other edit.
+//   STAGING — refund points, and only that. It writes the tagPoints COLUMN,
+//     which is still a staged value, so it pushes into the pending diff and is
+//     undone by Cancel like any other edit.
+//
+// Inflict wound, heal all and feed used to sit in that second family and were
+// the awkward part of it — three buttons in a row of verbs that looked like
+// they fired and didn't. They all push TAG ops, and tag changes now commit on
+// the gesture, so they are simply verbs too. What is left is a clean split:
+// columns stage, verbs and tags fire.
 export default function ActionBar({
   character,
   canDelete,
@@ -67,7 +72,7 @@ export default function ActionBar({
   cursed,
   pendingCount,
   startingTagPoints,
-  onStageTags,
+  onApplyTags,
   onStageField,
   refresh,
   onDeleted,
@@ -79,9 +84,10 @@ export default function ActionBar({
   const doDeleted = onDeleted ?? (() => router.push("/gm/players"));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
-  // What the last staging button put in the pending diff. These four buttons
-  // sit in a row of verbs that fire immediately, so without a line saying so
-  // they read as having silently done nothing.
+  // What the last of these buttons just did. An unlabelled icon that changes
+  // something out of view reads as a dead button, which is exactly how it was
+  // first reported — so each one says so in a line beneath the row.
+  const [done, setDone] = useState(null);
   const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
@@ -146,6 +152,21 @@ export default function ActionBar({
     });
   }
 
+  // A tag gesture: fires now, reports what it did. DevPanel's applyTagOps
+  // refreshes on success, so there is nothing to do here but surface the
+  // outcome.
+  function runTags(ops, said) {
+    setError(null);
+    startTransition(async () => {
+      const res = await onApplyTags(ops);
+      if (!res?.ok) {
+        setError(res?.error ?? "Something went wrong. ‡");
+        return;
+      }
+      setDone(said);
+    });
+  }
+
   // Confirm FIRST, transition SECOND. Never the other way round.
   //
   // useConfirm() resolves on a click, so the setState that mounts the dialog
@@ -170,12 +191,14 @@ export default function ActionBar({
       setError(`${character.name} has nothing to heal.`);
       return;
     }
-    onStageTags(wounds.map((t) => ({ tagId: t.id, op: "remove", quantity: null })));
     setError(null);
-    setStaged(
-      wounds.length === 1
-        ? `removing ${wounds[0].name}`
-        : `removing ${wounds.length} afflictions`,
+    setStaged(null);
+    // One gesture, one call, one audit row, one DM — applyTagOpsInTx applies
+    // the whole batch in order, so a ward's worth of removals is still one
+    // thing that happened to the player rather than a burst of them.
+    runTags(
+      wounds.map((t) => ({ tagId: t.id, op: "remove", quantity: null })),
+      wounds.length === 1 ? `Healed ${wounds[0].name}` : `Healed ${wounds.length} afflictions`,
     );
   }
 
@@ -190,9 +213,9 @@ export default function ActionBar({
       setError(`${character.name} is already fed.`);
       return;
     }
-    onStageTags(ops);
     setError(null);
-    setStaged("a meal");
+    setStaged(null);
+    runTags(ops, "Fed them");
   }
 
   // Recompute what they should have left: the creation budget, minus what
@@ -205,6 +228,7 @@ export default function ActionBar({
       .reduce((sum, t) => sum + (t.pointCost ?? 0), 0);
     onStageField("tagPoints", budget - spent);
     setError(null);
+    setDone(null);
     setStaged(`tag points at ${budget - spent}`);
   }
 
@@ -274,31 +298,36 @@ export default function ActionBar({
 
         <span className="dev-bar-sep" aria-hidden="true" />
 
-        {/* These four don't fire — they push into the pending diff so Cancel
-            can undo them and every tag change goes through one write path.
-            Captioned `stages` because they sit beside verbs that DO fire, and
-            an unlabelled icon that silently stages reads as a dead button. */}
+        {/* Three tag verbs that fire, and one staging button that doesn't.
+            Refund points writes the tagPoints COLUMN, which is still staged,
+            so it keeps the caption — an unlabelled icon that silently stages
+            reads as a dead button, which is how it was first reported. */}
+        <div className="flex items-center gap-2">
+          <IconButton
+            icon={WoundIcon}
+            label="Inflict a wound"
+            disabled={pending}
+            onClick={() => setDialog("wound")}
+          />
+          <IconButton
+            icon={BandageIcon}
+            label="Heal every affliction"
+            disabled={pending}
+            onClick={healAll}
+          />
+          <IconButton
+            icon={MealIcon}
+            label="Feed them"
+            disabled={pending}
+            onClick={feedThem}
+          />
+        </div>
+
+        <span className="dev-bar-sep" aria-hidden="true" />
+
         <div className="dev-bar-group">
           <span className="dev-bar-caption">stages</span>
           <div className="flex items-center gap-2">
-            <IconButton
-              icon={WoundIcon}
-              label="Inflict a wound"
-              disabled={pending}
-              onClick={() => setDialog("wound")}
-            />
-            <IconButton
-              icon={BandageIcon}
-              label="Heal every affliction"
-              disabled={pending}
-              onClick={healAll}
-            />
-            <IconButton
-              icon={MealIcon}
-              label="Feed them"
-              disabled={pending}
-              onClick={feedThem}
-            />
             <IconButton
               icon={PointsIcon}
               label="Recompute their unspent tag points"
@@ -331,7 +360,8 @@ export default function ActionBar({
         </div>
 
         <FormError>{error}</FormError>
-        {!error && staged && pendingCount > 0 && (
+        {!error && done && <p className="w-full text-sm text-accent">{done}. ‡</p>}
+        {!error && !done && staged && pendingCount > 0 && (
           <p className="w-full text-sm text-accent">
             Staged {staged} — press <strong>Apply</strong> below to commit it.
           </p>
@@ -535,10 +565,9 @@ export default function ActionBar({
                     className="btn-quiet w-full text-left"
                     disabled={heldIds.has(t.id)}
                     onClick={() => {
-                      onStageTags([{ tagId: t.id, op: "add", quantity: 1 }]);
-                      setError(null);
-                      setStaged(t.name);
+                      setStaged(null);
                       setDialog(null);
+                      runTags([{ tagId: t.id, op: "add", quantity: 1 }], `Inflicted ${t.name}`);
                     }}
                   >
                     {t.name}

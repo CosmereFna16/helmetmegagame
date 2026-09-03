@@ -37,6 +37,7 @@ import Select from "./Select";
 import ChipText from "./ChipText";
 import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
 import ReadDialog from "./ReadDialog";
+import QuantityField from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
@@ -242,23 +243,6 @@ function TagPicker({
         )}
       </div>
     </div>
-  );
-}
-
-// Only rendered for a stackable tag. `max` is held quantity for
-// Remove/Transfer, open-ended for Add.
-function QuantityField({ value, onChange, max, label }) {
-  return (
-    <label className="field" style={{ width: "10rem" }}>
-      <span className="field-label">{label}</span>
-      <input
-        type="number"
-        min="1"
-        max={max}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </label>
   );
 }
 
@@ -1109,26 +1093,12 @@ export default function RequestActionsProvider({
                                     {t.quantity > 1 ? ` ×${t.quantity}` : ""}
                                   </CheckField>
                                   {checked && t.stackable && t.quantity > 1 && (
-                                    <label
-                                      className="field"
-                                      style={{ width: "7rem" }}
-                                    >
-                                      <span className="field-label">
-                                        How many?
-                                      </span>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        max={t.quantity}
-                                        value={picks[t.tagId]}
-                                        onChange={(e) =>
-                                          setPickQuantity(
-                                            t.tagId,
-                                            e.target.value,
-                                          )
-                                        }
-                                      />
-                                    </label>
+                                    <QuantityField
+                                      label="How many? ‡"
+                                      max={t.quantity}
+                                      value={picks[t.tagId]}
+                                      onChange={(v) => setPickQuantity(t.tagId, v)}
+                                    />
                                   )}
                                 </div>
                               );

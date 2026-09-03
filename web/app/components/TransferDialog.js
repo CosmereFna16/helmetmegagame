@@ -2,6 +2,7 @@
 
 import PartySelect from "./PartySelect";
 import CheckField from "./CheckField";
+import QuantityField from "./QuantityField";
 
 // The body of the one Transfer dialog (docs/systemdocs/CARRY.md): a source, a
 // destination, the tags that can leave the source, and a ⬢ amount. State
@@ -141,16 +142,12 @@ export default function TransferDialog({
                       {stackLabel(t.name, t.quantity)}
                     </CheckField>
                     {checked && max > 1 && (
-                      <label className="field" style={{ width: "7rem" }}>
-                        <span className="field-label">How many?</span>
-                        <input
-                          type="number"
-                          min="1"
-                          max={max}
-                          value={picks[t.tagId]}
-                          onChange={(e) => onPickQuantity(t.tagId, e.target.value)}
-                        />
-                      </label>
+                      <QuantityField
+                        label="How many? ‡"
+                        max={max}
+                        value={picks[t.tagId]}
+                        onChange={(v) => onPickQuantity(t.tagId, v)}
+                      />
                     )}
                   </div>
                 );

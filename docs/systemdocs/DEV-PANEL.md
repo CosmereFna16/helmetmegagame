@@ -22,7 +22,7 @@ design:
 
 | | Staged | Immediate |
 |---|---|---|
-| What | Values — every editable column, and every tag change | Verbs — kill, revive, restore/spend turn, message, resync, delete |
+| What | Values — every editable column | Verbs — kill, revive, restore/spend turn, message, resync, delete — **and every tag change** |
 | When | On **Apply** | The moment it's confirmed |
 | Undo | **Cancel** discards the lot | Its own inverse, if it has one |
 | Audit | One row for the whole Apply | One row each |
@@ -49,18 +49,29 @@ from the form and lives only as the Kill and Revive buttons. That is why
 `applyCharacterEdits` never has to reason about "did they also just kill this
 character" — it reads status from the database, never from the payload.
 
-Four staging buttons sit in the action bar despite being edits rather than
-verbs — **Heal all**, **Feed**, **Refund points**, and the **Inflict wound**
-picker. They make no server call: they push ops into the same pending diff the
-Tags tab uses. Because they sit in a row of verbs that DO fire, they are
-captioned `stages`, and staging one prints an inline
+**Tags used to be staged too, and are not any more.** That made the commonest
+gesture on the panel the slowest: adjusting one stack cost a stage, a scroll
+and an Apply, and Cancel then discarded every unrelated edit along with it. A
+tag change now commits on the gesture, one call each.
+
+The two halves still hold to **disjoint fields**, so they still cannot race —
+and a tags-only write never bumps `Character.updatedAt`, because
+`applyCharacterEdits` skips its `character.update` when the core diff is empty.
+So it cannot invalidate a core edit staged beside it, and the Tags tab
+deliberately sends no `expectedUpdatedAt`.
+
+**One staging button is left.** **Refund points** writes the `tagPoints`
+column, still a staged value, so it keeps the `stages` caption and the inline
 "Staged X — press Apply" line: an unlabelled icon that silently stages reads
-as a dead button, which is exactly how it was first reported.
-Heal-all and Inflict both read `isHealable` from
-`web/lib/healRequests.js` (a **Health** tag carrying a cure cost) rather than
-re-deriving the predicate, so the picker and the server can't disagree about
-what an affliction is. So they show in the pending count, go through the one tag write
-path, and Cancel undoes them like anything else.
+as a dead button, which is exactly how it was first reported. **Heal all**,
+**Feed** and the **Inflict wound** picker all push *tag* ops, so all three are
+now plain verbs — they fire, and say what they did. Each is one gesture, one
+call, one audit row, one DM however many ops it carries, since
+`applyTagOpsInTx` takes a batch: healing a ward is still one thing that
+happened to the player rather than a burst of them. Heal-all and Inflict both
+read `isHealable` from `web/lib/healRequests.js` (a **Health** tag carrying a
+cure cost) rather than re-deriving the predicate, so the picker and the server
+can't disagree about what an affliction is.
 
 ## 3. Layout
 
@@ -85,9 +96,9 @@ path, and Cancel undoes them like anything else.
   one. Sticky rather than fixed so it stays in the page column and can't cover
   the nav rail on a narrow screen.
 
-A staged edit's own affordance is the shared pair from `DESIGN-SYSTEM.md` §5:
-`.field-dirty` outlines a single control with an unsaved edit, `.staged-row`
-outlines a whole row, toned by `data-staged` for a staged add versus remove.
+A staged edit's own affordance is `.field-dirty` from `DESIGN-SYSTEM.md` §5,
+which outlines a single control with an unsaved edit. The Tags tab no longer
+uses `.staged-row`: nothing there is pending long enough to need marking.
 
 ## 4. `applyCharacterEdits`
 
@@ -135,13 +146,29 @@ address, and it is what every `requestEffects.js` helper already takes.
 { tagId, op: "patch",  quantity?, equipped?, expiry? }
 ```
 
-A catalog Grant row and a Held row carry a quantity stepper **only when the
-tag is `stackable`**, so a GM can grant four meals at once instead of clicking
-one at a time. Everything else is a holds-it-or-doesn't flag: no box, the
-button just reads "Grant", and repeated clicks stage `quantity: 1` because
-`mergeTagOp` pins a non-stackable add back to 1 rather than accumulating. The
-`force: true` escape hatch that used to let a GM stack anything is gone
-(`TAGS.md` §5a).
+A quantity stepper (`web/app/components/QuantityField.js`) is rendered **only
+when the tag is `stackable`**. Everything else is a holds-it-or-doesn't flag:
+no box, and the button just reads "Grant". The `force: true` escape hatch that
+used to let a GM stack anything is gone (`TAGS.md` §5a).
+
+**The two steppers mean different things, and that is the point.** On a
+*catalog* row — a tag not yet held — it is "how many to grant", so it feeds an
+`add`. On a *Holds* row it is **the resulting count**, so it feeds a
+`patch quantity`, which `applyTagOpsInTx` writes straight onto the row. Setting
+a stack of seven to three is one gesture; it used to be four clicks of "Take
+one", because the Remove button was pinned to `quantity: 1` and ignored the
+number box sitting beside it.
+
+Two consequences of an absolute count worth knowing:
+
+- **Zero means the whole holding goes**, and the client converts it to a
+  `remove` before sending. `validateTagOps` refuses a `patch` below 1 outright
+  rather than degrading to a removal, so the conversion cannot be left to the
+  server.
+- **Rapid steps coalesce.** An absolute quantity is idempotent, so the Holds
+  stepper debounces and sends only the number it settles on. A stream of deltas
+  could not be collapsed that way — this is the concrete reason the control
+  sets a count rather than nudging one.
 
 Applied **removes → adds → patches → equipped**. Removes lead so swapping one
 tier of a chain for another can't trip the equip cap halfway through; the
@@ -179,21 +206,28 @@ never instead of it — otherwise a lucky search string would reveal a gated tag
 
 **Layout.** `TagEditor.js` splits into two permanent sections:
 
-- **Holds** — a one-line row per tag the character actually has: name, ×qty
-  when stacked, source, an equipped chip, an expiry badge. Every action that
-  touches an existing holding lives here — Remove/Take one, Add one, Equip
-  toggle, Make permanent, Unstage — so a stage is never pushed from two
-  places for the same tag.
+- **Holds** — a one-line row per tag the character actually has: name, source,
+  an equipped chip, an expiry badge, and the count stepper. Every action that
+  touches an existing holding lives here — the count, Equip toggle, Make
+  permanent — so the same tag is never changed from two places. A
+  non-stackable tag has no count to set, so it carries a plain Remove instead.
+
+  Removing a tag whose `removesInto` chain would leave an aftermath behind
+  (`TAGS.md` §5c) still asks first, naming what it will leave. It is the one
+  gesture here that repeating its inverse does **not** undo: re-adding a Broken
+  Bone does not clear the Splinted the removal left. Everything else commits
+  silently, because the stepper is its own inverse.
 - **Catalog** — the browser, still tabbed by category. Within a tab, tags are
   bucketed under a small header per `TagGroup` (name plus the group's own
   colour as a swatch — the one inline colour in the app, since it's freeform
   data out of the database, not a theme token), chain order inside the
   group, ungrouped tags last under no header. Each row is one line — checkbox
-  (mass-grant), name, cost, badges (custom / held / staged) — with the
+  (mass-grant), name, cost, badges (custom / held) — with the
   description behind a native `<details>` disclosure so the tab isn't a mile
   of always-open panels. A held tag still shows up in the catalog (that's how
-  a GM finds a second copy or the next tier of a chain), but only carries the
-  not-yet-held action; anything on an existing holding is Holds' job.
+  a GM finds the next tier of a chain), but carries no action there — just a
+  "held ×N — edit in Holds" line. It used to offer a Grant that quietly meant
+  something different from the stepper above it.
 
   The catalog half — search, tabs, grouping, the row shell, multi-select — is
   the shared `web/app/components/TagCatalogBrowser.js`, extracted so
@@ -246,7 +280,7 @@ button (`ActionBar.js`, `ResourcesIcon`) is for: two Selects, "From" and
 swap them, plus an amount. This panel just preselects "To" as this
 character, with "From" left on "— Select… —".
 
-It is **immediate, not staged**, unlike every other Dev Panel edit. The
+It is **immediate, not staged**, unlike the panel's column edits. The
 counterparty usually isn't this panel's own subject, so having half of it
 wait on *this* character's Apply/Cancel would be incoherent — the same
 reasoning that keeps Kill, Revive, Restore turn and Spend turn off the staged
@@ -358,11 +392,11 @@ target in one gesture. Either way it's **one transaction, one audit row**
 the tag's creation and its assignment together. The server half is
 `createCustomTagAndAssign` in `web/app/(app)/gm/dev/tags/actions.js`.
 
-The Dev Panel's own door (`TagEditor.js`) is a deliberate exception to §2's
-staged/immediate split: a custom-tag assignment from there commits through
-the dialog's own transaction immediately, rather than riding the Tags tab's
-own pending-ops/Apply-bar flow — the same posture Bulk tagging (§9) already
-takes for its own convenience action. `DevPanel.js` passes the current
+The Dev Panel's own door (`TagEditor.js`) commits a custom-tag assignment
+through the dialog's own transaction, in the same gesture that creates the tag
+— the same posture Bulk tagging (§9) takes. This used to be an exception to
+§2's split, back when the Tags tab staged; now that tag changes fire anyway it
+is simply the same rule, reached by a different transaction. `DevPanel.js` passes the current
 character's id and name into `TagEditor.js` so "Assign to" comes preselected.
 The same door also sits in the shared inspector's Tags tab on both desks
 (`web/app/components/InspectorColumn.js`, `customTag` prop) — staging by
@@ -509,10 +543,11 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
+| The one quantity control, shared with every player-facing dialog | `web/app/components/QuantityField.js` |
 | The shared tag form body (both custom-tag doors) | `web/app/components/TagFieldset.js` |
 | `expiresInto`'s shape + rules, shared with `db:sync-tags` | `db/lib/tagShapes.js` |
 | Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
-| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
+| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |

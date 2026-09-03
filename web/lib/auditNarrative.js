@@ -26,6 +26,23 @@ const res = (n) => (Number.isFinite(Number(n)) ? { k: "res", v: Number(n) } : nu
 const qty = (n) => (Number(n) > 1 ? { k: "qty", v: Number(n) } : null);
 
 
+// One line summarising a batch of applied tag ops, for the Dev Panel's
+// per-gesture tag rows. `tags` is applyTagOpsInTx's `applied` array, so an
+// entry is {op, name, quantity}. Survives an old row with a missing name.
+function tagOpSummary(tags) {
+  const parts = [];
+  for (const op of tags.slice(0, 4)) {
+    const name = op.name ?? "a tag";
+    const n = Number(op.quantity) > 1 ? ` ×${op.quantity}` : "";
+    if (op.op === "add") parts.push(`+${name}${n}`);
+    else if (op.op === "remove") parts.push(`−${name}`);
+    else if (op.quantity != null) parts.push(`${name} → ×${op.quantity}`);
+    else parts.push(name);
+  }
+  if (tags.length > parts.length) parts.push(`+${tags.length - parts.length} more`);
+  return parts.join(", ");
+}
+
 // `prefix` is what the fallback matches on, so the order here matters: the
 // first prefix that matches wins, and "superadmin_" has to beat nothing while
 // "request_" has to beat nothing either. They do not overlap today; keep it
@@ -123,6 +140,14 @@ const R = {
 
   // ---- GM actions ----
   gm_character_applied: () => [actor(), t("edited"), target(), t("from the dev panel")],
+  // Tag changes commit one gesture at a time rather than riding Apply, so
+  // they get their own line — details.tags carries what actually moved.
+  gm_character_tag_applied: (d) => [
+    actor(),
+    t("changed tags on"),
+    target(),
+    ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : []),
+  ],
   // The kill nulls nothing, but a LATER delete leaves the row with no target
   // to link — details.name is the snapshot that keeps the line readable.
   gm_character_killed: (d, e) => [actor(), t("killed"), e.target ? target() : em(d.name)],

@@ -104,7 +104,10 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   const [openTurn, config, held] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } }),
-    prisma.characterTag.findMany({ where: { characterId }, select: { tagId: true } }),
+    prisma.characterTag.findMany({
+      where: { characterId },
+      select: { tagId: true, quantity: true },
+    }),
   ]);
 
   const ops = Array.isArray(tags) ? tags : [];
@@ -113,6 +116,9 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     : [];
   const tagsById = new Map(tagRows.map((t) => [t.id, t]));
   const heldIds = new Set(held.map((h) => h.tagId));
+  // What each stack held going in, so the DM below can say "×7 → ×3" rather
+  // than reporting a count change as nothing at all.
+  const heldBefore = new Map(held.map((h) => [h.tagId, h.quantity]));
 
   // Validate everything BEFORE opening the transaction, so a rejected payload
   // leaves nothing half-written and the GM sees the first real problem rather
@@ -167,7 +173,13 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
-        actionType: "gm_character_applied",
+        // Tag changes fire one gesture at a time from the Tags tab now, so
+        // most rows this writes carry an empty core. Naming those differently
+        // keeps /gm/audit readable — "applied" ought to mean a column moved.
+        actionType:
+          Object.keys(diff).length || leader !== null
+            ? "gm_character_applied"
+            : "gm_character_tag_applied",
         targetCharacterId: characterId,
         reason: reason?.trim() || null,
         details: { core: diff, leader, tags: appliedTags },
@@ -220,11 +232,20 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   const tagLosses = appliedTags.filter((t) => t.op === "remove").map((t) => t.name ?? t.tagId);
   if (tagGains.length) changeLines.push(`+ ${tagGains.join(", ")}`);
   if (tagLosses.length) changeLines.push(`- ${tagLosses.join(", ")}`);
+  // A count change is a patch, not an add or a remove, so it used to produce
+  // no line at all — a GM taking someone's meals from 7 to 3 told them
+  // nothing. `heldBefore` is read before the transaction for exactly this.
+  for (const t of appliedTags) {
+    if (t.op !== "patch" || t.quantity == null) continue;
+    const was = heldBefore.get(t.tagId);
+    if (was === t.quantity) continue;
+    changeLines.push(`${t.name ?? t.tagId}: ×${was ?? "?"} → ×${t.quantity}`);
+  }
   if (diff.resources) changeLines.push(`Resources: ${diff.resources.from} → ${diff.resources.to} ⬢`);
   if (diff.locationId) changeLines.push(`Moved.`);
   if (diff.name || diff.lastName) changeLines.push(`Name updated.`);
   if (changeLines.length) {
-    notifyCharacter(session, existing, `Your sheet was edited:\n${changeLines.join("\n")}`);
+    notifyCharacter(session, existing, `Your sheet was edited: ‡\n${changeLines.join("\n")}`);
   }
 
   repaint(characterId);
