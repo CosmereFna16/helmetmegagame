@@ -401,6 +401,7 @@ export default function CreateCharacterWizard({
             selectedIds={selectedIds}
             onChange={setSelectedIds}
             negativeCap={maxDrawbackTags}
+            roleSlug={role.slug}
           />
         </div>
       )}

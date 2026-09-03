@@ -151,14 +151,21 @@ export default function PointBuy({
   actions = null,
   negativeCap = null,
   negativeHeld = 0,
+  roleSlug = null,
 }) {
   // Full catalog by id, not just what's on offer, so a chain walk
   // (parentTagId) never dead-ends on a tag this menu happens to filter out.
   const byId = useMemo(() => buildTagsById(tags), [tags]);
 
   const offered = useMemo(
-    () => purchasableTags({ tags, afterStartOnly, grantedNames: grantedTags.map((t) => t.name) }),
-    [tags, afterStartOnly, grantedTags],
+    () =>
+      purchasableTags({
+        tags,
+        afterStartOnly,
+        grantedNames: grantedTags.map((t) => t.name),
+        roleSlug,
+      }),
+    [tags, afterStartOnly, grantedTags, roleSlug],
   );
 
   // "Held" for cost/requirement purposes = granted-for-free tags plus

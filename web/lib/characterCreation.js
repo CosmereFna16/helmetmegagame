@@ -158,6 +158,17 @@ export function conflictingTag(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
+// --- Role-gated tags (Tag.excludedRoleSlugs) ---
+// A seat that can never take this tag: Devoted Follower isn't for a Migrant,
+// a Mercenary or a Bum, who have nobody to be devoted to. Unlike the gates
+// above this one never depends on what else is held, so it filters the menu
+// outright rather than dimming a row. Enforced server-side too; a GM grant
+// bypasses it.
+export function roleExcluded(tag, roleSlug) {
+  if (!roleSlug) return false;
+  return (tag.excludedRoleSlugs ?? []).includes(roleSlug);
+}
+
 // Tags a character may actually see and buy. Menus must derive category
 // tabs from THIS, or an all-locked category advertises its own secret.
 export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
@@ -181,11 +192,12 @@ export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLock
 // Which catalog tags the point-buy menu offers. `afterStartOnly` distinguishes
 // creation (every purchasable tag) from the mid-game store (purchasableAfterStart
 // only). Also excludes anything the role already grants.
-export function purchasableTags({ tags, afterStartOnly, grantedNames = [] }) {
+export function purchasableTags({ tags, afterStartOnly, grantedNames = [], roleSlug = null }) {
   const granted = new Set(grantedNames);
   return tags.filter((tag) => {
     if (!tag.purchasable) return false;
     if (afterStartOnly && !tag.purchasableAfterStart) return false;
+    if (roleExcluded(tag, roleSlug)) return false;
     return !granted.has(tag.name);
   });
 }

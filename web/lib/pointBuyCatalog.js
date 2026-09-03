@@ -52,6 +52,9 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     pointCost: t.pointCost,
     purchasable: t.purchasable,
     purchasableAfterStart: t.purchasableAfterStart,
+    // roleExcluded() reads this off the projection — drop it and Devoted
+    // Follower reappears in a Migrant's menu.
+    excludedRoleSlugs: t.excludedRoleSlugs,
     parentTagId: t.parentTagId,
     requiredTagId: t.requiredTagId,
     requiredTag: t.requiredTag,

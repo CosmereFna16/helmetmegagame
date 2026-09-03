@@ -15,6 +15,7 @@ import {
   requirementSatisfied,
   exclusiveConflict,
   conflictingTag,
+  roleExcluded,
   chainSiblingsToRemove,
   heldHigherTiers,
   effectiveCost,
@@ -41,6 +42,8 @@ async function buyTagsImpl({ tagIds }) {
       id: true,
       name: true,
       tagPoints: true,
+      // The seat, for the Tag.excludedRoleSlugs gate below.
+      role: { select: { slug: true, name: true } },
       // Full rows, not bare ids: an upgrade replaces the held lower tier, and
       // the snapshot Undo restores needs source/expiry/quantity as they were.
       tags: { select: { tagId: true, source: true, expiresTurn: true, quantity: true } },
@@ -91,6 +94,11 @@ async function buyTagsImpl({ tagIds }) {
     // The store's own gate — creation-only picks never arrive as a purchase.
     if (!tag.purchasable || !tag.purchasableAfterStart) {
       throw new UserError(`${tag.name} isn't for sale.`);
+    }
+    // A seat that may never hold this tag at all (Tag.excludedRoleSlugs).
+    // The shelf drops these rows, so arriving here means a hand-posted cart.
+    if (roleExcluded(tag, character.role?.slug ?? null)) {
+      throw new UserError(`A ${character.role?.name ?? "character"} can't take ${tag.name}.`);
     }
     // Toggle-set, never a stack: what's owned can't be bought again. Stacks
     // are built in play through the Add Tag request.

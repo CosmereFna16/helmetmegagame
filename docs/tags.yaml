@@ -1174,12 +1174,16 @@ tags:
     name: Devoted Follower
     category: general
     group: general-personality
-    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming. Must be part of a faction."
+    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming. Drifters and hustlers can't take it — you have to be sworn to somebody. ‡"
     pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
     removable: false
+    # The seats with nobody to be loyal to. Migrant and Mercenary are
+    # literally Unaffiliated; Bum, Outsider and Pusher sit inside a faction
+    # on paper and owe it nothing.
+    excludedRoles: [migrant, mercenary, bum, outsider, pusher]
     # The own-faction carve-out is prose above (F-11), not data — the lock
     # below reads plain faction-success, since the game has no per-desire
     # "your side vs. any side" distinction to encode.

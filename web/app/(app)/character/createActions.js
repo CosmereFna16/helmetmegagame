@@ -38,6 +38,7 @@ import {
   requirementSatisfied,
   exclusiveConflict,
   conflictingTag,
+  roleExcluded,
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
@@ -205,6 +206,15 @@ export async function createCharacter(formData) {
     }
     if (heldHigherTiers(tag, byId, grantedIds).length > 0) {
       return { error: "Your role already grants a higher tier of that skill chain." };
+    }
+  }
+
+  // Seats that may never hold a tag at all (Tag.excludedRoleSlugs) — a
+  // Migrant has no faction to be a Devoted Follower of. The menu drops these
+  // rows entirely, so reaching here means a hand-posted cart.
+  for (const tag of selected) {
+    if (roleExcluded(tag, role.slug)) {
+      return { error: `A ${role.name} can't take ${tag.name}.` };
     }
   }
 

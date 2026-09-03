@@ -816,6 +816,7 @@ export default async function CharacterPage() {
       lastNameLocked={isDynastyMember(character.role?.slug)}
       storeTags={storeTags}
       storeHeldTags={storeHeldTags}
+      storeRoleSlug={character.role?.slug ?? null}
     />
   );
 }

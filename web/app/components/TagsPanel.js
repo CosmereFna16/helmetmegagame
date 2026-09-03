@@ -68,6 +68,7 @@ export default function TagsPanel({
   // which is also why the button below only ever renders for isSelf.
   storeTags = null,
   storeHeldTags = null,
+  storeRoleSlug = null,
 }) {
   // Null on someone else's sheet, where no provider is mounted — which is
   // also exactly when the chips must stay read-only.
@@ -139,6 +140,7 @@ export default function TagsPanel({
             tags={storeTags}
             budget={tagPoints ?? 0}
             heldTags={storeHeldTags ?? []}
+            roleSlug={storeRoleSlug}
             onDone={() => setStoreOpen(false)}
           />
         </Modal>

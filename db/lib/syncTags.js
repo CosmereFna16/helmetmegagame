@@ -121,6 +121,23 @@ function loadGroupsDoc() {
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
+// Every role slug in docs/roles.yaml, for validating `excludedRoles:`. Read
+// from the FILE rather than the Role table so a typo fails the same way in a
+// fresh database as in a seeded one — db:sync runs tags before roles, so the
+// table may not hold the seat yet.
+function roleSlugsFromYaml() {
+  const doc = yaml.load(fs.readFileSync(requireDocsPath("roles.yaml"), "utf8"));
+  const slugs = new Set();
+  for (const zone of entriesOf(doc?.zones, "slug")) {
+    for (const faction of entriesOf(zone?.factions, "slug")) {
+      for (const role of entriesOf(faction?.roles, "slug")) {
+        if (role.slug) slugs.add(role.slug);
+      }
+    }
+  }
+  return slugs;
+}
+
 async function syncTagsFromYaml(prisma) {
   const doc = loadDoc();
   const groupsDoc = loadGroupsDoc();
@@ -143,6 +160,7 @@ async function syncTagsFromYaml(prisma) {
   const allGroupSlugs = new Set(groupEntries.map((g) => g.slug));
   const tagNameBySlug = new Map(tagEntries.map((t) => [t.slug, t.name]));
   const groupNameBySlug = new Map(groupEntries.map((g) => [g.slug, g.name]));
+  const allRoleSlugs = roleSlugsFromYaml();
   for (const t of tagEntries) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
@@ -291,6 +309,13 @@ async function syncTagsFromYaml(prisma) {
       slug: t.slug,
       families: desireFamilyKeys(),
     });
+    // excludedRoles — every entry has to be a real seat, or the gate quietly
+    // stops applying to the role somebody meant to shut out.
+    for (const roleSlug of t.excludedRoles ?? []) {
+      if (!allRoleSlugs.has(roleSlug)) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" excludedRoles references unknown role "${roleSlug}"`);
+      }
+    }
     // conflictsWith — a tag cannot conflict with itself.
     for (const other of t.conflictsWith ?? []) {
       if (other === t.slug) {
@@ -357,6 +382,7 @@ async function syncTagsFromYaml(prisma) {
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
+      excludedRoleSlugs: entry.excludedRoles ?? [],
       sellable: entry.sellable ?? false,
       sellablePrice: entry.sellablePrice ?? null,
       depotPrice: entry.depotPrice ?? null,

@@ -90,6 +90,9 @@ export default function CharacterSheet({
   // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
   storeTags = null,
   storeHeldTags = null,
+  // The seat, so the store's shelf can drop a tag this role may never buy
+  // (Tag.excludedRoleSlugs). Null on someone else's sheet, like the two above.
+  storeRoleSlug = null,
 }) {
   const isSelf = mode === "self";
 
@@ -175,6 +178,7 @@ export default function CharacterSheet({
                 equipSlots={equipSlots}
                 storeTags={storeTags}
                 storeHeldTags={storeHeldTags}
+                storeRoleSlug={storeRoleSlug}
               />
             </div>
           </RequestActionsProvider>

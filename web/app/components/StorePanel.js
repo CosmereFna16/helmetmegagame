@@ -15,7 +15,7 @@ import { buyTags } from "@/app/(app)/store/actions";
 // PointBuy. Mounts as the body of a Modal opened from the Tags panel of the
 // character sheet, so a shopping trip never leaves the sheet. `onDone` closes
 // that modal after a successful purchase (web/app/(app)/store/actions.js).
-export default function StorePanel({ tags, budget, heldTags, onDone }) {
+export default function StorePanel({ tags, budget, heldTags, roleSlug = null, onDone }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -64,6 +64,7 @@ export default function StorePanel({ tags, budget, heldTags, onDone }) {
       budget={budget}
       grantedTags={heldTags}
       afterStartOnly
+      roleSlug={roleSlug}
       selectedIds={selectedIds}
       onChange={setSelectedIds}
       actions={

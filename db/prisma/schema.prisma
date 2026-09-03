@@ -1551,6 +1551,19 @@ model Tag {
   purchasable           Boolean @default(false)
   purchasableAfterStart Boolean @default(true)
 
+  // Role slugs (docs/roles.yaml) that may NOT buy this tag, authored in
+  // docs/tags.yaml as `excludedRoles:`. Devoted Follower is the first user:
+  // a Migrant or a Bum has no faction to be devoted to. Plain slugs rather
+  // than a Role relation on purpose — db:sync-roles rewrites Role rows and a
+  // relation would need re-linking every time, while the slug is the stable
+  // key the rest of the codebase already matches roles on (CURSED_ROLE_SLUGS).
+  // Empty is the overwhelmingly common case: a tag open to every seat.
+  //
+  // Enforced by roleExcluded() (web/lib/characterCreation.js) — the point-buy
+  // menu drops the row, and createCharacter/the store's buyTags re-check it.
+  // A GM grant ignores it, like every other gate here.
+  excludedRoleSlugs String[] @default([])
+
   // The other side of purchasable: whether the Merchant's Depot will buy
   // this off him, and for how many ⬢. Live as of the Merchant Update — read
   // by the Sell counter on /depot (DEPOT_SELL). syncTags.js requires the two

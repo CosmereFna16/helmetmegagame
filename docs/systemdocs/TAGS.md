@@ -139,6 +139,21 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   Addiction and Restriction groups themselves enforce (at most one of each)
   is plain `exclusive`, not this field — `conflictsWith` is only for the
   cross-group edges.
+- **`Tag.excludedRoleSlugs`** — the one gate that ignores what a character
+  holds and looks at their **seat** instead. Authored in `docs/tags.yaml` as
+  `excludedRoles: [migrant, mercenary, …]`, a list of role slugs from
+  `docs/roles.yaml` (validated against that file by `db:sync-tags`, so a typo
+  throws rather than quietly opening the gate). Devoted Follower is the first
+  and only user: a Migrant, a Mercenary, a Bum, an Outsider or a Pusher has
+  nobody to be devoted to. Plain slugs rather than a `Role` relation, because
+  `db:sync-roles` rewrites Role rows and the slug is the stable key the rest
+  of the codebase already matches seats on (`CURSED_ROLE_SLUGS`).
+  `roleExcluded(tag, roleSlug)` is the predicate. Because it never depends on
+  the rest of the build, `purchasableTags()` drops the row from the menu
+  outright rather than dimming it — so `PointBuy` takes a `roleSlug` prop from
+  both mount sites (the creation wizard's chosen role, and the store's
+  `storeRoleSlug` threaded down from `/character`). `createCharacter` and the
+  store's `buyTags` re-check it. A GM grant bypasses it, like every gate here.
 
 `web/lib/characterCreation.js` is where the logic lives.
 `holdsRequirement(requiredTagId, …)` answers "is this one id satisfied by
