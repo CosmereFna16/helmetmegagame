@@ -1728,6 +1728,14 @@ model Tag {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Declared here as well as in 20260906010000_corpses/migration.sql, so the
+  // schema and the migration history agree about it. They did not at first:
+  // the index was raw SQL only, which made every `prisma migrate diff` propose
+  // DROP INDEX "Tag_corpseKind_idx" as if it were drift somebody introduced.
+  // The two trgm indexes still read that way and still have to be declined by
+  // hand (see CLAUDE.md); this one no longer does.
+  @@index([corpseKind])
 }
 
 // Optional grouping of tags within a single category, purely for display
