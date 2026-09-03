@@ -1175,10 +1175,6 @@ model Character {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // The two Tag rows this character's death wrote (fresh + rotten). See
-  // Tag.corpseOfCharacterId.
-  corpseTags Tag[] @relation("CharacterCorpseTag")
-
   @@index([discordUserId])
   @@index([status])
   @@index([status, lastActivityTurn])
@@ -1202,35 +1198,6 @@ model Tag {
   // slugs are server-generated with a "custom-" prefix so a GM naming one
   // after an existing YAML tag can't collide with it and get upserted over.
   custom Boolean @default(false)
-
-  // --- Corpses (docs/systemdocs/CORPSES.md) ------------------------------
-  //
-  // A THIRD kind of tag, beside the YAML catalog and a GM's homebrew: one the
-  // SYSTEM authors. db/lib/characterDeath.js writes two rows per death ("Ada's
-  // Corpse" and "Ada's Rotten Corpse"), and the three monster corpses come from
-  // docs/tags.yaml instead. Both kinds set corpseKind, so "is this a corpse?"
-  // is one field however the row got here — which is what the Butcher button
-  // and Miasma's ingredient check both ask.
-  //
-  // corpseKind alone is the discriminator; corpseOfCharacterId is what makes a
-  // corpse a HANDLE to a specific dead sheet. A monster corpse leaves it null.
-  // Reusing `custom` for this was the obvious shortcut and it does not work:
-  // TAGS.md §5d deliberately refuses to let a GM hand-author expiresInto, and
-  // the rot chain is exactly that.
-  corpseKind CorpseKind?
-
-  // The body this tag IS. Set on the pair written at death; null on the three
-  // monster corpses. Three readers depend on it: db/lib/corpseFollow.js joins
-  // through it to move the dead sheet after its corpse, the Butcher yield
-  // table reads it to tell a person from a Nekker, and wipeGameData deletes
-  // exactly `{ corpseOfCharacterId: { not: null } }` — without which these
-  // rows outlive every Restart Game and pile up in the catalog forever.
-  //
-  // SetNull, not Cascade: the wipe drops Character rows in the same
-  // transaction, and a cascade would take catalog rows with them out from
-  // under the explicit delete.
-  corpseOfCharacterId String?
-  corpseOf            Character? @relation("CharacterCorpseTag", fields: [corpseOfCharacterId], references: [id], onDelete: SetNull)
 
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see
