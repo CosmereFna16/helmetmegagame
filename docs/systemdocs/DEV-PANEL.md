@@ -396,6 +396,15 @@ edit) state lives inside it — closing has to go through the same
 `useDirtyGuard` that already guards Apply/Cancel, so an unsaved edit prompts
 before the modal closes.
 
+The modal is **modeless** (`DESIGN-SYSTEM.md` §8) — no backdrop, the desk
+underneath stays clickable, and the header drags the panel aside. So are its
+own dialogs: Message, Teleport, Inflict a wound, and the reason prompts for
+Kill, Revive, Restore turn, Spend turn and Transfer ⬢. Two things stay
+blocking, because both are asking a question that needs an answer: every
+`useConfirm()`, and the typed-name **Delete character** dialog. The
+`useDirtyGuard` close path is untouched — an unsaved staged edit still prompts
+before the modal closes, whichever way it is dismissed. ‡
+
 The data assembly is shared, not duplicated: `web/lib/devPanelData.js`
 exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the DTO bundle
 `<DevPanel/>` needs to **open**, and both the standalone page and the desk

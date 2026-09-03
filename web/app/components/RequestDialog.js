@@ -24,6 +24,9 @@ function RequestDialogBody({
   // Forwarded to Modal's own narrow/wide/widest sizes. A dialog whose body is
   // a browsable tag catalog needs the room; the ordinary two-field ones don't.
   width = undefined,
+  // Forwarded to Modal too: a GM-side reason prompt on the desks floats so
+  // the inspector stays browsable, while every player-facing one blocks.
+  modeless = false,
   busy = false,
   error = null,
   canSubmit = true,
@@ -38,7 +41,7 @@ function RequestDialogBody({
   const ready = !busy && canSubmit && (!reasonRequired || trimmed.length > 0);
 
   return (
-    <Modal title={title} width={width} onClose={() => !busy && onCancel?.()}>
+    <Modal modeless={modeless} title={title} width={width} onClose={() => !busy && onCancel?.()}>
       <form
         className="mt-3 flex flex-col gap-3"
         onSubmit={(e) => {

@@ -312,6 +312,7 @@ export default function EffectComposer({
 
   return (
     <Modal
+      modeless
       title={existing ? "Edit staged effect" : "Stage an effect"}
       onClose={() => !pending && guardedClose(onCancel)}
       width="widest"

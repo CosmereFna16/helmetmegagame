@@ -222,6 +222,13 @@ call site follows success with `refresh()` and the pair meant rendering
   `web/app/api/move-lock/release/route.js`). Every card's meta line under the
   name leads with `roleTitle` (Move/Request/Caving desks alike), so who's
   acting reads at a glance before you open anything.
+- **The composers do not cover the desk.** Every staging dialog here — message,
+  declaration, effect, transfer, and the push preview — is **modeless**
+  (`DESIGN-SYSTEM.md` §8): no backdrop, clicks pass through, and the header
+  drags, so a GM can pull someone up in the inspector while writing about them.
+  Escape only closes one while focus is actually inside it. Under 1024px they
+  revert to ordinary blocking modals. ‡
+
 - **Inspector** — *"quickly pull up the guy he was talking to"*. Every
   character name in the workspace is a click target that swaps the column to
   that character: Sheet (live facts + gambit modifier), Tags, **Moves**, their

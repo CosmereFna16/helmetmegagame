@@ -23,6 +23,7 @@ import {
   releaseConversation,
 } from "../actions";
 import { dmDraftKey, writeDmDraft } from "../dmDraft";
+import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
 // Per-conversation draft persistence, read through useSyncExternalStore —
 // same discipline as the shared pins (usePins.js): the textarea's value IS
@@ -243,7 +244,7 @@ export default function ConversationPane({
     if (coarse) return undefined;
     function onKey(e) {
       if (e.key !== "Escape") return;
-      if (document.querySelector(".modal-overlay")) return;
+      if (dialogHoldsKeyboard()) return;
       const active = document.activeElement;
       if (active && ["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)) {
         active.blur();

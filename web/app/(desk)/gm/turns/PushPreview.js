@@ -52,7 +52,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
   const publicPosts = stagedMessages.filter((m) => m.kind === "PUBLIC" && !m.sent);
 
   return (
-    <Modal title="Push preview" width="wide" onClose={onClose}>
+    <Modal modeless title="Push preview" width="wide" onClose={onClose}>
       <p className="mt-2 text-xs text-muted">
         What goes out when the turn ends — declared payouts, staged effects, and every DM, per
         character. Open Moves not listed here close silently on their declared numbers.

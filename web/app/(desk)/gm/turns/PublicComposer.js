@@ -54,6 +54,7 @@ export default function PublicComposer({
 
   return (
     <Modal
+      modeless
       title={existing ? "Edit public declaration" : "Stage a public declaration"}
       onClose={() => !pending && guardedClose(onCancel)}
     >

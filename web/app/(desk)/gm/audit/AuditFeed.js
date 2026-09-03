@@ -5,6 +5,7 @@ import StatusPill from "@/app/components/StatusPill";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { describeAudit } from "@/lib/auditNarrative";
 import AuditSegments from "./AuditSegments";
+import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
 // The feed: one line per entry, grouped under a turn + day heading.
 //
@@ -82,7 +83,7 @@ export default function AuditFeed({
       // Never steal a keystroke from something being typed into, and yield to
       // any open modal — the same guard the adjudication rail uses.
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) return;
-      if (document.querySelector(".modal-overlay")) return;
+      if (dialogHoldsKeyboard()) return;
       if (e.key === "j" || e.key === "ArrowDown") {
         e.preventDefault();
         setKbdIndex((i) => Math.min(entries.length - 1, i + 1));

@@ -73,7 +73,7 @@ export default function TransferComposer({ roster, factions, defaultFromKey = ""
   }
 
   return (
-    <Modal title="Stage a transfer" onClose={() => !pending && guardedClose(onCancel)}>
+    <Modal modeless title="Stage a transfer" onClose={() => !pending && guardedClose(onCancel)}>
       <div className="mt-3 flex flex-col gap-4">
         <label className="field">
           <span className="field-label">From</span>

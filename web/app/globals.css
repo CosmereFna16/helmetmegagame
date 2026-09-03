@@ -1326,6 +1326,42 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
 
+/* A modeless dialog (Modal.js `modeless`, desktop only). The dim is gone and
+   the overlay stops catching pointer events, so the GM desks' right-hand
+   inspector stays browsable while a composer is open. Only the panel itself
+   takes clicks back. ‡ */
+.modal-overlay[data-modeless="true"] {
+  background: transparent;
+  pointer-events: none;
+}
+
+.modal-overlay[data-modeless="true"] > * {
+  pointer-events: auto;
+}
+
+/* With nothing dimmed behind it the panel has to carry its own separation:
+   a tighter second shadow under --e-3's soft one, plus a brighter edge. */
+.modal-overlay[data-modeless="true"] .modal-panel {
+  box-shadow: var(--e-2), var(--e-3);
+  border-color: var(--muted);
+}
+
+/* The header is the drag handle. */
+.modal-overlay[data-modeless="true"] .modal-header {
+  cursor: grab;
+  user-select: none;
+}
+
+.modal-overlay[data-modeless="true"] .modal-header:active {
+  cursor: grabbing;
+}
+
+/* ...but the controls inside it are still controls. */
+.modal-overlay[data-modeless="true"] .modal-header button,
+.modal-overlay[data-modeless="true"] .modal-header a {
+  cursor: pointer;
+}
+
 /* The Journal composer's @ mention dropdown — a small popover pinned under
    the textarea, one level lighter than the modal it sits inside so it reads
    as floating rather than as the next form field. */

@@ -21,6 +21,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
+import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move/Request shows), inspector (right column + pins), and preview (push
@@ -312,7 +313,7 @@ export default function Workspace({
     if (coarse) return undefined;
     function onKey(e) {
       if (e.key !== "Escape") return;
-      if (document.querySelector(".modal-overlay")) return;
+      if (dialogHoldsKeyboard()) return;
       const active = document.activeElement;
       // A Select's own Escape (Select.js) already stopPropagation()s, so
       // reaching here with one focused means no popup was open.

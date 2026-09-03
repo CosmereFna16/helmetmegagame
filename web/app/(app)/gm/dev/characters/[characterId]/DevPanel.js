@@ -376,6 +376,7 @@ export default function DevPanel({
   if (frame === "modal") {
     return (
       <Modal
+        modeless
         title={titleWithAvatar}
         onClose={closeModal}
         panelClassName="modal-panel dev-modal-panel"

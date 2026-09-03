@@ -356,6 +356,7 @@ export default function ActionBar({
       {/* Restoring a turn DMs the player, so it asks for a reason to send
           with it — a freed turn they don't know about is a wasted day. */}
       <RequestDialog
+        modeless
         open={dialog === "restore"}
         title="Give their turn back"
         submitLabel="Restore turn"
@@ -371,6 +372,7 @@ export default function ActionBar({
       {/* Kill and Spend-turn DM the player too now, so both ask for a reason
           to send along with the notice. */}
       <RequestDialog
+        modeless
         open={dialog === "kill"}
         title={`Kill ${character.name}?`}
         submitLabel="Kill them"
@@ -386,6 +388,7 @@ export default function ActionBar({
       </RequestDialog>
 
       <RequestDialog
+        modeless
         open={dialog === "spend"}
         title="Spend their turn?"
         submitLabel="Spend it"
@@ -402,7 +405,7 @@ export default function ActionBar({
       </RequestDialog>
 
       {dialog === "message" && (
-        <Modal title={`Message ${character.name}`} onClose={() => setDialog(null)}>
+        <Modal modeless title={`Message ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <label className="field">
               <span className="field-label">
@@ -438,7 +441,7 @@ export default function ActionBar({
       {/* Raw relocation, same as Bulk Move — no Move cost, no Action row, no
           adjacency check. Immediate, not staged: it fires on click. */}
       {dialog === "teleport" && (
-        <Modal title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
+        <Modal modeless title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               Moves them there instantly. They&apos;ll be DM&apos;d that they were moved.
@@ -477,6 +480,7 @@ export default function ActionBar({
           party can sit on either end (character or Silo); this panel just
           preselects "To" as this character. */}
       <RequestDialog
+        modeless
         open={dialog === "transfer"}
         title={`Transfer ⬢ for ${character.name}`}
         submitLabel="Transfer"
@@ -537,7 +541,7 @@ export default function ActionBar({
       </RequestDialog>
 
       {dialog === "wound" && (
-        <Modal title="Inflict a wound" onClose={() => setDialog(null)}>
+        <Modal modeless title="Inflict a wound" onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               Afflictions can be cured.

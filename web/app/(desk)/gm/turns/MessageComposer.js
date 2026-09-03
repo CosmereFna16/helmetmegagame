@@ -85,6 +85,7 @@ export default function MessageComposer({
 
   return (
     <Modal
+      modeless
       title={existing ? "Edit staged message" : "Stage a message"}
       onClose={() => !pending && guardedClose(onCancel)}
     >
