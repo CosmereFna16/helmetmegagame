@@ -180,6 +180,8 @@ const CHARACTER_SELECT = {
   discordUserId: true,
   locationId: true,
   resources: true,
+  carryWeightSeen: true,
+  carryResourcesSeen: true,
   age: true,
   gender: true,
   tags: {
@@ -267,12 +269,14 @@ function applyDrops(characterTags, taken) {
 // HARD cap (1.5×, carryAdmits above) — sets the excess down in a random public
 // room at their Location.
 //
-// The drop is acquisition-driven, never capacity-driven. Nothing is taken off
-// a sheet because a cap SHRANK: unequipping a cart at an inn door, or a GM
-// lowering the base cap, makes people Overburdened and no more. Only goods
-// that arrived without asking — a Labor payout, Caving loot, a GM grant —
-// can push someone past the ceiling, and only those get set down. Deliberate
-// acquisitions were refused before they ever landed.
+// The drop is acquisition-driven, never capacity-driven, and
+// Character.carryWeightSeen / carryResourcesSeen are what tell the two apart:
+// a load that has not GROWN since the last settle sheds nothing, however far
+// the cap may have fallen beneath it. So unequipping a cart at an inn door, or
+// a GM lowering the base cap, makes people Overburdened and no more. Only
+// goods that arrived without asking — a Labor payout, Caving loot, a GM grant
+// — can push someone past the ceiling, and only those get set down.
+// Deliberate acquisitions are refused by carryAdmits() before they land.
 //
 // Returns null when there was nothing to do; otherwise
 // { characterId, over, granted, removed, drop } where `drop` carries the
@@ -299,33 +303,47 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
     let resources = character.resources;
     let over = load > caps.weight || resources > caps.resources;
 
-    let dropResult = null;
+    // The watermark is the whole of what distinguishes an ACQUISITION from a
+    // capacity SHRINK. A load that has not grown since the last settle sheds
+    // nothing, however far over the ceiling the cap has fallen beneath it —
+    // which is what lets a cart be parked at an inn door without emptying it.
+    const seenWeight = character.carryWeightSeen ?? 0;
+    const seenResources = character.carryResourcesSeen ?? 0;
+    const weightGrew = load > seenWeight;
+    const resourcesGrew = resources > seenResources;
 
-    if (drop && (load > hard.weight || resources > hard.resources)) {
+    let dropResult = null;
+    let deferred = false;
+
+    if (drop && ((load > hard.weight && weightGrew) || (resources > hard.resources && resourcesGrew))) {
       const room = await pickRandomPublicRoom(tx, character.locationId);
       if (!room) {
-        // Nowhere to put it down. They stay over the ceiling; the next settle
-        // retries. Say so in the log so a GM can see why.
+        // Nowhere to put it down — unplaced, or a Location with no public
+        // room. Hold the watermark back so the growth is still unclaimed and
+        // the next settle (on arrival, or at turn close) retries for free.
+        // Advancing it here would mark the load "seen" and the shed would
+        // never happen at all.
+        deferred = true;
         await tx.auditLog.create({
           data: {
             actorDiscordUserId: "system",
             actionType: "carry_drop_deferred",
             targetCharacterId: character.id,
-            details: { load, resources, caps, hard, locationId: character.locationId },
+            details: { load, resources, caps, hard, seenWeight, seenResources, locationId: character.locationId },
           },
         });
       } else {
         // Shed back to the ORDINARY cap, not to the ceiling. Landing a
         // character exactly on 1.5× would leave them permanently one letter
         // away from spilling again, and re-dropping every turn.
-        const tags = load > hard.weight ? drawDrops(character.tags, load - caps.weight) : [];
+        const tags = load > hard.weight && weightGrew ? drawDrops(character.tags, load - caps.weight) : [];
         for (const t of tags) {
           await dropCharacterTag(tx, character.id, t.tagId, t.quantity);
           await addToRoomStack(tx, room.id, t.tagId, t.quantity, { expiresTurn: t.expiresTurn });
         }
         if (tags.length) load = carryWeight(applyDrops(character.tags, tags));
 
-        const spill = resources > hard.resources ? resources - caps.resources : 0;
+        const spill = resources > hard.resources && resourcesGrew ? resources - caps.resources : 0;
         if (spill > 0) {
           await moveParty(tx, { kind: "character", id: character.id, name: character.name }, -spill);
           await moveParty(tx, { kind: "room", id: room.id, name: room.name }, spill);
@@ -357,6 +375,17 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
           };
         }
       }
+    }
+
+    // Advance the watermark to what they are actually carrying now — after any
+    // shed, so a shed load is what the next settle compares against. The
+    // conditional WHERE is the claim: two settles racing on the same growth
+    // must not both shed, and the loser simply sees no growth next time.
+    if (!deferred && (load !== seenWeight || resources !== seenResources)) {
+      await tx.character.updateMany({
+        where: { id: character.id, carryWeightSeen: seenWeight, carryResourcesSeen: seenResources },
+        data: { carryWeightSeen: load, carryResourcesSeen: resources },
+      });
     }
 
     // The status tag follows the cap; a player never removes it themselves.

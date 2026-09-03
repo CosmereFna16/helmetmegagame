@@ -44,10 +44,14 @@ function isMounted(activeSlugs) {
 
 // Holding a mount or a cart but not having it out. Travel asks so it can warn
 // before someone walks a day's road with a horse in their pocket.
-function stowedSlugs(characterTags = []) {
+//
+// Returns display NAMES, not slugs — this goes straight into a sentence a
+// player reads, and "you're carrying a steam-automobile" is not a sentence.
+// Falls back to the slug only if a caller passed rows without one.
+function stowedMounts(characterTags = []) {
   return (characterTags ?? [])
     .filter((ct) => STOWABLE_SLUGS.has(ct?.tag?.slug) && ct.equipped !== true)
-    .map((ct) => ct.tag.slug);
+    .map((ct) => ct.tag.name ?? ct.tag.slug);
 }
 
 module.exports = {
@@ -56,5 +60,5 @@ module.exports = {
   equippedSlugs,
   fastTravelCapacity,
   isMounted,
-  stowedSlugs,
+  stowedMounts,
 };

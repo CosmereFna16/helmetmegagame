@@ -16,7 +16,7 @@ const {
   takeDrag,
   forgetDrag,
   freeMovesLeft,
-  stowedSlugs,
+  stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
@@ -492,10 +492,10 @@ async function handleTravelPick(interaction) {
         ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn. ‡`
         : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move. ‡`;
 
-  const stowed = crossing ? stowedSlugs(character.tags) : [];
+  const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
     stowed.length > 0
-      ? `-# You're carrying ${stowed.length === 1 ? "a" : ""} ${stowed.join(" and a ")} you haven't equipped — ${stowed.length === 1 ? "it does" : "they do"} nothing for you stowed. ‡`
+      ? `-# Your ${listNames(stowed)} ${stowed.length === 1 ? "isn't" : "aren't"} equipped, so ${stowed.length === 1 ? "it does" : "they do"} nothing for you. ‡`
       : null;
 
   await respond(

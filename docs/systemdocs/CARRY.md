@@ -79,9 +79,14 @@ than stored, so a GM raising the base moves both lines together.
 **The ceiling bites in two different places**, because things arrive in two
 different ways:
 
-- **Deliberately** — Transfer in, Craft, `/store`, a Depot buy, Loot, pulling
-  out of a room stash. `carryAdmits()` refuses it before it lands, with a
-  sentence the caller hands straight to the player.
+- **Deliberately** — a hand-over through Transfer. `carryAdmits()` refuses it
+  before it lands, with a sentence the caller hands straight to the player.
+  It has to: otherwise handing someone 300 lb would land, and then shed a
+  random slice of what they were *already* carrying onto a public floor where
+  anyone could take it. The other deliberate routes (Craft, `/store`, a Depot
+  buy, Loot, a stash pull) do **not** call it yet — those are self-inflicted
+  rather than a griefing vector, so today they land and shed. Wiring them is
+  owed work.
 - **Involuntarily** — a Labor payout (which is ⬢: `LABORING.md`), Caving loot,
   a GM grant, a `consumesInto` chain. It lands, and then `settleCarry` sets the
   excess down in a random public Room where they stand. This is the farmer who
@@ -188,14 +193,23 @@ Discord half — the DM and the aliased room line (§6).
 **Drops are acquisition-driven, and only acquisition-driven.** Nothing comes
 off a sheet because a cap SHRANK. Unequipping a cart at an inn door, handing
 one over, a GM lowering the base cap — all of those make a character
-Overburdened and no more. Only goods that arrived past the **ceiling** (§2) are
-set down, and only the ones that arrived without being asked for, since a
-deliberate acquisition was refused before it landed.
+Overburdened and no more.
 
-That is a deliberate reversal of how this worked before §3 existed. When
-walking into the Sanctuary parks your cart, a capacity-driven drop would empty
-that cart onto the chapel tiles every time — so `Character.carryMultiplierSeen`,
-the conditional shrink claim and the whole retry dance are gone with it.
+**`Character.carryWeightSeen` / `carryResourcesSeen` are what tell the two
+apart.** They hold the load at the last settle, and the shed fires only when
+the load has **grown** past the ceiling — never when the cap fell beneath a
+load that did not move. Without that comparison the settle cannot distinguish
+"you picked something up" from "you put your cart down", and since §3 parks a
+cart at every indoors door, the second reading would empty it onto the chapel
+tiles every time you walked in. (The old watermark tracked the *multiplier*,
+for the narrower job of noticing a Cart had left; this one tracks the load,
+because the load is the thing the rule is actually about.)
+
+The watermark advances to the post-shed load at the end of every settle —
+**except** when the shed was deferred for want of a public room, where it is
+deliberately left behind so the growth stays unclaimed and the next settle
+retries. The write is a conditional `updateMany` on the previous pair, so two
+settles racing on the same growth cannot both shed.
 
 **What drops.** `drawDrops` shuffles the droppable units and takes from the
 front until the excess is covered, shedding back to the **ordinary cap** rather
@@ -208,8 +222,9 @@ disarmed by an overfull pack reads badly). Every ⬢ over the ⬢ ceiling spills
 the same way. Audit: `carry_overflow_dropped` with the manifest.
 
 **Nowhere to put it down** — unplaced, or a Location with no public room — and
-the character simply stays over the ceiling; the next settle, on arrival or at
-turn close, retries for free. Audit: `carry_drop_deferred`.
+the character simply stays over the ceiling with the watermark held back; the
+next settle, on arrival or at turn close, retries for free. Audit:
+`carry_drop_deferred`.
 
 ## 6. Room stashes
 
@@ -336,4 +351,5 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |
 | Caps on `/gm/dev` | `web/app/(desk)/gm/dev/page.js`, `web/app/(app)/gm/dev/actions.js` |
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |
+| Load watermark | `Character.carryWeightSeen` / `carryResourcesSeen` |
 | Weight bands | `weight:` in `docs/tags.yaml`; `Tag.weightLbs` |

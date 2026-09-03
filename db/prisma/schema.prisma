@@ -1186,6 +1186,22 @@ model Character {
 
   // The in-game DAY a FAST_TRAVEL was last claimed on — despite the name,
   // NOT a turn id. A day is TWO turns (Dawn/Dusk), so this stores
+  // The load at the last db/lib/carry.js settle — the watermark that tells an
+  // ACQUISITION from a capacity SHRINK, which is the whole of what decides
+  // whether anything is set down (docs/systemdocs/CARRY.md §5).
+  //
+  // Only a load that GREW past the ceiling sheds. Unequipping a cart at an inn
+  // door, handing one over, or a GM lowering the base cap all leave the load
+  // exactly where it was, so they make a character Overburdened and take
+  // nothing off them. Without this the settle cannot tell the two apart, and
+  // walking into an inn empties your cart onto its floor.
+  //
+  // The LOAD is stored, never the derived cap, for the same reason the old
+  // multiplier watermark stored the multiplier: a cap is a thing the GM moves,
+  // and moving it must not read as "you just picked something up".
+  carryWeightSeen    Float @default(0)
+  carryResourcesSeen Int   @default(0)
+
   // The free zone crossings this character has already spent, and the turn
   // they were spent in (docs/systemdocs/CARRY.md §2). Everyone gets
   // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds one; being

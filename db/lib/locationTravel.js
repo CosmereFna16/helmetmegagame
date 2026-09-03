@@ -27,7 +27,8 @@ const CHARACTER_SELECT = {
   buriedAt: true,
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
-  tags: { select: { equipped: true, tag: { select: { slug: true } } } },
+  // `name` rides along for stowedMounts(), which puts it in a sentence.
+  tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
 
 // How many zone crossings this character gets for free this turn, before a

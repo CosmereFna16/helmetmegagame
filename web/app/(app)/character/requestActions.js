@@ -84,6 +84,7 @@ import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { BUTCHER_SLUG, ENGRAVE_RESOURCE_COST, WORKSHOP_EQUIPMENT_SLUG, SURGICAL_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
+import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollDie } from "@lifeweb/db/lib/moveEffects";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
@@ -905,6 +906,30 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
     return { tagId: line.tagId, quantity, held };
   });
 
+  // The ceiling (docs/systemdocs/CARRY.md §2). A deliberate hand-over is
+  // REFUSED past 1.5× the recipient's cap rather than landing and being partly
+  // scattered on the floor — otherwise handing someone 300 lb would shed a
+  // random slice of what they were already carrying into a public room.
+  // Checked only for a character on the receiving end; a Room stash is
+  // bottomless.
+  if (to.kind === "character") {
+    const recipient = await prisma.character.findUnique({
+      where: { id: to.id },
+      select: { resources: true, tags: { select: { quantity: true, equipped: true, tag: true } } },
+    });
+    const config = await prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: { carryWeightLbs: true, carryResourceCap: true },
+    });
+    const addedLbs = moves.reduce((sum, m) => sum + rowWeight({ ...m.held, quantity: m.quantity }), 0);
+    const verdict = carryAdmits(recipient, config, { weightLbs: addedLbs, resources: amount });
+    if (!verdict.ok) {
+      throw new UserError(
+        to.id === character.id ? verdict.reason : `${to.name} couldn't carry that. ${verdict.reason}`,
+      );
+    }
+  }
+
   const openTurn = await getOpenTurn();
   const ledger = {
     actorDiscordUserId: session.discordUserId,
@@ -1103,7 +1128,10 @@ async function healCharacterRequestImpl({
     payer: { kind: payer.kind, id: payer.id, name: payer.name },
     // A gambit heal is an ATTEMPT: the die is rolled at turn close and the GM
     // applies the outcome from /gm/turns, so nothing has left the patient yet.
-    // `pending` is what tells the desk and Undo that no tag came off.
+    // `pending` is what tells Undo that no tag came off, and it is never
+    // cleared — it stays true because it stays TRUE. The request charged a fee
+    // and filed a Move, and that is all it ever did; whatever the GM writes
+    // afterwards is their own edit, with its own audit row and its own undo.
     gambit,
     pending: gambit,
     surgical,
@@ -1144,23 +1172,34 @@ async function healCharacterRequestImpl({
       // the staged push. The patient's tag is untouched: a roll that has not
       // been read cannot have cured anything, and a failed one can leave them
       // worse (docs/systemdocs/TAGS.md §5c).
-      const action = await tx.action.create({
-        data: {
-          characterId: character.id,
-          turnId: openTurn.id,
-          type: "MOVE",
-          status: "CONFIRMED",
-          confirmedAt: new Date(),
-          moveKind: "GAMBIT",
-          moveReviewStatus: "OPEN",
-          description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}. ‡`,
-          diceRoll: rollDie(),
-          diceModifier:
-            gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }) + (surgical ? 1 : 0),
-          zoneId: character.zoneId ?? null,
-          gmNotes: "auto:heal_gambit",
-        },
-      });
+      // requireFreeMove() ran above, but the P2002 catch is what actually
+      // holds — @@unique([characterId, turnId]) is the real gate, and two tabs
+      // submitting at once get past a check that read the table a moment ago.
+      // It is also what rations gambit heals to one a turn without a second
+      // count. Same posture as fileAutoRoutine().
+      let action;
+      try {
+        action = await tx.action.create({
+          data: {
+            characterId: character.id,
+            turnId: openTurn.id,
+            type: "MOVE",
+            status: "CONFIRMED",
+            confirmedAt: new Date(),
+            moveKind: "GAMBIT",
+            moveReviewStatus: "OPEN",
+            description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}. ‡`,
+            diceRoll: rollDie(),
+            diceModifier:
+              gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }) + (surgical ? 1 : 0),
+            zoneId: character.zoneId ?? null,
+            gmNotes: "auto:heal_gambit",
+          },
+        });
+      } catch (err) {
+        if (err?.code === "P2002") throw new UserError("You've already used your Move this turn. ‡");
+        throw err;
+      }
       effect.actionId = action.id;
     } else {
       await dropCharacterTag(tx, target.id, held.tagId);

@@ -534,22 +534,28 @@ export default async function CharacterPage() {
     .filter((t) => t.healable.length > 0);
 
   // Routine cures left in the medic's day (web/lib/requests.js
-  // MEDICAL_TIER_CAPS). Resolved server-side; healCharacterRequest re-checks
-  // it under a row lock either way.
+  // MEDICAL_TIER_CAPS). The predicate MUST match routineHealsThisTurn in
+  // requestActions.js exactly — a first-aid cure and a Gambit both cost
+  // nothing here, and a number that disagreed with the one the action
+  // enforces would grey out a treatment the server would have accepted.
+  // Resolved server-side; the action re-checks under a row lock either way.
   const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
   const healsLeft = canHeal
     ? Math.max(
         0,
         healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
           (openTurn
-            ? await prisma.request.count({
-                where: {
-                  characterId: character.id,
-                  turnId: openTurn.id,
-                  type: "HEAL_CHARACTER",
-                  status: { not: "UNDONE" },
-                },
-              })
+            ? (
+                await prisma.request.findMany({
+                  where: {
+                    characterId: character.id,
+                    turnId: openTurn.id,
+                    type: "HEAL_CHARACTER",
+                    status: { not: "UNDONE" },
+                  },
+                  select: { effect: true },
+                })
+              ).filter((r) => !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0).length
             : 0),
       )
     : 0;
