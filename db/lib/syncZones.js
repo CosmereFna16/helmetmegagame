@@ -187,6 +187,7 @@ function parseZonesYaml(doc) {
 //     locked: <tag-slug>
 //     hidden: <tag-slug>
 //     modular: { roles: [...], tags: [...], open: true }
+//     keyed: true
 //
 // The bare-pair form is kept because most of the map is plain roads, and a
 // mapping for each of them would triple the file for nothing.
@@ -204,7 +205,7 @@ const ANNOUNCE_BY_KEYWORD = new Map([
   ["unmanned", "CONCEALED"],
 ]);
 
-const CONNECTION_KEYS = new Set(["pair", "announce", "locked", "hidden", "modular"]);
+const CONNECTION_KEYS = new Set(["pair", "announce", "locked", "hidden", "modular", "keyed"]);
 
 function parseConnection(raw, locationByRef, problems) {
   const isPair = Array.isArray(raw);
@@ -247,6 +248,7 @@ function parseConnection(raw, locationByRef, problems) {
     isOpen: true,
     openerRoleSlugs: [],
     openerTagSlugs: [],
+    keyed: false,
   };
 
   if (spec.announce != null) {
@@ -271,6 +273,21 @@ function parseConnection(raw, locationByRef, problems) {
     }
     entry.requiredTagSlug = spec[key].trim();
     entry.hidden = hides;
+  }
+
+  // `keyed` only means anything on a way that is shut to somebody: it offers
+  // the key-holder the chance to hold it open for the next 24 hours. On an
+  // edge with no requirement there is nothing to hold.
+  if (spec.keyed != null) {
+    if (typeof spec.keyed !== "boolean") {
+      problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean keyed: ${JSON.stringify(spec.keyed)}`);
+    } else if (spec.keyed && !entry.requiredTagSlug) {
+      problems.push(
+        `connections ${entry.a} <-> ${entry.b} is keyed but names no locked or hidden tag — there is nothing to hold open`,
+      );
+    } else {
+      entry.keyed = spec.keyed;
+    }
   }
 
   if (spec.modular != null) {
@@ -801,10 +818,12 @@ async function syncZonesFromYaml(prisma) {
   // is the shared rule), so an attribute cannot disagree between the two
   // directions.
   //
-  // The YAML is the master, so an edge it no longer lists is deleted. The one
-  // thing NOT taken from the YAML on an existing row is `isOpen`: a modular
-  // gate someone shut in play stays shut across a re-sync, or every sync
-  // would silently reopen the Gatehouse. `modular.open` is therefore the
+  // The YAML is the master, so an edge it no longer lists is deleted. Two
+  // things are NOT taken from the YAML on an existing row, because both are
+  // play state rather than authoring: `isOpen`, so a modular gate somebody
+  // shut stays shut across a re-sync instead of every sync silently reopening
+  // the Gatehouse; and `openUntil`, so a keyed way somebody is holding open
+  // keeps standing open for its 24 hours. `modular.open` is therefore the
   // value a link is BORN with, not one the sync re-asserts.
   const wantedLinkKeys = new Set();
   for (const entry of connections) {
@@ -820,6 +839,7 @@ async function syncZonesFromYaml(prisma) {
       modular: entry.modular,
       openerRoleSlugs: entry.openerRoleSlugs,
       openerTagSlugs: entry.openerTagSlugs,
+      keyed: entry.keyed,
     };
     await prisma.locationLink.upsert({
       where: { aId_bId: { aId, bId } },

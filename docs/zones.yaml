@@ -96,6 +96,13 @@
 #                                  #   authority to work it. `open` is what the
 #                                  #   gate is BORN as — a re-sync never
 #                                  #   reopens one somebody shut in play.
+#     keyed: true                  # on crossing, the KEY-HOLDER is DM'd "Leave
+#                                  #   it open for the next 24 hours?". Yes and
+#                                  #   the way ignores its tag and shows in
+#                                  #   everyone's travel list until the window
+#                                  #   lapses — which is how somebody without
+#                                  #   the key follows them through. Needs a
+#                                  #   locked or hidden tag to hold open.
 #
 # `locked` and `hidden` are the same requirement with different visibility, so
 # an entry may carry one or the other, never both. Role and Tag slugs are NOT
@@ -767,8 +774,12 @@ connections:
   # The Baron's elevator: the Undercroft's deeper passages come out in the
   # forest below the cliffs. Given as a starting tag to the Hand and the
   # Baron.
+  #
+  # Keyed, so whoever rides it is asked whether to leave it open behind them
+  # for 24 hours — which is how anybody without the key gets to follow.
   - pair: [fortress/undercroft, forest/forest-2]
     hidden: elevator-key
+    keyed: true
 
   # The mountain road east. Listed, not hidden — you can see the pass from
   # the road and understand perfectly well that you cannot climb it.

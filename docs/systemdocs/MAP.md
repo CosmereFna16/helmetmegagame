@@ -88,6 +88,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Locked | `requiredTagSlug` | crossing needs the tag, and the way is **listed**, so a player sees the door and learns what opens it |
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
 | Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on **both** endpoints' anchors; impassable while shut |
+| Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 
 Two things about the gating that are easy to get wrong:
 
@@ -98,6 +99,10 @@ Two things about the gating that are easy to get wrong:
   an option is a hint; `performLocationMove` and the web's `MOVE_CHARACTER`
   both run `crossingCheck` again on their own, because a server action is a
   public endpoint and a client can post any location id it likes.
+- **A propped-open keyed way satisfies its own tag requirement**, which also
+  makes a hidden one listed. That is not a leak, it is the whole feature: a
+  door somebody held open has to be visible to the people meant to follow them
+  through it.
 
 A gate's **announcement is posted from the Discord half**
 (`applyLocationMoveSideEffects`), derived from the edge rather than passed in,
@@ -105,6 +110,27 @@ so every writer of `Character.locationId` gets it for free and a GM's teleport
 onto a non-adjacent Location announces nothing. It is a plain bot message, not
 `postAsCharacter` — a webhook post under the traveller's own name and face
 would defeat the whole point of the unmanned form.
+
+### 2b. Keyed ways
+
+A **keyed** way asks the person who just used their key whether to hold it open
+behind them. `shouldPromptKeyed` gates that: only a key-holder is asked, because
+propping a door is the key-holder's decision and not a courtesy anyone walking
+through inherits, and only while the way is shut, so a stream of traffic through
+an open one does not re-ask every single person.
+
+The ask is a **DM**, never anything in a channel — a keyed way is usually
+secret, and asking in the open would tell the room it exists. The crossing
+itself only poses the question; `openUntil` is stamped by the button handler,
+so a player who never answers leaves the door shut, which is the safe default.
+
+Nothing closes it again. `isHeldOpen` compares `openUntil` against the clock,
+so the window lapses on its own with no pass, no cron and no row to clean up.
+`resolveNeighbors` takes one clock reading for a whole list, so a way cannot
+lapse halfway down it and render as both open and shut at once.
+
+`db:sync-zones` never rewrites `openUntil`, for the same reason it never
+rewrites `isOpen`: both are play state, not authoring.
 
 The **modular button** is `loc:gate:{linkId}` on the Location anchor
 (`db/lib/locationAnchorRow.js#locationGateRow`). Authority is re-checked in the

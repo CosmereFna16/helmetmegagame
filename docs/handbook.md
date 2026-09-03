@@ -184,6 +184,8 @@ Out in the wild, Locations are named after their Zone and a number — Forest 7,
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all. ‡
 
+If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you. ‡
+
 Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons. ‡
 | Channel | What it's for |
 |---|---|

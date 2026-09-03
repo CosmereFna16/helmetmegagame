@@ -142,6 +142,7 @@ because one real edge is a manned gate *and* a modular one at once:
 | `locked: <tag-slug>` | crossing needs the tag; the way is still **listed** |
 | `hidden: <tag-slug>` | needs the tag **and** is absent from the travel list |
 | `modular: { roles, tags, open }` | an Open/Close button on both anchors, impassable while shut |
+| `keyed: true` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — needs a `locked` or `hidden` tag, since an open way has nothing to hold |
 
 `locked` and `hidden` are the same requirement with different visibility, so an
 entry may carry one or the other, never both. Each entry becomes exactly one
@@ -149,7 +150,9 @@ entry may carry one or the other, never both. Each entry becomes exactly one
 
 **`modular.open` is what a link is BORN with, not something the sync
 re-asserts.** A gate somebody shut in play stays shut across a re-sync;
-otherwise every sync would silently reopen the Gatehouse.
+otherwise every sync would silently reopen the Gatehouse. `openUntil` is left
+alone for the same reason — a keyed way somebody is holding open keeps standing
+open for its 24 hours.
 
 A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
 belong on its levels), and its own id may never appear in `connections` — it

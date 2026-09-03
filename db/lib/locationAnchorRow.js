@@ -1,6 +1,7 @@
-// The buttons on every Location channel's pinned anchor message, as raw
-// component JSON: Who's here?, Secret rooms?, Converse — plus one Open/Close
-// button per modular gate touching this location, on a second row.
+// The Location components both faces share, as raw component JSON: the
+// buttons on every Location channel's pinned anchor (Who's here?, Secret
+// rooms?, Converse), one Open/Close button per modular gate touching the
+// location, and the Yes/No pair on the DM a keyed crossing sends.
 //
 // Plain JSON rather than discord.js builders for the same reason as
 // db/lib/turnsConsoleRow.js: the sync posts these over REST from db/, which
@@ -22,6 +23,7 @@ const WHOS_HERE_PREFIX = "loc:who:";
 const SECRET_ROOMS_PREFIX = "loc:secret:";
 const CONVERSE_PREFIX = "loc:converse:";
 const GATE_PREFIX = "loc:gate:";
+const KEYED_PREFIX = "loc:keyed:";
 
 // Discord's cap on buttons in one action row, and on a button label.
 const ROW_BUTTON_LIMIT = 5;
@@ -78,11 +80,42 @@ function locationGateRow(gates) {
   };
 }
 
+// The two buttons on the DM a keyed crossing raises. Not an anchor row — it
+// rides on a direct message — but it lives here because every "loc:" custom
+// id belongs in one file, which is what keeps the bot's router honest.
+//
+// The verb is what the click DOES. "Leave it open" is the affirmative, and it
+// is the SUCCESS style, because holding a door is the generous act; letting it
+// shut is the quiet default and gets no colour.
+function keyedPromptRow(linkId) {
+  return [
+    {
+      type: ACTION_ROW,
+      components: [
+        {
+          type: BUTTON,
+          style: SUCCESS,
+          custom_id: `${KEYED_PREFIX}${linkId}:yes`,
+          label: "Leave it open ‡",
+        },
+        {
+          type: BUTTON,
+          style: SECONDARY,
+          custom_id: `${KEYED_PREFIX}${linkId}:no`,
+          label: "Let it shut ‡",
+        },
+      ],
+    },
+  ];
+}
+
 module.exports = {
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
   CONVERSE_PREFIX,
   GATE_PREFIX,
+  KEYED_PREFIX,
   locationAnchorRow,
   locationGateRow,
+  keyedPromptRow,
 };

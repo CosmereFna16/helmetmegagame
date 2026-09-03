@@ -58,6 +58,24 @@ async function linkBetween(prisma, locationId, otherLocationId) {
   });
 }
 
+// Is a keyed edge currently propped open? Nothing closes one — the window
+// simply lapses, which is why this is a comparison and not a stored flag.
+function isHeldOpen(link, now = new Date()) {
+  return Boolean(link?.openUntil && link.openUntil.getTime() > now.getTime());
+}
+
+// Should this crossing raise the "Leave open for the next 24 hours?" prompt?
+// Only for somebody who actually holds the key — propping a door is the
+// key-holder's decision, not a courtesy anyone walking through inherits — and
+// only while it is shut, so a stream of traffic through an open way does not
+// re-ask every one of them.
+function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
+  if (!link?.keyed || !link.requiredTagSlug) return false;
+  if (isHeldOpen(link, now)) return false;
+  const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
+  return held.has(link.requiredTagSlug);
+}
+
 // The pure predicate: may a character holding `tagSlugs` cross this edge
 // right now? Separated from the queries so the picker, the mover and the
 // re-validation all reach the identical verdict from already-loaded data.
@@ -65,13 +83,18 @@ async function linkBetween(prisma, locationId, otherLocationId) {
 // `listed` is a weaker thing than `passable`: a LOCKED edge is listed and
 // refuses, so a player can see the door and learn they need the key, while a
 // HIDDEN edge is not listed at all, so they never learn it exists.
-function crossingCheck(link, { tagSlugs } = {}) {
+//
+// A propped-open keyed edge satisfies its own tag requirement, which also
+// makes a hidden one listed. That is deliberate and is the entire feature: a
+// door somebody held open has to be visible to the people meant to follow
+// them through it.
+function crossingCheck(link, { tagSlugs, now = new Date() } = {}) {
   if (!link) {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
 
   const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
-  const hasTag = !link.requiredTagSlug || held.has(link.requiredTagSlug);
+  const hasTag = !link.requiredTagSlug || held.has(link.requiredTagSlug) || isHeldOpen(link, now);
 
   if (link.hidden && !hasTag) {
     // Same wording a nonexistent edge gets, deliberately: a refusal that
@@ -115,6 +138,9 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
     : await heldTagSlugs(prisma, character?.id);
 
   const zoneId = fromZoneId ?? character?.zoneId ?? null;
+  // One clock for the whole list, so a propped-open way cannot lapse halfway
+  // down it and show as both open and shut in one render.
+  const now = new Date();
 
   return links
     .map((link) => {
@@ -123,7 +149,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         location: far,
         link,
         crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
-        ...crossingCheck(link, { tagSlugs }),
+        ...crossingCheck(link, { tagSlugs, now }),
       };
     })
     .sort(
@@ -140,14 +166,22 @@ async function travelOptions(prisma, character, locationId, opts) {
   return (await resolveNeighbors(prisma, character, locationId, opts)).filter((row) => row.listed);
 }
 
+// How long a propped door stays propped. Real hours, not turns: it is a
+// physical door somebody wedged, and the point is that people can follow
+// within the day.
+const KEYED_OPEN_MS = 24 * 60 * 60 * 1000;
+
 module.exports = {
   LINK_INCLUDE,
+  KEYED_OPEN_MS,
   endpoints,
   orderEndpoints,
   linksFor,
   linkBetween,
   crossingCheck,
   canToggleGate,
+  isHeldOpen,
+  shouldPromptKeyed,
   resolveNeighbors,
   travelOptions,
 };

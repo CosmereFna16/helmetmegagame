@@ -18,7 +18,13 @@ const {
   performMove,
 } = require("../lib/locationTravel");
 const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
-const { travelOptions, canToggleGate, endpoints } = require("@lifeweb/db/lib/locationGraph");
+const {
+  travelOptions,
+  canToggleGate,
+  endpoints,
+  isHeldOpen,
+  KEYED_OPEN_MS,
+} = require("@lifeweb/db/lib/locationGraph");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const { syncCharacterRoomAccess, accessibleRooms, heldTagSlugs } = require("@lifeweb/db/lib/roomAccess");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
@@ -43,6 +49,7 @@ const {
   SECRET_ROOMS_PREFIX,
   CONVERSE_PREFIX,
   GATE_PREFIX,
+  KEYED_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
 const { ROOM_STORAGE_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
@@ -360,6 +367,78 @@ async function handleGateToggle(interaction, linkId) {
       ? `» *You open the way to ${farName}.* ‡`
       : `» *You shut the way to ${farName}.* ‡`,
   );
+}
+
+// loc:keyed:{linkId}:{yes|no} — the answer to "Leave open for the next 24
+// hours?" on the DM a keyed crossing raised.
+//
+// Re-checked rather than trusted: the button was DM'd to a key-holder, but a
+// DM is a durable surface and the key can change hands or be lost between the
+// crossing and the click. Whoever presses it must still hold the key.
+//
+// "Leave it open" is a conditional updateMany against the window the clicker
+// was shown, so two people propping the same door in the same moment cannot
+// stack two windows — the second is told it is already held.
+async function handleKeyedPrompt(interaction, payload) {
+  await ack(interaction, { update: true });
+
+  const [linkId, answer] = [payload.slice(0, payload.lastIndexOf(":")), payload.slice(payload.lastIndexOf(":") + 1)];
+
+  const link = await prisma.locationLink.findUnique({
+    where: { id: linkId },
+    include: { a: true, b: true },
+  });
+  if (!link?.keyed) {
+    await respond(interaction, { content: "» *There's no door here to hold.* ‡", components: [] });
+    return;
+  }
+  const between = `${link.a.name} and ${link.b.name}`;
+
+  if (answer === "no") {
+    await respond(interaction, { content: `» *You let the way between ${between} fall shut.* ‡`, components: [] });
+    return;
+  }
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+    select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
+  });
+  const holdsKey = (character?.tags ?? []).some((ct) => ct.tag?.slug === link.requiredTagSlug);
+  if (!holdsKey) {
+    await respond(interaction, { content: "» *You no longer have what holds that open.* ‡", components: [] });
+    return;
+  }
+
+  if (isHeldOpen(link)) {
+    await respond(interaction, { content: `» *The way between ${between} is already being held open.* ‡`, components: [] });
+    return;
+  }
+
+  const openUntil = new Date(Date.now() + KEYED_OPEN_MS);
+  const claim = await prisma.locationLink.updateMany({
+    where: { id: link.id, OR: [{ openUntil: null }, { openUntil: { lte: new Date() } }] },
+    data: { openUntil },
+  });
+  if (claim.count === 0) {
+    await respond(interaction, { content: `» *Somebody just beat you to it.* ‡`, components: [] });
+    return;
+  }
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: interaction.user.id,
+      actionType: "keyed_way_held_open",
+      targetCharacterId: character.id,
+      details: { linkId: link.id, between: [link.a.name, link.b.name], openUntil: openUntil.toISOString() },
+    },
+  });
+
+  await respond(interaction, {
+    content:
+      `» *You leave the way between ${between} open.* ‡\n` +
+      `-# It stands open for 24 hours, and anyone can see and use it until then. ‡`,
+    components: [],
+  });
 }
 
 // One message carries both the passenger list and the confirmation, because
@@ -1182,6 +1261,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith(GATE_PREFIX)) {
           return void (await handleGateToggle(interaction, interaction.customId.slice(GATE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(KEYED_PREFIX)) {
+          return void (await handleKeyedPrompt(interaction, interaction.customId.slice(KEYED_PREFIX.length)));
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));

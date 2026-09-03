@@ -22,8 +22,10 @@ const { syncCharacterRoomAccess } = require("./roomAccess");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
-const { linkBetween } = require("./locationGraph");
+const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
+const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
+const { sendDm } = require("./dm");
 
 // Mirrors web/lib/discordGuild.js's PERM_VIEW_CHANNEL / PERM_SEND_MESSAGES —
 // duplicated rather than imported because db/ cannot reach into web/.
@@ -126,8 +128,35 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
   await postMessage(channelId, `» ${who} has entered ${toLocation.name}. ‡`);
 }
 
+// The offer to hold a keyed door open behind you.
+//
+// Only the key-holder is asked, and only while the way is shut — see
+// shouldPromptKeyed. Deliberately a DM rather than anything in a channel: the
+// whole point of a keyed way is that it is usually secret, and asking in the
+// open would tell the room it exists.
+//
+// The 24 hours are not started here. This only poses the question; the button
+// handler in bot/src/events/interactionCreate.js stamps openUntil, so a
+// player who never answers leaves the door shut, which is the safe default.
+async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
+  if (!fromLocationId) return;
+  const link = await linkBetween(prisma, fromLocationId, toLocation.id);
+  const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
+  if (!shouldPromptKeyed(link, { tagSlugs })) return;
+
+  const far = endpoints(link, toLocation.id).far;
+  await sendDm(
+    prisma,
+    character.discordUserId,
+    `The way between ${far.name} and ${toLocation.name} is open behind you. Leave it open for the next 24 hours? ‡\n` +
+      `-# While it stands open, anyone can see it and follow you through. ‡`,
+    { components: keyedPromptRow(link.id), source: "bot_auto" },
+  );
+}
+
 // Everything a location change must do in Discord once the DB write has
-// landed: swap the location overwrite; announce a gate crossing; if the zone
+// landed: swap the location overwrite; announce a gate crossing; offer to hold
+// a keyed way open; if the zone
 // changed too, swap the zone
 // role and reconcile narrowcast access; then private-room membership for
 // wherever they now stand, and any standing conversation invites there.
@@ -153,6 +182,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
         concealed: true,
         age: true,
         gender: true,
+        tags: { select: { tag: { select: { slug: true } } } },
       },
     }),
   ]);
@@ -167,6 +197,10 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
 
   await announceGateCrossing(prisma, character, fromLocationId, toLocation).catch((err) =>
     console.error(`Move: gate announcement failed for ${characterId}:`, err.message ?? err),
+  );
+
+  await offerToHoldKeyed(prisma, character, fromLocationId, toLocation).catch((err) =>
+    console.error(`Move: keyed-door offer failed for ${characterId}:`, err.message ?? err),
   );
 
   if (fromLocation?.zoneId !== toLocation.zoneId) {

@@ -782,6 +782,12 @@ model Location {
 ///                    Role slugs from docs/roles.yaml and openerTagSlugs are
 ///                    Tag slugs; holding any one of them is authority to
 ///                    flip it.
+///   keyed            On crossing, the key-holder is DM'd "Leave open for the
+///                    next 24 hours?". Yes stamps openUntil, and until then
+///                    the edge ignores requiredTagSlug AND is listed even when
+///                    hidden — which is the point: it is how somebody without
+///                    the key can follow you through. Nothing closes it; the
+///                    check just compares openUntil against now.
 model LocationLink {
   id String @id @default(cuid())
 
@@ -799,6 +805,9 @@ model LocationLink {
   isOpen          Boolean  @default(true)
   openerRoleSlugs String[]
   openerTagSlugs  String[]
+
+  keyed     Boolean   @default(false)
+  openUntil DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
