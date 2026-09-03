@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Every location can be examined, not just worked
+
+✎ The Labor? button on every location channel is now Examine. It still says what the ground yields here, and now also what the place itself is and whether the ways out of it stand open or closed  
+✚ Locations can carry attributes — facts about a place, written into zones.yaml, that Examine turns into a sentence. The Merchant's Depot is the first one to wear one
+
 ## 2026-09-03 · The changelog speaks plain language, and can be told to stay quiet
 
 ✎ Changelog entries now say what changed in the game instead of listing files  
