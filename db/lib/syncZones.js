@@ -866,6 +866,26 @@ async function syncZonesFromYaml(prisma) {
     const spec = zoneChannelSpec(zone);
     const updates = {};
 
+    // A zone whose KIND changed keeps Discord ids its new kind has no use
+    // for. The Bascinet 2 map turned the old Caves group row into a Caves
+    // cave-level (same slug, so the sync upserted rather than replaced), and
+    // it carried the group's category id with it — which would have pulled
+    // every cave channel back out of Underground on the next run, because
+    // categoryIdFor prefers a zone's own category over its parent's. Forget
+    // the ids; deleting the channel they point at is
+    // db:prune-stale-channels' job, not this pass's.
+    const orphaned = {};
+    if (!spec.category && zone.discordCategoryId) orphaned.discordCategoryId = null;
+    if (!spec.summary && zone.discordSummaryChannelId) orphaned.discordSummaryChannelId = null;
+    if (Object.keys(orphaned).length > 0) {
+      await prisma.zone.update({ where: { id: zone.id }, data: orphaned });
+      Object.assign(zone, orphaned);
+      report.warnings.push(
+        `zone "${zone.name}" is ${zone.kind} and no longer owns ${Object.keys(orphaned).join(", ")} — ` +
+          `forgotten here, run db:prune-stale-channels to delete the channel itself`,
+      );
+    }
+
     if (spec.category && !zone.discordCategoryId) {
       const category = await createChannel(spec.category);
       updates.discordCategoryId = category.id;
