@@ -43,6 +43,7 @@ const {
 } = require("./zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
+const { collectAttributes } = require("./locationAttributes");
 const { roomStarterRow } = require("./roomStarterRow");
 const { entriesOf } = require("./yamlEntries");
 const { orderEndpoints, linksFor, endpoints } = require("./locationGraph");
@@ -370,6 +371,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       name: location.name ?? location.id,
       description: location.description ?? "",
       indoors: location.indoors === true,
+      attributes: collectAttributes(location.attributes, `location "${location.id}"`, problems),
       sortOrder: index,
       zoneSlug,
       yields: collectYields(location, problems),
@@ -862,6 +864,7 @@ async function syncZonesFromYaml(prisma) {
       name: entry.name,
       description: entry.description,
       indoors: entry.indoors,
+      attributes: entry.attributes,
       sortOrder: entry.sortOrder,
       zoneId: zone.id,
     };

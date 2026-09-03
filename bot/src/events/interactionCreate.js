@@ -24,6 +24,7 @@ const {
   travelOptions,
   canToggleGate,
   endpoints,
+  linksFor,
   isHeldOpen,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
@@ -49,12 +50,13 @@ const { startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discord
 const {
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
-  LABOR_PREFIX,
+  EXAMINE_PREFIX,
   CONVERSE_PREFIX,
   GATE_PREFIX,
   KEYED_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
+const { describeLocation } = require("@lifeweb/db/lib/locationAttributes");
 const { ROOM_STORAGE_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
@@ -650,33 +652,51 @@ async function handleWhosHere(interaction, locationId) {
 // can see they can. Private Rooms come from the key tags they hold
 // (db/lib/roomAccess.js); Conversations come from having opened one or been
 // invited to it.
-// The Labor? button on a Location anchor. Information only — it files
-// nothing, costs nothing and can be pressed as often as you like. What it
-// shows is the LIVE coefficient (LocationYield.current), as a word rather
-// than a number: working out that Bountiful is worth more than Ample is the
-// player's job, and the numbers move anyway (db/lib/laborYield.js).
+// The Examine button on a Location anchor. Information only — it files
+// nothing, costs nothing and can be pressed as often as you like.
+//
+// It answers one question, "what is this place?", in three parts: what can be
+// worked here, what the place IS, and what the ways out are doing. The labor
+// half is the old Labor? button unchanged — the LIVE coefficient
+// (LocationYield.current) as a word rather than a number, because working out
+// that Bountiful beats Ample is the player's job and the numbers move anyway
+// (db/lib/laborYield.js). The rest comes from db/lib/locationAttributes.js.
 //
 // Deliberately readable by anyone standing here, whether or not they hold a
 // Laboring tag — scouting a place is the point, and a scout reporting back to
 // a hunter is a conversation the game wants.
-async function handleLaborQuery(interaction, locationId) {
+async function handleExamine(interaction, locationId) {
   await ack(interaction);
 
   const location = await prisma.location.findUnique({
     where: { id: locationId },
-    select: { name: true, yields: { select: { kind: true, current: true } } },
+    select: {
+      name: true,
+      indoors: true,
+      attributes: true,
+      yields: { select: { kind: true, current: true } },
+    },
   });
   if (!location) {
     await respond(interaction, "» *That place is gone.* ‡");
     return;
   }
 
+  // The gate state is read through the graph rather than off the anchor's
+  // buttons, because a GM can flip an edge without anyone refreshing a
+  // message and Examine must never be the stale one.
+  const links = await linksFor(prisma, locationId);
+  const gates = links
+    .filter((link) => link.modular)
+    .map((link) => ({ isOpen: link.isOpen, farName: endpoints(link, locationId).far.name }));
+
   const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
-  const line = LABOR_QUERY_KINDS.map(
+  const laborLine = LABOR_QUERY_KINDS.map(
     ({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind) ?? null)}`,
   ).join(" | ");
 
-  await respond(interaction, [`» *${location.name}.*`, line].join("\n"));
+  const lines = [`» *${location.name}.*`, laborLine, ...describeLocation(location, { gates })];
+  await respond(interaction, lines.join("\n"));
 }
 
 // Fixed order, so the readout looks the same in every channel and a player can
@@ -1305,8 +1325,8 @@ module.exports = {
         if (interaction.customId.startsWith(SECRET_ROOMS_PREFIX)) {
           return void (await handleSecretRooms(interaction, interaction.customId.slice(SECRET_ROOMS_PREFIX.length)));
         }
-        if (interaction.customId.startsWith(LABOR_PREFIX)) {
-          return void (await handleLaborQuery(interaction, interaction.customId.slice(LABOR_PREFIX.length)));
+        if (interaction.customId.startsWith(EXAMINE_PREFIX)) {
+          return void (await handleExamine(interaction, interaction.customId.slice(EXAMINE_PREFIX.length)));
         }
         if (interaction.customId.startsWith(CONVERSE_PREFIX)) {
           return void (await handleConverseOpen(interaction, interaction.customId.slice(CONVERSE_PREFIX.length)));

@@ -56,6 +56,38 @@ A Location also carries up to three `LocationYield` rows — one per `LaborKind`
 impossible there**, which is why no Location needs a "wilderness" or "water"
 boolean anywhere in the schema: the row is the gate. See `LABORING.md`.
 
+### 1b. What else a Location is
+
+Beyond its name and description, a Location carries a sparse map of
+**attributes** — `Location.attributes`, a JSON object authored as an
+`attributes:` block in `docs/zones.yaml`:
+
+```yaml
+depot:
+  name: Depot
+  attributes:
+    depot: true
+```
+
+Every key must exist in the registry in `db/lib/locationAttributes.js`, which
+is the only module that reads the column. An unknown key is reported as a sync
+**problem** rather than dropped, because a typo would otherwise be a place that
+quietly never says what it is.
+
+The registry maps each key to the sentence the **Examine** button prints
+(`LABORING.md` §9). Systems that own a place should ask `hasAttribute(location,
+"depot")` rather than comparing slugs — that is the point of the layer.
+
+Two things are deliberately *not* attributes. `indoors` stays a real column,
+because carts and mounts act on it (`db/lib/indoors.js`, `db/lib/mounts.js`)
+and a JSON field is not something to query on; Examine merely prints it
+alongside the attributes as though it were one. And gate state is never
+authored — it is read live off the `LocationLink` rows, since a GM can flip an
+edge at any time.
+
+JSON rather than a column per fact because these are sparse, additive prose
+triggers. The moment something needs a `where` clause, it wants a column.
+
 ## 2. The adjacency graph
 
 `connections:` in `docs/zones.yaml` is the master. Each entry becomes **one
@@ -279,4 +311,5 @@ the geography it described no longer exists. The
 | `db/lib/mounts.js` | `FAST_TRAVEL_SLUGS`, `isMounted`, `fastTravelCapacity` |
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
+| `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
 | `docs/zones.yaml` | The master: zones, Locations, Rooms, and `connections:` with its edge types |

@@ -330,7 +330,7 @@ Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't
 
 The bottom three need {tag:laboring-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing. ‡
 
-The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Labor?** button in any location's channel to see what it's yielding right now. Hunting is the wildest of the three; a field is a field. ‡
+The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Examine** button in any location's channel to see what it's yielding right now, along with anything else worth knowing about the place. Hunting is the wildest of the three; a field is a field. ‡
 
 Tools help. A bow or a gun makes hunting pay more while it's equipped, a Hatchet or a Plow does the same for farming, and a Fishing Rod for fishing. Each one names what it does in its own description. Carrying two weapons does not pay twice — you hunt with one of them, so only the better one counts — but a weapon, a set of gear and a skill all stack. ‡
 

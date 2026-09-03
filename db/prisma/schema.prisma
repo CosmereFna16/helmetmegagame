@@ -786,6 +786,19 @@ model Location {
   // in docs/zones.yaml; the anchor message says so in its own -# line.
   indoors Boolean @default(false)
 
+  // What else is true about this place, authored as docs/zones.yaml's
+  // per-location `attributes:` map. A flat JSON object of registry keys from
+  // db/lib/locationAttributes.js, which is the only thing that should read it
+  // — the sync rejects a key that module does not know, so a typo is a loud
+  // problem rather than a line that never prints.
+  //
+  // JSON rather than a column per fact because these are sparse, additive and
+  // player-facing prose triggers, not things anything queries or indexes on.
+  // `indoors` stays a real column precisely because it IS queried
+  // (db/lib/indoors.js, db/lib/mounts.js); it is merely rendered alongside
+  // these.
+  attributes Json @default("{}")
+
   zoneId String
   zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 

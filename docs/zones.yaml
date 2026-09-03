@@ -43,6 +43,13 @@
 #   so in a -# line of its own, written by syncZones, so nobody has to be told
 #   twice. Default false; a Room never carries it, since a Room is inside its
 #   Location by definition.
+# - attributes (locations only): a map of extra facts about the place, keyed
+#   by the registry in db/lib/locationAttributes.js. Each one the Examine
+#   button turns into a sentence. A key the registry does not know is a sync
+#   PROBLEM, not a silent skip, because a typo would otherwise be a place that
+#   never says what it is. `indoors` is deliberately NOT one of these — it is a
+#   real column that mounts and carts act on — but Examine prints it alongside
+#   them as though it were.
 # - stash (rooms only): a list of Tag slugs to seed into the room's stash —
 #   the kit that is simply THERE, like the Sanctuary operating theatre's
 #   surgical instruments. Written as a FLOOR, never a reset: if the row
@@ -632,6 +639,8 @@ zones:
             rooms: {}
           depot:
             name: Depot
+            attributes:
+              depot: true
             description: >-
               The merchant's depot: crates of a foreign design scattered around a decayed metal frame, light flowing forth, powered by their own basic generator. Everything imported into Ravenheart comes through this room, and the ledger that says so is the most valuable object in the caves. ‡
             rooms: {}

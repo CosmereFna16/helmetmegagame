@@ -1008,6 +1008,7 @@ module.exports = {
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/depot"),
+  ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),
   ...require("./lib/turnClock"),

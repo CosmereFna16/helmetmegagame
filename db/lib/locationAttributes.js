@@ -1,0 +1,119 @@
+// What is true about a place, and how to say it.
+//
+// A Location carries two kinds of fact, and the Examine button shows both
+// without having to know which is which.
+//
+// AUTHORED attributes are written into docs/zones.yaml's per-location
+// `attributes:` map and stored as JSON on Location.attributes. They are
+// properties of the place itself and change only on a sync — "this room is
+// the Depot" is not something that happens, it is something that is.
+//
+// DERIVED lines are read off live state and never authored: whether the ways
+// out stand open, whether the machinery in here is running. The caller loads
+// that state and hands it over as `ctx`, which is why this module can stay
+// Prisma-free and network-free — the same reason db/lib/depot.js gives for
+// living here. These are game facts, and both faces read them.
+//
+// Adding an attribute means adding one entry to ATTRIBUTES. The sync rejects
+// a key that is not in it, so a typo in the YAML is a loud problem at sync
+// time rather than a line that silently never prints.
+
+// key -> { describe(value, ctx) -> string|null }
+//
+// `describe` returning null means "true, but nothing worth saying here" —
+// used by an attribute that only exists to be matched on.
+const ATTRIBUTES = {
+  // The Merchant's berth. Marks the one Location the Depot console, the
+  // generator, the turret and the shuttle all belong to, so none of them has
+  // to hardcode a slug. The interesting lines about it are derived and
+  // arrive through ctx.depot; this one just names the place.
+  depot: {
+    describe: () => "A shuttle berth, and the only door Ravenheart has to anywhere else. ‡",
+  },
+};
+
+// The authored half: whatever is in Location.attributes, in registry order so
+// the readout looks the same in every channel.
+function authoredLines(location, ctx = {}) {
+  const attrs = location?.attributes ?? {};
+  const lines = [];
+  for (const [key, entry] of Object.entries(ATTRIBUTES)) {
+    const value = attrs[key];
+    if (value == null || value === false) continue;
+    const line = entry.describe(value, ctx);
+    if (line) lines.push(line);
+  }
+  return lines;
+}
+
+// The one fact that is a real column rather than an attribute, because
+// db/lib/indoors.js and db/lib/mounts.js both act on it. It reads as an
+// attribute here even though it is not stored as one.
+function indoorsLine(location) {
+  if (!location?.indoors) return null;
+  return "A place you walk into — a cart or a mount waits at the door. ‡";
+}
+
+// The modular gates touching this location. `gates` is [{ farName, isOpen }],
+// the same shape db/lib/syncZones.js#gatesFor already builds for the anchor's
+// button row, so the caller has usually loaded it already.
+//
+// The state, not the verb: the buttons say what a click DOES ("Close the way
+// to Road"), and Examine says what is TRUE ("The way to Road stands open").
+// Saying it the same way twice would make one of them wrong.
+function gateLines(gates) {
+  return (gates ?? [])
+    .slice()
+    .sort((x, y) => x.farName.localeCompare(y.farName))
+    .map((gate) =>
+      gate.isOpen
+        ? `The way to ${gate.farName} stands open. ‡`
+        : `The way to ${gate.farName} is closed. ‡`,
+    );
+}
+
+// Everything true about where you stand, as prose lines. The labor readout is
+// NOT here: it is a fixed-order table of its own that predates this module
+// (db/lib/laborYield.js#qualityWord), and the caller prints it first.
+function describeLocation(location, ctx = {}) {
+  return [indoorsLine(location), ...authoredLines(location, ctx), ...gateLines(ctx.gates)].filter(
+    Boolean,
+  );
+}
+
+// Sync-side validation. Returns the attributes to store, pushing a problem for
+// anything the registry does not know — an unrecognised key is almost always
+// a typo, and a silently-dropped one is a place that never says what it is.
+function collectAttributes(raw, label, problems) {
+  if (raw == null) return {};
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    problems.push(`${label} has a non-map attributes:`);
+    return {};
+  }
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!ATTRIBUTES[key]) {
+      problems.push(`${label} has unknown attribute "${key}"`);
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+// Does this location carry an attribute? The lookup every system that owns a
+// place should use instead of comparing slugs.
+function hasAttribute(location, key) {
+  const value = location?.attributes?.[key];
+  return value != null && value !== false;
+}
+
+module.exports = {
+  ATTRIBUTES,
+  authoredLines,
+  indoorsLine,
+  gateLines,
+  describeLocation,
+  collectAttributes,
+  hasAttribute,
+};

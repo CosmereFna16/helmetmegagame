@@ -1,6 +1,6 @@
 // The Location components both faces share, as raw component JSON: the
 // buttons on every Location channel's pinned anchor (Who's here?, Secret
-// rooms?, Labor?, Converse), one Open/Close button per modular gate touching the
+// rooms?, Examine, Converse), one Open/Close button per modular gate touching the
 // location, and the Yes/No pair on the DM a keyed crossing sends.
 //
 // Plain JSON rather than discord.js builders for the same reason as
@@ -21,7 +21,7 @@ const DANGER = 4;
 
 const WHOS_HERE_PREFIX = "loc:who:";
 const SECRET_ROOMS_PREFIX = "loc:secret:";
-const LABOR_PREFIX = "loc:labor:";
+const EXAMINE_PREFIX = "loc:examine:";
 const CONVERSE_PREFIX = "loc:converse:";
 const GATE_PREFIX = "loc:gate:";
 const KEYED_PREFIX = "loc:keyed:";
@@ -49,8 +49,8 @@ function locationAnchorRow(locationId) {
       {
         type: BUTTON,
         style: SECONDARY,
-        custom_id: `${LABOR_PREFIX}${locationId}`,
-        label: "Labor? ‡",
+        custom_id: `${EXAMINE_PREFIX}${locationId}`,
+        label: "Examine ‡",
       },
       {
         type: BUTTON,
@@ -117,7 +117,7 @@ function keyedPromptRow(linkId) {
 }
 
 module.exports = {
-  LABOR_PREFIX,
+  EXAMINE_PREFIX,
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
   CONVERSE_PREFIX,

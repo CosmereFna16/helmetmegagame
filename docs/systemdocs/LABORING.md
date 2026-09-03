@@ -58,7 +58,7 @@ it is why no Location needs a "wilderness" or "water" flag anywhere in the
 schema. The row is the gate.
 
 `base` is authored in `docs/zones.yaml`; `current` is where the world has
-drifted it, and `current` is the only number a payout or the Labor? button
+drifted it, and `current` is the only number a payout or the Examine button
 ever reads.
 
 ```yaml
@@ -252,20 +252,35 @@ kind that won, the roll and any tool that paid.
 The old summary-post machinery (`shareInSummary` / `summaryMessage`) died with
 `DefaultEffort`. The pass returns `dms` only.
 
-## 9. The Labor? button
+## 9. The Examine button
 
 Fourth button on every Location anchor, between Secret rooms? and Converse
-(`db/lib/locationAnchorRow.js`, prefix `loc:labor:`; handler
-`handleLaborQuery` in `bot/src/events/interactionCreate.js`).
+(`db/lib/locationAnchorRow.js`, prefix `loc:examine:`; handler `handleExamine`
+in `bot/src/events/interactionCreate.js`). It was the **Labor?** button until
+it grew the other two halves; the labor readout below is unchanged.
 
 **Information only.** It files nothing, costs nothing, and anyone standing
 there can press it whether or not they hold a Laboring tag — scouting is the
 point, and a scout reporting back to a hunter is a conversation the game wants.
 
+Three parts, each dropped when it has nothing to say: what can be worked here,
+what the place *is*, and what the ways out are doing.
+
 ```
-» *Forest 5.*
-**Hunting**: Modest | **Farming**: Scarce | **Fishing**: ×
+» *The Depot.*
+**Hunting**: × | **Farming**: × | **Fishing**: ×
+A place you walk into — a cart or a mount waits at the door. ‡
+A shuttle berth, and the only door Ravenheart has to anywhere else. ‡
+The way to Customs stands open. ‡
 ```
+
+The second part is `db/lib/locationAttributes.js` reading
+`Location.attributes`, authored per location in `docs/zones.yaml`; the third
+walks the modular `LocationLink` rows through `db/lib/locationGraph.js#linksFor`
+rather than trusting the anchor's own buttons, since a GM can flip an edge
+without anyone refreshing a message. Note the gate lines say what is TRUE,
+while the buttons beside them say what a click DOES — one of them would have to
+be wrong if they were worded alike.
 
 Words, never numbers. Working out that Bountiful beats Ample is the player's
 job, and the numbers move anyway.
@@ -293,6 +308,7 @@ At base, only `depths-19` and `depths-23` wear Bountiful. This button is the
 | `db/lib/autoLaborPass.js` | Filing a day for everyone who filed nothing |
 | `db/lib/syncZones.js` | `collectYields`, `syncLocationYields` |
 | `db/lib/tagShapes.js` | `normalizeLaborBonus` / `validateLaborBonus` |
-| `db/lib/locationAnchorRow.js` | The Labor? button |
+| `db/lib/locationAnchorRow.js` | The Examine button |
+| `db/lib/locationAttributes.js` | The attribute registry and the prose it prints |
 | `docs/zones.yaml` | Every `yield:` block |
 | `docs/tags.yaml` | The five Laboring tags and every `laborBonus:` |
