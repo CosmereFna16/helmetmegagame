@@ -36,7 +36,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     openTurn,
     desires,
     openTurnAction,
-    defaultEffort,
     desireTemplates,
     member,
     pendingStaged,
@@ -113,7 +112,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         gmNotes: true,
       },
     }),
-    prisma.defaultEffort.findFirst({ where: { characterId } }),
     // The full catalog for the GM's picker — retired rows included AND
     // marked (a GM grant bypasses gates entirely, see awardDesireGmImpl), so
     // this is a separate, wider select than the player-facing one in
@@ -342,9 +340,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
           diceModifier: openTurnAction.diceModifier,
           gmNotes: openTurnAction.gmNotes,
         }
-      : null,
-    defaultEffort: defaultEffort
-      ? { description: defaultEffort.description, labor: defaultEffort.labor }
       : null,
     desires: desires.map((d) => ({
       id: d.id,

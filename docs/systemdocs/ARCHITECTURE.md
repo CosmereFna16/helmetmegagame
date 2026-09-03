@@ -145,9 +145,9 @@ back to the caller** rather than doing it.
 
 - `advanceTurn()` returns a `runSideEffects` thunk (`TURN-ENGINE.md` §3).
 - `runHungerPass` returns `starvedDiscordUserIds`.
-- `runDefaultMovePass` returns `posts` and `dms`.
+- `runAutoLaborPass` returns `dms`.
 - `runLessonPass` (`db/lib/lessonPass.js`, `LESSONS.md`) returns `dms`, run
-  between `defaultMoves` and `stagedPush`.
+  between `autoLabor` and `stagedPush`.
 - `performTravel` returns `oldZone` so each caller runs its own access twin.
 
 Two reasons, both load-bearing:
@@ -219,7 +219,7 @@ and `MAP.md`.
 
 | Doc | Covers |
 |---|---|
-| `TURN-ENGINE.md` | How a turn closes and opens, weather, hunger, default moves |
+| `TURN-ENGINE.md` | How a turn closes and opens, weather, hunger, auto-labor |
 | `SYNC.md` | The YAML masters and their sync scripts |
 | `CHANNELS.md` | Discord channel layout, visibility, the Dawn wipe |
 | `CHARACTERS.md` | Creation, roles, point economy, death |
@@ -228,7 +228,7 @@ and `MAP.md`.
 | `ADJUDICATION.md` | The `/gm/turns` GM surface |
 | `MAP.md` | Geography, travel, the map panel |
 | `FACTIONS.md` | Factions, Leader/Treasurer |
-| `PRODUCTION.md` | The Labor checkbox and the payout table |
+| `LABORING.md` | The Labor move kind, the payout table, and what each Location yields |
 | `COMMANDS.md` | Every slash command, button, modal and reaction |
 | `ARCHIVE.md` | The transcript |
 | `DESIGN-SYSTEM.md` | Web styling |

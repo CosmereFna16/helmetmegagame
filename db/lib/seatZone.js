@@ -1,7 +1,7 @@
 // The one way to turn a zone into the zone that OWNS it — the GM-seat key.
 //
 // Presence is six zones (three surface + three cave levels); the GM seats,
-// factions and every stamped Action/Note/DefaultEffort/StagedMessage zoneId
+// factions and every stamped Action/Note/StagedMessage zoneId
 // stay at four, with the whole cave system belonging to the Caves seat. That
 // mapping is denormalized onto Zone.seatZoneId by the sync
 // (parentZoneId ?? id), and this helper is the single reader every writer

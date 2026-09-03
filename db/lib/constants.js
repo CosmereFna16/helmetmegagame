@@ -10,6 +10,8 @@ const EXHAUSTED_SLUG = "exhausted";
 const LABORER_BASIC_SLUG = "laborer-basic";
 const LABORER_SKILLED_SLUG = "laborer-skilled";
 const LABORER_FARMING_SLUG = "laborer-farming";
+const LABORER_HUNTING_SLUG = "laborer-hunting";
+const LABORER_FISHING_SLUG = "laborer-fishing";
 const CATATONIC_SLUG = "catatonic-afk";
 const DISAPPOINTED_SLUG = "disappointed";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
@@ -79,6 +81,8 @@ module.exports = {
   LABORER_BASIC_SLUG,
   LABORER_SKILLED_SLUG,
   LABORER_FARMING_SLUG,
+  LABORER_HUNTING_SLUG,
+  LABORER_FISHING_SLUG,
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
   OVERBURDENED_SLUG,

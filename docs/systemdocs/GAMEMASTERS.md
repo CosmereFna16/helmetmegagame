@@ -46,7 +46,7 @@ a category and a seat and nothing else.
 That mapping is denormalized onto **`Zone.seatZoneId`** by `db:sync-zones`
 (`parentZoneId ?? id`), and `db/lib/seatZone.js#seatZoneIdFor` is the single
 reader every writer goes through. **Never stamp a seat-scoped row with
-`zone.id`.** Every `Action`, `Note`, `DefaultEffort` and `StagedMessage`
+`zone.id`.** Every `Action`, `Note` and `StagedMessage`
 `zoneId` is the *seat* zone — a character acting in the Depths who filed
 against the Depths row would file work no Underground GM can see.
 

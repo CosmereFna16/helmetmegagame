@@ -93,7 +93,7 @@ tray as "unattached" for the GM to keep or drop.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
   `auto:silent_close` appended to `gmNotes` and pays its declared numbers.
 - **Every Routine gets a close DM**, whatever its review status, built to
-  match the Default Move DM: the description, `**Applied:** …`, and the
+  match the auto-labor DM: the description, `**Applied:** …`, and the
   resource roll. This is the *only* place a hand-filed Routine's payout is
   reported — nothing pays at confirm — so a player who declared used to learn
   less about their turn than one who slept through it. A **tail** ("passed

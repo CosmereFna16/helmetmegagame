@@ -12,11 +12,12 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // shouldn't color how the rest of the turn gets played.
 //
 // `action` must come in with its character, tags, AND hungerStreak loaded
-// (db/lib/gambitModifier.js needs both). `laborBonus`/`laborHalved` come
-// from the submit path (db/lib/laborAccess.js) since the Action stores only
-// the finished range. Returns { updated, lines }; writes its own AuditLog
-// row but sends nothing.
-async function confirmMove(action, actorDiscordUserId, { laborBonus = 0, laborHalved = false } = {}) {
+// (db/lib/gambitModifier.js needs both). `laborRate` is the resolver's whole
+// return value from the submit path (db/lib/laborAccess.js), carried because
+// the Action stores only the finished range and not which tools made it that
+// size. Returns { updated, lines }; writes its own AuditLog row but sends
+// nothing.
+async function confirmMove(action, actorDiscordUserId, { laborRate = null } = {}) {
   const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
   // the RAW roll and the SUM of every contributor (today just Hunger, scaled
@@ -79,9 +80,10 @@ async function confirmMove(action, actorDiscordUserId, { laborBonus = 0, laborHa
     lines.push(
       `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
     );
-    // The range above already has the bonus baked in, so say so — otherwise a
-    // Butcher sees 9-11 and has no way to know it isn't the plain 7-9.
-    const bonusNote = formatLaborBonusNote(laborBonus, laborHalved);
+    // The range above already has the tools baked in, so say so — otherwise a
+    // hunter with a Longbow sees 3-12 and has no way to know it isn't the
+    // plain 0-9.
+    const bonusNote = laborRate ? formatLaborBonusNote(laborRate) : null;
     if (bonusNote) lines.push(bonusNote);
   }
   lines.push("» *Locked in. Results land when the turn ends.*");

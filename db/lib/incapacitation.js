@@ -5,7 +5,7 @@
 // (GameConfig.catatonicDeathTurns, db/lib/catatonicDeathPass.js) and also
 // covers players who left the guild (db/lib/playerDeparture.js).
 //
-// db/lib/defaultMovePass.js skips filing a Default Move for anyone holding
+// db/lib/autoLaborPass.js skips filing an auto-Labor for anyone holding
 // one of these slugs — "can't act" must stay literally true of every slug here.
 const INCAPACITATING_SLUGS = new Set(["dying", "catatonic-afk", "paralyzed", "bound"]);
 

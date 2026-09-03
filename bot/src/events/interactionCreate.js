@@ -35,7 +35,7 @@ const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
 const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { postAsCharacterTo } = require("../lib/proxy");
-const { resolveLaborRate } = require("@lifeweb/db");
+const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
@@ -47,6 +47,7 @@ const { startPrivateThread, addThreadMember } = require("@lifeweb/db/lib/discord
 const {
   WHOS_HERE_PREFIX,
   SECRET_ROOMS_PREFIX,
+  LABOR_PREFIX,
   CONVERSE_PREFIX,
   GATE_PREFIX,
   KEYED_PREFIX,
@@ -621,6 +622,43 @@ async function handleWhosHere(interaction, locationId) {
 // can see they can. Private Rooms come from the key tags they hold
 // (db/lib/roomAccess.js); Conversations come from having opened one or been
 // invited to it.
+// The Labor? button on a Location anchor. Information only — it files
+// nothing, costs nothing and can be pressed as often as you like. What it
+// shows is the LIVE coefficient (LocationYield.current), as a word rather
+// than a number: working out that Bountiful is worth more than Ample is the
+// player's job, and the numbers move anyway (db/lib/laborYield.js).
+//
+// Deliberately readable by anyone standing here, whether or not they hold a
+// Laboring tag — scouting a place is the point, and a scout reporting back to
+// a hunter is a conversation the game wants.
+async function handleLaborQuery(interaction, locationId) {
+  await ack(interaction);
+
+  const location = await prisma.location.findUnique({
+    where: { id: locationId },
+    select: { name: true, yields: { select: { kind: true, current: true } } },
+  });
+  if (!location) {
+    await respond(interaction, "» *That place is gone.* ‡");
+    return;
+  }
+
+  const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
+  const line = LABOR_QUERY_KINDS.map(
+    ({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind) ?? null)}`,
+  ).join(" | ");
+
+  await respond(interaction, [`» *${location.name}.*`, line].join("\n"));
+}
+
+// Fixed order, so the readout looks the same in every channel and a player can
+// learn the shape rather than reading the labels every time.
+const LABOR_QUERY_KINDS = [
+  { kind: "HUNTING", label: "Hunting" },
+  { kind: "FARMING", label: "Farming" },
+  { kind: "FISHING", label: "Fishing" },
+];
+
 async function handleSecretRooms(interaction, locationId) {
   await ack(interaction);
 
@@ -917,29 +955,20 @@ async function handleMoveSubmit(interaction) {
   }
 
   const moveKind = interaction.fields.getRadioGroup("move:kind");
-  const labor = optionalCheckbox(interaction, "move:labor");
   const description = raw;
 
-  if (labor && moveKind === "GAMBIT") {
-    await respond(
-      interaction,
-      "» *If you choose to Labor on a turn, you can only do that — Laboring has to be Routine work.*",
-    );
-    return;
-  }
-
+  // Labor is its own kind now, not a checkbox riding along with a Routine —
+  // so picking it IS forgoing the day's other business, and the old
+  // Labor+Gambit refusal is structurally impossible rather than enforced.
   let resourceRollExpression = null;
-  let laborTier = null;
-  let laborBonus = 0;
-  if (labor) {
-    const rate = await resolveLaborRate(prisma, character.id);
-    if (!rate.ok) {
-      await respond(interaction, `» *${rate.reason}*`);
+  let laborRate = null;
+  if (moveKind === "LABOR") {
+    laborRate = await resolveLaborRate(prisma, character.id);
+    if (!laborRate.ok) {
+      await respond(interaction, `» *${laborRate.reason}*`);
       return;
     }
-    resourceRollExpression = rate.expression;
-    laborTier = rate.tier;
-    laborBonus = rate.bonus ?? 0;
+    resourceRollExpression = laborRate.expression;
   }
 
   // @@unique([characterId, turnId]) is the real gate; a retried interaction
@@ -974,7 +1003,7 @@ async function handleMoveSubmit(interaction) {
       actorDiscordUserId: interaction.user.id,
       actionType: "move_submitted",
       targetCharacterId: character.id,
-      details: { actionId: action.id, labor, tier: laborTier },
+      details: { actionId: action.id, kind: moveKind, tier: laborRate?.tier ?? null },
     },
   });
 
@@ -983,7 +1012,7 @@ async function handleMoveSubmit(interaction) {
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 
-  const { lines } = await confirmMove(loaded, interaction.user.id, { laborBonus });
+  const { lines } = await confirmMove(loaded, interaction.user.id, { laborRate });
   await respond(interaction, lines.join("\n"));
 }
 
@@ -994,14 +1023,6 @@ function optionalText(interaction, customId) {
     return interaction.fields.getTextInputValue(customId) ?? "";
   } catch {
     return "";
-  }
-}
-
-function optionalCheckbox(interaction, customId) {
-  try {
-    return Boolean(interaction.fields.getCheckbox(customId));
-  } catch {
-    return false;
   }
 }
 
@@ -1255,6 +1276,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith(SECRET_ROOMS_PREFIX)) {
           return void (await handleSecretRooms(interaction, interaction.customId.slice(SECRET_ROOMS_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(LABOR_PREFIX)) {
+          return void (await handleLaborQuery(interaction, interaction.customId.slice(LABOR_PREFIX.length)));
         }
         if (interaction.customId.startsWith(CONVERSE_PREFIX)) {
           return void (await handleConverseOpen(interaction, interaction.customId.slice(CONVERSE_PREFIX.length)));

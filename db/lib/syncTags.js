@@ -12,6 +12,8 @@ const { CORPSE_GROUP_SLUG } = require("./constants");
 const {
   normalizeRequirementItems,
   validateRequirementItems,
+  normalizeLaborBonus,
+  validateLaborBonus,
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,
@@ -259,6 +261,14 @@ async function syncTagsFromYaml(prisma) {
         craftable: t.craftable ?? false,
       },
     );
+    // laborBonus — the tools table (docs/systemdocs/LABORING.md). A bonus that
+    // only pays while equipped, on a tag nothing can equip, is dead weight
+    // nobody would notice; this is the one place that catches it.
+    validateLaborBonus(normalizeLaborBonus(t.laborBonus), {
+      selfSlug: t.slug,
+      tagSlugs: allTagSlugs,
+      equippable: t.equippable ?? false,
+    });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -347,6 +357,7 @@ async function syncTagsFromYaml(prisma) {
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
+      laborBonus: normalizeLaborBonus(entry.laborBonus),
       // Membership of the corpse group IS being a corpse, so the flag is
       // derived here rather than hand-written on three entries that could
       // drift from it. Always FRESH: a monster corpse never rots, and the

@@ -1,9 +1,9 @@
 // The stored-expression half of what used to be a full text-notation parser.
 // A Labor roll is stored as a canonical "min-max" range on
-// Action.resourceRollExpression / DefaultEffort — resolved once at submit
+// Action.resourceRollExpression — resolved once at submit
 // time (db/lib/laborAccess.js), rolled once at confirm
-// (bot/src/lib/moveConfirm.js) or at the Default Move pass
-// (db/lib/defaultMovePass.js). Nothing in the arbitration desk parses text:
+// (bot/src/lib/moveConfirm.js) or at the auto-labor pass
+// (db/lib/autoLaborPass.js). Nothing in the arbitration desk parses text:
 // StagedEffect stages a numeric delta directly and Action columns are read
 // for display only, so this file no longer needs to understand player-typed
 // notation at all.

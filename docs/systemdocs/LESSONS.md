@@ -84,7 +84,7 @@ dead character's offers stay readable.
    initiator why. `@@unique([characterId, turnId])` is the real gate; a P2002
    is a refusal, not a crash.
 3. **Resolve** (`db/lib/lessonPass.js`, the `"lessons"` pass — between
-   `defaultMoves` and `stagedPush` in `TURN_PASSES`). For each ACCEPTED lesson
+   `autoLabor` and `stagedPush` in `TURN_PASSES`). For each ACCEPTED lesson
    on the closing turn: learner Action gone → CANCELLED (a GM rejected it);
    Action already `SOLVED` → RESOLVED with `outcome.gmDecided`, no grant (the
    GM's word stands); otherwise `total = diceRoll + diceModifier`,

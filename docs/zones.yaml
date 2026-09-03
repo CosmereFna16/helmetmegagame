@@ -224,6 +224,7 @@ zones:
         name: Farms
         description: >-
           Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
+        yield: { farming: 1.0 }
         rooms: {}
 
   fortress:
@@ -272,6 +273,7 @@ zones:
           Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
 
           The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
+        yield: { farming: 0.2 }
         rooms:
           throne-room:
             name: Throne Room
@@ -373,6 +375,7 @@ zones:
         name: Manors
         description: >-
           The lesser houses, strung along the ridge where the air is better and the smell of the town does not reach. Each has a wall, a gate, and a family that would rather you used them. Between them, orchards nobody picks. ‡
+        yield: { farming: 0.6 }
         rooms: {}
 
   forest:
@@ -387,66 +390,77 @@ zones:
         name: Forest 1
         description: >-
           The river comes out of the rock here, cold enough to ache. Beyond it the trees give up and the land goes to scree. Nobody has any reason to be this far west, which is its own kind of reason. ‡
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
         rooms: {}
       # map node 2
       forest-2:
         name: Forest 2
         description: >-
           The ground rises toward the fortress cliffs, and the spruce grow crooked out of them. Somewhere above, water runs through stone that was cut, not worn. There is an old service door in the hillside, and it has a keyhole. ‡
+        yield: { hunting: 0.5, farming: 0.3 }
         rooms: {}
       # map node 3
       forest-3:
         name: Forest 3
         description: >-
           Four ways meet under a beech old enough to have a name nobody remembers. The undergrowth is trodden flat in a ring around it. People stop here. Not all of them go on. ‡
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
         rooms: {}
       # map node 4
       forest-4:
         name: Forest 4
         description: >-
           The road proper, rutted by cart wheels and kept clear by the Baron's men. It runs downhill toward the town's north gate and uphill toward the manors. Walking it means being seen. ‡
+        yield: { hunting: 0.5, farming: 0.5, fishing: 0.7 }
         rooms: {}
       # map node 5
       forest-5:
         name: Forest 5
         description: >-
           A bog that has been swallowing this stretch of path for a century. Boards have been laid across the worst of it and then laid again on top of the rotted ones. Do not step where the moss looks freshest. ‡
+        yield: { hunting: 0.7, farming: 0.3 }
         rooms: {}
       # map node 6
       forest-6:
         name: Forest 6
         description: >-
           Charcoal burners worked here once. The clearings are circles of black earth where nothing has grown back, and the stacked kilns have collapsed into shapes that look, at dusk, like people sitting. ‡
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
         rooms: {}
       # map node 7
       forest-7:
         name: Forest 7
         description: >-
           Deadfall from a storm nobody alive remembers, piled two men high and going soft. Threading it takes an hour. Going around takes three. Things live in it. ‡
+        yield: { hunting: 0.5, farming: 0.3 }
         rooms: {}
       # map node 8
       forest-8:
         name: Forest 8
         description: >-
           Where every southern path knots together: the town's south gate above, the farms east, the cave mouth below. There is a shrine at the junction and somebody keeps it swept, though no one will admit to it. ‡
+        yield: { hunting: 0.5, farming: 0.5 }
         rooms: {}
       # map node 9
       forest-9:
         name: Forest 9
         description: >-
           Terraced ground the farmers gave up on, sliding slowly downhill. The old irrigation channels still run, and they run somewhere. Cargo comes up out of the ground near here and nobody asks whose. ‡
+        yield: { hunting: 0.5, farming: 0.5 }
         rooms: {}
       # map node 10
       forest-10:
         name: Forest 10
         description: >-
           The eastern bank, where the river turns and the water goes quiet and deep. There is a culvert in the bank, grated once. The grate is gone. ‡
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
         rooms: {}
       # map node 36
       forest-36:
         name: Forest 11
         description: >-
           Coppiced woodland, cut on a cycle so old it looks natural until you notice every trunk is the same age. The farms begin where the stools end. ‡
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
         rooms: {}
 
   east-forests:
@@ -461,48 +475,56 @@ zones:
         name: East Forests 1
         description: >-
           Where the mountain road finally comes down out of the rock. The trees here are wrong — taller, further apart, quieter — and the ground between them is clear in a way no forest manages by itself. ‡
+        yield: { hunting: 0.8 }
         rooms: {}
       # map node 13
       east-forests-13:
         name: East Forests 2
         description: >-
           The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
+        yield: { hunting: 0.8 }
         rooms: {}
       # map node 25
       east-forests-25:
         name: East Forests 3
         description: >-
           Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
+        yield: { hunting: 0.8 }
         rooms: {}
       # map node 26
       east-forests-26:
         name: East Forests 4
         description: >-
           The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. Someone has built a cairn. Someone else has knocked it down. ‡
+        yield: { hunting: 0.8 }
         rooms: {}
       # map node 27
       east-forests-27:
         name: East Forests 5
         description: >-
           A crossroads of deer paths in a stand of black pine, so dense that noon reads as evening. Sound does not carry. Neither do shouts. ‡
+        yield: { hunting: 1.3, fishing: 0.8 }
         rooms: {}
       # map node 28
       east-forests-28:
         name: East Forests 6
         description: >-
           Ruins under moss: footings, a doorstep, the stub of a chimney, all laid out in a grid too regular for a village. Whatever stood here was planned by somebody with a straight edge. ‡
+        yield: { hunting: 0.8 }
         rooms: {}
       # map node 29
       east-forests-29:
         name: East Forests 7
         description: >-
           A dead end that does not look like one until you are in it — a bowl of ground ringed by rock, floored in fern. Excellent for hiding. Terrible for leaving. ‡
+        yield: { hunting: 0.8 }
         rooms: {}
       # map node 30
       east-forests-30:
         name: East Forests 8
         description: >-
           The eastern edge, where the forest thins into scrub and the ground starts its long fall toward the marsh. The air changes here. You can taste it before you see it. ‡
+        yield: { hunting: 1.1 }
         rooms: {}
 
   marshes:
@@ -527,30 +549,35 @@ zones:
         name: Marshes 1
         description: >-
           Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
+        yield: { hunting: 1.0, fishing: 1.0 }
         rooms: {}
       # map node 32
       marshes-32:
         name: Marshes 2
         description: >-
           Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
+        yield: { hunting: 1.0, fishing: 1.0 }
         rooms: {}
       # map node 33
       marshes-33:
         name: Marshes 3
         description: >-
           Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
+        yield: { hunting: 1.0, fishing: 1.0 }
         rooms: {}
       # map node 34
       marshes-34:
         name: Marshes 4
         description: >-
           Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
+        yield: { hunting: 1.0, fishing: 1.0 }
         rooms: {}
       # map node 35
       marshes-35:
         name: Marshes 5
         description: >-
           The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
+        yield: { hunting: 1.0, fishing: 1.0 }
         rooms: {}
 
   # --- Underground (group) ---
@@ -593,24 +620,28 @@ zones:
             name: Caves 1
             description: >-
               The first proper dark. The floor is smooth from centuries of boots and the walls are close enough to touch on both sides, which is a comfort until you think about it. ‡
+            yield: { hunting: 0.4 }
             rooms: {}
           # map node 15
           caves-15:
             name: Caves 2
             description: >-
               A junction chamber with too many exits. Cold air comes from one of them and warm air from another, and the difference is the only navigation you have. Somebody has scratched arrows. They disagree. ‡
+            yield: { hunting: 0.4 }
             rooms: {}
           # map node 16
           caves-16:
             name: Caves 3
             description: >-
               The old freight run — a level, worked passage, wide enough for two carts abreast, cut by people with better tools than anyone has now. It goes somewhere. It always went somewhere. ‡
+            yield: { hunting: 0.4 }
             rooms: {}
           # map node 17
           caves-17:
             name: Caves 4
             description: >-
               The stair head, where the smoothed paths end and the descending ones begin. Everything below this point is colder. There is a rope handrail, and it is not old. ‡
+            yield: { hunting: 0.4 }
             rooms: {}
       depths:
         name: Depths
@@ -623,42 +654,49 @@ zones:
             name: Depths 1
             description: >-
               A dead end, and a wrong one. The passage simply stops at a face of worked stone with no seam, no door, and no reason. People come here to look at it and then leave quickly. ‡
+            yield: { hunting: 0.6 }
             rooms: {}
           # map node 19
           depths-19:
             name: Depths 2
             description: >-
               Water to the ankle, and it is moving, which means it is going somewhere, which means there is a somewhere. The sound is enormous in the dark. ‡
+            yield: { hunting: 1.8 }
             rooms: {}
           # map node 20
           depths-20:
             name: Depths 3
             description: >-
               A gallery so wide your light does not reach the far wall. The floor is flat and swept. Nothing down here sweeps. ‡
+            yield: { hunting: 0.6 }
             rooms: {}
           # map node 21
           depths-21:
             name: Depths 4
             description: >-
               The junction under the stair, where the routes from above finally braid together. Every party that comes down passes through. Not every party passes back. ‡
+            yield: { hunting: 0.6 }
             rooms: {}
           # map node 22
           depths-22:
             name: Depths 5
             description: >-
               The long eastern run, mile after mile of the same worked passage, and then a place where the wall has been broken through from the other side. ‡
+            yield: { hunting: 0.6 }
             rooms: {}
           # map node 23
           depths-23:
             name: Depths 6
             description: >-
               Where the deep passage rises again and the air turns salt. There is light ahead that is not yours, and it is not warm. ‡
+            yield: { hunting: 1.6 }
             rooms: {}
           # map node 24
           depths-24:
             name: Depths 7
             description: >-
               The eastern mouth, opening onto scree above the sea. The way out is here, if you count a two-hundred-foot climb as a way out. ‡
+            yield: { hunting: 0.6 }
             rooms: {}
 
 connections:

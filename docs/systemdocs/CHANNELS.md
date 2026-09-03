@@ -19,7 +19,7 @@ system.
 
 | Channel | Tupper | Summary |
 |---|---|---|
-| A zone's `#summary` | yes | yes — adjudication results and Default Move summaries post here |
+| A zone's `#summary` | yes | yes — adjudication results and staged public declarations post here |
 | A Location channel (surface or cave level) | yes | no |
 | `#watch`, `#intercom` | yes | no — neither is tied to a place, so there is no adjudication result to post there |
 
@@ -50,7 +50,7 @@ build from them, so the two can never disagree.
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
-| `#summary` | text | Abstracted, big-picture play. Adjudication results and Default Move summaries land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
+| `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
 
 The `CAVE_GROUP` row (Underground) owns the shared category and nothing else —
 no `#summary`, no role. Each `CAVE_LEVEL` (Caves, Depths) has no channels of
@@ -562,7 +562,7 @@ ids: `fetchAllMessages` is handed a synthetic `before` snowflake, and a thread
 newer than the cutoff is skipped whole.
 
 Two things depend on it. The first is that the turn's own adjudication
-survives: the staged public declarations and the Default Move summaries are
+survives: the staged public declarations are
 posted to `#summary` at the top of the same thunk that runs the wipe at the
 bottom, and before the cutoff existed they were deleted seconds after landing —
 `StagedMessage` stamped `sentAt`, so nothing showed it had happened. The second

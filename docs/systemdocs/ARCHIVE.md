@@ -3,7 +3,7 @@
 The game's transcript. Every proxied character message is written to
 `ArchiveEntry` **at send time** — `db/lib/archive.js#recordArchiveMessage`,
 called from `bot/src/lib/proxy.js#sendAsCharacter` (gateway) and from
-`advanceTurn`'s `runSideEffects` for Default Move summaries (REST) — and read
+`advanceTurn`'s `runSideEffects` for staged public posts (REST) — and read
 back on the web at `/archive`.
 
 This replaced archiving at *wipe* time, which `db/lib/dawnWipe.js` used to do

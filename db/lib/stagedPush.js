@@ -22,13 +22,14 @@ const NO_NOTES_TAIL =
   "receive adjudications, typically. If you need additional information or " +
   "believe this was in error, message the GMs.*";
 
-// The Routine close DM. Mirrors the Default Move DM (db/lib/defaultMovePass.js)
+// The Routine (and Labor) close DM. Mirrors the auto-labor DM (db/lib/autoLaborPass.js)
 // and is the only place a hand-filed Routine's payout is reported, since
 // nothing pays at confirm. sendDm writes the » prefix, so don't write one here.
 function formatRoutineCloseDm(turn, action, applied, adjudicated) {
   const effects = describeMoveEffects(applied);
+  const kind = action.moveKind === "LABOR" ? "Labor" : "Routine";
   const lines = [
-    `*Your Routine for turn ${turn.number}.*`,
+    `*Your ${kind} for turn ${turn.number}.*`,
     `» ${action.description}`,
     ...(effects ? [`**Applied:** ${effects}`] : []),
     ...(action.resourceRollValue != null
@@ -301,11 +302,14 @@ async function runStagedPushPass(prisma, turn, config) {
           (e) => e.targetCharacterId === action.characterId,
         );
         // Neither suppresses the DM, only its "no notes" tail. The remaining
-        // skip is the "auto:" family (Default Move / travel stub each send
+        // skip is the "auto:" family (auto-labor / travel stub each send
         // their own DM) — reads pre-update gmNotes so the auto:silent_close
         // appended above can't mute the notice it's meant to accompany.
+        //
+        // LABOR closes the same way a Routine does: it is never arbitrated,
+        // but the player still needs to be told what their day paid.
         if (
-          action.moveKind === "ROUTINE" &&
+          (action.moveKind === "ROUTINE" || action.moveKind === "LABOR") &&
           !(action.gmNotes ?? "").includes("auto:") &&
           action.character?.discordUserId
         ) {

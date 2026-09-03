@@ -26,8 +26,8 @@ async function addResources(tx, characterId, amount) {
   if (!amount) return 0;
   // One atomic statement, not read-then-write. The old shape (findUnique, add
   // in JS, write the literal back) lost an update whenever anything else
-  // touched the same character between the two — a /labor confirm racing a
-  // transfer, or the Default Move pass racing a player at rollover. GREATEST
+  // touched the same character between the two — a Labor confirm racing a
+  // transfer, or the auto-labor pass racing a player at rollover. GREATEST
   // keeps the clamp that db/lib/hungerPass.js also applies; Prisma's
   // `increment` can't express it, which is why this is raw.
   //
@@ -65,7 +65,7 @@ const MOVE_EFFECTS = {
   // passed and the character labored — even a roll of 0 ⬢ spent the day — so
   // the payout grants Exhausted, and db/lib/laborAccess.js#computeLaborAccess
   // refuses the next one until the expiry sweep clears it. Both payout paths
-  // (db/lib/stagedPush.js §2, db/lib/defaultMovePass.js) run while the
+  // (db/lib/stagedPush.js §2, db/lib/autoLaborPass.js) run while the
   // action's own turn closes, so `turn.number + durationTurns` blocks exactly
   // the following turn — the same clock arithmetic as the Hunger grant in
   // db/lib/hungerPass.js. An Unsolve reverts the exhaustion along with the

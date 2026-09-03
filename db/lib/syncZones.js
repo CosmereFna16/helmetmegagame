@@ -318,6 +318,47 @@ function parseConnection(raw, locationByRef, problems) {
   return entry;
 }
 
+// The per-location `yield:` block -> { HUNTING: 0.5, ... }. A kind left out is
+// a kind that cannot be worked there at all, which is a different thing from a
+// kind worth zero — no LocationYield row is written for it, and the Labor?
+// button prints a bare x.
+//
+// Validated rather than trusted: a typo like `hunitng: 0.5` would otherwise
+// silently disable hunting somewhere, and the symptom (one location quietly
+// paying nothing) is nearly invisible in play.
+const YIELD_KINDS = { hunting: "HUNTING", farming: "FARMING", fishing: "FISHING" };
+const YIELD_MAX = 2;
+
+function collectYields(location, problems) {
+  const block = location.yield;
+  if (block == null) return {};
+  if (typeof block !== "object" || Array.isArray(block)) {
+    problems.push(`location "${location.id}" has a yield that is not a mapping`);
+    return {};
+  }
+  const out = {};
+  for (const [key, raw] of Object.entries(block)) {
+    const kind = YIELD_KINDS[String(key).toLowerCase()];
+    if (!kind) {
+      problems.push(`location "${location.id}" yield has unknown kind "${key}"`);
+      continue;
+    }
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0 || value > YIELD_MAX) {
+      problems.push(`location "${location.id}" yield.${key} must be a number between 0 and ${YIELD_MAX}`);
+      continue;
+    }
+    // A zero is almost certainly a mistake — write nothing rather than a row
+    // the resolver would skip anyway, and say so.
+    if (value === 0) {
+      problems.push(`location "${location.id}" yield.${key} is 0; omit the key instead`);
+      continue;
+    }
+    out[kind] = value;
+  }
+  return out;
+}
+
 function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems) {
   for (const [index, location] of entriesOf(zone.locations, "id").entries()) {
     if (!location?.id) {
@@ -330,6 +371,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       description: location.description ?? "",
       sortOrder: index,
       zoneSlug,
+      yields: collectYields(location, problems),
     });
     for (const [roomIndex, room] of entriesOf(location.rooms, "id").entries()) {
       if (!room?.id) {
@@ -414,7 +456,10 @@ function buildRoomBody(room) {
   const parts = [`**${room.name}**`];
   const description = italicParagraphs(room.description);
   if (description) parts.push(description);
-  return parts.join("\n\n");
+  // One newline, not two. A blank line between the bolded name and its `-#`
+  // subtext reads as two separate posts stapled together; tight, the anchor
+  // reads as one card.
+  return parts.join("\n");
 }
 
 // The pinned anchor: name, -# description, and the Public Rooms index as
@@ -439,7 +484,10 @@ function buildAnchorBody(location, rooms) {
       ? `**Public Rooms**: ${publicRooms.map((r) => `<#${r.discordThreadId}>`).join(" | ")}`
       : "**Public Rooms**: none ‡",
   );
-  return parts.join("\n\n");
+  // One newline, not two. A blank line between the bolded name and its `-#`
+  // subtext reads as two separate posts stapled together; tight, the anchor
+  // reads as one card.
+  return parts.join("\n");
 }
 
 // --- Room threads ------------------------------------------------------
@@ -689,6 +737,40 @@ async function ensureRole(name, liveRoles) {
   return role;
 }
 
+// Reconciles one Location's LocationYield rows against what the YAML authored.
+//
+// `base` is always written. `current` is NOT — it is live drifted state
+// (db/lib/laborYield.js) and a routine re-sync must not shove every location
+// in the game back to its authored value mid-game. The exception is a base
+// that actually CHANGED: that is Bascinet retuning the map, and it should take
+// effect on the next turn rather than creeping in over a week of drift, so the
+// row is reset and any running event cleared.
+async function syncLocationYields(prisma, locationId, yields, report) {
+  const wanted = yields ?? {};
+  const existing = await prisma.locationYield.findMany({ where: { locationId } });
+  const byKind = new Map(existing.map((row) => [row.kind, row]));
+
+  for (const [kind, base] of Object.entries(wanted)) {
+    const row = byKind.get(kind);
+    if (!row) {
+      await prisma.locationYield.create({ data: { locationId, kind, base, current: base } });
+      report.yieldsCreated += 1;
+    } else if (row.base !== base) {
+      await prisma.locationYield.update({
+        where: { id: row.id },
+        data: { base, current: base, eventTarget: null, eventUntilTurn: null },
+      });
+      report.yieldsRebased += 1;
+    }
+  }
+
+  for (const row of existing) {
+    if (wanted[row.kind] != null) continue;
+    await prisma.locationYield.delete({ where: { id: row.id } });
+    report.yieldsDeleted += 1;
+  }
+}
+
 async function syncZonesFromYaml(prisma) {
   const yamlPath = requireDocsPath("zones.yaml");
   const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
@@ -702,6 +784,9 @@ async function syncZonesFromYaml(prisma) {
     locationsCreated: 0,
     locationsUpdated: 0,
     locationsMoved: [],
+    yieldsCreated: 0,
+    yieldsRebased: 0,
+    yieldsDeleted: 0,
     roomsMoved: [],
     rolesCreated: [],
     provisioned: [],
@@ -781,6 +866,7 @@ async function syncZonesFromYaml(prisma) {
       report.locationsUpdated += 1;
     }
     locationsBySlug.set(entry.slug, location);
+    await syncLocationYields(prisma, location.id, entry.yields, report);
   }
 
   // Pass 1c-bis: rooms, matched by slug. A thread can't change parents, so a

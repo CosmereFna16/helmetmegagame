@@ -116,6 +116,12 @@ record its id as an anchor. Do neither and it clears itself every Dawn.
 A new button, gated on the `butcher` tag (now a Mercenary starting tag).
 **Free — no ⬢, no Move — and it consumes the body.**
 
+The tag pays twice: it also carries `laborBonus: { kind: hunting, amount: 2 }`,
+so a Butcher hunting produces +2 ⬢. That bonus used to apply to every kind of
+laboring except farming and was hardcoded in `db/lib/laborAccess.js`; it is
+hunting-only now and lives in `docs/tags.yaml` like every other tool
+(`LABORING.md` §5). It needs no equipping — it is a skill, not a kit.
+
 | Corpse | Yields |
 |---|---|
 | Nekker Corpse | `nekker-pheromones` |

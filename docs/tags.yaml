@@ -340,7 +340,7 @@ tags:
     name: Soft Hands
     category: general
     group: general-court
-    description: "You've never done a day's labor. You make half the Resources when laboring."
+    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring. ‡"
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
@@ -1526,32 +1526,59 @@ tags:
     purchasableAfterStart: true
 
   laborer-basic:
-    name: Laborer (Basic)
+    name: Laboring (Basic)
     category: skills
     group: skills-labor
     teachable: true
-    description: "When laboring, you make {resource:labor:basic} per turn."
+    description: "You can sometimes provide for yourself. Can produce {resource:labor:basic} every other turn. ‡"
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
   laborer-skilled:
-    name: Laborer (Skilled)
+    name: Laboring (Skilled)
     category: skills
     group: skills-labor
     teachable: true
-    description: "When laboring, you make {resource:labor:skilled} per turn."
-    pointCost: 5
+    description: "You can provide for yourself and others. Can produce {resource:labor:skilled} every other turn. ‡"
+    pointCost: 7
     parentTag: laborer-basic
     purchasable: true
     purchasableAfterStart: true
 
-  laborer-farming:
-    name: Laborer (Farming)
+  # The three side-grades. Each needs Laboring (Skilled) behind it, each is
+  # scaled by where you are standing (docs/zones.yaml's per-location `yield:`
+  # block), and holding several is fine — a Labor pays the best one you
+  # qualify for, so there is nothing to switch and nothing to forget.
+  laborer-hunting:
+    name: Laboring (Hunting)
     category: skills
+    group: skills-labor
     teachable: true
-    description: "When you farm, you make {resource:labor:farming}. Only works in the Town."
-    pointCost: 5
+    description: "While laboring in a wilderness location, you produce {resource:labor:hunting}. Certain locations produce far more than others, and what a place is worth changes. ‡"
+    pointCost: 7
+    requiredTag: laborer-skilled
+    purchasable: true
+    purchasableAfterStart: true
+
+  laborer-farming:
+    name: Laboring (Farming)
+    category: skills
+    group: skills-labor
+    teachable: true
+    description: "While laboring in fields and worked ground, you produce {resource:labor:farming}. The Farms are richest, but they are not the only soil. ‡"
+    pointCost: 7
+    requiredTag: laborer-skilled
+    purchasable: true
+    purchasableAfterStart: true
+
+  laborer-fishing:
+    name: Laboring (Fishing)
+    category: skills
+    group: skills-labor
+    teachable: true
+    description: "While laboring in a location with water, you produce {resource:labor:fishing}. ‡"
+    pointCost: 7
     requiredTag: laborer-skilled
     purchasable: true
     purchasableAfterStart: true
@@ -1622,7 +1649,8 @@ tags:
     name: Butcher
     category: skills
     teachable: true
-    description: "When butchering non-humans, you can obtain interesting organs. Also gain +2 ⬢ when Laboring, unless you are Farming."
+    description: "You can butcher monster and human corpses. Additionally, Hunting laboring yields +2 ⬢. ‡"
+    laborBonus: { kind: hunting, amount: 2, equipped: false }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -4177,7 +4205,8 @@ tags:
     name: Neoclassic R&W10
     category: items
     group: items-weapons
-    description: "A classic revolver with six chambers."
+    description: "A classic revolver with six chambers. Hunting produces +2 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     equippable: true
     tradeable: true
@@ -4211,7 +4240,8 @@ tags:
     name: Neoclassic Duelista
     category: items
     group: items-weapons
-    description: "A one-shot revolver. Kicks like a horse."
+    description: "A one-shot revolver. Kicks like a horse. Hunting produces +2 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     equippable: true
     tradeable: true
@@ -4262,7 +4292,8 @@ tags:
     name: Hatchet
     category: items
     group: items-weapons
-    description: "For cutting wood."
+    description: "For cutting wood. Farming produces +1 ⬢ when equipped. ‡"
+    laborBonus: { kind: farming, amount: 1 }
     pointCost: 2
     equippable: true
     tradeable: true
@@ -4280,11 +4311,87 @@ tags:
     sellable: true
     sellablePrice: 4
 
+  # Three tools that exist only to make a Laboring specialisation pay better.
+  # Priced against docs/systemdocs/TAGS.md 4a: minor edges at 2, the Plow at 5
+  # because it needs a horse behind it to do anything at all.
+  fishing-rod:
+    name: Fishing Rod
+    category: items
+    group: items-gear
+    description: "A rod, a line, and patience. Fishing produces +1 ⬢ when equipped. ‡"
+    pointCost: 2
+    laborBonus: { kind: fishing, amount: 1 }
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+      gambit: false
+    sellable: true
+    sellablePrice: 4
+    depotPrice: 12
+
+  trapping-gear:
+    name: Trapping Gear
+    category: items
+    group: items-gear
+    description: "A set of gear to trap small animals with. Hunting produces +3 ⬢ when equipped. ‡"
+    pointCost: 5
+    laborBonus: { kind: hunting, amount: 3 }
+    equippable: true
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [crafting]
+      gambit: false
+    sellable: true
+    sellablePrice: 9
+    depotPrice: 26
+
+  # No `equipped` on the bonus: a plow is not something you hold, it is
+  # something in your shed. The horse is the whole cost of it.
+  plow:
+    name: Plow
+    category: items
+    group: items-gear
+    description: "It breaks the earth, but something has to pull it. If you also have a {tag:horse}, Farming produces +4 ⬢. ‡"
+    pointCost: 5
+    laborBonus: { kind: farming, amount: 4, equipped: false, requiresTag: horse }
+    tradeable: true
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 14
+
   sling:
     name: Sling
     category: items
     group: items-weapons
-    description: "It can kill people and animals."
+    description: "It can kill people and animals. Hunting produces +1 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
     tradeable: true
@@ -4372,7 +4479,8 @@ tags:
     name: Shortbow
     category: items
     group: items-weapons
-    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor."
+    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor. Hunting produces +2 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 2 }
     pointCost: 2
     equippable: true
     tradeable: true
@@ -4510,7 +4618,8 @@ tags:
     name: Longbow
     category: items
     group: items-weapons
-    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor."
+    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor. Hunting produces +3 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 3 }
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
@@ -4834,7 +4943,8 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point — anyone using it has their fighting skill counts as 1 tier higher."
+    description: "Bruises plate, punctures almost everything else. It's easy to point — anyone using it has their fighting skill counts as 1 tier higher. Hunting produces +3 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 3 }
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -4858,7 +4968,8 @@ tags:
     name: Musketoon
     category: items
     group: items-weapons
-    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload."
+    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload. Hunting produces +2 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 2 }
     pointCost: 18
     requiredTag: ranged-basic
     equippable: true
@@ -4881,7 +4992,8 @@ tags:
     name: Bore Pistol
     category: items
     group: items-weapons
-    description: "A single-shot pistol. Slow to reload, but the shot hits like a bull."
+    description: "A single-shot pistol. Slow to reload, but the shot hits like a bull. Hunting produces +2 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     requiredTag: ranged-basic
     equippable: true
@@ -5873,7 +5985,8 @@ tags:
     name: ML-23
     category: items
     group: items-weapons
-    description: "A 9mm pistol."
+    description: "A 9mm pistol. Hunting produces +2 ⬢ when equipped. ‡"
+    laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     depotPrice: 182
     sellable: true

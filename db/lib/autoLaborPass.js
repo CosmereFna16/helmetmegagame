@@ -1,0 +1,199 @@
+// The per-turn auto-labor pass, run from db/index.js#resolveNeeds(): files a
+// Labor for every ALIVE character who filed nothing on the closing turn and is
+// able to work.
+//
+// This replaces the old Default Move pass. There is no standing order to save
+// any more — not acting IS the order, and what it buys you is a day's work.
+// The consequence worth stating out loud: filing a Routine or a Gambit now
+// COSTS you your labor, because Labor is a third kind of Move rather than a
+// checkbox riding along with one.
+//
+// Files a Labor resolved like the hand-filed kind: status CONFIRMED,
+// moveReviewStatus PASSED (nothing here is arbitrated), resources applied and
+// snapshotted onto Action.appliedEffects so a GM can revert it, gmNotes tagged
+// "auto:labor". See docs/systemdocs/LABORING.md.
+const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
+const {
+  canLaborAtAll,
+  formatLaborBonusNote,
+  laborTierLabel,
+  resolveLaborRateFrom,
+  toolsFrom,
+  yieldMap,
+} = require("./laborAccess");
+const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
+const { INCAPACITATING_SLUGS } = require("./incapacitation");
+const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
+
+// What the filed Move says it was. A player who wasn't there didn't narrate
+// anything, and inventing a sentence for them would put words in a character's
+// mouth on a surface a GM reads as the player's own.
+const AUTO_LABOR_DESCRIPTION = "*A day's work, and nothing else.* ‡";
+
+async function runAutoLaborPass(prisma, turn) {
+  // Everyone alive, not everyone with a saved panel — the candidate set is the
+  // whole roster now, which is the actual shape of "if you don't submit a move".
+  const characters = await prisma.character.findMany({
+    where: { status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      discordUserId: true,
+      zoneId: true,
+      locationId: true,
+      location: { select: { id: true, name: true } },
+    },
+  });
+  // An object, not null: db/index.js gates markDone on truthiness and treats
+  // null as "this pass FAILED, retry next advance".
+  if (characters.length === 0) {
+    return { turnNumber: turn.number, filed: 0, skipped: 0, characterIds: [], dms: [] };
+  }
+
+  // Three bulk queries for the whole turn rather than three per character.
+  // This decides who works and how well, and it has to scale to a full roster.
+  const ids = characters.map((c) => c.id);
+  const [acted, tagRows, yieldRows, config] = await Promise.all([
+    prisma.action.findMany({ where: { turnId: turn.id, characterId: { in: ids } }, select: { characterId: true } }),
+    prisma.characterTag.findMany({
+      where: { characterId: { in: ids } },
+      select: { characterId: true, equipped: true, tag: { select: { slug: true, name: true, laborBonus: true } } },
+    }),
+    prisma.locationYield.findMany({ select: { locationId: true, kind: true, current: true } }),
+    prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: { productionCoefficient: true, lifewebBlood: true },
+    }),
+  ]);
+
+  const actedIds = new Set(acted.map((a) => a.characterId));
+  const coefficient = config?.productionCoefficient ?? 1;
+  const lifewebFailing = (config?.lifewebBlood ?? 100) <= LIFEWEB_SPUTTER_THRESHOLD;
+
+  const rowsByCharacter = new Map();
+  for (const row of tagRows) {
+    if (!rowsByCharacter.has(row.characterId)) rowsByCharacter.set(row.characterId, []);
+    rowsByCharacter.get(row.characterId).push(row);
+  }
+
+  const yieldsByLocation = new Map();
+  for (const row of yieldRows) {
+    if (!yieldsByLocation.has(row.locationId)) yieldsByLocation.set(row.locationId, []);
+    yieldsByLocation.get(row.locationId).push(row);
+  }
+
+  const filed = [];
+  let skipped = 0;
+
+  for (const character of characters) {
+    // Acted already — including an auto-resolved travel stub, since crossing
+    // zones spends the day just as surely as filing a Routine does.
+    if (actedIds.has(character.id)) continue;
+
+    const rows = rowsByCharacter.get(character.id) ?? [];
+    const tagSlugs = new Set(rows.map((r) => r.tag.slug));
+
+    // Tied to a chair, bleeding out, stunned or long gone quiet. Silent on
+    // purpose: they didn't ask for this turn, and the tag is the explanation.
+    if ([...tagSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+      skipped += 1;
+      continue;
+    }
+
+    // No Laboring tag at all: nothing is filed and nothing is sent. This is
+    // the whole point of the rework — labor is a skill now, not a floor, and
+    // a character without one who does nothing has simply done nothing.
+    if (!canLaborAtAll({ tagSlugs })) {
+      skipped += 1;
+      continue;
+    }
+
+    const ctx = {
+      tagSlugs,
+      tools: toolsFrom(rows),
+      yields: yieldMap(yieldsByLocation.get(character.locationId) ?? []),
+      locationName: character.location?.name ?? null,
+    };
+
+    const rate = resolveLaborRateFrom(ctx, coefficient, { lifewebFailing });
+    // Exhausted from yesterday, or standing somewhere their skills don't
+    // reach. Both are states the player can see on their own sheet, and
+    // filing an empty Move to say so would only clutter the GM's desk.
+    if (!rate.ok) {
+      skipped += 1;
+      continue;
+    }
+
+    // Rolled here, not left for later: applyMoveEffects reads resourceDelta
+    // only, so an unrolled expression would file the Move and pay nothing.
+    const roll = rollResourceRange(rate.expression);
+
+    try {
+      const action = await prisma.$transaction(async (tx) => {
+        const row = await tx.action.create({
+          data: {
+            characterId: character.id,
+            turnId: turn.id,
+            type: "MOVE",
+            status: "CONFIRMED",
+            confirmedAt: new Date(),
+            moveKind: "LABOR",
+            moveReviewStatus: "PASSED",
+            description: AUTO_LABOR_DESCRIPTION,
+            resourceDelta: roll?.value ?? null,
+            resourceRollExpression: rate.expression,
+            resourceRollValue: roll?.value ?? null,
+            zoneId: character.zoneId ?? null,
+            gmNotes: "auto:labor",
+          },
+        });
+        const applied = await applyMoveEffects(tx, row);
+        return tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
+      });
+
+      filed.push({ character, action, rate });
+    } catch (err) {
+      console.error(`Auto-labor for character ${character.id} failed:`, err);
+    }
+  }
+
+  if (filed.length === 0) {
+    return { turnNumber: turn.number, filed: 0, skipped, characterIds: [], dms: [] };
+  }
+
+  // DMs aren't sent here: each is a per-player Discord round trip, and
+  // awaiting them inside resolveNeeds() would hold the Dev Panel's "End turn"
+  // request open. Described here, sent by advanceTurn()'s runSideEffects()
+  // after the response is already flushed.
+  const dms = filed.map(({ character, action, rate }) => {
+    const effects = describeMoveEffects(action.appliedEffects);
+    const bonusNote = formatLaborBonusNote(rate);
+    const where = character.location?.name ? ` at ${character.location.name}` : "";
+    // sendDm applies the `»` prefix to the first line itself — don't write
+    // one here or it doubles up.
+    const lines = [
+      `*You filed nothing for turn ${turn.number}, so you worked${where}.*`,
+      `» ${laborTierLabel(rate.tier)}.`,
+      ...(effects ? [`**Applied:** ${effects}`] : []),
+      ...(action.resourceRollValue != null
+        ? [
+            `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
+          ]
+        : []),
+      // The paid range had the tools folded in silently, so without this a
+      // player carrying a Longbow had no way to tell it had applied.
+      ...(bonusNote ? [bonusNote] : []),
+    ];
+    return { discordUserId: character.discordUserId, content: lines.join("\n") };
+  });
+
+  return {
+    turnNumber: turn.number,
+    filed: filed.length,
+    skipped,
+    characterIds: filed.map(({ character }) => character.id),
+    dms,
+  };
+}
+
+module.exports = { runAutoLaborPass, AUTO_LABOR_DESCRIPTION };

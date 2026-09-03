@@ -60,7 +60,6 @@ export default function DevPanel({
   gambitModifier,
   stagedForPush,
   openTurnAction,
-  defaultEffort,
   desires,
   desireSlots,
   desireSlotStates,
@@ -315,7 +314,6 @@ export default function DevPanel({
           character={character}
           openTurn={openTurn}
           action={openTurnAction}
-          defaultEffort={defaultEffort}
         />
       )}
 

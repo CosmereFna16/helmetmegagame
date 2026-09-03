@@ -180,7 +180,52 @@ function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, 
   }
 }
 
+
+// The `laborBonus:` block — what a tool adds to one kind of Laboring
+// (docs/systemdocs/LABORING.md). Normalised here rather than trusted straight
+// from YAML because a typo in `kind` would silently make a tool worthless, and
+// the symptom (a bow that pays nothing) looks like a rules question rather than
+// a data bug.
+//
+// { kind, amount, equipped, requiresTag } or null. `equipped` defaults TRUE —
+// nearly every tool is something you carry, and the two that aren't say so.
+const LABOR_BONUS_KINDS = new Set(["hunting", "farming", "fishing"]);
+
+function normalizeLaborBonus(entry, label = "docs/tags.yaml") {
+  if (entry == null) return null;
+  if (typeof entry !== "object" || Array.isArray(entry)) {
+    throw new Error(`${label}: laborBonus must be a mapping`);
+  }
+  const kind = String(entry.kind ?? "").toLowerCase();
+  if (!LABOR_BONUS_KINDS.has(kind)) {
+    throw new Error(`${label}: laborBonus.kind must be one of ${[...LABOR_BONUS_KINDS].join(", ")}`);
+  }
+  const amount = Number(entry.amount);
+  if (!Number.isInteger(amount) || amount === 0) {
+    throw new Error(`${label}: laborBonus.amount must be a non-zero integer`);
+  }
+  const requiresTag = entry.requiresTag == null ? null : String(entry.requiresTag);
+  return { kind, amount, equipped: entry.equipped !== false, requiresTag };
+}
+
+// Two things the shape alone can't catch: a bonus that only pays while
+// equipped on a tag nothing can equip, and a requiresTag naming a tag that
+// isn't in the catalog.
+function validateLaborBonus(normalized, { selfSlug, tagSlugs, equippable, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  if (normalized.equipped && !equippable) {
+    throw new Error(
+      `${label}: "${selfSlug}" has a laborBonus that requires being equipped, but the tag is not equippable`,
+    );
+  }
+  if (normalized.requiresTag && !tagSlugs.has(normalized.requiresTag)) {
+    throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag names unknown tag "${normalized.requiresTag}"`);
+  }
+}
+
 module.exports = {
+  normalizeLaborBonus,
+  validateLaborBonus,
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,

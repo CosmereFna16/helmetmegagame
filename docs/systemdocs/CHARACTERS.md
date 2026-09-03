@@ -665,7 +665,7 @@ thin member fetch aborts loudly rather than flagging the roster.
 
 Until the countdown runs out, a departed player's character is **ALIVE
 everywhere**: rosters, transfer pickers, their zone. They're incapacitated
-(no Default Move) and lootable-while-alive like any Catatonic character.
+(no auto-labor) and lootable-while-alive like any Catatonic character.
 
 ## 5b. Killing and reviving from the GM panel
 

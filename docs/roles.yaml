@@ -809,8 +809,8 @@ zones:
               - Ravenhearter
               - Insightful
               - Old
-              - Laborer (Skilled)
-              - Laborer (Farming)
+              - Laboring (Skilled)
+              - Laboring (Farming)
               - House
               - Literate
               - Headman's Cap
@@ -882,7 +882,7 @@ zones:
               - >-
                 Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
               - >-
-                You start as a skilled Laborer — and a farmer, producing best of all in the Town's fields. Your laboring can be flavored in any way you want: herding, foraging, hunting. Or find your own trade.
+                You start skilled, and a farmer besides — the Farms are the richest soil in the valley, though not the only ground worth working. Press Labor? in a location to see what it yields before you spend the day there. Or find your own trade. ‡
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -890,8 +890,8 @@ zones:
             starting_zone: town
             starting_tags:
               - Ravenhearter
-              - Laborer (Skilled)
-              - Laborer (Farming)
+              - Laboring (Skilled)
+              - Laboring (Farming)
               - Shack
             doc_elements:
               - townstarting
@@ -929,7 +929,7 @@ zones:
               - >-
                 You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
               - >-
-                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or track game as a Hunter (the Laborer skills) — both still Forester at heart. Tick Labor on your Move and flavor it as hunting; the Forest is the Town's hunting ground.
+                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or take up Laboring (Hunting) and work the woods — both still Forester at heart. Pick Labor as your Move's kind; the Forest is the Town's hunting ground, and some tiles are far better than others. ‡
             difficulty: easy
             multiple: true
             weight: 2
@@ -938,7 +938,7 @@ zones:
             extra_starting_points: 7
             starting_tags:
               - Ravenhearter
-              - Laborer (Basic)
+              - Laboring (Basic)
               - Forester
               - Old Ways (Sylvia)
             doc_elements:

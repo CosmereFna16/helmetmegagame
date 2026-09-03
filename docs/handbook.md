@@ -23,7 +23,7 @@
     - [Upkeep](#upkeep)  
     - [Hunger](#hunger)  
 8. [Submitting A Move](#submitting-a-move)  
-    - [Routine vs Gambit](#routine-vs-gambit)  
+    - [Routine, Gambit, or Labor](#routine-gambit-or-labor)  
     - [Labor](#labor)  
     - [Move Submission Is Final](#move-submission-is-final)  
 9. [Tags & Tag Points](#tags--tag-points)  
@@ -53,7 +53,7 @@ Each Zone has a Summary channel, where players can post descriptions of what the
 Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play. ‡
 
 **Decide What You're Doing**  
-Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and allow your Default Move to occur. ‡  
+Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and spend the day laboring. ‡  
 
 ### Help & GMs
 
@@ -88,7 +88,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 #### **Website**
 | Page | Content |
 |---|---|
-| **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, Default Move, your bio and portrait, all requests functions. ‡ |
+| **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, your bio and portrait, all requests functions. ‡ |
 | **Faction** | Faction roster and leadership. ‡ |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
@@ -140,7 +140,7 @@ At this point there are a few recommended next steps:
 - Create your public character portrait.
 - Review your role [Documents](https://ravenheart.quest/documents).
 - Read the Desire catalog — the goals your character can claim points for once they achieve them.
-- Enter a Default Move, an activity that your character performs whenever you don't submit a specific Move during a turn.
+- Check what you're carrying, and what your skills and equipment are worth.
 
 ## Playing A Turn
 
@@ -293,16 +293,13 @@ You submit a Move by pressing the Move button in `#turns` or using the `/move` s
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
 
 **Kind**  
-Either Routine or Gambit.
+Routine, Gambit, or Labor.
 
-**Labor**  
-A checkbox available for Routine Moves that produce Resources.
-
-If you don't have anything specific you're interested in doing, or you aren't able to check in on the game during the turn, your Default Move (set via your [Character](https://ravenheart.quest/character) page) will be used. 
+If you don't submit a Move at all, you'll automatically Labor — provided you have a Laboring skill and aren't Exhausted. Nothing is filed for you otherwise. ‡
 
 Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
 
-### Routine vs Gambit
+### Routine, Gambit, or Labor
 Choose **Routine** when your Move is assumed to be successful and without any risk or uncertainty as to the outcome. Spending the turn farming, hunting, or going on a daily patrol would all be considered Routine.
 
 Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
@@ -313,20 +310,31 @@ When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell yo
 
 You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
 
+Choose **Labor** to spend the day working. It isn't adjudicated and it doesn't roll — it simply pays, based on your skills and where you're standing. Choosing it means choosing not to do anything else that turn. ‡
+
 The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs. 
 
 ### Labor
 
-Anyone can produce ⬢ with Labor unless they're located in the Caves. Describe the Move however fits best for your character: hunting, fishing, foraging, herding, or similar work. The yield you receive depends on your tags.
+Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing. ‡
 
-Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't Labor again until it wears off the following turn — one Labor per day.
+Laboring is hard work: it leaves you with the {tag:exhausted} tag, and you can't Labor again until it wears off the following turn — one Labor per day. ‡
 
 | Tag | ⬢ Yield | Where |
 |---|---|---|
-| None | {resource:labor:base} | Anywhere but the Caves |
-| {tag:laborer-basic} | {resource:labor:basic} | Anywhere but the Caves |
-| {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Caves |
-| {tag:laborer-farming} | {resource:labor:farming} | Town only |
+| {tag:laborer-basic} | {resource:labor:basic} | Anywhere |
+| {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere |
+| {tag:laborer-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
+| {tag:laborer-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
+| {tag:laborer-fishing} | {resource:labor:fishing} | Water, scaled by the place |
+
+The bottom three need {tag:laborer-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing. ‡
+
+The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Labor?** button in any location's channel to see what it's yielding right now. Hunting is the wildest of the three; a field is a field. ‡
+
+Tools help. A bow or a gun makes hunting pay more while it's equipped, a Hatchet or a Plow does the same for farming, and a Fishing Rod for fishing. Each one names what it does in its own description. ‡
+
+If the Lifeweb fails, all of this very nearly stops. ‡
 
 Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found in {document:ravenhearteconomy}, on the [Documents](https://ravenheart.quest/documents) page.
 
@@ -408,7 +416,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Resources** | Your personally held ⬢. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
-| **This turn** | Displays whether you've submitted a Move for this turn. If not, your Default Move will be used. |
+| **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. ‡ |
 
 **Actions:** This is the grid of buttons next to your Status. Each button opens a dialogue that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 
@@ -456,7 +464,7 @@ Claiming shuts that slot for a couple of turns, and puts that specific Desire on
 
 A Desire arranged purely to claim a Desire doesn't count — asking someone for a hug so you can tick off "Get a hug" is not a hug.
 
-**Default Move:** What your character does on any turn you don't submit a custom Move. Can be optionally published in the public Summary.
+**Labor:** What your character does on any turn you don't submit a Move at all — provided you hold a Laboring skill and aren't Exhausted. ‡
 
 **Bio:** Your character details.
 - **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.

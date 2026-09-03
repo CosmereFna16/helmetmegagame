@@ -1,5 +1,4 @@
 import BioForm from "./BioForm";
-import DefaultEffortPanel from "./DefaultEffortPanel";
 import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import RequestActionsProvider from "./RequestActionsProvider";
@@ -181,14 +180,6 @@ export default function CharacterSheet({
               desiresEnabled={desiresEnabled}
             />
 
-          )}
-
-          {isSelf && (
-            <DefaultEffortPanel
-              characterId={character.id}
-              defaultEffort={character.defaultEffort ?? null}
-              zone={character.zone ?? null}
-            />
           )}
         </div>
 

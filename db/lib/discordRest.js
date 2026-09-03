@@ -708,7 +708,7 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // exceed 2000 chars. Returns the FIRST message, what the archive anchors to.
 // `forcedName` (Tag.forcedName, db/lib/presentedIdentity.js) is resolved by
 // the CALLER, which has a prisma handle — this module deliberately has none.
-// Forced half only, not concealment: a Default Move summary has never
+// Forced half only, not concealment: an auto-filed summary has never
 // honoured /conceal and this doesn't start now.
 async function postAsCharacter(channelId, character, content, { forcedName = null } = {}) {
   const chunks = chunkMessage(String(content ?? ""));

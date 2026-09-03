@@ -83,7 +83,7 @@ Tracking through `trackProxy` is not optional for either caller: every
 reaction below is gated on `recentProxies`, so an untracked message is inert
 to all of them.
 
-`db/lib/discordRest.js#postAsCharacter` is the REST twin, used for Default Move
+`db/lib/discordRest.js#postAsCharacter` is the REST twin, used for staged public
 summaries posted from `advanceTurn`'s side effects.
 
 **Speaking without being seen to type.** Discord fires the typing indicator

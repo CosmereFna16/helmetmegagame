@@ -12,7 +12,7 @@ running the sync is the only way these rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5) |
+| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room`, `LocationYield` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5). A `yield:` kind that leaves the YAML has its `LocationYield` row deleted; `base` is always written, but live drifted `current` is only reset when `base` itself changed (`LABORING.md` §3) |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
@@ -104,6 +104,10 @@ zones:
       town-square:          # zones/locations/rooms share ONE slug namespace
         name: Square
         description: >-     # the anchor's -# subtext and the channel topic
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+                             # → LocationYield rows. Optional, 0–2, omit a kind
+                             #   rather than writing 0. An absent kind CANNOT be
+                             #   worked here at all. See LABORING.md §3.
         rooms:               # → Room rows → threads under the Location channel
           the-charon:
             name: The Charon

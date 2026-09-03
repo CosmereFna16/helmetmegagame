@@ -57,6 +57,11 @@ enum ActionStatus {
 enum MoveKind {
   ROUTINE
   GAMBIT
+  // Working the day. Files itself when a player submits nothing (the auto-labor
+  // pass, db/lib/autoLaborPass.js) and can be picked by hand on the Move modal.
+  // Never arbitrated and never rolls a die - it resolves entirely from the
+  // character's Laboring tags and where they stand (db/lib/laborAccess.js).
+  LABOR
 }
 
 // GM-facing spreadsheet status, tracked independently of ActionStatus (which
@@ -584,7 +589,7 @@ model Faction {
 // kind decides the Discord footprint (see ZoneKind above). seatZoneId is the
 // denormalized GM-seat key: parentZoneId ?? id, written by the sync. Every
 // query that groups by "which GM's table does this belong on" — factions,
-// GmAssignment, Action/Note/DefaultEffort/StagedMessage stamping — filters on
+// GmAssignment, Action/Note/StagedMessage stamping — filters on
 // seatZoneId, so the four GM seats stay four while presence is six. Writers
 // stamp it via db/lib/seatZone.js#seatZoneIdFor, never by hand.
 //
@@ -643,7 +648,6 @@ model Zone {
   factions         Faction[]       @relation("FactionHomeZone")
   characters       Character[]
   actions          Action[]
-  defaultEfforts   DefaultEffort[]
   notes            Note[]
   gmAssignments    GmAssignment[]
   stagedMessages   StagedMessage[]
@@ -714,6 +718,48 @@ model GmAssignment {
 /// zone is free (on the GameConfig.locationMoveCooldownSeconds cooldown); a
 /// hop whose edge crosses into another zone costs the Move, exactly as zone
 /// travel used to.
+// The three specialised labor types. A Location carries one LocationYield row
+// per kind it supports; no row at all means that kind is impossible there,
+// which is what the Labor? button prints as a bare "x".
+enum LaborKind {
+  HUNTING
+  FARMING
+  FISHING
+}
+
+// What one Location yields for one labor type, and how far it has drifted from
+// what docs/zones.yaml authored. One row per (location, kind) - at most 168 of
+// them, and only for kinds the location actually supports.
+//
+// Split out of Location rather than added as columns because the drift pass
+// (db/lib/laborYield.js) wants one uniform row shape to walk, and nine columns
+// plus six of drift state would have made Location unreadable for a concept
+// that only laboring cares about.
+model LocationYield {
+  id         String    @id @default(cuid())
+  locationId String
+  location   Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  kind       LaborKind
+
+  // Authored in docs/zones.yaml's per-location `yield:` block and pushed by
+  // db:sync-zones. The value `current` reverts toward.
+  base Float
+
+  // The live coefficient, re-drifted at every turn close. This is what a
+  // payout multiplies by and what the Labor? button reads - never `base`.
+  current Float
+
+  // An active swing. While set and unexpired, `current` reverts toward
+  // `eventTarget` instead of `base`; when the window passes both are cleared
+  // and the ordinary reversion walks it home on its own.
+  eventTarget    Float?
+  eventUntilTurn Int?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([locationId, kind])
+}
+
 model Location {
   id   String @id @default(cuid())
   slug String @unique
@@ -748,7 +794,8 @@ model Location {
   rooms            Room[]
   characters       Character[]
   playerThreads    PlayerThread[]
-  startingForRoles Role[]         @relation("RoleStartingLocation")
+  startingForRoles Role[]          @relation("RoleStartingLocation")
+  yields           LocationYield[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1061,7 +1108,7 @@ model Character {
   // both, and db/lib/channelDoctor.js flags a mismatch. Kept because dozens
   // of readers group by zone (the seat tables, factions, #summary, the
   // narrowcast rules). Always a presence zone (SURFACE or CAVE_LEVEL, never
-  // the CAVE_GROUP row); rows stamped onto Action/Note/DefaultEffort/
+  // the CAVE_GROUP row); rows stamped onto Action/Note/
   // StagedMessage carry the SEAT zone instead (db/lib/seatZone.js).
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id])
@@ -1242,8 +1289,6 @@ model Character {
 
   tags                    CharacterTag[]
   actions                 Action[]
-  defaultEffort           DefaultEffort?
-  setDefaultsFor          DefaultEffort[]          @relation("DefaultEffortSetBy")
   auditLogTargets         AuditLog[]
   notes                   Note[]
   requests                Request[]
@@ -1637,6 +1682,19 @@ model Tag {
   // HOLDING IT IS THE CHECK. Nothing here is consumed — you keep the corpse
   // you bottled the Miasma over.
   requirementItems Json?
+
+  // What holding (or wearing) this tag adds to one kind of Laboring, from
+  // docs/tags.yaml's `laborBonus:` block. Normalised by db/lib/tagShapes.js
+  // and read by db/lib/laborAccess.js when it scores a labor candidate.
+  //
+  // Shape: { kind: "hunting"|"farming"|"fishing", amount: Int,
+  //          equipped: Bool, requiresTag: String? }. A flat number of the
+  //          hexagon, added AFTER the location coefficient has scaled the
+  //          range, so a tool is worth the same everywhere.
+  //
+  // Json rather than three columns because most tags have no bonus at all,
+  // and because `requiresTag` (the Plow needs a horse) has no column shape.
+  laborBonus Json?
 
   // What holding this tag does to the Desire catalog, from docs/tags.yaml's
   // `desires:` block. Normalised + validated by db/lib/desireShapes.js
@@ -2136,28 +2194,6 @@ model StagedEffect {
   @@index([moveId])
   @@index([targetCharacterId])
   @@index([batchId])
-}
-
-model DefaultEffort {
-  id               String     @id @default(cuid())
-  characterId      String     @unique
-  character        Character  @relation(fields: [characterId], references: [id])
-  description      String
-  zoneId           String?
-  zone             Zone?      @relation(fields: [zoneId], references: [id])
-  // Vestigial: never written or read any more (the +N/range grammar it
-  // stored is gone). Dropping it now would throw against an old-code
-  // instance mid-deploy, so it stays until a post-wipe cleanup migration.
-  resourceDelta    Int?
-  // The Labor checkbox — the single flavor-free flag that replaces the old
-  // "/hunt"-style shorthand embedded in the description text.
-  labor            Boolean    @default(false)
-  shareInSummary   Boolean    @default(false)
-  summaryChannelId String?
-  summaryMessage   String?
-  setByCharacterId String?
-  setByCharacter   Character? @relation("DefaultEffortSetBy", fields: [setByCharacterId], references: [id])
-  updatedAt        DateTime   @updatedAt
 }
 
 enum DmDirection {

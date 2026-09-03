@@ -174,7 +174,6 @@ export default async function CharacterPage() {
           tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
         },
       },
-      defaultEffort: true,
     },
   });
 

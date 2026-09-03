@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, seatZoneIdFor, loadForcedName } from "@lifeweb/db";
+import { prisma, loadForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
@@ -176,73 +176,3 @@ export async function resetAvatarToDefault() {
   return { ok: true };
 }
 
-export async function setDefaultEffort(characterId, formData) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { id: characterId ?? "", discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character");
-
-  const description = formData.get("description")?.toString().trim();
-  if (!description) return;
-
-  const labor = formData.get("labor") === "on";
-  const shareInSummary = formData.get("shareInSummary") === "on";
-  const summaryMessage = formData.get("summaryMessage")?.toString().trim() || null;
-
-  // The zone owns the #summary channel, so it's derived from where the
-  // character stands rather than picked — the panel has no channel field. A
-  // cave level has no summary channel of its own, so that comes back null and
-  // the share-in-summary half simply doesn't apply.
-  const zone = character.zoneId
-    ? await prisma.zone.findUnique({
-        where: { id: character.zoneId },
-        select: { id: true, discordSummaryChannelId: true, parentZoneId: true, seatZoneId: true },
-      })
-    : null;
-  const summaryChannelId = zone?.discordSummaryChannelId ?? null;
-  // The SEAT zone, not the presence zone — a Default Move filed from a cave
-  // level belongs on the Caves GM's table (db/lib/seatZone.js).
-  const seatZoneId = seatZoneIdFor(zone) ?? null;
-
-  await prisma.defaultEffort.upsert({
-    where: { characterId: character.id },
-    create: {
-      characterId: character.id,
-      description,
-      labor,
-      zoneId: seatZoneId,
-      shareInSummary: shareInSummary && !!summaryChannelId,
-      summaryChannelId: shareInSummary ? summaryChannelId : null,
-      summaryMessage,
-      setByCharacterId: character.id,
-    },
-    update: {
-      description,
-      labor,
-      zoneId: seatZoneId,
-      shareInSummary: shareInSummary && !!summaryChannelId,
-      summaryChannelId: shareInSummary ? summaryChannelId : null,
-      summaryMessage,
-      setByCharacterId: character.id,
-    },
-  });
-
-  revalidatePath("/character");
-}
-
-export async function deleteDefaultEffort(characterId) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { id: characterId ?? "", discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character");
-
-  await prisma.defaultEffort.deleteMany({ where: { characterId: character.id } });
-
-  revalidatePath("/character");
-}

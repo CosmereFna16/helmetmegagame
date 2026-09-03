@@ -210,7 +210,14 @@ const R = {
   turn_resume: () => [t("A half-finished turn advance was resumed")],
   turn_pass_failed: (d) => [t("A turn pass FAILED"), ...(d.pass ? [t("—"), em(d.pass)] : [])],
   hunger_resolved: () => [t("Hunger was charged for the turn")],
-  default_moves_resolved: () => [t("Default Moves were filed for everyone who did not act")],
+  auto_labor_resolved: (d) => [
+    t("A day's labor was filed for everyone who did not act"),
+    ...((d.filed ?? 0) > 0 ? [t("—"), em(`${d.filed} worked`)] : []),
+  ],
+  labor_yields_drifted: (d) => [
+    t("What the land is worth shifted"),
+    ...((d.drifted ?? 0) > 0 ? [t("—"), em(`${d.drifted} places changed`)] : []),
+  ],
   catatonic_resolved: () => [t("Catatonic characters were resolved for the turn")],
   catatonic_deaths_resolved: (d) =>
     (d.killed ?? 0) > 0

@@ -48,6 +48,14 @@ grants the zone role and the Location role immediately (`CHARACTERS.md` §3).
 If a role names no `starting_location`, it's the first Location (by `sort`)
 of its `starting_zone`.
 
+### 1a. What a Location is worth
+
+A Location also carries up to three `LocationYield` rows — one per `LaborKind`
+(HUNTING / FARMING / FISHING) — authored as a `yield:` block in
+`docs/zones.yaml` and drifted every turn. **No row means that labor is
+impossible there**, which is why no Location needs a "wilderness" or "water"
+boolean anywhere in the schema: the row is the gate. See `LABORING.md`.
+
 ## 2. The adjacency graph
 
 `connections:` in `docs/zones.yaml` is the master. Each entry becomes **one

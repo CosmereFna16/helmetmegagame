@@ -8,7 +8,7 @@
 //
 // Deliberately called only from the places that mean "a real person did
 // something this turn": a proxied or /speak in-character message, and a
-// player-filed Action. Never from db/lib/defaultMovePass.js — a saved
+// player-filed Action. Never from db/lib/autoLaborPass.js — an auto-filed
 // Default Effort files an Action every turn on its own, and counting that
 // would mean nobody with one could ever go Catatonic, which defeats the tag.
 //

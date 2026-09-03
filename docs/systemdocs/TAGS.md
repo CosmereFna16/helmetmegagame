@@ -732,6 +732,14 @@ them).
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
   instead of simply being swept away. Live; see §5c.
+- `laborBonus` — what this tag adds to one kind of Laboring, e.g.
+  `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
+  `requiresTag` gates it on holding something else (the Plow needs a horse).
+  Bonuses sum, and `GameConfig.equipSlots` is the real limit. Normalised and
+  validated in `db/lib/tagShapes.js`, which throws on an unknown `kind`, on a
+  bonus that requires equipping a tag that is not `equippable`, and on a
+  `requiresTag` naming a tag that does not exist — a typo'd `kind` would
+  otherwise make a tool silently worthless. Full rules in `LABORING.md` §5.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
   **ingredients**, and the first ones this game ever actually enforced. Only
   two recipes carry one: `miasma` needs a corpse, `dreamers-draught` needs a
@@ -1324,7 +1332,7 @@ mechanism changed, not who can assign what. `Courtier` survived too, and still g
 "Role" category's retirement as an ordinary General tag since it drives real
 logic elsewhere — it gates `/lifeweb` nav visibility. `Hunter` survived
 alongside it for the same reason, but has since been retired: hunting is now
-just a flavor of laboring (`PRODUCTION.md`), and no `hunter` entry remains in
+just a flavor of laboring (`LABORING.md`), and no `hunter` entry remains in
 `docs/tags.yaml`.
 
 ## 7. Where the code lives
@@ -1463,7 +1471,7 @@ What it does, all resolved at **read time** by `db/lib/presentedIdentity.js`
 (`PROXYING.md` §5), with the precedence **forced > concealed > own name**:
 
 - Every proxied message — typed, the Speak modal, and the REST twin that posts
-  Default Move summaries — goes out under the forced name, with the letter
+  staged public posts — goes out under the forced name, with the letter
   plaque for its initial (`/assets/letters/B.webp` for Beast). Never the
   character's own face, uploaded or built.
 - **Who's here?** lists them under the forced name, with no Role, and never on

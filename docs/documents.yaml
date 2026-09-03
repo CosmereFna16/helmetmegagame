@@ -143,22 +143,31 @@ documents:
     name: Producing Resources
     public: true
     tags:
-      - Laborer (Basic)
-      - Laborer (Skilled)
-      - Laborer (Farming)
+      - Laboring (Basic)
+      - Laboring (Skilled)
+      - Laboring (Hunting)
+      - Laboring (Farming)
+      - Laboring (Fishing)
     description: |-
-      Everyone can use Routine Moves to produce Resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
+      Labor is how Resources are produced, and you need a skill to do it at all. Without one of the tags below, a day of work produces nothing. ‡
 
-      To produce, simply enable **Labor** on your Move. Your skills are automatically applied. Laboring can be flavored in any way, from herding to hunting and foraging.
+      Pick **Labor** as the kind of your Move — it isn't adjudicated and it doesn't roll, it simply pays. Choosing it means choosing not to do anything else that turn. Submit no Move at all and you'll Labor automatically. ‡
 
       | Skill | Per turn | Where |
       |---|---|---|
-      | None | {resource:labor:base} | Anywhere but the Depths |
-      | {tag:laborer-basic} | {resource:labor:basic} | Anywhere but the Depths |
-      | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Depths |
-      | {tag:laborer-farming} | {resource:labor:farming} | Town only — elsewhere you work at Skilled rates |
+      | {tag:laborer-basic} | {resource:labor:basic} | Anywhere |
+      | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere |
+      | {tag:laborer-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
+      | {tag:laborer-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
+      | {tag:laborer-fishing} | {resource:labor:fishing} | Water, scaled by the place |
 
-      Nothing can be produced in the Depths.
+      The bottom three need {tag:laborer-skilled} behind them and are side-grades rather than upgrades. Hold as many as you like — laboring always pays the best result you're entitled to where you stand, so there is nothing to switch and nothing to forget. ‡
+
+      Those three numbers are what an ordinary spot pays. Real ground is better or worse, and what a place is worth **changes over the course of the game**. Press **Labor?** in any location's channel to see what it yields right now. Hunting swings hardest; farmland is steady until it isn't. ‡
+
+      Tools raise a yield while you carry them — bows and guns for hunting, a Hatchet or a Plow for farming, a Rod for fishing. Each says so in its own description. ‡
+
+      If the Lifeweb fails, laboring very nearly stops. ‡
   combat:
     name: Combat
     public: true

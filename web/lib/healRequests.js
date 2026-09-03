@@ -57,7 +57,7 @@ export const INFLICTABLE_GROUPS = new Set(["health-wounds", "health-maiming"]);
 // because the rest of that group (Amnesiac, Lunatic, Hallucinating, Night
 // Blind, Stutter, Silence) cannot be. Paralyzed is deliberately absent: it is
 // in INCAPACITATING_SLUGS, so inflicting it would let one player lock another
-// out of their Default Move indefinitely, at will.
+// out of their day's labor indefinitely, at will.
 export const INFLICTABLE_SLUGS = new Set(["concussed", "shell-shocked", "blind", "mute"]);
 
 // The picker and harmCharacterRequest both call this, for the reason this

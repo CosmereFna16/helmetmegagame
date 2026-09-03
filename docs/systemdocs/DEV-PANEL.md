@@ -228,7 +228,7 @@ Everything follows from that:
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `defaultMovePass.js`'s `auto:default_move`. It DMs the player too now, so
+  `autoLaborPass.js`'s `auto:labor`. It DMs the player too now, so
   like Restore and Kill it opens a `RequestDialog` for a reason first — the
   same reason becomes both the stub's `description` and the DM text.
 

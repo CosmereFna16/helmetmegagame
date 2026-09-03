@@ -10,6 +10,15 @@
 const { NOBILITY_SLUG, COURTIER_SLUG } = require("./constants");
 
 const BLOOD_MAX = 100;
+
+// At or below this, the Tower is not holding the valley together any more.
+// Two things read it: the turn announcement's flavor line and the /lifeweb
+// status label, and — since the laboring rework — the labor resolver, which
+// cuts every payout by 95% and stops Basic labor outright
+// (db/lib/laborAccess.js). It lives here rather than in db/index.js so
+// db/lib/ modules can reach it: requiring the barrel back from inside db/lib/
+// resolves to a partial exports object.
+const LIFEWEB_SPUTTER_THRESHOLD = 20;
 const FEED_PERSON_AMOUNT = 100;
 
 // Whose blood it is decides what it's worth: noble blood is richer than a
@@ -76,6 +85,7 @@ async function bumpBlood(tx, amount) {
 
 module.exports = {
   BLOOD_MAX,
+  LIFEWEB_SPUTTER_THRESHOLD,
   bumpBlood,
   FEED_PERSON_AMOUNT,
   DONATE_BLOOD_BY_TAG,

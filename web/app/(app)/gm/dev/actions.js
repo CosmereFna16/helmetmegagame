@@ -252,7 +252,6 @@ export async function wipeGameData(formData) {
     // Postgres FK violation rolls back the whole transaction.
     await prisma.$transaction([
       prisma.note.deleteMany({}),
-      prisma.defaultEffort.deleteMany({}),
       prisma.action.deleteMany({}),
       prisma.request.deleteMany({}),
       prisma.desire.deleteMany({}),

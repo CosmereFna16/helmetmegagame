@@ -134,6 +134,13 @@ make it, importing it would be pointless. The three exceptions are all brews —
 Merchant who would rather not wait on a brewer. Each is priced well above what
 brewing one costs, and that gap is the market a brewer sells into (§4).
 
+### Laboring tools
+
+Two of the tools in `LABORING.md` §5 are Merchant stock rather than smith work:
+`fishing-rod` at 12 and `trapping-gear` at 26. Both are craftable too, so the
+depot price is the impatience premium, not a monopoly. The Plow is deliberately
+**not** stocked — it is smith work, and the horse it needs is the real cost.
+
 ## 4. Selling
 
 What the station pays him, per unit. This is the other half of the loop —

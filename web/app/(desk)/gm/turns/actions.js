@@ -580,7 +580,7 @@ async function releaseMoveLockImpl({ actionId }) {
 function normalizeEdits(action, edits, characterTags, hungerStreak) {
   const data = {};
 
-  const kind = edits.moveKind === "GAMBIT" || edits.moveKind === "ROUTINE" ? edits.moveKind : action.moveKind;
+  const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
   if (kind !== action.moveKind) {
     data.moveKind = kind;
     if (kind === "ROUTINE") {

@@ -67,7 +67,7 @@ Notes:
   player behind the character (`PROXYING.md`). So the roll goes out anonymous,
   and the roller gets a separate ephemeral telling them which one was theirs.
 - `/labor` is retired — laboring is now the **Labor checkbox** on the Move
-  modal (`PRODUCTION.md` §3).
+  modal (`LABORING.md` §4).
 - `/persistent` is retired too — Bascinet 2 dropped forum topics, private
   Create-a-Thread anchors and any long-lived form of a player-made thread.
   The only thread a player can open now is a Conversation, and every
@@ -286,7 +286,7 @@ America/Chicago — so a GM can adjudicate what was filed before the push
 button refuses to open the modal after the cutoff, and submit re-checks because
 a modal can sit open on screen across it. Either way the refusal is ephemeral
 and names the cutoff and the next turn's start. Travel, Speak, requests and the
-Default Move pass are untouched.
+auto-labor pass are untouched.
 
 Submitting runs every gate the old `#turns` message flow ran — living
 character, open turn, before the cutoff, hasn't already acted, non-empty body,

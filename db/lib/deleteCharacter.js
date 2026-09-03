@@ -20,13 +20,6 @@ async function deleteCharacterRow(prisma, characterId) {
       data: { characterId: null },
     });
 
-    // DefaultEffort has a second FK, setByCharacterId, that must be detached
-    // before deleting by owner.
-    await tx.defaultEffort.updateMany({
-      where: { setByCharacterId: characterId },
-      data: { setByCharacterId: null },
-    });
-    await tx.defaultEffort.deleteMany({ where: { characterId } });
     await tx.action.deleteMany({ where: { characterId } });
     await tx.request.deleteMany({ where: { characterId } });
     await tx.desire.deleteMany({ where: { characterId } });

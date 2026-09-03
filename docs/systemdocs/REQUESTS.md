@@ -528,11 +528,11 @@ not zone-grain (`db/lib/presence.js` / `web/lib/peopleHere.js`): the target
 has to be standing in the same Location and not concealed. The reason field
 and the GM's review are the anti-abuse mechanism, exactly as everywhere else.
 
-**Binding someone also cancels their standing Default Move.** All four
+**Binding someone also costs them their day's labor.** All four
 `INCAPACITATING_SLUGS` are read on the *afflicted* character's own side too:
-`db/lib/defaultMovePass.js#runDefaultMovePass` silently skips filing a Default
-Move for anyone holding one, so a bound target loses their next turn, not just
-their ability to defend themselves (TURN-ENGINE.md §6).
+`db/lib/autoLaborPass.js#runAutoLaborPass` silently skips filing a Labor for
+anyone holding one, so a bound target loses their next turn, not just their
+ability to defend themselves (TURN-ENGINE.md §6).
 
 **Harm is Wound and Finish in one request**, because they are one act: you
 stand over someone who can't stop you and decide how far to take it. Either
@@ -572,7 +572,7 @@ groups are things one person does to another — `health-wounds` and
 `web/lib/healRequests.js`, 33 rows, read by both the picker and the server
 action for the same reason `isHealable` is. **Paralyzed is deliberately not on
 it**: it is in `INCAPACITATING_SLUGS`, so inflicting it would let one player
-lock another out of their Default Move indefinitely, at will.
+lock another out of their day's labor indefinitely, at will.
 
 The lethal half is also the only place besides billing someone else for a cure
 where the dialog asks twice.

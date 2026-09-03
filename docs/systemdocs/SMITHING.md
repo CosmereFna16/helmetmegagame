@@ -124,6 +124,15 @@ Off the ladder — no recipe, no smithing gate:
 | Neoclassic Duelista | 0 | Found only. |
 | Disabler | 0 | Watch-issued. |
 
+### The Plow
+
+Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
+`resourceCost: 10`, `skills: [smithing]`. It is the one Laboring tool that
+needs no equipping and the only one gated on holding something else — without a
+`horse` it does nothing at all. Worth +4 ⬢ to Farming, the largest single tool
+bonus in the game, because two tags and a smith stand behind it
+(`LABORING.md` §5).
+
 ## 4. Armor
 
 | Armor | Tier | Notes |
