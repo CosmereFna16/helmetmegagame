@@ -113,7 +113,7 @@ reason.
 | `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
 | `BUTCHER_CORPSE` | Cuts a corpse up for what is in it — an organ from a monster, Human Flesh from a person. Free, and it destroys the body. Gated on `butcher` | — | Takes the yield back and returns the corpse to the party it came from |
-| `FAST_TRAVEL` | Rides one zone over on a horse (or the Merchant's Steam Automobile) without spending the Move. Once a day | — | Sends them back and returns the ride |
+| `FAST_TRAVEL` | **Retired.** A mount now adds a free zone move instead (CARRY.md §2a). Old rows stay undoable | — | Sends them back and returns the ride |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
@@ -606,7 +606,10 @@ character holding `medical-basic`; the patient must share the healer's
 Location and not be concealed; and the affliction's own `requirementSkills`
 must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
-sees it in the menu, greyed, reading "needs Medical (Skilled)". The menu is
+sees it in the menu labelled "— Gambit ‡" and may still attempt it — it files a
+GAMBIT Move rather than curing anything, and the GM resolves the roll
+(TAGS.md §5c). Routine cures are additionally rationed 2/3/4 a turn by the
+medic's tier, and a 0-turn cure never counts against that. The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
 from the database before it writes anything.
 
@@ -663,7 +666,7 @@ GM can re-price the cure or tick "put the affliction back but keep the
 payment" — the treatment that didn't take, the one partial outcome a full
 Undo can't express.
 
-## 5d. Bodies, and Fast Travel
+## 5d. Bodies
 
 Four requests that each break one rule the others keep. Three of them are about
 corpses; the full design is [`CORPSES.md`](CORPSES.md), and this section covers
@@ -718,80 +721,19 @@ refuse a buried one — the `LOOT` direction of `TRANSFER_RESOURCES` and
 `character/page.js` that feeds all five target menus. A GM Revive clears it, so
 a revived character is never a live person marked buried.
 
-**Fast Travel is the only request that changes a zone and files no `Action`.**
-That is exactly what the `horse` and `wild-horse` tags have always
-promised in the catalog — "Once per day, you may enter an adjacent zone without
-spending a turn, but you'll be easily visible" — and nothing read either slug
-until this. No Action means no Move spent *and* no block from having already
-acted: riding is not acting.
+**Fast Travel is retired as a Request, and its mechanic has moved.** There is
+no `fastTravelRequestImpl` any more, no `FAST_TRAVEL` row is ever written, and
+`Character.fastTravelTurnId` is gone from the schema. What the `horse` and
+`steam-automobile` tags promise is now part of ordinary travel: an **equipped**
+mount adds one to the free-zone-move allowance every character gets each turn,
+and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
+§2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.
 
-**The caves have one mouth for a horse.** Fast travel INTO a cave level is
-allowed — the way in is right off the road — and riding back OUT is allowed
-from the **Caves** only, since that upper level opens onto the surface. A
-rider anywhere deeper, or one trying to ride between levels, is refused: no
-horse fits the tunnels. So `caves → town` rides, `caves → depths` does not,
-and neither does anything starting in the Depths.
-Origin and destination both decide, checked in `fastTravelRequestImpl` before
-the adjacency check so the refusal is the specific one.
+The passenger seats survive as `db/lib/mounts.js#fastTravelCapacity`, read by
+the Travel picker's drag list rather than by a request of its own, and they
+now read the mount only while it is equipped.
 
-**Fast Travel can carry passengers, and any co-present character qualifies.**
-`web/lib/tagRequests.js#fastTravelCapacity` reads the rider's held tags for a
-seat count (rider included): a horse or Wild Horse alone seats 2; `cart`
-upgrades that pair to 6 (it does nothing without a horse — it upgrades one,
-it isn't one); `steam-automobile` is inherently a 6-seat vehicle by itself and
-does not stack further with Cart. There is deliberately **no authority check**
-on who can be brought along — not the Bound/Led/corpse gate
-`MOVE_CHARACTER` enforces, just presence in the rider's zone at submit time.
-That is a design choice, not an oversight: it is the same bet the rest of the
-Requests system already makes (a player can pull ⬢ out of someone else's
-pocket with `TRANSFER_RESOURCES` on nothing but a reason), and a GM reviews
-and can Undo it after. A passenger who has wandered off between the rider
-opening the dialog and submitting fails the **whole** request rather than
-being silently dropped, so the rider re-picks instead of finding out later
-that a friend didn't come along. Passengers move inside the same transaction
-as the rider — one `updateMany`, since every passenger shares the rider's
-`fromZoneId`/`toZoneId` — and get the same post-commit Discord fan-out
-(zone role, narrowcast access, pending invites, the Caving arrival roll), plus
-a DM telling them they were brought along, since they didn't ask for the
-ride. They do **not** claim their own `fastTravelTurnId`: being carried today
-doesn't stop a passenger from riding under their own power again later the
-same day. Undo restores every passenger's zone alongside the rider's.
-
-**The once-a-day limit is a claim, not a count.** `Character.fastTravelTurnId`
-is written by a conditional `updateMany` whose `WHERE` is the check, as the
-first statement in the transaction, so a loser aborts before anyone has moved.
-Counting the rider's existing `FAST_TRAVEL` rows would be two statements and two
-tabs would both pass — which is precisely the bug `db/lib/travel.js` documents
-above its `Action` create, where a player ended up two hops away on one Move.
-Undo restores the previous value rather than nulling it, so an undone hop hands
-the ride back without minting a second one for someone who had already ridden
-earlier that day.
-
-Despite the name, the column holds the in-game **day** number
-(`describeTurn(openTurn).day`), not the open turn's id — Bascinet runs two
-turns a day (Dawn/Dusk), and keying the claim on `openTurn.id` let a rider
-claim a free hop in both turns of the same day, twice what "once per day"
-promises. Fixed in `fastTravelRequestImpl`.
-
-It re-derives `performTravel`'s adjacency rules instead of calling it, the same
-way `MOVE_CHARACTER` does and for the same reason: `performTravel` runs its own
-transaction and always files the Move, while `createRequest` has to sit inside
-the same transaction as its effect (§2). The four side effects after the commit
-— zone role, narrowcast access, pending thread invites, and the Caving Die's
-on-arrival roll — are the same four `map/travelActions.js#travelTo` defers, for
-the same reason it defers them.
-
-One thing it does *not* share with an ordinary hop: "easily visible" is the
-price the tag charges for the free hop, and it is collected twice. The
-departure zone's `#summary` gets a bot-posted line the room sees live —
-"*[rider] is seen leaving the area on horseback, carrying [passengers].*",
-with "on a horse-drawn cart" when the rider also holds Cart (otherwise a
-six-seat ride reads as five people piled onto one horse) and "in a steam
-automobile" when the rider holds no horse — skipped only
-where there is no summary channel to post to (a cave level). And the `TRAVEL`
-archive entry is written **unconditionally**, ignoring
-`GameConfig.archiveTravelEvents`, as the transcript half of the same
-visibility.
+Old `FAST_TRAVEL` rows stay undoable; nothing files a new one.
 
 **The gates on these four all follow §6's rule rather than bending it.** Owning
 a horse is a fact about your own sheet, so Fast Travel's icon may grey out. So

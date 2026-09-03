@@ -114,7 +114,9 @@ export default function CraftDialog({
               )}
               <p className="text-xs text-muted">
                 {turns === 0
-                  ? "Dead Simple: no Move needed, up to 4 a turn. ‡"
+                  ? chosen.requirementPerTurn != null
+                    ? `No Move needed, up to ${chosen.requirementPerTurn} a turn. ‡`
+                    : "Dead Simple: no Move needed, up to 4 a turn. ‡"
                   : turns === 1
                     ? "One turn of work — this is your Move for the turn. ‡"
                     : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}

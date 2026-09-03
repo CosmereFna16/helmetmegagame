@@ -53,10 +53,37 @@ can't swing; a fighter pulling a sword from their clan's armoury still files
 the same request with the fiction as their justification — that half of the
 honor system stands, it's just the Skill half that's now enforced.
 
+## 2a. Workshop Equipment
+
+**Smithing and building need a forge.** Any recipe whose `requirement.skills`
+name a `smithing-*` or `builder-*` skill requires **Workshop Equipment** in
+reach: held, or sitting in a Room stash you can get into at your Location
+(`db/lib/equipmentReach.js`, the same predicate the private-room threads are
+synced with). Plain `crafting` needs nothing but your hands.
+
+The rule is read off the recipe's own skills rather than a per-tag flag, so a
+new sword is gated the moment it names a smithing skill and nobody has to
+remember a second field. `needsWorkshop()` in `web/lib/tagRequests.js` is the
+one copy, shared by the Craft dialog and `craftRequestImpl`.
+
+`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 26 ⬢, 2
+turns, `smithing-skilled` — and **Immense (100 lb)**, so it is a real decision
+to move one. It is the one recipe **exempt from its own gate**, and has to be:
+gating it would mean nobody could ever build the first forge. You raise that
+one in the open, and it is what lets you do the finer work after.
+
+It replaced the old `workshop` **Asset**, which was 2 pt, creation-only, and
+gated nothing — its own description admitted "You don't need this to craft".
+
 Crafting is always filed as a Routine now, never a Gambit — the Craft button
 (the old Add Tag) enforces a recipe's skills server-side, and Dead Simple
 recipes still need no Move at all, just the per-turn unit cap below
 (`CRAFTING.md`).
+
+A recipe may also set **`requirement.perTurn`**, its own ration, counted per
+recipe rather than against the shared Dead Simple pool below. Only meaningful
+at `turnsCost: 0` — anything costing a Move is already rationed to one by the
+turn's single Action.
 
 **Dead Simple is capped at 4 items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
@@ -127,9 +154,10 @@ Off the ladder — no recipe, no smithing gate:
 ### The Plow
 
 Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
-`resourceCost: 10`, `skills: [smithing]`. It is the one Laboring tool that
-needs no equipping and the only one gated on holding something else — without a
-`horse` it does nothing at all. Worth +4 ⬢ to Farming, the largest single tool
+`resourceCost: 10`, `skills: [smithing]`. It is an **Asset**, not an Item, so
+it never weighs on your back — it lives in your shed and the horse does the
+hauling. It is the one Laboring tool that needs no equipping and the only one
+gated on holding something else — without a `horse` it does nothing at all. Worth +4 ⬢ to Farming, the largest single tool
 bonus in the game, because two tags and a smith stand behind it
 (`LABORING.md` §5).
 

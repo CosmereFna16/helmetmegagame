@@ -154,7 +154,7 @@ still works.
 ## 6. Once a day
 
 `Character.birdTurnId`, and it holds the in-game **DAY**, not a turn id —
-exactly like `fastTravelTurnId` beside it, and for the same reason. A day is
+for the reason the retired `fastTravelTurnId` beside it once did. A day is
 two turns, so keying it on the turn would quietly hand out two letters a day
 instead of the one the feature promises.
 

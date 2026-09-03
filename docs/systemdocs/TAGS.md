@@ -362,13 +362,20 @@ block. They no longer overlap — a tag with a point price is bought, a tag with
 a recipe is made, and nothing is both. Armor and weapons showing up under Add
 Tag is the crafting economy, not a store leak.
 
-**The ten Assets are creation-only.** Horse, Wild Horse (`wild-horse`),
-Bird, Rat, Kitty Cat, Dog, Manor, Workshop, House and Shack are
+**The Assets are creation-only.** Horse, Bird, Rat, Kitty Cat, Dog, Manor,
+House and Shack are
 `purchasableAfterStart: false`, so they leave `/store` as well as Add Tag —
 mid-game a horse or a house comes from a GM grant, another player, or the
-Depot, not a menu. To keep the "another player" half real, the four property
-tags (Manor, Workshop, House, Shack) are now `tradeable: true`; the six
-companions and Cart already were. Note what that costs, because `tradeable` is
+Depot, not a menu. To keep the "another player" half real, the property
+tags (Manor, House, Shack) are `tradeable: true`; the companions and Cart
+already were. The Plow joined them when it moved out of Items, so it stopped
+weighing on a farmer's back (SMITHING.md §3); the Workshop asset was retired
+outright in favour of the Workshop Equipment **item** you have to haul
+(SMITHING.md §2a).
+
+**Assets weigh nothing**, which is the mechanical point of the category:
+a horse carries itself and a house does not move, so neither belongs in
+`carryWeight` (CARRY.md §1). Note what that costs, because `tradeable` is
 one flag covering both directions (§5): a house deed can now be lifted off a
 corpse. That is the accepted price of being able to hand one over.
 
@@ -592,7 +599,7 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
   It used to be a category test — `["Items", "Assets"]` — from back when the
   field was set on almost nothing. That was wrong in both directions at once.
-  It let a corpse be stripped of its **House**, its **Workshop** and its
+  It let a corpse be stripped of its **House**, its **Manor** and its
   **Drone**, none of which are things you carry away from a body; and it
   ignored the sixteen Items that already said `tradeable: false`, including the
   Quickened Nerve Braid, which is *grafted into the holder's neck*. The catalog
@@ -756,8 +763,9 @@ them).
   Enforced against the crafter's **own sheet only**, never a room stash. Full
   writeup in [`CORPSES.md`](CORPSES.md) §8.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
-  `requirementSkills` (YAML: nested under `requirement:` as `turnsCost` /
-  `resourceCost` / `gambit` / `skills`) — what it costs a character to add
+  `requirementPerTurn` / `requirementSkills` (YAML: nested under
+  `requirement:` as `turnsCost` / `resourceCost` / `gambit` / `perTurn` /
+  `skills`) — what it costs a character to add
   or remove this tag in play (e.g. curing Arthritis needs Medical (Skilled)
   and some turns; forging the revolver tag costs turns, resources, and
   Smithing; the `cart` tag costs turns, resources, and `Builder (Skilled)` —
@@ -1031,17 +1039,39 @@ rule before it is a mechanic: charging a player 2 ⬢ and a doctor's afternoon
 to shorten a bout of vomiting is silly, and pretending medicine can do it is
 worse.
 
-**Above your tier is still possible.** Nothing about the skill requirement
-stops a player from *trying* — it is a Gambit, and a failed Gambit can leave
-the patient worse than it found them. The requirement names what a character
-does **as routine**, which is why the three Medical descriptions are phrased
-that way and why the Medical document says so outright. A Serpent
-(Medical (Skilled)) can attempt the tier-6 surgery a punctured lung needs;
-they just roll for it, while Esculap (Medical (Expert)) does not.
+**Above your tier is still possible, and the Heal request now implements it.**
+The requirement names what a character does **as routine**, which is why the
+three Medical descriptions are phrased that way. A Serpent (Medical (Skilled))
+can attempt the tier-6 surgery a punctured lung needs; they just roll for it,
+while Esculap (Medical (Expert)) does not.
 
-Only `requirementResources` and `requirementSkills` are enforced — by the Heal
-request, which charges the ⬢ and checks the tier chain. `requirementTurns` and
-`requirementGambit` stay GM adjudication reference, as everywhere else (§5).
+Reaching above your tier — or treating a tag whose own `requirementGambit` is
+set, which is the whole of what separates tier 7 from tier 6, since they share
+a price — files a **GAMBIT Move** instead of curing anything
+(`isGambitHeal()`, `web/lib/healRequests.js`). It spends the medic's Move, the
+die is rolled at file time, and the **affliction is left on the patient** until
+a GM reads the roll on `/gm/turns`: an attempt that has not been resolved
+cannot have cured anything, and a failed one is supposed to be able to leave
+them worse. The shape is copied from a learner's Lesson Gambit
+(`db/lib/lessons.js`), and `Action @@unique([characterId, turnId])` is what
+makes it one gambit heal a turn without a second check.
+
+**Routine cures are rationed by tier**: 2 a turn on Basic, 3 on Skilled, 4 on
+Expert (`MEDICAL_TIER_CAPS`, `web/lib/requests.js`). A cure costing **0 turns**
+is a free action and never counts — first aid, bandaging, setting a simple
+break are the things you do between patients, and rationing them would make a
+nurse refuse a bandage.
+
+**Surgical Equipment is +1 on a medical Gambit**, satisfied by holding one or
+by standing in a room that has one (`db/lib/equipmentReach.js`). There is a set
+in the Sanctuary's operating theatre, seeded from `docs/zones.yaml`; the old
+"procedures in the Sanctuary automatically qualify" line was prose that no code
+ever read, and it is gone.
+
+So `requirementResources`, `requirementSkills` and `requirementGambit` are all
+enforced now. `requirementTurns` remains reference for the *length* of a
+course of treatment, but its zero/non-zero split does real work: it is what
+decides whether a cure counts against the day's allowance.
 
 ### Six named exceptions
 

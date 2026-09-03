@@ -150,6 +150,21 @@ function resolveParty(key, opts) {
 
 // --- Tags -------------------------------------------------------------
 
+// Units of ONE recipe already made this turn, for a tag that sets its own
+// `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
+// below: that one is a shared allowance across every 0-turn recipe, this is a
+// ration on a single item.
+async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
+  const filed = await db.request.findMany({
+    where: { characterId, turnId, type: "ADD_TAG", status: { not: "UNDONE" } },
+    select: { payload: true, effect: true },
+  });
+  return filed.reduce((sum, r) => {
+    if (r.payload?.tagId !== tagId) return sum;
+    return sum + (r.effect?.quantity ?? 1);
+  }, 0);
+}
+
 // Routine cures already worked this turn, against MEDICAL_TIER_CAPS.
 //
 // Counts REQUESTS, not units — one heal is one patient — and only the ones
@@ -441,8 +456,19 @@ async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason
   // Checked twice: here for a fast fail, and again inside the transaction
   // under a row lock, since two simultaneous requests would otherwise both
   // read the same count and pass.
+  // A recipe may also set its OWN ration (Tag.requirementPerTurn), which is
+  // counted per recipe rather than against the shared Dead Simple pool.
+  const perTurn = tag.requirementPerTurn ?? null;
   if (turns === 0) {
-    const deadSimple = Boolean(openTurn && isDeadSimple(tag));
+    const deadSimple = Boolean(openTurn && perTurn == null && isDeadSimple(tag));
+    if (openTurn && perTurn != null) {
+      const already = await unitsOfTagThisTurn(prisma, character.id, openTurn.id, tag.id);
+      if (already + quantity > perTurn) {
+        throw new UserError(
+          `You can only make ${perTurn} ${tag.name} per turn (${already} already this turn). ‡`,
+        );
+      }
+    }
     if (deadSimple) {
       const already = await deadSimpleUnitsThisTurn(prisma, character.id, openTurn.id);
       if (already + quantity > DEAD_SIMPLE_PER_TURN) {
@@ -452,6 +478,13 @@ async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason
       }
     }
     await prisma.$transaction(async (tx) => {
+      if (openTurn && perTurn != null) {
+        await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+        const already = await unitsOfTagThisTurn(tx, character.id, openTurn.id, tag.id);
+        if (already + quantity > perTurn) {
+          throw new UserError(`You can only make ${perTurn} ${tag.name} per turn. ‡`);
+        }
+      }
       if (deadSimple) {
         await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
         const already = await deadSimpleUnitsThisTurn(tx, character.id, openTurn.id);

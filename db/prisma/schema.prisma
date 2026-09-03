@@ -1684,6 +1684,13 @@ model Tag {
   requirementTurns     Int?
   requirementResources Int?
   requirementGambit    Boolean @default(false)
+
+  // How many UNITS of this recipe one character may make in a turn. Only
+  // meaningful for a 0-turn recipe: anything costing a Move is already
+  // rationed to one by Action's unique constraint. Null falls back to
+  // DEAD_SIMPLE_PER_TURN (web/lib/requests.js), which is what every Dead
+  // Simple rung used before this was a field. See SMITHING.md §2.
+  requirementPerTurn Int?
   requirementSkills    Tag[]   @relation("TagRequirementSkill")
   requiredForSkillOf   Tag[]   @relation("TagRequirementSkill")
 

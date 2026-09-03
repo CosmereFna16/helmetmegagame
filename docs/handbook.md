@@ -103,7 +103,7 @@ Bascinet takes place over 30 days, with time passing in-game at the same rate. E
 At the end of each turn the game resolves what happened during those 12 hours. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. Crossing into another Zone uses your Move — once a turn, twice if you have a mount. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it. ‡  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it. ‡  
 - **Move** is used to submit your character's Move for the turn.  
 - **Speak** allows you to post as your character without typing into a channel, helping to obscure your identity.
 
@@ -376,7 +376,11 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
-**Carrying:** You can carry only so much — 10 items and 25 ⬢ to start, where a stack of 4 counts as 4 and skills, wounds and the like don't count at all. A **Cart** or being a **Pack Mule** raises both. You can go over, but you'll be **Overburdened** and unable to cross into another Zone until you stash or hand something off. Lose your cart while you're over the line and the excess ends up on the floor of a random public room where you stand. ‡
+**Carrying:** Everything you own has a weight, and you can carry 120 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps.
+
+You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand. ‡
+
+**Carts and horses have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft or the Factory — so they're left at the door for you when you walk in, and you take them up again on the way out. ‡
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 6 slots for equippable tags. Click a tag to equip or unequip it instantly.
 
@@ -478,7 +482,7 @@ Your character may die. Several of your characters may die. Luckily, that doesn'
 
 When your character dies:
 
-- Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a workshop, something grafted into them — stays with them. ‡
+- Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a manor, something grafted into them — stays with them. ‡
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
 - As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary`, a Location channel or a public Room and the bot will post a haunting line there. ‡ That's your only voice, and it's a reminder to others that your body remains unburied.
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.

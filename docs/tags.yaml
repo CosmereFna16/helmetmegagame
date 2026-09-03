@@ -84,8 +84,10 @@
 #   weight          - what ONE UNIT weighs, in pounds, against
 #                     GameConfig.carryWeightLbs (docs/systemdocs/CARRY.md §1).
 #                     Omit it for anything weightless: every skill, status,
-#                     injury and belief, and every Asset — a horse carries
-#                     itself, a house does not move at all.
+#                     injury and belief; every Asset, since a horse carries
+#                     itself and a house does not move at all; and any
+#                     untradeable item, which is part of you rather than cargo
+#                     (nobody hauls a graft out of their own neck).
 #                     PRICE IT OFF THE BAND, never by feel, the same way a
 #                     point cost is priced off TAGS.md §4a:
 #                       0.5  Trivial      ring, letter, vial, coin, key
@@ -95,8 +97,9 @@
 #                       28   Very Heavy   mail shirt, breastplate, pavise
 #                       55   Massive      plate armor, a creature's corpse
 #                       100  Immense      workshop equipment, a motorcycle
-#                     db/lib/syncTags.js THROWS if an `items` tag omits it, so
-#                     new gear can never sneak in weighing nothing.
+#                     db/lib/syncTags.js THROWS if a TRADEABLE `items` tag
+#                     omits it, so new gear can never sneak in weighing
+#                     nothing.
 #   consumable      - whether a player can use this tag up from their
 #                     character sheet — eat the meal, unpack the crate.
 #                     Default false. Consuming always takes exactly ONE
@@ -133,7 +136,16 @@
 #     resourceCost  - ⬢, charged up front by Craft, per unit
 #     skills        - list of skill tag slugs required; multiple accepted
 #     gambit        - cures only: whether the medic rolls a Gambit. Crafting
-#                     is always a Routine and ignores this.
+#                     is always a Routine and ignores this. A cure ABOVE the
+#                     medic's own tier is a Gambit whatever this says; this
+#                     field is for the top rung, which even an Expert rolls
+#                     for (docs/systemdocs/TAGS.md §5c).
+#     perTurn       - units of this recipe one character may make in a turn.
+#                     Only meaningful at turnsCost: 0 — anything costing a
+#                     Move is already rationed to one by the turn's single
+#                     Action. Omit it and a Dead Simple recipe falls back to
+#                     DEAD_SIMPLE_PER_TURN (4), which is what all of them
+#                     used before this was a field.
 #   expiresInto     - what this tag turns INTO when its durationTurns runs
 #                     out, instead of simply being swept away. This is the
 #                     untreated-wound chain: Infected festers, Festering goes

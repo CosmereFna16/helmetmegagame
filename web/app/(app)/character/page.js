@@ -235,6 +235,7 @@ export default async function CharacterPage() {
           requirementSkills: { select: { id: true, name: true, slug: true } },
           requirementTurns: true,
           requirementResources: true,
+          requirementPerTurn: true,
           conflictsWith: { select: { id: true } },
         },
       }),

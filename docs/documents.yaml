@@ -66,11 +66,23 @@ documents:
       - Medical (Expert)
     description: |-
       Health and injuries are tags. The price to treat them is measured in
-      Resources, the doctor's turns, and a skill. Anyone can attempt a cure above
-      their skill, but it'll take a Gambit.
+      Resources, your turns, and a skill.
 
-      Surgery needs advanced equipment. Be in the Sanctuary or hold
-      {tag:surgical-equipment}.
+      **What you can do in a day.** Treating a case within your skill is
+      routine. You get 2 of them a turn with {tag:medical-basic}, 3 with
+      {tag:medical-skilled}, 4 with {tag:medical-expert}. First aid — anything
+      the table below lists at 0 turns — costs you nothing at all and never
+      counts against that, so bandage as many people as you like.
+
+      **Reaching past your skill.** You can attempt any cure, including ones
+      well above your training. That's a Gambit: it spends your Move for the
+      turn, a die is rolled, and you'll both find out at the end of it. A bad
+      roll can leave the patient worse than you found them. The top of the
+      table is a Gambit even for an Esculap.
+
+      **Surgery needs instruments.** Hold {tag:surgical-equipment}, or stand
+      somewhere a set is already laid out — the Sanctuary's operating theatre
+      has one. Either way it's +1 on every medical Gambit you roll. ‡
 
       {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
 
@@ -129,7 +141,7 @@ documents:
     name: Sanctuary
     public: true
     description: |-
-      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. As such, all medical procedures in the Sanctuary automatically fulfill the {tag:surgical-equipment} requisites.
+      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. There is a set of {tag:surgical-equipment} laid out in the operating theatre, and anyone working in that room has the use of it — though it is a real object, and a determined thief could carry it off. ‡
 
       The Sanctuary operates independently from the Baron. Although he could try to gain control over it, it would be unprecedented and pretty pointless. So the Esculap does whatever he wants within his walls.
 

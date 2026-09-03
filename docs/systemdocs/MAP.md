@@ -173,28 +173,34 @@ carry cap (`CARRY.md` §2), `performLocationMove` refuses the crossing with a
 plain `{ ok: false, reason }` before it opens its transaction; hops inside the
 zone stay free so they can walk to a room and stash. Only the mover is gated.
 
-**A hop whose edge crosses into another zone costs the character's Move,
-exactly like the old zone-level travel did.** It's written as a real,
-auto-resolved `Action` (`type: MOVE`, `status: CONFIRMED`,
-`moveReviewStatus: SOLVED`, `gmNotes: "auto:zone_change"`), landing in
-`/gm/turns`' Moves history rather than the pending queue. Its `zoneId` is the
-**seat** zone of the destination (`seatZoneIdFor`) — a hop into the Depths
-files work the Caves GM can see. **Acting and crossing are mutually
-exclusive within a turn, in either order** — the enforcement is
-`@@unique([characterId, turnId])` on `Action`, checked inside the same
-transaction that writes it.
+**A hop whose edge crosses into another zone spends a FREE ZONE MOVE first,
+and only costs the character's Move once those run out.** Everyone gets
+`GameConfig.freeZoneMovesPerTurn` a turn (default 1), an **equipped** mount
+adds one, and being Overburdened takes them all away — the full rule lives in
+[`CARRY.md`](CARRY.md) §2a. So a peasant walks Town → Forest for nothing,
+spends their Move to reach the Fortress, and the way home waits for next turn.
 
-**The one exception is a mount.** `horse`, `wild-horse` and
-`steam-automobile` (`db/lib/mounts.js#FAST_TRAVEL_SLUGS`, the shared source
-for the tag list and `fastTravelCapacity`) buy a second
-zone crossing the same day: if an `Action` already exists this turn and the
-mover holds a mount tag, the second crossing claims
-`Character.fastTravelTurnId` instead of filing another Action — a claim
-token holding the in-game **day** (`db/lib/turnFormat.js#turnDay(openTurn)`,
-not a turn id, since a day is two turns), written by the same
-conditional-`updateMany` pattern. The **`FAST_TRAVEL` Request is retired** —
-there's no separate route through `requestActions.js` any more; a mount is
-just a second pass through `performLocationMove` on the same turn.
+Spending the Move is written as a real, auto-resolved `Action`
+(`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
+`gmNotes: "auto:zone_change"`), landing in `/gm/turns`' Moves history rather
+than the pending queue. Its `zoneId` is the **seat** zone of the destination
+(`seatZoneIdFor`) — a hop into the Depths files work the Caves GM can see.
+A free move files no Action at all. **Acting and crossing on your Move are
+mutually exclusive within a turn, in either order** — the enforcement is
+`@@unique([characterId, turnId])` on `Action`.
+
+**Mounts.** `horse` and `steam-automobile`
+(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`, the shared source for the tag list and
+`fastTravelCapacity`) each add one free crossing, **and it refreshes every
+turn** rather than once a day — a horse carries you at Dawn and again at Dusk.
+They only count while **equipped**, and they are unequipped for you at the door
+of any indoors Location (`CARRY.md` §3).
+
+The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`,
+claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
+cannot both spend the last one. The **`FAST_TRAVEL` Request is retired** —
+there's no separate route through `requestActions.js`; a mount is just a
+larger allowance.
 
 **Travel always offers dragging.** Anyone in the mover's **zone** (not just
 their Location) who is a corpse, holds an incapacitating tag (bound / dying

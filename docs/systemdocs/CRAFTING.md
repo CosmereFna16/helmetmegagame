@@ -39,8 +39,18 @@ of it:
 - `turnsCost` — Moves of work. **0** is Dead Simple: no Move, rationed to
   `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2). **1** is this turn's
   Routine. **2+** is a project (§3).
+- `perTurn` — units of this recipe one character may make in a turn, counted
+  per recipe. Only meaningful at `turnsCost: 0`; omit it and a Dead Simple
+  recipe falls back to the shared `DEAD_SIMPLE_PER_TURN` pool of 4.
 - `gambit` is ignored: crafting is always a Routine. The sweep cleared it on
   the two brews that carried one (BREWING.md).
+
+**Smith's work also needs a forge.** A recipe naming a `smithing-*` or
+`builder-*` skill requires Workshop Equipment in reach — held, or set up in a
+room you can get into where you stand (`db/lib/equipmentReach.js`). See
+[`SMITHING.md`](SMITHING.md) §2a; `needsWorkshop()` in
+`web/lib/tagRequests.js` is the shared predicate, so the dialog and the server
+cannot disagree.
 
 The purchase-side checks still apply — prerequisite chain, exclusivity,
 `conflictsWith`, "already hold a higher tier", non-stackable duplicates
@@ -101,5 +111,6 @@ still relies on the Beliefs staying `removable`.
 | Dialog | `web/app/components/CraftDialog.js`, `RequestActionsProvider.js` (`craft`, `destroy`) |
 | Menu filters | `web/lib/tagRequests.js` (`craftableTags`, `destroyableTags`), `web/lib/healRequests.js` (`isHealable`) |
 | Flags in sync | `db/lib/syncTags.js`; catalog `docs/tags.yaml` |
+| Kit in reach | `db/lib/equipmentReach.js`, `web/lib/tagRequests.js#needsWorkshop` |
 | Tier replacement | `db/lib/tagWrites.js#replaceLowerTiers` |
 | Desk | `web/app/(desk)/gm/turns/RequestSections.js` (Craft ‡ / Destroy ‡), `web/lib/requestLabels.js` |

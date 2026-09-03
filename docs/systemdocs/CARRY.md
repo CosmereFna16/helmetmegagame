@@ -1,9 +1,10 @@
-# Carry caps, room stashes, and Transfer
+# Weight, the free zone move, room stashes, and Transfer
 
 What a character can hold, where they put the rest, and how it moves. This
 doc owns `db/lib/carry.js`, `db/lib/carryPass.js`, `db/lib/roomStash.js`,
-`db/lib/roomAnnounce.js`, the `room:` party kind, the merged Transfer dialog
-and the Storage button. Related: `REQUESTS.md` (the two transfer request
+`db/lib/roomAnnounce.js`, `db/lib/mounts.js`, `db/lib/indoors.js`, the free
+zone move in `db/lib/locationTravel.js`, the `room:` party kind, the merged
+Transfer dialog and the Storage button. Related: `REQUESTS.md` (the two transfer request
 types), `CHANNELS.md` §4 (Rooms), `MAP.md` §3 (the travel gate),
 `TURN-ENGINE.md` (the carry pass), `TAGS.md` §5 (`carryMultiplier`).
 
@@ -13,18 +14,46 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 
 | Load | Counts | Base cap |
 |---|---|---|
-| Items | Every **unit** of every `tradeable` tag. A stack of 4 Graga Sacs is 4. Skills, injuries, statuses, and untradeable items (the Quickened Nerve Braid grafted into your neck) are part of you, not cargo. | `GameConfig.carryTagCap`, default 10 |
+| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 120 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
-Both caps are multiplied by every held `Tag.carryMultiplier`, multiplicatively:
-Pack Mule is ×1.5, Cart is ×5, both together ×7.5. Results are floored, so
-(10, 25) becomes (15, 37), (50, 125) or (75, 187). Neither tag stacks, so the
-product is per row. A Cart is itself tradeable and so occupies one of the
-slots it grants.
+Both caps are multiplied by every **active** `Tag.carryMultiplier`,
+multiplicatively: Strong ×1.1, Pack Mule ×1.5, Cart ×5. Results are floored.
+Neither stacks, so the product is per row.
 
-`db/lib/carry.js` holds the math — `carryMultiplier`, `carryLoad`, `carryCaps`,
-`carryStatus` — with no prisma and no I/O, so `/character` can render
-"7 / 10 items" without dragging the barrel into the client bundle.
+**Active means equipped, for anything equippable.** A Cart you are not pulling
+hauls nothing, so its multiplier only counts while `CharacterTag.equipped`
+(§3). Strong and Pack Mule are bodies rather than vehicles, are not
+`equippable` at all, and so always count. `multiplierApplies()` tests
+`Tag.equippable` rather than listing slugs, which keeps the rule in the catalog
+where the rest of a tag's behaviour lives.
+
+`db/lib/carry.js` holds the math — `carryMultiplier`, `carryWeight`,
+`carryCaps`, `carryHardCaps`, `carryAdmits`, `carryStatus` — with no prisma and
+no I/O, so `/character` can render "84 / 120 lb" without dragging the barrel
+into the client bundle. The cap on that row carries a `title=` breakdown: the
+base, then a line per active multiplier.
+
+## 1a. The weight bands
+
+**Price an item off this table, not by feel** — the same discipline the point
+scale gets in [`TAGS.md`](TAGS.md) §4a. `db/lib/syncTags.js` throws if a
+tradeable `items` tag omits `weight:`, so new gear cannot arrive weighing
+nothing.
+
+| Band | lb | Examples |
+|---|---|---|
+| Trivial | 0.5 | ring, letter, vial, coin, key |
+| Light | 2 | knife, meal, tonic, flask, hand tool |
+| Medium | 5 | sword, helm, lantern, fishing rod |
+| Heavy | 12 | crossbow, shield, greatsword, trap |
+| Very Heavy | 28 | mail shirt, breastplate, pavise |
+| Massive | 55 | plate armor, a creature's corpse |
+| Immense | 100 | workshop equipment, a motorcycle |
+
+At the default 120 lb a full harness (55) plus sword, dagger and shield (17.5)
+plus meals and kit leaves perhaps forty pounds spare. That is the intended
+shape: you can do the knight thing, and not much else.
 
 **`{carry:slug}` in a tag description** renders the sentence Bascinet wrote,
 computed from the live caps: "You can carry 5 more item tags, and 12 ⬢." Pack
@@ -34,21 +63,86 @@ pre-formats one line per multiplier tag, streamed from the root layout into
 The multiplier lives once, in `docs/tags.yaml`, and the description only names
 its own slug.
 
-## 2. Over the cap: Overburdened
+## 2. Over the cap, and the ceiling past it
 
-**Nothing blocks going over.** A Labor payout, a Depot sale, a GM grant or a
-gift can all push you past a cap, and they land. What happens instead is the
-`overburdened` status tag (`docs/tags.yaml`, `OVERBURDENED_SLUG` in
-`db/lib/constants.js`): granted the moment you are over either cap, cleared
-the moment you are back under, never by a player and never on a clock.
+There are two lines, not one.
 
-While held, `db/lib/locationTravel.js#performLocationMove` refuses a **zone
-crossing** with a plain `{ ok: false, reason }`. Hops inside the zone stay free,
-so you can always walk to a room and put something down. Only the mover is
-gated; the dragged are corpses and the helpless, and `MOVE_CHARACTER` is not
-gated at all.
+| Load | What happens |
+|---|---|
+| ≤ cap | fine |
+| cap → 1.5× cap | it lands; `overburdened` is granted |
+| > 1.5× cap | **it cannot be yours at all** |
 
-## 3. Settlement: pull-based, post-commit
+`HARD_CAP_RATIO` in `db/lib/carry.js` is that 1.5, derived from the cap rather
+than stored, so a GM raising the base moves both lines together.
+
+**The ceiling bites in two different places**, because things arrive in two
+different ways:
+
+- **Deliberately** — Transfer in, Craft, `/store`, a Depot buy, Loot, pulling
+  out of a room stash. `carryAdmits()` refuses it before it lands, with a
+  sentence the caller hands straight to the player.
+- **Involuntarily** — a Labor payout (which is ⬢: `LABORING.md`), Caving loot,
+  a GM grant, a `consumesInto` chain. It lands, and then `settleCarry` sets the
+  excess down in a random public Room where they stand. This is the farmer who
+  reaps more than they can carry: past the cap they are Overburdened, past the
+  ceiling the rest is simply on the ground.
+
+### What Overburdened costs
+
+Being over the cap **zeroes your free zone moves** (§2a). It is no longer a
+refusal: an overloaded character can still cross into another zone, they just
+pay their Move to do it, and cannot then act. Only the mover is affected — the
+dragged are corpses and the helpless — and `MOVE_CHARACTER` is not gated at
+all.
+
+The tag itself (`docs/tags.yaml`, `OVERBURDENED_SLUG` in
+`db/lib/constants.js`) is granted the moment you are over either cap and
+cleared the moment you are back under, never by a player and never on a clock.
+
+## 2a. The free zone move
+
+Crossing a zone used to always spend your Move, with a mount buying one extra
+crossing per *day*. Now:
+
+- Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
+- An **equipped** mount adds one, and it refreshes every turn — a horse carries
+  you at Dawn and again at Dusk.
+- Overburdened sets the allowance to **0**.
+- Past the allowance, a crossing files the `MOVE` Action as it always did.
+  Once you have acted, you cannot cross.
+
+So a peasant walks Town → Forest for nothing, spends their Move to reach the
+Fortress, and the way back waits for the next turn. That is the whole model.
+
+`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, claimed by a
+conditional `updateMany` whose WHERE is the check, so two tabs cannot both
+spend the last one. A differing turn id resets the counter in the same
+statement, so nothing ever sweeps the field. `freeZoneMoves()` and
+`freeMovesLeft()` live in `db/lib/locationTravel.js`; the sheet shows the
+number and Discord's Travel confirm says what the hop will cost before you take
+it.
+
+## 3. Mounts, carts, and indoors
+
+`horse`, `steam-automobile` and `cart` are **equippable**, and give nothing
+while stowed — no carry multiplier, no extra zone move, no passenger seats.
+They compete for the same six `GameConfig.equipSlots` as armour and weapons,
+which is the point: a cart should cost you something to keep out.
+
+A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
+Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk
+into, and you do not bring a horse into a chapel. On arrival
+`db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
+`toggleEquip` refuses to put them back on while they stand there. The anchor
+message says so in its own `-#` line, written by `syncZones` and hashed with
+the rest of the body, so it appears once and never again.
+
+The parking happens **before** the settle, so the reduced cap is what the
+settle sees, and Overburdened goes on in the same pass. Nothing is dropped for
+it — see §4.
+
+## 4. Settlement: pull-based, post-commit
 
 `settleCarry(prisma, characterId)` is the one function that makes a sheet agree
 with its caps. It is **pull-based** — it recomputes from the current row
@@ -73,8 +167,9 @@ It runs, in this order, at:
   request's effect. That last one keeps REQUESTS.md's promise that adding a
   type costs one `REQUEST_EFFECTS` entry.
 - **Every arrival**, in `db/lib/locationMove.js#applyLocationMoveSideEffects`,
-  immediately before the room-access sync. This is the hook that retries a
-  deferred drop (§4) and settles Caving loot picked up on the way in.
+  immediately before the room-access sync and immediately after the mounts are
+  parked (§3). This is the hook that retries a deferred drop (§5) and settles
+  Caving loot picked up on the way in.
 - **The bot's `/heal`**, beside its existing room-access sync.
 - **Turn close**, as the `carry` pass (`db/lib/carryPass.js`), after `hunger`
   and before `lifewebDecay` so it sees the final sheet: Labor payouts, staged
@@ -86,47 +181,37 @@ It runs, in this order, at:
 
 Returned, never sent: `settleCarry` hands back
 `{ characterId, over, granted, removed, drop }` and `deliverCarryDrop` does the
-Discord half — the DM and the aliased room line (§5).
+Discord half — the DM and the aliased room line (§6).
 
-## 4. Losing a Cart: the overflow drop
+## 5. The overflow drop
 
-Lose a Cart or a Pack Mule for any reason — handed over, looted, sold to the
-Depot, stashed, revoked, removed — and if you are now over a cap, the excess
-falls into a **random public Room at your Location**.
+**Drops are acquisition-driven, and only acquisition-driven.** Nothing comes
+off a sheet because a cap SHRANK. Unequipping a cart at an inn door, handing
+one over, a GM lowering the base cap — all of those make a character
+Overburdened and no more. Only goods that arrived past the **ceiling** (§2) are
+set down, and only the ones that arrived without being asked for, since a
+deliberate acquisition was refused before it landed.
 
-How the settle notices. `Character.carryMultiplierSeen` holds the multiplier
-product at the last settle, ×1000 as an integer so "has it shrunk?" is an
-exact comparison. Only the multiplier is persisted, never the derived cap: a
-GM lowering `carryTagCap` from 10 to 8 must make people Overburdened, not dump
-a hundred inventories onto the floor.
+That is a deliberate reversal of how this worked before §3 existed. When
+walking into the Sanctuary parks your cart, a capacity-driven drop would empty
+that cart onto the chapel tiles every time — so `Character.carryMultiplierSeen`,
+the conditional shrink claim and the whole retry dance are gone with it.
 
-| `now` vs `seen` | over? | what happens |
-|---|---|---|
-| `now >= seen` | any | `seen = now`; grant or clear Overburdened |
-| `now < seen` | no | `seen = now`; clear Overburdened |
-| `now < seen` | yes, public room here | claim `seen = now`, drop, DM + room line |
-| `now < seen` | yes, nowhere to drop | leave `seen`, grant Overburdened, audit `carry_drop_deferred` |
+**What drops.** `drawDrops` shuffles the droppable units and takes from the
+front until the excess is covered, shedding back to the **ordinary cap** rather
+than to the ceiling — landing someone exactly on 1.5× would leave them one
+letter from spilling again every turn. Weightless units are not candidates at
+all, or the shuffle would spend its draws on letters while the anvil stayed
+put. Two things are never in the bag: multiplier tags (dropping the Cart to fix
+being over would shrink the cap again and loop) and equipped gear (being
+disarmed by an overfull pack reads badly). Every ⬢ over the ⬢ ceiling spills
+the same way. Audit: `carry_overflow_dropped` with the manifest.
 
-The claim is a conditional `updateMany` on `carryMultiplierSeen` — two settles
-racing on the same shrink must not both drop. With nowhere to drop (unplaced,
-or a Location with no public room) `seen` stays high, so the next settle —
-on arrival, or at turn close — retries for free. The system converges without
-a queue.
+**Nowhere to put it down** — unplaced, or a Location with no public room — and
+the character simply stays over the ceiling; the next settle, on arrival or at
+turn close, retries for free. Audit: `carry_drop_deferred`.
 
-**What drops.** Random units out of the droppable holdings until the item
-load fits, and every ⬢ over the ⬢ cap. Two things are never in the bag:
-multiplier tags (dropping the Cart to fix losing the Pack Mule would shrink
-the cap again and loop) and equipped gear (being disarmed by a lost cart reads
-badly). If the bag empties first, you stay Overburdened. Audit:
-`carry_overflow_dropped` with the manifest.
-
-**Rebase after a catalog edit.** `db:sync-tags` ends by running
-`settleCarry(…, { drop: false })` for every holder of a multiplier tag, which
-advances `seen` and grants the status without dropping. Otherwise lowering
-Cart from 5 to 3 in the YAML would read, to every holder, as "your Cart just
-left".
-
-## 5. Room stashes
+## 6. Room stashes
 
 Every Room, public or private, holds unlimited ⬢ (`Room.resources`) and
 unlimited tag stacks (`RoomTag`, one row per tag, `@@unique([roomId, tagId])`).
@@ -178,7 +263,7 @@ one. Deleting a Tag from the catalog cascades its **room** stacks
 (`RoomTag.tagId` cascades) but not the copies people carry
 (`CharacterTag.tagId` is RESTRICT) — see the trap above.
 
-## 6. Transfer
+## 7. Transfer
 
 One dialog on `/character` (`TransferDialog.js`, mode `transfer` in
 `RequestActionsProvider.js`) replaces the old Transfer Tag and Transfer
@@ -189,8 +274,8 @@ uses) or a Room here you can get into. Nothing is ever taken from another
 person through Transfer, ⬢ included: you can't reach into their pockets, and
 listing what's in them would show their hidden tags. Loot is how you take
 from a person, and only a helpless one (REQUESTS.md §5b). The projection line
-("After this you carry 5 / 10 items and 6 / 25 ⬢") warns in accent when the
-result is over a cap and submits anyway — going over is allowed (§2).
+("After this you carry 84 / 120 lb and 6 / 25 ⬢") warns in accent when the
+result is over a cap and submits anyway — going over is allowed up to the ceiling (§2).
 
 Server side, `transferRequest` in `requestActions.js` resolves both parties
 (`db/lib/parties.js`, which now knows `room:<id>`), checks reach once,
@@ -212,7 +297,7 @@ Lantern.*" The room learns an age and a presentation, never a name.
 The two older actions, `transferTagRequest` and `transferResourcesRequest`,
 still exist for their `LOOT` direction and for anything else that calls them.
 
-## 7. The Storage button
+## 8. The Storage button
 
 Every Room's starter post carries one button, **Storage**
 (`db/lib/roomStarterRow.js`, `room:storage:{roomId}`, hashed into
@@ -228,7 +313,7 @@ ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 Reading is free; moving things is the web's Transfer. A Discord select menu
 caps at 25 options, which is why there is no native deposit/withdraw flow.
 
-## 8. Where the code lives
+## 9. Where the code lives
 
 | Piece | File |
 |---|---|
@@ -245,7 +330,10 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 | Undo, party-shaped moves | `web/lib/requestEffects.js#takeTagFrom` / `giveTagTo` |
 | Dialog, grid, readout | `TransferDialog.js`, `ActionGrid.js`, `StatusPanel.js`, `PartySelect.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
-| Travel gate | `db/lib/locationTravel.js#performLocationMove` |
+| Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
+| Mounts: what counts while equipped | `db/lib/mounts.js` |
+| Parking at an indoors door | `db/lib/indoors.js`, `db/lib/locationMove.js` |
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |
 | Caps on `/gm/dev` | `web/app/(desk)/gm/dev/page.js`, `web/app/(app)/gm/dev/actions.js` |
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |
+| Weight bands | `weight:` in `docs/tags.yaml`; `Tag.weightLbs` |

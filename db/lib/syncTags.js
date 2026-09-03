@@ -201,11 +201,13 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" is in category "${t.category}" but does not set tradeable — say true or false explicitly, since it decides whether the tag can be handed over or looted off a body`,
       );
     }
-    // `weight` must be explicit for items, for the same reason `tradeable`
-    // must: silence would default to weightless and a new sword would cost
-    // nobody anything to carry. Assets are deliberately exempt — a horse
-    // carries itself and a house does not move (docs/systemdocs/CARRY.md §1).
-    if (t.category === "items" && typeof t.weight !== "number") {
+    // `weight` must be explicit for a TRADEABLE item, for the same reason
+    // `tradeable` must: silence would default to weightless and a new sword
+    // would cost nobody anything to carry. Two exemptions, both because the
+    // tag is not cargo (docs/systemdocs/CARRY.md §1): Assets carry themselves
+    // or do not move at all, and an untradeable item is part of you — nobody
+    // hauls the Quickened Nerve Braid, it is grafted into their neck.
+    if (t.category === "items" && t.tradeable && typeof t.weight !== "number") {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" is an item but sets no weight — give it a pounds figure off the band table in the header of that file`,
       );
@@ -370,6 +372,7 @@ async function syncTagsFromYaml(prisma) {
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
+      requirementPerTurn: entry.requirement?.perTurn ?? null,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
       // Membership of the corpse group IS being a corpse, so the flag is

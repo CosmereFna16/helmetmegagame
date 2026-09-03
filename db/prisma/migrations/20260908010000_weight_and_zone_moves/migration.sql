@@ -22,3 +22,6 @@ ALTER TABLE "Character" ADD COLUMN "zoneMovesUsed" INTEGER NOT NULL DEFAULT 0;
 
 -- A place you walk into: mounts and carts are parked at the door.
 ALTER TABLE "Location" ADD COLUMN "indoors" BOOLEAN NOT NULL DEFAULT false;
+
+-- "Up to N a turn" as recipe data rather than one hardcoded constant.
+ALTER TABLE "Tag" ADD COLUMN "requirementPerTurn" INTEGER;
