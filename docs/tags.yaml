@@ -1021,10 +1021,11 @@ tags:
     category: general
     group: general-traits
     description: "Eh? What's that? You can't hear very well."
-    pointCost: -5
+    pointCost: -4
     purchasable: true
     purchasableAfterStart: false
     removable: false
+    conflictsWith: [deaf]
 
   insomniac:
     name: Insomniac
