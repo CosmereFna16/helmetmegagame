@@ -6,7 +6,6 @@ import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
-import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import {
   MAX_BIRD_BODY,
@@ -1169,15 +1168,14 @@ async function moveCharacterRequestImpl({ targetCharacterId, targetLocationId, r
   if (targetLocation.id === target.locationId) throw new UserError("They're already there.");
 
   // The edge is read off the FILER's location, not the target's — you walk
-  // them out of your own doorway — and gated against the FILER's tags, since
-  // they are the one opening the way. This is a server action, so it is a
-  // public endpoint: the picker already dropped everything impassable, and
-  // this is the check that actually holds when a client posts its own id.
-  const link = await linkBetween(prisma, character.locationId, targetLocation.id);
-  const gate = crossingCheck(link, {
-    tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+  // them out of your own doorway.
+  const currentLocation = await prisma.location.findUnique({
+    where: { id: character.locationId },
+    include: { connectsTo: { where: { id: targetLocation.id } } },
   });
-  if (!gate.passable) throw new UserError(gate.refusal);
+  if (!currentLocation || currentLocation.connectsTo.length === 0) {
+    throw new UserError("You can't get there directly from here.");
+  }
 
   const openTurn = await getOpenTurn();
   const fromLocationId = target.locationId;
