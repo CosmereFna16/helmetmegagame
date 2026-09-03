@@ -195,6 +195,17 @@ enum RequestType {
   // corpse stops being lootable. The target is TYPED, not picked — first name
   // only, and only a body in the filer's own zone. See REQUESTS.md §5d.
   BURY_CHARACTER
+  // Memorialising someone whose body nobody can find. Everything BURY_CHARACTER
+  // does to the soul — buriedAt, and the Cursed role lifted off the dead
+  // player's account — for 4 ⬢ and a Routine instead of a body, and it leaves a
+  // Headstone tag behind. This is the one that kept Bury's TYPED first name,
+  // since without a corpse to point at there is nothing to pick from.
+  ENGRAVE_HEADSTONE
+  // Cutting a corpse up for what is in it: a Nekker, Graga or Skinless for its
+  // organ, a person for Human Flesh. Gated on the `butcher` tag, free in both
+  // ⬢ and Moves, and it CONSUMES the corpse — which for a person's corpse also
+  // means the body stops being lootable. See docs/systemdocs/CORPSES.md.
+  BUTCHER_CORPSE
   // Riding a horse one zone over without spending the Move. The only request
   // that changes a zone and files no Action; the once-a-day limit lives on
   // Character.fastTravelTurnId. Gated on the `horse` or `wild-horse`
@@ -1237,9 +1248,22 @@ model Character {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // The one Tag row this character's death wrote. See Tag.corpseOfCharacterId.
+  corpseTag Tag? @relation("CharacterCorpseTag")
+
   @@index([discordUserId])
   @@index([status])
   @@index([status, lastActivityTurn])
+}
+
+// Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
+// turns later (Tag.expiresInto, progressed by db/lib/tagExpiryPass.js on a
+// sheet and db/lib/roomTagExpiryPass.js on a floor). The three monster
+// corpses in docs/tags.yaml are always FRESH and never rot — a Nekker left
+// lying around stays butcherable, and only a person stinks.
+enum CorpseKind {
+  FRESH
+  ROTTEN
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
@@ -1260,6 +1284,43 @@ model Tag {
   // slugs are server-generated with a "custom-" prefix so a GM naming one
   // after an existing YAML tag can't collide with it and get upserted over.
   custom Boolean @default(false)
+
+  // --- Corpses (docs/systemdocs/CORPSES.md) ------------------------------
+  //
+  // A THIRD kind of tag, beside the YAML catalog and a GM's homebrew: one the
+  // SYSTEM authors. db/lib/characterDeath.js writes ONE row per death ("Ada's
+  // Corpse"), and the three monster corpses come from docs/tags.yaml instead.
+  // Both kinds set corpseKind, so "is this a corpse?" is one field however the
+  // row got here — which is what the Butcher button and Miasma's ingredient
+  // check both ask.
+  //
+  // Rotting RENAMES that one row rather than chaining into a second tag
+  // (db/lib/corpseRotPass.js). expiresInto could not do it: it names catalog
+  // SLUGS, and "Ada's Rotten Corpse" is per-character and never in the YAML.
+  // Renaming also means a corpse someone is carrying rots in their hands with
+  // no second row to reconcile — the holding is the same row it always was.
+  //
+  // Reusing `custom` for this was the obvious shortcut and it does not work:
+  // TAGS.md §5d deliberately refuses to let a GM hand-author a decay chain,
+  // and `custom` says "a GM typed this", which is exactly what a corpse is not.
+  corpseKind CorpseKind?
+
+  // The body this tag IS — the whole point of the design. A corpse is a HANDLE
+  // to a dead sheet, not a container: the goods stay on the Character row and
+  // LOOT_CHARACTER is untouched, but db/lib/corpseFollow.js joins through this
+  // to walk the dead sheet after its corpse, so looting works wherever the
+  // body was carried to. Null on the three monster corpses.
+  //
+  // Unique because there is exactly one corpse per death, which makes the
+  // death path an upsert and the revive path a delete-by-character.
+  //
+  // Cascade, and it is load-bearing: it is the ONLY thing that stops these
+  // rows outliving a Restart Game. wipeGameData deliberately never touches the
+  // catalog, and its existing order already clears CharacterTag and RoomTag
+  // before character.deleteMany() — so the cascade lands clean with no edit to
+  // the wipe at all. A GM deleting one character gets the same for free.
+  corpseOfCharacterId String?    @unique
+  corpseOf            Character? @relation("CharacterCorpseTag", fields: [corpseOfCharacterId], references: [id], onDelete: Cascade)
 
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see

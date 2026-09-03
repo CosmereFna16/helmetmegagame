@@ -8,7 +8,10 @@ const { settleCarry } = require("./carry");
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { CORPSE_GROUP_SLUG } = require("./constants");
 const {
+  normalizeRequirementItems,
+  validateRequirementItems,
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,
@@ -131,6 +134,13 @@ async function syncTagsFromYaml(prisma) {
     }
   }
   const allTagSlugs = new Set(tagEntries.map((t) => t.slug));
+  // For requirement.items: the display labels are denormalized into the stored
+  // Json (see db/lib/tagShapes.js), so both maps are needed at write time as
+  // well as at validation time. Built from the YAML, not the DB — every slug a
+  // recipe may name has to be in these files anyway.
+  const allGroupSlugs = new Set(groupEntries.map((g) => g.slug));
+  const tagNameBySlug = new Map(tagEntries.map((t) => [t.slug, t.name]));
+  const groupNameBySlug = new Map(groupEntries.map((g) => [g.slug, g.name]));
   for (const t of tagEntries) {
     if (!categoryNameBySlug.has(t.category)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
@@ -239,6 +249,16 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
+    // requirement.items — the enforced, non-consuming ingredient check.
+    validateRequirementItems(
+      normalizeRequirementItems(t.requirement?.items, { tagNameBySlug, groupNameBySlug }),
+      {
+        selfSlug: t.slug,
+        tagSlugs: allTagSlugs,
+        groupSlugs: allGroupSlugs,
+        craftable: t.craftable ?? false,
+      },
+    );
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -326,6 +346,12 @@ async function syncTagsFromYaml(prisma) {
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
+      requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
+      // Membership of the corpse group IS being a corpse, so the flag is
+      // derived here rather than hand-written on three entries that could
+      // drift from it. Always FRESH: a monster corpse never rots, and the
+      // per-character ones that do are `custom` rows this sync never sees.
+      corpseKind: entry.group === CORPSE_GROUP_SLUG ? "FRESH" : null,
       ...consumesIntoScalars(entry.consumesInto),
       desireLocks: normalizeDesireLocks(entry.desires?.locks),
       groupId,

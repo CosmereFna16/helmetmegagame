@@ -15,6 +15,8 @@ const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { expiryFrom } = require("./lib/turnFormat");
+const { runCorpseRotPass } = require("./lib/corpseRotPass");
+const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
@@ -136,12 +138,19 @@ const TURN_PASSES = [
   "stagedPush",
   "tagExpiry",
   "dyingDeath",
+  // Corpses turn before the sweep, and the order is load-bearing: the sweep
+  // is a blind deleteMany over expiresTurn, so a body that reached its clock
+  // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
+  "corpseRot",
   "expirySweep",
   "catatonic",
   "catatonicDeath",
   "bird",
   "hunger",
   "carry",
+  // After "carry", because the overflow drop can put a corpse on a floor.
+  // Pull-based, so it just re-reads where every body's tag ended up.
+  "corpseFollow",
   "lifewebDecay",
 ];
 
@@ -317,14 +326,33 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Bird audit log failed:", err));
   }
 
+  // Bodies turn. Must precede the sweep below — see db/lib/corpseRotPass.js.
+  if (!done.has("corpseRot")) {
+    const rot = await runCorpseRotPass(prisma, turn).catch(async (err) => {
+      await passFailed("Corpse rot", err);
+      return null;
+    });
+    if (rot) {
+      await markDone("corpseRot");
+      if (rot.rotted > 0) {
+        await prisma.auditLog
+          .create({
+            data: { actorDiscordUserId: "system", actionType: "corpses_rotted", details: rot },
+          })
+          .catch((err) => console.error("Corpse rot audit log failed:", err));
+      }
+    }
+  }
+
   if (!done.has("expirySweep")) {
     try {
       await prisma.characterTag.deleteMany({
         where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
       });
       await sweepExpiredStacks(turn);
-      // A stashed tag rots on the same clock — nothing festers in a crate,
-      // so no progression, just the sweep.
+      // A stashed tag sheds on the same clock. The one progression that
+      // reaches a floor is the corpse rot above, which has already nulled
+      // expiresTurn on anything it turned, so this cannot see it.
       await prisma.roomTag.deleteMany({
         where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
       });
@@ -418,6 +446,29 @@ async function resolveNeeds(turn, config) {
         data: { actorDiscordUserId: "system", actionType: "carry_resolved", details: carrySummary },
       })
       .catch((err) => console.error("Carry audit log failed:", err));
+  }
+
+  // Every dead sheet catches up with wherever its corpse ended up. Last of
+  // the inventory-shaped passes, so it sees the carry drop above.
+  if (!done.has("corpseFollow")) {
+    const followed = await reconcileCorpses(prisma).catch(async (err) => {
+      await passFailed("Corpse follow", err);
+      return null;
+    });
+    if (followed) {
+      await markDone("corpseFollow");
+      if (followed.length > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "corpses_followed",
+              details: { moved: followed.length },
+            },
+          })
+          .catch((err) => console.error("Corpse follow audit log failed:", err));
+      }
+    }
   }
 
   // bumpBlood rather than a computed literal off `config`: that snapshot

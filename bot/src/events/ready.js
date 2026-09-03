@@ -12,6 +12,7 @@ const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { runWhisperPoll } = require("../lib/whisperPoll");
+const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
 module.exports = {
@@ -147,6 +148,11 @@ module.exports = {
     // it, aliased, on a stateless 15-minute lookback
     // (bot/src/lib/whisperPoll.js). Runs on the bot rather than the web app
     // because it is a plain cron with no request behind it.
+    // A rotten body nags the Location it is in, on a randomized 2-5 hour
+    // timer rather than a cron — the unpredictability is the feature. Self-
+    // rescheduling; see bot/src/lib/deathSmell.js.
+    startDeathSmell(prisma);
+
     cron.schedule("*/15 * * * *", () => {
       runWhisperPoll(prisma)
         .then((posted) => {

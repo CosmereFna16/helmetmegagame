@@ -110,7 +110,9 @@ reason.
 | `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
-| `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
+| `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
+| `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
+| `BUTCHER_CORPSE` | Cuts a corpse up for what is in it — an organ from a monster, Human Flesh from a person. Free, and it destroys the body. Gated on `butcher` | — | Takes the yield back and returns the corpse to the party it came from |
 | `FAST_TRAVEL` | Rides one zone over on a horse (or the Merchant's Steam Automobile) without spending the Move. Once a day | — | Sends them back and returns the ride |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
@@ -661,22 +663,43 @@ GM can re-price the cure or tick "put the affliction back but keep the
 payment" — the treatment that didn't take, the one partial outcome a full
 Undo can't express.
 
-## 5d. Bury and Fast Travel
+## 5d. Bodies, and Fast Travel
 
-Two requests that each break one rule the other sixteen keep.
+Four requests that each break one rule the others keep. Three of them are about
+corpses; the full design is [`CORPSES.md`](CORPSES.md), and this section covers
+only what is peculiar to them *as requests*.
 
-**Bury's target is typed, not picked — and typed as a first name.** Every other
-target menu in the app is a dropdown built from the zone roster. A dropdown
-here would be a list of the dead, readable by anyone who opened the dialog, and
-the whole reason `/character`'s panels never render a status pill on a corpse is
-that who died is not supposed to be free information. So the dialog holds one
-text field, `firstName` is matched case-insensitively against `Character.firstName`
-inside a `WHERE` already scoped to the filer's zone and to `buriedAt: null`, and
-two dead people sharing a first name in one room is a plain error rather than a
-guess. A miss says "Nobody here by that name is dead" and writes nothing. That
-does leak a little — a wrong guess tells you that person is not a corpse *in
-your zone* — and it is accepted, because the corpses in your zone are already
-named in the Loot and Move menus.
+**Bury needs the body, not a name.** It used to match a typed first name against
+the dead in the filer's zone. It now takes a corpse **tag** the filer is holding
+or can reach in a room at their Location — strictly tighter, since you have to
+have actually found it — and consumes that tag. It also **spends the filer's
+Move** now, filed automatically as a passed Routine by `fileAutoRoutine`. A
+monster corpse is refused: there is no soul in a Nekker.
+
+**Engrave is the one that kept the typed name**, and it kept it for the reason
+Bury originally had it. Every other target menu in the app is a dropdown built
+from the roster; a dropdown here would be a list of the dead, readable by anyone
+who opened the dialog, and the whole reason `/character`'s panels never render a
+status pill on a corpse is that who died is not supposed to be free information.
+So the dialog holds one text field and `firstName` is matched
+case-insensitively against `Character.firstName` inside a `WHERE` scoped to
+`status: DEAD` and `buriedAt: null`.
+
+**And Engrave's search is game-wide** — no zone clause at all, because the whole
+point is a body nobody can find. Two consequences follow, and both are accepted
+deliberately. The leak is bigger than Bury's was: a hit tells you that person is
+dead *somewhere*, where before it only told you they were not a corpse in your
+zone. And **the `>1 match` refusal now does real work.** Two dead people sharing
+a first name anywhere in Ravenheart is a plain error — "More than one dead
+person answers to that name. A GM will have to do it." — rather than a guess,
+because it is the only thing standing between a mourner and freeing the wrong
+soul. Do not soften it into picking the first match.
+
+**Butchering destroys a body without freeing the soul.** This reads as an
+oversight and is not: cutting someone up is not a burial, so their player stays
+Cursed, and Engrave is the way out of that. It is also the only one of the three
+that is entirely free — no ⬢, no Move — because the cost of butchering is
+supposed to be what other people think of you.
 
 **No gate beyond co-presence**, same as Bind and Free (§5b). The Mortii's job
 in the fiction (`docs/roles.yaml`) is not a permission in the code.
@@ -770,10 +793,14 @@ archive entry is written **unconditionally**, ignoring
 `GameConfig.archiveTravelEvents`, as the transcript half of the same
 visibility.
 
-**Bury's button carries no gate; Fast Travel's does.** Both follow §6's rule
-rather than bending it. Owning a horse is a fact about your own sheet, so the
-icon may grey out. Whether a body lies where you stand is a fact about who is
-near you, so that icon is always lit and you find out by typing a name.
+**The gates on these four all follow §6's rule rather than bending it.** Owning
+a horse is a fact about your own sheet, so Fast Travel's icon may grey out. So
+is knowing how to butcher, so Butcher greys on holding the `butcher` tag — but
+**never** on whether a body is nearby, which is a fact about the world; you find
+that out by opening the dialog. Bury and Engrave carry no gate at all for the
+same reason: whether a corpse lies where you stand, or whether the name you have
+in mind belongs to someone dead, is exactly what you are not supposed to learn
+from a greyed-out icon.
 
 ## 6. The player-facing surface
 

@@ -145,10 +145,24 @@ Four bands, about 106 tags in total:
 
 | Band | Priced at | Examples |
 |---|---|---|
-| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3 |
+| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
-| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3 |
-| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1 |
+| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **40** |
+| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **48** |
+
+**Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
+off the bands above on purpose. `skinless-brain` went 10 → **40**: the old
+price read the Skinless as a slightly harder Graga, and they are not — they are
+the only ingredient in the catalog that has to be talked out of being a person
+first, and the number says so. `dreamers-draught` went 16 → **60**, staying
+above its own ingredient, because the point of that recipe is that the brain is
+the cheap part. `painting` went 60 → **48**, a flat 20% nerf; over its 4 turns
+that is 12 ⬢/turn, still the best rate a craftable pays.
+
+**`human-flesh` is deliberately not sellable at all.** Butchering is free and
+every death mints a corpse, so a price on it would be a code-enforced ⬢ faucet
+hanging off a free action. It stays `tradeable`, so the market for it is other
+players.
 
 **Smithed gear's markup is `resourceCost + round(rate(skill) × turnsCost^1.3)`, per item —
 not a flat multiplier of the tier.** A flat "+1/3 of the tier" markup used to make

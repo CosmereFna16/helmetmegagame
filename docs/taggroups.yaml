@@ -175,6 +175,18 @@ groups:
     name: Weapons
     category: items
     color: "#56bdaf"
+  # Bodies. Three monster corpses live here from docs/tags.yaml, and so does
+  # every "{name}'s Corpse" a death writes (db/lib/corpseMint.js) — which is
+  # why the group, not a catalog flag, is what the client-side code checks:
+  # a per-character corpse tag is never in the YAML for anything else to name.
+  #
+  # The darkest of the Items teals on purpose. It has to clear 3:1 on BOTH
+  # chip backgrounds, which for this family is a narrow band, and it should
+  # read as the grimmest thing in the category.
+  items-corpse:
+    name: Corpses
+    category: items
+    color: "#4a8f88"
   # --- Health ------------------------------------------------------------
   # Every affliction a doctor might treat, split by what KIND of medicine it
   # wants rather than by severity — severity is carried by the tag's own

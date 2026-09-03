@@ -732,6 +732,21 @@ them).
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
   instead of simply being swept away. Live; see §5c.
+- `requirementItems` (YAML: `requirement.items`) — the recipe's
+  **ingredients**, and the first ones this game ever actually enforced. Only
+  two recipes carry one: `miasma` needs a corpse, `dreamers-draught` needs a
+  Skinless Brain. **Holding it is the check — nothing is consumed**, so you
+  keep the corpse you bottled the Miasma over, and a second craft off the same
+  body is allowed. An entry is either a tag slug (`items: [skinless-brain]`) or
+  a whole **group** (`items: [{ group: items-corpse }]`); the group form is not
+  a convenience but a necessity, since a corpse written at death is never in
+  `docs/tags.yaml` for a slug to name. Stored as Json rather than a relation
+  for that reason, with a denormalized display `label` the sync rewrites every
+  run. Validated in `db/lib/tagShapes.js` — which throws on an `items` block on
+  a tag that is not `craftable`, because the Craft path is the only enforcement
+  point and an `items` block anywhere else would look enforced and do nothing.
+  Enforced against the crafter's **own sheet only**, never a room stash. Full
+  writeup in [`CORPSES.md`](CORPSES.md) §8.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
   `requirementSkills` (YAML: nested under `requirement:` as `turnsCost` /
   `resourceCost` / `gambit` / `skills`) — what it costs a character to add
@@ -1275,6 +1290,20 @@ tag "Arthritis" would otherwise collide with the YAML slug, and the next sync
 would upsert straight over their row — silently converting their homebrew into
 a YAML tag and clobbering every field. The prefix also guarantees a custom slug
 can never appear in the prune script's YAML slug set by accident.
+
+**There is a third author, and it is neither of these: the game itself.**
+`db/lib/corpseMint.js` writes one Tag row per death ("Ada's Corpse") and
+`db/lib/headstone.js` writes one per Engrave. Both set `custom: true` so the
+syncs leave them alone, exactly as a GM's homebrew is protected — what tells
+them apart is `Tag.corpseKind` and `Tag.corpseOfCharacterId`. That distinction
+earns its keep three times: it is the join that walks a dead sheet after its
+corpse, it is how the Butcher yield table tells a person from a Nekker, and its
+`onDelete: Cascade` is the only thing stopping these rows outliving a Restart
+Game. Full writeup in [`CORPSES.md`](CORPSES.md) §9.
+
+A system-authored row is also the one exception to the rule below: a corpse
+carries a decay chain, which no GM may hand-author. It does not go through
+`expiresInto` to get one — it renames itself in place (`CORPSES.md` §3).
 
 What a GM can set is the tag's own behaviour — cost, category, group,
 description, the `stackable`/`equippable`/`consumable`/`removable`/

@@ -396,10 +396,9 @@ documents:
       | {tag:bliss} | 0 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | cave fungus |
       | {tag:feces} | 0 | — | feces |
       | {tag:alcohol} | 2 | 1 (yields up to 3 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:miasma} | 2 | 1 | a corpse |
+      | {tag:miasma} | 2 | 1 | a corpse {info:You must be holding one. It is not used up.} |
       | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:molotov-cocktail} | 2 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | alcohol |
-      | {tag:nekker-pheromones} | 2 | 1 | a dead nekker |
       | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:cat} | 3 | 1 | alcohol |
       | {tag:nightshade} | 3 | 1 | a forest herb |
@@ -423,7 +422,7 @@ documents:
       | {tag:phrygian-tears} | 4 | 2 | Gambit |
       | {tag:gunpowder-grenade} | 6 | 1 | saltpeter |
       | {tag:purifier} | 6 | 1 | cave fungus |
-      | {tag:dreamers-draught} | 6 | 1 | a {tag:skinless-brain}, Gambit |
+      | {tag:dreamers-draught} | 6 | 1 | a {tag:skinless-brain} {info:You must be holding one. It is not used up.} |
       | {tag:forgiveness} | 8 | 1 | someone's tears |
       | {tag:flawless-skin} | 8 | 1 | a lock of Nobility hair |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
@@ -441,19 +440,19 @@ documents:
 
       **Nekkers**
 
-      Weak, quadrupedal, ape-like scavengers. They eat corpses and can often be seen on the surface after battles, competing with the vultures. Can be used to make {tag:nekker-pheromones}.
+      Weak, quadrupedal, ape-like scavengers. They eat corpses and can often be seen on the surface after battles, competing with the vultures. Killing one leaves a {tag:nekker-corpse}, which a {tag:butcher} can cut {tag:nekker-pheromones} out of. ‡
 
       **Gragas**
 
       Dangerous, strong, hulking cave dwellers. Extremely slow, in part due to their overburdened leg muscles, which barely support them.
 
-      Can be easily escaped. Killing them drops a {tag:graga-sac}, which can be used to create {tag:graga-sweat} and the {tag:invisibility-potion}. The Merchant can sell Graga Sacs.
+      Can be easily escaped. Killing them leaves a {tag:graga-corpse}, which a {tag:butcher} cuts a {tag:graga-sac} out of; that goes into {tag:graga-sweat} and the {tag:invisibility-potion}. The Merchant can sell Graga Sacs. ‡
 
       **Skinless**
 
       Explorers and citizens of the caves. They travel alone or in packs, eventually returning to their communities in the **Aberrant Pits**. They rarely venture up into the Caverns. They used to be people. They can be talked down.
 
-      Killing them drops a {tag:skinless-brain}, the one ingredient in the {tag:dreamers-draught}. The Merchant can sell them. Note what that means: the Draught has a price, and the price is that somebody chose not to talk one down.
+      Killing them leaves a {tag:skinless-corpse}; a {tag:butcher} cuts the {tag:skinless-brain} out of it, and that brain is the one ingredient in the {tag:dreamers-draught}. The Merchant can sell them. Note what that means: the Draught has a price, and the price is that somebody chose not to talk one down. ‡
 
       **Aberrants**
 

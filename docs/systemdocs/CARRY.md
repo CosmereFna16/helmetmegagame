@@ -148,7 +148,16 @@ Two things a stash does differently from a pocket, both in
 `expiresTurn` rides along from the holder's row (the earlier clock wins when
 stacks merge), and the two blind sweeps in `db/index.js` shed `RoomTag` rows
 the same way they shed `CharacterTag` ones — a stashed meal still rots.
-`tagExpiryPass.js` stays character-only: nothing festers in a crate.
+`tagExpiryPass.js` stays character-only, so no *affliction* chain fires on a
+floor. **One progression does reach a room stash**: a corpse left lying in one
+goes off after three turns (`db/lib/corpseRotPass.js`, `CORPSES.md` §3). It
+runs before the sweep and nulls the holding's `expiresTurn`, which is what
+stops the blind `deleteMany` deleting the body instead of rotting it — so the
+sweep never sees it and needs no exemption list.
+
+One trap while you are in here: `RoomTag.tagId` cascades from `Tag`, but
+`CharacterTag.tagId` is **RESTRICT**. Deleting a catalog row somebody is
+carrying throws; clear the holdings first.
 
 **Who can reach a stash.** Standing in the room's Location, and admitted to
 the room — `roomAccess.js#accessibleRooms`, the same predicate the
@@ -227,6 +236,7 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 | Room stack writes | `db/lib/tagWrites.js#addToRoomStack` / `dropRoomTag` |
 | `room:` party, balance table | `db/lib/parties.js`, `db/lib/resourceTransfer.js` |
 | Reach | `web/lib/transferReach.js` |
+| Corpses in reach (same rule) | `db/lib/corpses.js` (`CORPSES.md`) |
 | Post-commit tail | `web/lib/afterInventoryChange.js` |
 | Merged action | `web/app/(app)/character/requestActions.js#transferRequest` |
 | Undo, party-shaped moves | `web/lib/requestEffects.js#takeTagFrom` / `giveTagTo` |

@@ -33,6 +33,8 @@ import {
   KeyIcon,
   WoundIcon,
   GraveIcon,
+  CleaverIcon,
+  HeadstoneIcon,
   BirdIcon,
   EyeIcon,
   DocumentsIcon,
@@ -66,7 +68,12 @@ export const ACTION_HELP = {
   bind: "Tie someone up. They have to agree — unless they're already helpless. Once they're Bound you can loot them or march them somewhere. ‡",
   free: "Cut someone loose. Anyone standing here can do this, including a rescuer.",
   harm: "Further injure someone who is bound or incapacitated.",
-  bury: "Write the person's name letter by letter—be precise!—or they won't be buried.",
+  butcher:
+    "Cut up a body — one you're carrying, or one lying in a room you can get into here — for what's inside it. Costs nothing and takes no time, and the body is gone afterwards. It does not free their soul. ‡",
+  bury:
+    "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn. ‡",
+  engrave:
+    "Memorialize someone's name, in case you can't find their body. Frees their soul to respawn. ‡",
   bird: "Send a bird to someone. You have to guess their zone. If they are illiterate, they'll need help reading it.",
   read: "Decode a letter someone showed you. Paste the script and it turns back into words. Nobody is told you read it.",
 };
@@ -97,9 +104,24 @@ export const ACTION_SECTIONS = [
       { mode: "free", icon: KeyIcon, label: "Free" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       { mode: "move", icon: MapIcon, label: "Move Player" },
-      // Burying types a name rather than picking one: a list of the dead
-      // would answer "who is dead here?" without anyone choosing to ask.
+    ],
+  },
+  {
+    // The three body actions, together and out of "People here": a corpse is
+    // an object lying in a room, not a person standing next to you, and
+    // Butcher works on a Nekker as readily as on somebody's uncle.
+    key: "dead",
+    label: "The dead ‡",
+    actions: [
+      // Greys only on whether YOU hold the Butcher tag — a fact about your own
+      // sheet, which the metagaming rule above allows. Never on whether
+      // there's a body nearby; you find that out by opening the dialog.
+      { mode: "butcher", icon: CleaverIcon, label: "Butcher ‡", gate: "canButcher" },
       { mode: "bury", icon: GraveIcon, label: "Bury Person" },
+      // Engraving types a name rather than picking one — the reasoning that
+      // used to sit on Bury, and it applies harder here: this searches every
+      // zone, so a dropdown would list every unburied body in Ravenheart.
+      { mode: "engrave", icon: HeadstoneIcon, label: "Engrave ‡" },
     ],
   },
   {

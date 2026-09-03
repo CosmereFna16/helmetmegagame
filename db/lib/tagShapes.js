@@ -111,10 +111,81 @@ function rollTagChain(normalized) {
   return slugs;
 }
 
+// requirement.items — the INGREDIENT half of a recipe, and the first one this
+// game has ever actually enforced (docs/systemdocs/BREWING.md was explicit
+// that nothing did). Two entry shapes, because the two recipes that use it
+// want different things:
+//
+//     items: [skinless-brain]              a specific tag
+//     items: [{ group: items-corpse }]     any tag in a group
+//
+// The group form is not a convenience — it is the only thing that can work for
+// Miasma. A person's corpse tag is written at death (db/lib/corpseMint.js) and
+// never appears in docs/tags.yaml, so no authored slug could ever name one.
+// That is also why the stored column is Json rather than a Tag[] relation.
+//
+// HOLDING IT IS THE CHECK. Nothing here is consumed, no quantity moves, and
+// crafting twice off one corpse is allowed: the recipe says you need one to
+// hand, not that you use it up.
+//
+// `label` on each normalized entry is DENORMALIZED on purpose.
+// formatTagRequirement() is pure and synchronous and is called from four
+// surfaces with four different selects; resolving a group's name at render
+// time would mean widening every one of them and giving the bot an extra
+// query. The sync rewrites the label every run, which is the same freshness
+// contract every other denormalized field in the catalog has.
+function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameBySlug = null } = {}, label = "docs/tags.yaml") {
+  if (entries == null) return null;
+  if (!Array.isArray(entries)) throw new Error(`${label}: requirement.items must be a list`);
+  if (entries.length === 0) return null;
+  return entries.map((entry) => {
+    if (typeof entry === "string") {
+      return { kind: "tag", slug: entry, label: tagNameBySlug?.get(entry) ?? entry };
+    }
+    const hasTag = typeof entry?.tag === "string";
+    const hasGroup = typeof entry?.group === "string";
+    if (hasTag === hasGroup) {
+      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\` or \`group:\``);
+    }
+    if (hasTag) {
+      return { kind: "tag", slug: entry.tag, label: entry.as ?? tagNameBySlug?.get(entry.tag) ?? entry.tag };
+    }
+    // "Corpses" -> "a corpse". Graceless for some group names, which is what
+    // the `as:` override is there for.
+    const name = groupNameBySlug?.get(entry.group) ?? entry.group;
+    const derived = name.replace(/s$/i, "").toLowerCase();
+    return { kind: "group", slug: entry.group, label: entry.as ?? `a ${derived}` };
+  });
+}
+
+function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, craftable, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  const seen = new Set();
+  for (const entry of normalized) {
+    const known = entry.kind === "tag" ? tagSlugs : groupSlugs;
+    if (!known?.has(entry.slug)) {
+      throw new Error(`${label}: tag "${selfSlug}" references unknown requirement item ${entry.kind} "${entry.slug}"`);
+    }
+    const key = `${entry.kind}:${entry.slug}`;
+    if (seen.has(key)) {
+      throw new Error(`${label}: tag "${selfSlug}" lists requirement item "${entry.slug}" twice`);
+    }
+    seen.add(key);
+  }
+  // Not pedantry. The only enforcement point is the Craft path, so an `items`
+  // block on anything else would sit in the catalog looking enforced and do
+  // nothing — which is the exact failure mode this field exists to end.
+  if (!craftable) {
+    throw new Error(`${label}: tag "${selfSlug}" declares requirement.items but is not craftable — nothing would ever check it`);
+  }
+}
+
 module.exports = {
   normalizeExpiresInto,
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
   rollTagChain,
+  normalizeRequirementItems,
+  validateRequirementItems,
 };

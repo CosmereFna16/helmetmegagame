@@ -399,11 +399,60 @@ export const SECTIONS = {
             (effect.targetName ?? "—")
           )}
         </Line>
+        <Line label="Body">{effect.corpseTagName ?? "—"}</Line>
+        <Line label="Taken from">{effect.source?.name ?? "—"}</Line>
         <p className="text-xs text-muted">
           The body is out of the world — nobody can loot or drag it — and the Cursed role has been
           lifted off the dead player&apos;s Discord account, so they can roll a full character again.
-          Undo raises the body but does <strong>not</strong> re-curse them; re-add the role in
-          Discord if you want that back.
+          Burying spends the filer&apos;s Move and consumes the corpse tag. Undo raises the body and
+          puts the corpse back where it was taken from, but does <strong>not</strong> re-curse them
+          and does not give the Move back; re-add the role in Discord if you want that back. ‡
+        </p>
+      </>
+    ),
+  },
+
+  BUTCHER_CORPSE: {
+    heading: "Butcher ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Body">{effect.corpseTagName ?? "—"}</Line>
+        <Line label="Taken from">{effect.source?.name ?? "—"}</Line>
+        <Line label="Made">{effect.yieldTagName ?? "—"}</Line>
+        {effect.human && effect.deadCharacterId ? (
+          <Line label="Was">
+            <CharacterLink characterId={effect.deadCharacterId} name={effect.deadName ?? "a person"} isGm />
+          </Line>
+        ) : null}
+        <p className="text-xs text-muted">
+          Free — no ⬢ and no Move — and the body is destroyed. Note that butchering someone does
+          <strong> not</strong> free their soul: the Cursed role stays on the dead player&apos;s
+          account, because nobody buried them. Engrave is the way out of that. Undo takes the yield
+          back and puts the body where it came from. ‡
+        </p>
+      </>
+    ),
+  },
+
+  ENGRAVE_HEADSTONE: {
+    heading: "Engrave ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Memorialised">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <Line label="Spent">{`${effect.resourcesSpent ?? 0} ⬢`}</Line>
+        <Line label="Left behind">{effect.headstoneTagName ?? "—"}</Line>
+        <p className="text-xs text-muted">
+          A stone instead of a body, for someone whose corpse nobody could find. It frees the soul
+          exactly as burying does — the Cursed role is lifted — and costs the filer their Move as
+          well as the ⬢. The target is <strong>typed</strong>, and matched game-wide rather than in
+          one zone, so check the name is the person they meant. Undo refunds the ⬢, takes the stone
+          back and reopens the grave, but does <strong>not</strong> re-curse them. ‡
         </p>
       </>
     ),

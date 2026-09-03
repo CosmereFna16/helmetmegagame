@@ -93,6 +93,10 @@ function summarize(request) {
       }`;
     case "BURY_CHARACTER":
       return `Buried ${e.targetName ?? "?"} — curse lifted`;
+    case "BUTCHER_CORPSE":
+      return `Butchered ${e.corpseTagName ?? "a body"} → ${e.yieldTagName ?? "nothing"}`;
+    case "ENGRAVE_HEADSTONE":
+      return `Engraved ${e.targetName ?? "?"} — curse lifted, ${e.resourcesSpent ?? 0} ⬢`;
     case "BIRD_MESSAGE":
       return `${e.delivered ? "Wrote" : "Missed"} ${e.recipientName ?? "?"} in ${e.guessedZoneName ?? "?"}`;
     case "DEPOT_BUY":

@@ -1229,6 +1229,7 @@ zones:
             starting_tags:
               - Melee (Basic)
               - Ranged (Basic)
+              - Butcher
               - Dagger
               - Battle Axe
               - Mail Shirt

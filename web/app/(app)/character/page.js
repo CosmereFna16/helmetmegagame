@@ -3,6 +3,8 @@ import { peopleHere } from "@/lib/peopleHere";
 import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/lib/lessons";
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
 import { accessibleRooms } from "@lifeweb/db/lib/roomAccess";
+import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { BUTCHER_SLUG } from "@lifeweb/db/lib/constants";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
@@ -407,6 +409,17 @@ export default async function CharacterPage() {
     resources: r.resources,
     tags: r.tags.map((rt) => ({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity, stackable: rt.tag.stackable })),
   }));
+  // Every body in reach, for Butcher and Bury (docs/systemdocs/CORPSES.md).
+  // Handed the ALREADY-FILTERED room list so it costs no second round-trip and
+  // — more importantly — so the menu is built from exactly the rooms the
+  // server-side re-check will use. A locked door is not a scouting target.
+  const corpses = await corpsesInReach(prisma, character, {
+    rooms: accessibleRooms(roomsHere, heldSlugsForRooms),
+  });
+  // A fact about your own sheet, so the button may grey on it. Resolved here
+  // rather than in the client so no slug matching reaches the browser.
+  const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
+
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
   const carry = carryStatus(character, gameConfig);
@@ -730,6 +743,8 @@ export default async function CharacterPage() {
       hasCustomAvatar={Boolean(character.avatarMimeType)}
       healTargets={healTargets}
       healParties={healParties}
+      corpses={corpses}
+      canButcher={canButcher}
       lootTargets={lootTargets}
       moveTargets={moveTargets}
       moveLocations={moveLocations}

@@ -20,6 +20,7 @@ const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = re
 const { applyPendingInvites } = require("./threadInvites");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { settleCarry, deliverCarryDrop } = require("./carry");
+const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween } = require("./locationGraph");
 const { aliasSubject } = require("./concealedIdentity");
@@ -186,6 +187,14 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
 
   await syncCharacterRoomAccess(prisma, { ...character, locationId: toLocationId }).catch((err) =>
     console.error(`Move: room access sync failed for ${characterId}:`, err.message ?? err),
+  );
+
+  // Any body this character was carrying has just moved with them, and NOTHING
+  // WROTE A TAG to say so — only their own locationId changed. This is the one
+  // hook the whole corpse-as-handle design depends on; a push from a tag writer
+  // could never catch it. See db/lib/corpseFollow.js.
+  await reconcileCorpses(prisma).catch((err) =>
+    console.error(`Move: corpse follow failed for ${characterId}:`, err.message ?? err),
   );
   if (carry?.drop) {
     await deliverCarryDrop(prisma, carry).catch((err) =>

@@ -535,13 +535,20 @@ While cursed, a player may still roll a new character — but only as a
 enforced by `isRoleSelectable`/`computeBudget`, unchanged by this — only
 where the `cursed` boolean they're fed comes from changed).
 
-**Players lift it themselves, by burying the body.** The `BURY_CHARACTER`
-request (`REQUESTS.md` §5d) is the app-side uncurse: anyone standing where a
-corpse lies types that character's first name, and the request removes the role
-from the dead player's Discord account after its transaction commits. That is
-the fiction the setting has always carried — `docs/documents.yaml`'s Respawning
-entry says to wait until your body is buried, and the Mortus role exists to do
-the burying — finally wired to something. A GM can still do it by hand from
+**Players lift it themselves, by burying the body — or, failing that, by
+carving a stone.** Two requests now do it (`REQUESTS.md` §5d,
+[`CORPSES.md`](CORPSES.md)). `BURY_CHARACTER` needs the dead character's actual
+**corpse tag**, held or lying in a room the filer can reach, and spends their
+Move; `ENGRAVE_HEADSTONE` is the answer to a body nobody can find, costing 4 ⬢
+and a Move and matching a **typed** first name game-wide. Either one removes the
+role from the dead player's Discord account after its transaction commits. That
+is the fiction the setting has always carried — `docs/documents.yaml`'s
+Respawning entry says to wait until your body is buried, and the Mortus role
+exists to do the burying — finally wired to something.
+
+**Butchering a corpse does not lift the curse.** Destroying a body is not
+burying it, and that is exactly why Engrave exists: somebody whose corpse was
+cut up and scattered has no body left to bury, and a stone is the only way out. A GM can still do it by hand from
 Discord's member panel; `/gm/dev/characters/[characterId]` shows a read-only
 Cursed status line, with no checkbox to toggle it from the app.
 
@@ -617,7 +624,8 @@ character.
 
 A dead character is not deleted, and their `CharacterTag` and `⬢` stay on the
 row — until somebody buries them. `Character.buriedAt`, set by a
-`BURY_CHARACTER` request, takes the body out of the world: it stops being
+`BURY_CHARACTER` (or `ENGRAVE_HEADSTONE`) request, takes the body out of the
+world: it stops being
 lootable, draggable and bindable, and it drops out of every zone target menu.
 Revive clears it, so a revived character is never a live person marked buried. Anyone standing in the zone the character died in can `TRANSFER_TAG`
 or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift `tradeable` tags or ⬢

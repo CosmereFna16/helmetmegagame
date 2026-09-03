@@ -16,6 +16,19 @@ const DISAPPOINTED_SLUG = "disappointed";
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
 
+// Corpses (docs/systemdocs/CORPSES.md). CORPSE_GROUP_SLUG is the whole
+// discriminator on the catalog side — the three monster corpses live in that
+// group, and so does every "{name}'s Corpse" a death writes. BUTCHER_SLUG
+// gates the Butcher button; ENGRAVE_RESOURCE_COST is what carving a stone for
+// someone whose body you can't find costs.
+const CORPSE_GROUP_SLUG = "items-corpse";
+const BUTCHER_SLUG = "butcher";
+const HUMAN_FLESH_SLUG = "human-flesh";
+const ENGRAVE_RESOURCE_COST = 4;
+// How many turns a person's corpse stays fresh before it turns. Monster
+// corpses never rot — only a person stinks.
+const CORPSE_ROT_TURNS = 3;
+
 // The Teaching tree (docs/systemdocs/LESSONS.md). Holding Teaching lets you
 // run a lesson; Lecturing widens one Routine to LECTURE_CAPACITY learners;
 // a Drill Instructor's students succeed on a 4 when the skill's group is
@@ -69,6 +82,11 @@ module.exports = {
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
   OVERBURDENED_SLUG,
+  CORPSE_GROUP_SLUG,
+  BUTCHER_SLUG,
+  HUMAN_FLESH_SLUG,
+  ENGRAVE_RESOURCE_COST,
+  CORPSE_ROT_TURNS,
   TEACHING_SLUG,
   LECTURING_SLUG,
   DRILL_INSTRUCTOR_SLUG,

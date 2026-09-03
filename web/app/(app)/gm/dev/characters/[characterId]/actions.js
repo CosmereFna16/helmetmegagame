@@ -30,6 +30,7 @@ import {
   applyTagOpsInTx,
   planDiscordEffects,
 } from "@/lib/characterWrite";
+import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
@@ -273,6 +274,17 @@ async function reviveCharacterImpl({ characterId }) {
     // missing from every zone target menu (BURY_CHARACTER, REQUESTS.md §5d).
     data: { status: "ALIVE", buriedAt: null },
   });
+
+  // And the body goes too (docs/systemdocs/CORPSES.md). The Tag row cascades
+  // from Character, but nothing deletes a Character here — so without this a
+  // walking, living person leaves a corpse behind that anyone could pick up,
+  // and corpseFollow would keep dragging their sheet to wherever somebody
+  // carried it. deleteCorpseFor clears the holdings first, which it has to:
+  // CharacterTag.tagId is RESTRICT, so deleting a corpse someone is carrying
+  // throws instead.
+  await deleteCorpseFor(prisma, characterId).catch((err) =>
+    console.error(`Revive: failed to clear the corpse for ${characterId}:`, err),
+  );
 
   await audit(session, "gm_character_revived", characterId, { name: character.name });
   notifyCharacter(session, character, `${character.name} has been revived.`);

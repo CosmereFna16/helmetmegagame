@@ -37,6 +37,7 @@ import Select from "./Select";
 import ChipText from "./ChipText";
 import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
 import ReadDialog from "./ReadDialog";
+import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
 import { useTags } from "./TagsProvider";
 import { heldSlugsOf } from "@/lib/consumeGrants";
@@ -57,6 +58,8 @@ import {
   freeCharacterRequest,
   harmCharacterRequest,
   buryCharacterRequest,
+  butcherCorpseRequest,
+  engraveHeadstoneRequest,
   birdMessageRequest,
 } from "../(app)/character/requestActions";
 
@@ -261,6 +264,30 @@ function QuantityField({ value, onChange, max, label }) {
 
 // "Nobody qualifies" line — never used to hide the action itself; see
 // ActionGrid.js on why a greyed button would be its own leak.
+// A corpse is identified by its tag AND where it stands: the same Nekker
+// Corpse row can be lying in two different rooms, and picking "that one" has
+// to mean one of them.
+function corpseIdOf(corpse) {
+  return `${corpse.tagId}@${corpse.sourceKey}`;
+}
+
+// What butchering this one gives you, previewed before you commit. Client-side
+// off the shared MONSTER_YIELDS map, which is why db/lib/corpses.js keeps its
+// pure exports free of prisma — importing anything prisma-shaped into a
+// "use client" module drags the barrel into the browser bundle.
+function yieldLabel(corpse) {
+  return CORPSE_YIELD_NAMES[corpse.yieldSlug] ?? "something";
+}
+
+// Display names for the four yields, kept here rather than fetched: the
+// dialog needs a word, not a catalog row.
+const CORPSE_YIELD_NAMES = {
+  "nekker-pheromones": "Nekker Pheromones",
+  "graga-sac": "a Graga Sac",
+  "skinless-brain": "a Skinless Brain",
+  "human-flesh": "Human Flesh",
+};
+
 function NobodyHere({ children }) {
   return <p className="text-sm text-muted">{children}</p>;
 }
@@ -313,6 +340,12 @@ export default function RequestActionsProvider({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  // Corpses (CORPSES.md): every body in reach — yours and the ones lying in
+  // rooms here — built once server-side by db/lib/corpses.js#corpsesInReach so
+  // the menu and the two server re-checks can't disagree about what you can
+  // touch. canButcher is just "do you hold the Butcher tag".
+  corpses = [],
+  canButcher = false,
   // The Bird. birdTargets is EVERY character, alive or dead, on purpose.
   hasBird = false,
   isLiterate = false,
@@ -341,9 +374,13 @@ export default function RequestActionsProvider({
   // Move Player's destination.
   const [locationId, setLocationId] = useState("");
   const [lethal, setLethal] = useState(false);
-  // Bury types its target instead of picking it — a dropdown would be a
-  // list of the dead (REQUESTS.md §5d).
-  const [buryName, setBuryName] = useState("");
+  // Engrave types its target instead of picking it — a dropdown would be a
+  // list of the dead, and this one searches every zone (REQUESTS.md §5d).
+  // This input used to belong to Bury, which now picks a corpse instead.
+  const [engraveName, setEngraveName] = useState("");
+  // Butcher and Bury both act on one corpse, identified by BOTH its tag and
+  // where it is standing — the same body can be in two places for two people.
+  const [corpseKey, setCorpseKey] = useState("");
   const [birdBody, setBirdBody] = useState("");
   const [birdQuery, setBirdQuery] = useState("");
   const [error, setError] = useState(null);
@@ -496,7 +533,8 @@ export default function RequestActionsProvider({
       setZoneId("");
       setLocationId("");
       setLethal(false);
-      setBuryName("");
+      setEngraveName("");
+      setCorpseKey("");
       setBirdBody("");
       setBirdQuery("");
       setError(null);
@@ -631,8 +669,16 @@ export default function RequestActionsProvider({
           lethal,
           reason,
         });
-      case "bury":
-        return buryCharacterRequest({ firstName: buryName, reason });
+      case "bury": {
+        const corpse = corpses.find((c) => corpseIdOf(c) === corpseKey);
+        return buryCharacterRequest({ tagId: corpse?.tagId, sourceKey: corpse?.sourceKey, reason });
+      }
+      case "butcher": {
+        const corpse = corpses.find((c) => corpseIdOf(c) === corpseKey);
+        return butcherCorpseRequest({ tagId: corpse?.tagId, sourceKey: corpse?.sourceKey, reason });
+      }
+      case "engrave":
+        return engraveHeadstoneRequest({ firstName: engraveName, reason });
       case "bird":
         // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
@@ -671,7 +717,10 @@ export default function RequestActionsProvider({
       case "harm":
         return Boolean(targetId && (tagId || lethal));
       case "bury":
-        return Boolean(buryName.trim());
+      case "butcher":
+        return Boolean(corpseKey);
+      case "engrave":
+        return Boolean(engraveName.trim());
       case "craft": {
         if (projectId) {
           const project = craftProjects.find((p) => p.id === projectId);
@@ -704,6 +753,7 @@ export default function RequestActionsProvider({
       hasBird,
       isLiterate,
       canSendBirdToday: !birdSentToday,
+      canButcher,
     }),
     [
       craftable,
@@ -716,6 +766,7 @@ export default function RequestActionsProvider({
       hasBird,
       isLiterate,
       birdSentToday,
+      canButcher,
     ],
   );
 
@@ -1158,14 +1209,65 @@ export default function RequestActionsProvider({
               </>
             )}
 
-            {mode === "bury" && (
+            {(mode === "bury" || mode === "butcher") && (
+              <>
+                {/* Butcher takes anything; Bury needs a person. A Nekker has
+                no soul to free, so it isn't offered here rather than being
+                offered and refused. */}
+                {(() => {
+                  const list = mode === "bury" ? corpses.filter((c) => c.human) : corpses;
+                  if (list.length === 0) {
+                    return (
+                      <NobodyHere>
+                        {mode === "bury"
+                          ? "You aren’t holding a body, and there’s none lying anywhere you can reach. ‡"
+                          : "There’s nothing here to cut up. ‡"}
+                      </NobodyHere>
+                    );
+                  }
+                  const chosen = list.find((c) => corpseIdOf(c) === corpseKey);
+                  return (
+                    <>
+                      <label className="field">
+                        <span className="field-label">Whose body? ‡</span>
+                        <Select
+                          value={corpseKey}
+                          onChange={(e) => setCorpseKey(e.target.value)}
+                          required
+                        >
+                          <option value="">Pick a body…</option>
+                          {list.map((c) => (
+                            <option key={corpseIdOf(c)} value={corpseIdOf(c)}>
+                              {`${c.tagName} — ${c.source.name}`}
+                            </option>
+                          ))}
+                        </Select>
+                      </label>
+                      {mode === "butcher" && chosen ? (
+                        <p className="text-xs text-muted">
+                          Cutting this one up gives you {yieldLabel(chosen)}. The body is gone
+                          afterwards, and their soul stays where it is. ‡
+                        </p>
+                      ) : null}
+                      {mode === "bury" ? (
+                        <p className="text-xs text-muted">
+                          This takes your turn, and it frees them to respawn. ‡
+                        </p>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </>
+            )}
+
+            {mode === "engrave" && (
               <>
                 <label className="field">
-                  <span className="field-label">Whose body?</span>
+                  <span className="field-label">Whose name? ‡</span>
                   <input
                     type="text"
-                    value={buryName}
-                    onChange={(e) => setBuryName(e.target.value)}
+                    value={engraveName}
+                    onChange={(e) => setEngraveName(e.target.value)}
                     placeholder="First name"
                     autoComplete="off"
                     maxLength={24}
@@ -1173,11 +1275,12 @@ export default function RequestActionsProvider({
                   />
                 </label>
                 {/* No target list, and no "nobody here" line either — both would
-                answer "who is dead in this room?" without anyone choosing to
-                ask. You type a name and find out whether you were right. */}
+                answer "who is dead?" without anyone choosing to ask, and this
+                one searches every zone rather than just this room. You type a
+                name and find out whether you were right. */}
                 <p className="text-xs text-muted">
-                  Write the person&apos;s name letter by letter&mdash;be
-                  precise!&mdash;or they won&apos;t be buried.
+                  Write the person&apos;s name letter by letter&mdash;be precise!&mdash;or the
+                  wrong soul goes free. This costs {ENGRAVE_RESOURCE_COST} ⬢ and your turn. ‡
                 </p>
               </>
             )}

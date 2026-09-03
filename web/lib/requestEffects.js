@@ -563,11 +563,65 @@ export const REQUEST_EFFECTS = {
   BURY_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {
-      const { targetCharacterId, targetName } = request.effect;
+      const { targetCharacterId, targetName, corpseTagId, corpseTagName, source } = request.effect;
       if (targetCharacterId) {
         await tx.character.update({ where: { id: targetCharacterId }, data: { buriedAt: null } });
       }
-      return `${targetName ?? "The body"} is out of the ground and lootable again. The Cursed role is NOT restored — re-add it in Discord if you want the curse back.`;
+      // Burying consumes the corpse tag now, so an Undo has to put the body
+      // back where it was taken FROM (CORPSES.md). Guarded on corpseTagId:
+      // rows filed before corpses existed carry neither field and still undo
+      // cleanly. The auto-filed Routine is deliberately left spent, which is
+      // what ADD_TAG's undo already does for a craft.
+      if (corpseTagId && source) {
+        await giveTagTo(tx, source, { tagId: corpseTagId, quantity: 1, source: "EVENT", expiresTurn: null });
+      }
+      const body = corpseTagName ? ` ${corpseTagName} is back in ${source?.name ?? "their hands"}.` : "";
+      return `${targetName ?? "The body"} is out of the ground and lootable again.${body} The Cursed role is NOT restored — re-add it in Discord if you want the curse back. Their Move stays spent.`;
+    },
+  },
+
+  // Butchering destroys a body and makes an organ out of it, so the inverse is
+  // a true inverse: the yield comes off the sheet and the corpse goes back to
+  // whichever party it was taken from. Nothing to edit — a partial edit would
+  // leave a half-cut body.
+  BUTCHER_CORPSE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { corpseTagId, corpseTagName, source, yieldTagId, yieldTagName, yieldExpiresTurn } =
+        request.effect;
+      if (yieldTagId) await dropCharacterTag(tx, request.characterId, yieldTagId, 1);
+      if (corpseTagId && source) {
+        await giveTagTo(tx, source, {
+          tagId: corpseTagId,
+          quantity: 1,
+          source: "EVENT",
+          expiresTurn: yieldExpiresTurn ?? null,
+        });
+      }
+      return `Took ${yieldTagName ?? "the yield"} back, and ${corpseTagName ?? "the body"} is in ${source?.name ?? "their hands"} again.`;
+    },
+  },
+
+  // Engraving is reversible in everything except the part that left the
+  // database: the ⬢ come back, the stone comes off the sheet, the grave is
+  // reopened — but the Cursed role was lifted by a REST call outside the
+  // transaction and cannot be re-granted from in here. Same honesty
+  // BIRD_MESSAGE's undo practises, and for the same reason.
+  ENGRAVE_HEADSTONE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, resourcesSpent, headstoneTagId, headstoneTagName } =
+        request.effect;
+      if (targetCharacterId) {
+        await tx.character.update({ where: { id: targetCharacterId }, data: { buriedAt: null } });
+      }
+      if (headstoneTagId) await dropCharacterTag(tx, request.characterId, headstoneTagId, 1);
+      if (resourcesSpent) {
+        await creditResources(tx, { kind: "character", id: request.characterId }, resourcesSpent);
+      }
+      return `${headstoneTagName ?? "The headstone"} is gone and ${resourcesSpent ?? 0} ⬢ are back. ${
+        targetName ?? "They"
+      } count as unburied again — but the Cursed role is NOT restored; re-add it in Discord if you want the curse back. Their Move stays spent.`;
     },
   },
 

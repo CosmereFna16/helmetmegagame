@@ -3695,7 +3695,70 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    sellablePrice: 10
+    # 40, up from 10, and now the second-most-valuable thing in the game
+    # behind the one brew that needs it. The old price sat it just above a
+    # Graga Sac, which read the Skinless as a slightly harder monster; they
+    # are not. They are the only ingredient in the catalog that has to be
+    # talked out of being a person first, and the number is the game saying
+    # so out loud. It is also the only enforced ingredient beside a corpse
+    # (Tag.requirementItems), so it can no longer be hand-waved.
+    sellablePrice: 40
+
+  # --- Corpses -----------------------------------------------------------
+  # Bodies as real, carryable objects. These three are what a monster leaves;
+  # a person's corpse is written per-character at death instead
+  # (db/lib/corpseMint.js), into this same group. See CORPSES.md.
+  #
+  # Every one of them: `visible: true`, because you are visibly hauling a body
+  # — the exact case the `visible` rule at the top of this file names.
+  # `stackable: false`, because one body is one body, and the non-stackable pin
+  # in db/lib/tagWrites.js is also what stops two people each holding "the"
+  # corpse. `removable: false`, because Butcher and Bury are the only two ways
+  # a body leaves the world — it must not be quietly binnable from Destroy.
+  #
+  # Monster corpses never rot: no durationTurns, so nothing ever fires
+  # db/lib/corpseRotPass.js at them. Only a person stinks.
+  nekker-corpse:
+    name: Nekker Corpse
+    category: items
+    group: items-corpse
+    description: "A spindly, hungry creature that roams in groups. It is often seen on the surface after battles, eating the corpses. Can be butchered to produce {tag:nekker-pheromones}. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: false
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    sellable: false
+
+  graga-corpse:
+    name: Graga Corpse
+    category: items
+    group: items-corpse
+    description: "A bloated, off-green, hulking humanoid. Its legs barely support it. Can be butchered to produce {tag:graga-sac}. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: false
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    sellable: false
+
+  skinless-corpse:
+    name: Skinless Corpse
+    category: items
+    group: items-corpse
+    description: "A pink humanoid, often carrying weapons. They stalk the depths in service of their masters. Can be butchered to produce {tag:skinless-brain}. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: false
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+    sellable: false
 
   saltpeter:
     name: Saltpeter
@@ -3877,7 +3940,9 @@ tags:
       skills: [artist]
       gambit: false
     sellable: true
-    sellablePrice: 60
+    # Nerfed 20% from 60. Over its 4 turns that is 12 ⬢/turn, still the best
+    # per-turn rate a craftable pays, just no longer runaway.
+    sellablePrice: 48
 
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
@@ -4900,6 +4965,36 @@ tags:
   # addTagRequestImpl accept a player cooking one. The per-Move batch caps
   # (4 Fine, 3 Lavish) are a GM adjudication reference, like every other
   # requirement block — see docs/documents.yaml's Meals & Kitchens document.
+  # Cut off a person with the Butcher button (docs/systemdocs/CORPSES.md).
+  # Consumed exactly as a Fine Meal is — it feeds you and it settles the turn's
+  # hunger — which is the whole joke: it is, mechanically, dinner.
+  #
+  # NOT sellable, and that is a balance decision rather than squeamishness.
+  # Butchering is free (no ⬢, no Move) and every single death mints a corpse,
+  # so a priced Human Flesh would be a code-enforced ⬢ faucet hanging off a
+  # free action. `tradeable: true` still lets players sell it to each other for
+  # whatever they can get, which is the right market for it anyway.
+  #
+  # visible: false — this one is on Bascinet's instruction, and it is also
+  # right by the catalog rule: a wrapped parcel of meat is not something a
+  # stranger looking you over can identify.
+  human-flesh:
+    name: Human Flesh
+    category: items
+    group: items-food
+    description: "Meat, cut from a person. It keeps you alive as well as anything else does. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - ate-meal
+    sellable: false
+
   fine-meal:
     name: Fine Meal
     category: items
@@ -5915,6 +6010,12 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
+      # ANY corpse, which is why this names a group rather than a slug: a
+      # person's corpse tag is written at death and is never in this file, so
+      # nothing authored here could name one. Held, not consumed — you bottle
+      # the smell, you don't use the body up.
+      items:
+        - group: items-corpse
     sellable: true
     sellablePrice: 5
 
@@ -6333,7 +6434,7 @@ tags:
     name: Nekker Pheromones
     category: items
     group: items-drink
-    description: "Wrung out of a nekker. Grants {tag:pheromones}."
+    description: "Wrung out of a dead nekker. Grants {tag:pheromones}. ‡"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6341,15 +6442,9 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     removable: true
-    craftable: true
     consumable: true
     consumesInto:
       - pheromones
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [brewing-basic]
-      gambit: false
     sellable: true
     sellablePrice: 5
 
@@ -6444,8 +6539,12 @@ tags:
       turnsCost: 1
       resourceCost: 6
       skills: [brewing-skilled]
+      # Enforced, and not consumed — you still have the brain afterwards.
+      items: [skinless-brain]
     sellable: true
-    sellablePrice: 16
+    # 60, up from 16, and deliberately above the Brain's own 40: the whole
+    # point of the recipe is that the ingredient is the cheap part.
+    sellablePrice: 60
 
   forgiveness:
     name: Forgiveness

@@ -2054,6 +2054,32 @@ desires:
       anyTags: [saint]
     oncePerLife: true
 
+  # Eating one. Two entries rather than one, because the two tags want
+  # genuinely different things out of it and pay differently for it.
+  #
+  # Cruel is about the act — you did it because it was the worst thing you
+  # could do to a body — so it repeats on the ordinary tier-2 cooldown. Glutton
+  # is about the appetite, and appetite has a first time exactly once, which is
+  # what oncePerLife is for. It sits in `food` as well as `cruelty` so a
+  # Glutton's bottom slot (locked to food Desires, docs/tags.yaml) can hold it.
+  #
+  # Both need {tag:human-flesh}, which only the Butcher button produces, so
+  # the real gate is upstream of `requires` and neither entry restates it.
+  eat-human-flesh:
+    name: Eat {tag:human-flesh} ‡
+    tier: 2
+    families: [cruelty, food]
+    requires:
+      anyTags: [cruel]
+
+  feast-on-human-flesh:
+    name: Discover what a person tastes like ‡
+    tier: 4
+    families: [food, cruelty]
+    requires:
+      anyTags: [glutton]
+    oncePerLife: true
+
   # The one allTags gate in the file: butchering a person takes the stomach
   # AND the trade, so either tag alone is not enough.
   butcher-a-human:

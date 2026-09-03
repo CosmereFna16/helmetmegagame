@@ -8,6 +8,7 @@
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
+const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
@@ -25,6 +26,10 @@ const { cancelOffersForCharacter } = require("./lessons");
 // transcript. `content` is the archive line; `turn` pins the archive row to a
 // specific turn (the death pass hands the closing turn) rather than whatever
 // happens to be open.
+//
+// Returns `corpse` alongside `claimed` — { tag, room } — so a caller that owes
+// Discord an announcement knows which Room the body landed in. `room` is null
+// when it stayed on the dead sheet for want of a public room to fall in.
 async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE" } = {}) {
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
@@ -46,6 +51,20 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     .updateMany({ where: { characterId: character.id, status: "ACTIVE" }, data: { status: "CANCELLED" } })
     .catch((err) => console.error(`Failed to cancel craft projects on death for ${character.id}:`, err));
 
+  // The body itself, as a real object: one Tag row, dropped into a random
+  // public Room at the Location they fell in (docs/systemdocs/CORPSES.md). It
+  // is a HANDLE to this sheet, not a container — nothing moves off the row, so
+  // LOOT_CHARACTER is unaffected — but from here on the sheet follows the tag,
+  // which is what makes a body draggable by carrying it.
+  //
+  // Wrapped, and deliberately after the claim: a catalog that has not been
+  // synced yet must not turn a death into a throw. A missing corpse is
+  // recoverable by hand; a half-applied death is not.
+  const corpse = await mintCorpse(prisma, character, turn).catch((err) => {
+    console.error(`Failed to mint a corpse for ${character.id}:`, err);
+    return { tag: null, room: null };
+  });
+
   // recordArchiveEvent already swallows its own failures (a lost transcript
   // line must never abort a death), so no catch here.
   await recordArchiveEvent(prisma, {
@@ -56,7 +75,7 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     content: content ?? `${character.name} died.`,
   });
 
-  return { claimed: true };
+  return { claimed: true, corpse };
 }
 
 module.exports = { applyDeathToRow };

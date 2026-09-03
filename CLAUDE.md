@@ -217,6 +217,7 @@ you pick the right doc — they are never enough to change code with.
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
 | [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
+| [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |

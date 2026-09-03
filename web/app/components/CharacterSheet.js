@@ -66,6 +66,8 @@ export default function CharacterSheet({
   // Everyone and everything in this character's zone worth acting on, built
   // once in character/page.js so the Actions dialogs can't disagree about who
   // is standing here. Empty on someone else's sheet.
+  corpses = [],
+  canButcher = false,
   lootTargets = [],
   moveTargets = [],
   moveLocations = [],
@@ -141,6 +143,8 @@ export default function CharacterSheet({
             birdZones={birdZones}
             healTargets={healTargets}
             healParties={healParties}
+            corpses={corpses}
+            canButcher={canButcher}
             lootTargets={lootTargets}
             moveTargets={moveTargets}
             moveLocations={moveLocations}

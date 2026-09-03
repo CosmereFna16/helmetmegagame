@@ -415,6 +415,30 @@ export function KeyIcon(props) {
 }
 
 
+// Butcher — a cleaver: a broad rectangular blade with a short handle off its
+// heel. Squared-off and blade-heavy so it doesn't read as the hammer or the
+// sword at 16px.
+export function CleaverIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 4.5h11v9.5H4z" strokeLinejoin="round" />
+      <path d="M15 6.5h3.5M18.5 6.5V19" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Engrave — the same headstone as Bury, but standing free of the ground and
+// carrying lettering. The two sit side by side in the action grid, so what
+// separates them has to be visible at 16px: no ground line, three rules.
+export function HeadstoneIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M6.5 21V8.5a5.5 5.5 0 0 1 11 0V21" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.5 11h5M9.5 14h5M9.5 17h3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // Bury — a headstone in the ground. The rounded top and the ground line read
 // as a grave at 16px, where a cross alone would read as a plus sign.
 export function GraveIcon(props) {
