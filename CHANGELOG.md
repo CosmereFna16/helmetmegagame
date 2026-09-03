@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · A key weighs nothing: 0 becomes a real rung on the weight ladder
+
+✎ Keys, letters, badges, spectacles and coins weigh nothing now instead of half a pound each — 0 is a real rung on the weight ladder
+
 ## 2026-09-03 · Devoted Follower needs somebody to follow
 
 ✚ Night Blind and Blind can no longer be taken together — curing Blind already leaves you Night Blind  
