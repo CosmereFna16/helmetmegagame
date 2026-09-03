@@ -256,10 +256,18 @@ function confirmLines(action, teacherName, learnerName) {
 
 // Claims the offer and files both Moves in one transaction. Returns
 // { ok: true, dms: [{ discordUserId, content }], line } — `line` is what the
-// responder's own DM gets edited to say — or { ok: false, reason }. A
-// failure past the claim leaves the offer CANCELLED, never PENDING: the
-// initiator is told, and nobody can click a dead button twice.
+// responder's own DM gets edited to say — or { ok: false, reason }.
+//
+// Order matters. A stale click (the offer already ACCEPTED, DECLINED or
+// EXPIRED) is answered "gone" before anything else is looked at: the checks
+// below would otherwise see the teacher's own lesson Routine as "no room"
+// and cancel a lesson that was already under way. A failure BEFORE the claim
+// cancels the offer only while it is still PENDING; a failure AFTER the
+// claim is the claimant's own and cancels the ACCEPTED row it just made.
 async function acceptLesson(prisma, offer, responder) {
+  const fresh = await prisma.offer.findUnique({ where: { id: offer.id } });
+  if (!fresh || fresh.status !== "PENDING") return { ok: false, reason: GONE, dms: [] };
+
   const { turn, locked } = await openTurnAndWindow(prisma);
   if (!turn || turn.id !== offer.turnId) return await cancelWith(prisma, offer, "That offer was for a turn that's over. ‡");
   if (locked) return await cancelWith(prisma, offer, "Moves are locked for this turn. ‡");
@@ -378,20 +386,22 @@ async function acceptLesson(prisma, offer, responder) {
       ].filter((dm) => dm.discordUserId),
     };
   } catch (err) {
-    if (err instanceof LessonRefused) return await cancelWith(prisma, offer, err.message);
-    if (err?.code === "P2002") return await cancelWith(prisma, offer, LOCKED_IN);
+    if (err instanceof LessonRefused) return await cancelWith(prisma, offer, err.message, { claimed: true });
+    if (err?.code === "P2002") return await cancelWith(prisma, offer, LOCKED_IN, { claimed: true });
     throw err;
   }
 }
 
 class LessonRefused extends Error {}
 
-// Marks the offer CANCELLED (from PENDING or ACCEPTED) and hands back the
-// reason plus a DM for the initiator, so a refusal at accept time doesn't
-// leave them waiting on an answer that already came.
-async function cancelWith(prisma, offer, reason) {
+// Marks the offer CANCELLED and hands back the reason plus a DM for the
+// initiator, so a refusal at accept time doesn't leave them waiting on an
+// answer that already came. Before the claim only a PENDING row may be
+// cancelled — a concurrent click that already accepted must not be undone
+// by a slower one. `claimed` is the claimant's own post-claim failure.
+async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
   await prisma.offer.updateMany({
-    where: { id: offer.id, status: { in: ["PENDING", "ACCEPTED"] } },
+    where: { id: offer.id, status: claimed ? "ACCEPTED" : "PENDING" },
     data: { status: "CANCELLED", respondedAt: new Date() },
   });
   const initiator = await prisma.character.findUnique({
