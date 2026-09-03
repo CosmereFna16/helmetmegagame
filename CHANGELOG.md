@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · Mute and Stutter cannot be picked together, nor Dwarf and Giant
+
+Mute now conflicts with Stutter, the way Deaf conflicts with Hard of Hearing  
+Dwarf and Giant now block each other in the character creator
+
 ## 2026-09-03 · You can look someone over without saying a word to them
 
 ✚ A Look at button on the character sheet. Pick anybody standing where you are and see what a bystander could see: their face, their open injuries, whatever they are carrying openly  
