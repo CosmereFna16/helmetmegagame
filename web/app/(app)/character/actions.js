@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, seatZoneIdFor } from "@lifeweb/db";
+import { prisma, seatZoneIdFor, loadForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
@@ -45,9 +45,13 @@ export async function updateCharacterProfile(_prevState, formData) {
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
   // The conceal toggle. No Discord side effect: the proxy pipeline reads
-  // Character.concealed at send time (PROXYING.md).
-  const concealed = formData.get("concealed") === "on";
-  const avatar = formData.get("avatar");
+  // Character.concealed at send time (PROXYING.md). A forced identity
+  // (Tag.forcedName — Apex Form's "Beast") locks it off: the switch renders
+  // disabled, and this is the lock behind it. The same tag fixes the face, so
+  // an upload is dropped too.
+  const forcedName = await loadForcedName(prisma, character.id);
+  const concealed = !forcedName && formData.get("concealed") === "on";
+  const avatar = forcedName ? null : formData.get("avatar");
 
   // Age is set once and then fixed. The input renders `disabled` after the
   // first save so it submits nothing, but that is only the UI half — this is
@@ -121,6 +125,11 @@ export async function setPortraitAvatar(rawSelection) {
   });
   if (!gameConfig?.portraitMakerEnabled) {
     return { ok: false, error: "The portrait maker is closed right now." };
+  }
+  // The face is fixed while a forced identity is held (Tag.forcedName); the
+  // button is hidden, and this is the lock.
+  if (await loadForcedName(prisma, character.id)) {
+    return { ok: false, error: "Your face is not yours to change right now. ‡" };
   }
 
   // Anything invalid, out of range, or fantasy-while-gated silently becomes

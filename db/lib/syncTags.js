@@ -16,6 +16,7 @@ const {
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
 const { entriesOf } = require("./yamlEntries");
+const { NAME_LIMITS } = require("./characterName");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility, a real enum rather
 // than a truthy string.
@@ -151,6 +152,22 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but not equippable — it could never be equipped, so it could never conceal anything`,
       );
     }
+    // forcesName fixes the character's presented name (Tag.forcedName). It has
+    // to fit a first name, since it stands in for one, and a tag can't both
+    // hide who you are and dictate it.
+    if (t.forcesName !== undefined) {
+      if (typeof t.forcesName !== "string" || !t.forcesName.trim()) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets forcesName but it is empty — give the name the character is forced to wear`);
+      }
+      if (t.forcesName.trim().length > NAME_LIMITS.firstName) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets forcesName "${t.forcesName}" — longer than the ${NAME_LIMITS.firstName}-character first-name budget`,
+        );
+      }
+      if (t.concealsIdentity) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both forcesName and concealsIdentity — a tag can't hide who you are and dictate it`);
+      }
+    }
     // `visible` is three-state: true, false, or "worn".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
       throw new Error(
@@ -284,6 +301,7 @@ async function syncTagsFromYaml(prisma) {
       tradeable: entry.tradeable ?? false,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,
+      forcedName: entry.forcesName?.trim() ?? null,
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,

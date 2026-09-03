@@ -1408,10 +1408,16 @@ What it does, all resolved at **read time** by `db/lib/presentedIdentity.js`
   not a lock.
 
 What it deliberately does **not** touch: the `Character` row (no rename, so two
-Beasts never collide on `Character.name`, which `dawnWipe` keys on, and every GM
-table still says who it is), the personal @-mention role, and the server
-nickname — both keep the real bare name, by decision. The `/add` picker naming
-the character is intended, not a leak.
+Beasts never collide on `Character.name`, and every GM table still says who it
+is), the personal @-mention role, and the server nickname — both keep the real
+bare name, by decision. The `/add` picker naming the character is intended, not
+a leak.
+
+One consequence of the precedence worth knowing: a character who had their hood
+**up** when the tag landed stops being concealed. Their 🔍 embed goes back to
+the full one — tags, Desire, Resources under whatever gates apply — titled with
+the forced name. A Beast is not hiding, and the row's stale `concealed` flag
+does not get a vote.
 
 Because nothing is written when the tag lands, there is no grant hook and no
 catch-up pass: the first message after any door grants it — the store, the dev

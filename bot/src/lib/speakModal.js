@@ -23,7 +23,9 @@ const {
 // Concealment is no longer asked here: it is a standing state on the
 // character (Character.concealed, toggled by /conceal or the switch on
 // /character), so a modal checkbox would be a second, contradictable answer
-// to a question already settled.
+// to a question already settled. A held forcesName tag (db/lib/presentedIdentity.js)
+// overrides concealment the same way, and refuses /conceal outright — so
+// there is nothing for this modal to ask about that either.
 const SPEAK_HELP = "-# Sent as your character. Nobody sees you typing. ‡";
 
 function buildSpeakPicker(options, truncated) {

@@ -13,6 +13,7 @@ const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
 const { GHOST_LINE, claimGhostWhisper } = require("@lifeweb/db/lib/ghostWhisper");
+const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 
 // Discord embed limits: a breach rejects the whole embed silently. Trim with
 // fitField/fitDescription below before adding a field.
@@ -53,10 +54,11 @@ async function handleStarReaction(reaction, proxy, user) {
     const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
     if (!character) return;
     characterId = character.id;
-    // A concealed message is filed under the alias it was posted as. The
-    // note is already private to the starrer, but recording the real name
-    // would quietly hand them the answer the concealment was hiding.
-    characterName = proxy.concealed ? (proxy.alias ?? "Unknown") : character.name;
+    // A concealed or forced message is filed under the alias it was posted
+    // as (a hood or a forcesName tag alike). The note is already private to
+    // the starrer, but recording the real name would quietly hand them the
+    // answer the concealment was hiding.
+    characterName = proxy.alias ?? character.name;
     zoneId = character.zoneId ?? null;
   } else {
     const archived = await prisma.archiveEntry.findUnique({ where: { discordMessageId: message.id } });
@@ -124,6 +126,8 @@ async function handleDossierReaction(reaction, proxy, user) {
     }),
   ]);
 
+  // GM eyes: the real name and face, with the mask noted rather than worn.
+  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
   const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
   const embed = new EmbedBuilder()
     .setTitle(character.name)
@@ -139,6 +143,9 @@ async function handleDossierReaction(reaction, proxy, user) {
         .filter(Boolean)
         .join(" · "),
     });
+  if (identity.forced) {
+    embed.addFields({ name: "Presents as ‡", value: identity.name, inline: true });
+  }
 
   // Mind Discord's 1024-char embed field cap — a long-lived character can
   // carry a lot of tags, so the list is trimmed rather than rejected whole.
@@ -431,8 +438,9 @@ module.exports = {
           return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
         });
 
+        const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
         const embed = new EmbedBuilder()
-          .setTitle(character.name)
+          .setTitle(identity.name)
           .setDescription(fitDescription(character.appearance || "No visible appearance."));
         if (visibleTags.length > 0) {
           embed.addFields({ name: "Tags", value: fitField(visibleTags.join(", ")) });
@@ -481,9 +489,7 @@ module.exports = {
         }
 
         if (process.env.WEB_BASE_URL) {
-          embed.setThumbnail(
-            `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,
-          );
+          embed.setThumbnail(`${process.env.WEB_BASE_URL}${identity.avatarPath}`);
         }
 
         try {

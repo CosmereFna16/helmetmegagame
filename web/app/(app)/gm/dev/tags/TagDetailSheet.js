@@ -113,13 +113,15 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
   const flags = [
     ...FLAG_LABELS.filter(([key]) => tag[key]).map(([, label]) => label),
     VISIBILITY_CHIP[tag.inspectVisibility],
+    // Not a boolean: the name the holder is forced to wear (TAGS.md §5).
+    tag.forcedName ? `Forces name: ${tag.forcedName} ‡` : null,
   ].filter(Boolean);
   const requirement = formatTagRequirement(tag);
 
   return (
     <Modal panelClassName="doc-sheet" onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="doc-sheet-head mb-0 flex items-start justify-between gap-3">
           <div>
             <h2 className="section-title flex items-center gap-2">
               <ChipLabel tag={withGroupColor(tag)} />

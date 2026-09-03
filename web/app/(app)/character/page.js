@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { prisma, roleCapacity, isDynastyMember } from "@lifeweb/db";
+import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
@@ -571,7 +571,13 @@ export default async function CharacterPage() {
     })
   ).filter(isInflictable);
 
-  const avatarSrc = `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
+  // A forced identity (Tag.forcedName — Apex Form's "Beast") shows the player
+  // what the room sees: the forced name's letter plaque, not their own face.
+  const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
+  const forcedIdentity = forcedTag ? { name: forcedTag.forcedName, tagName: forcedTag.name } : null;
+  const avatarSrc = forcedIdentity
+    ? presentedIdentity(character, { forcedName: forcedIdentity.name }).avatarPath
+    : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   // The Move cutoff for StatusPanel's "This turn" row.
   const openTurnWithWindow = openTurn
@@ -591,6 +597,7 @@ export default async function CharacterPage() {
       openTurn={openTurnWithWindow}
       currentAction={sheetAction}
       avatarSrc={avatarSrc}
+      forcedIdentity={forcedIdentity}
       transferParties={transferParties}
       tagCatalog={tagCatalog}
       otherCharacters={otherCharacters}

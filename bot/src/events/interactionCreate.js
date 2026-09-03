@@ -1,5 +1,6 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
+const { forcedNameFrom, loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const {
   MENU_OPTION_LIMIT,
   PICK_ID,
@@ -370,7 +371,10 @@ async function handleTravelCancel(interaction) {
 // first, with their Role for a fellow member of a real faction — the same
 // rule the 🔍 inspect gate uses, because Role is same-faction knowledge and
 // not Silo authority (FACTIONS.md §4a). Concealed characters are listed
-// separately and only as what a stranger could tell at a glance.
+// separately and only as what a stranger could tell at a glance. A forced
+// name (Tag.forcedName) outranks both: it goes in the Here: list with no
+// Role — a Role is as identifying as a name — and never in the concealed
+// line even if Character.concealed is still on underneath.
 async function handleWhosHere(interaction, locationId) {
   await ack(interaction);
 
@@ -389,6 +393,10 @@ async function handleWhosHere(interaction, locationId) {
         age: true,
         gender: true,
         faction: { select: { name: true } },
+        tags: {
+          where: { tag: { forcedName: { not: null } } },
+          select: { tag: { select: { forcedName: true } } },
+        },
       },
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
     }),
@@ -399,9 +407,11 @@ async function handleWhosHere(interaction, locationId) {
     return;
   }
 
-  const named = present
-    .filter((c) => !c.concealed)
+  const rows = present.map((c) => ({ ...c, forcedName: forcedNameFrom(c.tags) }));
+  const named = rows
+    .filter((c) => !c.concealed || c.forcedName)
     .map((c) => {
+      if (c.forcedName) return c.forcedName;
       const sameFaction =
         viewer?.factionId &&
         c.factionId === viewer.factionId &&
@@ -410,8 +420,8 @@ async function handleWhosHere(interaction, locationId) {
       return sameFaction ? `${c.name}, ${c.roleTitle}` : c.name;
     });
   // No title on a concealed line: a Role is as identifying as a name.
-  const hidden = present
-    .filter((c) => c.concealed)
+  const hidden = rows
+    .filter((c) => c.concealed && !c.forcedName)
     .map((c) => withArticle(concealedAlias(c).toLowerCase()));
 
   const lines = [];
@@ -600,13 +610,20 @@ async function handleConverseCreate(interaction, roomId) {
 
 // /conceal: a standing state, not a per-message prefix. While it is on, every
 // message proxies under the alias with the unknown silhouette, and Who's here
-// lists the alias instead of the name.
+// lists the alias instead of the name. A held forcesName tag refuses the
+// toggle outright — that identity is fixed, and there is nothing to hide.
 async function handleConcealCommand(interaction) {
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
     await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+
+  const forcedName = await loadForcedName(prisma, character.id);
+  if (forcedName) {
+    await respond(interaction, `» *You are ${forcedName} now. There is no hiding that.* ‡`);
     return;
   }
 
@@ -865,17 +882,18 @@ async function handleSpeakSubmit(interaction, channelId) {
     return;
   }
 
-  // Read off the character, never off the modal: concealment is a standing
-  // state now, and a checkbox here would be a second answer to a settled
-  // question.
-  const conceal = character.concealed ? { alias: concealedAlias(character) } : null;
+  // Read off the character, never off the modal: concealment (and a held
+  // forcesName tag) are standing state, and a checkbox here would be a
+  // second answer to a settled question.
+  const forcedName = await loadForcedName(prisma, character.id);
+  const identity = presentedIdentity(character, { forcedName });
 
   let posted;
   try {
     posted = await postAsCharacterTo(channel, character, {
       content: body,
       discordUserId: interaction.user.id,
-      conceal,
+      identity,
     });
   } catch (err) {
     console.error("Failed to post a Speak message:", err);
@@ -887,7 +905,7 @@ async function handleSpeakSubmit(interaction, channelId) {
     discordMessageId: posted.webhookMessage.id,
     content: posted.content,
     character,
-    concealedAlias: conceal?.alias ?? null,
+    concealedAlias: identity.alias,
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);

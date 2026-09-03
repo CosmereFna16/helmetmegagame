@@ -56,6 +56,7 @@ export default async function DevTagsPage() {
           stackable: t.stackable,
           equippable: t.equippable,
           concealsIdentity: t.concealsIdentity,
+          forcedName: t.forcedName,
           consumable: t.consumable,
           removable: t.removable,
           tradeable: t.tradeable,

@@ -1247,6 +1247,18 @@ model Tag {
   // equip could never conceal anything. See docs/systemdocs/TAGS.md.
   concealsIdentity Boolean @default(false)
 
+  // The opposite of hiding: a tag that FIXES how the character presents. While
+  // any held tag carries this, the character posts under this name with the
+  // letter plaque for its initial (never their own face), Who's here? and 🔍
+  // name them this way, and both /conceal toggles refuse. Apex Form sets it to
+  // "Beast". Nothing on the Character row changes — every surface resolves it
+  // at read time through db/lib/presentedIdentity.js (forced > concealed >
+  // own name), the same posture as the letter plaque itself. The @-mention
+  // role and the nickname deliberately keep the real bare name. Authored in
+  // docs/tags.yaml as `forcesName:`; syncTags.js caps it at
+  // NAME_LIMITS.firstName and refuses it beside concealsIdentity.
+  forcedName String?
+
   // Whether a character can hold more than one of this tag at a time —
   // meals, ammunition, anything a crafting Move produces in a batch. A
   // stack is ONE CharacterTag row carrying a count (CharacterTag.quantity),

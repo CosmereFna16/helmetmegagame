@@ -15,6 +15,10 @@ export default function AvatarField({
   portraitFantasyPartsEnabled = false,
   portraitSelection,
   hasCustomAvatar = false,
+  // While set, the face and the name are the tag's, not the player's: every
+  // picture control gives way to one line, and the conceal switch is off and
+  // locked. The server actions re-check it (character/actions.js).
+  forcedIdentity = null,
 }) {
   const [fileName, setFileName] = useState("");
   const [makerOpen, setMakerOpen] = useState(false);
@@ -37,12 +41,17 @@ export default function AvatarField({
     <div className="field">
       <span className="field-label">Profile picture</span>
       <div className="flex flex-wrap items-center gap-3">
-        {portraitMakerEnabled && (
+        {forcedIdentity && (
+          <span className="text-sm text-muted">
+            Your face is fixed while you hold {forcedIdentity.tagName}. Everyone sees {forcedIdentity.name}. ‡
+          </span>
+        )}
+        {!forcedIdentity && portraitMakerEnabled && (
           <button type="button" className="btn-secondary" onClick={() => setMakerOpen(true)}>
             Customize Appearance
           </button>
         )}
-        {uploadsEnabled ? (
+        {forcedIdentity ? null : uploadsEnabled ? (
           // The GM approval this promises is a conversation, not a queue: the
           // picture lands immediately and a GM can reset it. Saying so on the
           // button is the whole enforcement, deliberately.
@@ -71,7 +80,7 @@ export default function AvatarField({
           // shows their letter plaque.
           !portraitMakerEnabled && <span className="text-sm text-muted">Using your letter plaque</span>
         )}
-        {hasCustomAvatar && (
+        {!forcedIdentity && hasCustomAvatar && (
           // Clears a built portrait and an uploaded picture alike; the plaque
           // is derived at read time, so there is nothing to restore.
           <button type="button" className="btn-quiet" onClick={reset} disabled={resetting}>
@@ -83,8 +92,14 @@ export default function AvatarField({
         </Switch>
         {/* While this is on every message you send posts under your alias with
             the unknown avatar, and Who's here? lists the alias too. */}
-        <Switch name="concealed" defaultChecked={defaultConcealed}>
-          Speak under an anonymous alias ‡
+        <Switch
+          name="concealed"
+          defaultChecked={forcedIdentity ? false : defaultConcealed}
+          disabled={Boolean(forcedIdentity)}
+        >
+          {forcedIdentity
+            ? `Speak under an anonymous alias — not while you are ${forcedIdentity.name}. ‡`
+            : "Speak under an anonymous alias ‡"}
         </Switch>
         {fileName ? (
           <span className="text-sm text-muted">

@@ -1,4 +1,5 @@
-const { prisma, concealedAlias } = require("@lifeweb/db");
+const { prisma } = require("@lifeweb/db");
+const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
@@ -71,15 +72,23 @@ module.exports = {
 
     const character = await prisma.character.findFirst({
       where: { discordUserId: message.author.id, status: "ALIVE" },
+      // The forced-name tag rides along on the busiest query the bot runs,
+      // rather than costing a second round trip per message.
+      include: {
+        tags: {
+          where: { tag: { forcedName: { not: null } } },
+          select: { tag: { select: { forcedName: true } } },
+        },
+      },
     });
     if (!character) return;
 
-    // Concealment is a standing state now (Character.concealed, toggled by
-    // /conceal or the switch on /character) rather than a per-message prefix.
-    // A player who has decided to go unnamed should not have to remember it
-    // on every line — forgetting once is exactly the failure the feature
-    // exists to prevent. Open to everyone, nothing equipped, no tag required.
-    const conceal = character.concealed ? { alias: concealedAlias(character) } : null;
+    // Which name and face this post goes out under. Precedence is forced >
+    // concealed > own (db/lib/presentedIdentity.js): a held forcesName tag
+    // overrides the standing Character.concealed state (toggled by /conceal
+    // or the switch on /character), which itself lets a player go unnamed
+    // without remembering a per-message prefix.
+    const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
 
     // Captured BEFORE proxying: sendAsCharacter deletes the original message,
     // and the mention list goes with it.
@@ -92,17 +101,18 @@ module.exports = {
     // it refused, and there is no proxied message left to relay mentions for.
     let proxied;
     try {
-      proxied = await sendAsCharacter(channel, character, message, { conceal });
+      proxied = await sendAsCharacter(channel, character, message, { identity });
     } catch (err) {
       console.error("Failed to proxy message:", err);
       return;
     }
     if (!proxied) return;
 
-    // A concealed message deliberately relays nothing: the whole point is that
-    // the room doesn't know who spoke, and a DM naming the location would hand
-    // the target a thread to pull on.
-    if (conceal || mentionedRoleIds.length === 0) return;
+    // A concealed (or forced) message deliberately relays nothing: the whole
+    // point is that the room doesn't know who spoke, and a DM naming the
+    // location would hand the target a thread to pull on. A forced identity
+    // is never concealed, so this only ever fires for a real hood.
+    if (identity.concealed || mentionedRoleIds.length === 0) return;
 
     await handleMentions({ message, channel, proxied, mentionedRoleIds }).catch((err) =>
       console.error("Failed to handle mentions:", err),

@@ -70,6 +70,9 @@ export default function CharacterSheet({
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
   hasCustomAvatar = false,
+  // { name, tagName } while a held tag fixes the character's presented name
+  // and face (Tag.forcedName); null otherwise. Self sheet only.
+  forcedIdentity = null,
   lastNameLocked = false,
   // The mid-game Store, folded into the Tags panel as a modal (see
   // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
@@ -183,6 +186,7 @@ export default function CharacterSheet({
                 portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
                 portraitSelection={portraitSelection}
                 hasCustomAvatar={hasCustomAvatar}
+                forcedIdentity={forcedIdentity}
               />
             </section>
           )}

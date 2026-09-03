@@ -3,6 +3,7 @@
 // convention as web/lib/discordGuild.js.
 
 const { DISCORD_MESSAGE_LIMIT, chunkMessage } = require("./chunkText");
+const { presentedIdentity } = require("./presentedIdentity");
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -705,38 +706,43 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // REST equivalent of a tupper proxy for text composed by the game itself.
 // Chunked since the biggest caller posts player-authored text that can
 // exceed 2000 chars. Returns the FIRST message, what the archive anchors to.
-async function postAsCharacter(channelId, character, content) {
+// `forcedName` (Tag.forcedName, db/lib/presentedIdentity.js) is resolved by
+// the CALLER, which has a prisma handle — this module deliberately has none.
+// Forced half only, not concealment: a Default Move summary has never
+// honoured /conceal and this doesn't start now.
+async function postAsCharacter(channelId, character, content, { forcedName = null } = {}) {
   const chunks = chunkMessage(String(content ?? ""));
-  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content);
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName);
 
   let first = null;
   for (const chunk of chunks) {
-    const sent = await postAsCharacterChunk(channelId, character, chunk);
+    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName);
     if (!first) first = sent;
   }
   return first;
 }
 
-async function postAsCharacterChunk(channelId, character, content) {
+async function postAsCharacterChunk(channelId, character, content, forcedName) {
   try {
-    return await postAsCharacterOnce(channelId, content, character);
+    return await postAsCharacterOnce(channelId, content, character, forcedName);
   } catch (err) {
     // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
-      return postAsCharacterOnce(channelId, content, character);
+      return postAsCharacterOnce(channelId, content, character, forcedName);
     }
     throw err;
   }
 }
 
-async function postAsCharacterOnce(channelId, content, character) {
+async function postAsCharacterOnce(channelId, content, character, forcedName) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
+  const identity = presentedIdentity({ ...character, concealed: false }, { forcedName });
   return executeWebhook(webhook, {
     content,
-    username: character.name,
-    avatarUrl: base ? `${base}/api/avatar/${character.id}?v=${character.updatedAt?.getTime?.() ?? ""}` : undefined,
+    username: identity.name,
+    avatarUrl: base ? `${base}${identity.avatarPath}` : undefined,
   });
 }
 
