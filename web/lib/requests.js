@@ -18,6 +18,24 @@ export { MAX_REASON_LENGTH };
 // ADD_TAG request the character has filed this turn.
 export const DEAD_SIMPLE_PER_TURN = 4;
 
+// How many ROUTINE cures a medic may work in one turn, by their highest
+// medical tier (docs/systemdocs/TAGS.md §5c). A doctor's day has a floor and a
+// ceiling: they cannot treat the whole ward, and the better they are the more
+// they get through.
+//
+// Cures that cost 0 turns — first aid, bandaging, setting a simple break —
+// are FREE ACTIONS and never count against this. Those are the ones you do
+// between patients, and rationing them would make a nurse refuse a bandage.
+//
+// Gambits are not counted here at all: a gambit heal files a Move, and
+// Action's @@unique([characterId, turnId]) already allows exactly one of those
+// a turn.
+export const MEDICAL_TIER_CAPS = {
+  "medical-basic": 2,
+  "medical-skilled": 3,
+  "medical-expert": 4,
+};
+
 // The skills that mark a recipe as smithing/crafting work. Every smithing rung
 // counts, not just the one Dead Simple actually gates on, so a future 0-turn
 // recipe at a higher rung is covered without editing this list.

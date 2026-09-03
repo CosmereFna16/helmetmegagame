@@ -78,3 +78,37 @@ export function healCost(tag) {
 export function missingSkillsFor(tag, satisfied) {
   return (tag?.requirementSkills ?? []).filter((skill) => !satisfied.has(skill.id));
 }
+
+// Would treating this be a GAMBIT rather than a routine?
+//
+// Two ways it can be. Reaching above your tier is the obvious one — a nurse
+// opening a belly — and the catalog's own `requirementGambit` is the other:
+// the top rung of the cure ladder is a roll even for Esculap, which is what
+// separates tier 7 from tier 6, since they share a price.
+//
+// Nothing is refused for being out of reach any more. A medic may ATTEMPT
+// anything they can see; what changes is whether they roll for it, and a
+// failed roll can leave the patient worse (docs/systemdocs/TAGS.md §5c).
+export function isGambitHeal(tag, satisfied) {
+  if (!tag) return false;
+  return Boolean(tag.requirementGambit) || missingSkillsFor(tag, satisfied).length > 0;
+}
+
+// A 0-turn cure is a free action and never counts against the per-turn
+// allowance. See MEDICAL_TIER_CAPS in web/lib/requests.js.
+export function countsAgainstHealCap(tag) {
+  return (tag?.requirementTurns ?? 0) > 0;
+}
+
+// The medic's own allowance: the cap of the HIGHEST medical tier they hold.
+// Tiers replace each other up Tag.parentTagId, so an Expert is not also
+// spending a Basic's two — they simply get four.
+//
+// `heldSlugs` is a Set of the character's tag slugs; `caps` is
+// MEDICAL_TIER_CAPS, passed in so this module stays free of that import and
+// the client and the server cannot disagree about the numbers.
+export function healCapFor(heldSlugs, caps) {
+  const ladder = ["medical-expert", "medical-skilled", "medical-basic"];
+  for (const slug of ladder) if (heldSlugs.has(slug)) return caps[slug] ?? 0;
+  return 0;
+}

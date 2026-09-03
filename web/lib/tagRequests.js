@@ -36,6 +36,25 @@ export function destroyableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
+// Smithing and building need Workshop Equipment in reach; ordinary crafting
+// needs nothing (docs/systemdocs/SMITHING.md). Read off the recipe's own
+// skills rather than a per-tag flag, so a new sword is gated the moment it
+// names a smithing skill. Pure and shared, for the reason this whole module
+// is: a recipe the dialog says you can make must be one craftRequest accepts.
+const WORKSHOP_SKILL_PREFIXES = ["smithing", "builder"];
+
+//
+// Workshop Equipment itself is exempt, and has to be: it is smith's work that
+// names `smithing-skilled`, so gating it on a workshop would mean nobody could
+// ever build the first one. You raise your first forge in the open, and it is
+// what lets you do the finer work after.
+export function needsWorkshop(tag) {
+  if (tag?.slug === "workshop-equipment") return false;
+  return (tag?.requirementSkills ?? []).some((skill) =>
+    WORKSHOP_SKILL_PREFIXES.some((prefix) => skill.slug === prefix || skill.slug?.startsWith(`${prefix}-`)),
+  );
+}
+
 export function transferableTags(characterTags = []) {
   return characterTags
     .filter((ct) => isTradeable(ct.tag))

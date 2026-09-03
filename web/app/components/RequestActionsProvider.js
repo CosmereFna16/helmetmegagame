@@ -319,7 +319,9 @@ export default function RequestActionsProvider({
   transferParties = null,
   // Load vs caps for the Transfer dialog's projection line (CARRY.md).
   carry = null,
+  hasWorkshop = false,
   canHeal = false,
+  healsLeft = null,
   healTargets = [],
   // Who can pay for a treatment or a craft: you, anyone here, rooms here.
   healParties = null,
@@ -704,8 +706,7 @@ export default function RequestActionsProvider({
         return Boolean(
           patientId &&
           payerKey &&
-          affliction &&
-          !affliction.missingSkills.length,
+          affliction,
         );
       case "loot":
         return Boolean(targetId && takingSomething);
@@ -805,6 +806,7 @@ export default function RequestActionsProvider({
           >
             {mode === "craft" && (
               <CraftDialog
+                hasWorkshop={hasWorkshop}
                 projects={craftProjects}
                 projectId={projectId}
                 onProject={(id) => {
@@ -996,15 +998,9 @@ export default function RequestActionsProvider({
                         Choose an affliction…
                       </option>
                       {patient.healable.map((h) => (
-                        <option
-                          key={h.tagId}
-                          value={h.tagId}
-                          disabled={h.missingSkills.length > 0}
-                        >
+                        <option key={h.tagId} value={h.tagId}>
                           {h.tagName}
-                          {h.missingSkills.length
-                            ? ` — needs ${h.missingSkills.join("/")}`
-                            : ""}
+                          {h.gambit ? " — Gambit ‡" : ""}
                         </option>
                       ))}
                     </Select>
@@ -1021,11 +1017,13 @@ export default function RequestActionsProvider({
                       rooms={healParties?.rooms ?? []}
                       selfId={selfId}
                     />
-                    <p className="text-xs text-muted">
+                    <p className={`text-xs ${affliction.gambit ? "text-accent" : "text-muted"}`}>
                       Costs <span className="mono">{affliction.cost} ⬢</span>.
-                      {affliction.requirementLabel
-                        ? ` The full course of treatment is ${affliction.requirementLabel} — the turns and any Gambit are between you and a GM.`
-                        : ""}
+                      {affliction.gambit
+                        ? " This is past what you can do as a matter of routine, so it's a Gambit: it spends your Move, a die is rolled, and a bad roll can leave them worse off. You'll both know at the end of the turn. ‡"
+                        : affliction.counts
+                          ? ` One of the ${healsLeft ?? "few"} cases you can work this turn. ‡`
+                          : " First aid — costs you no part of your day. ‡"}
                     </p>
                   </>
                 )}

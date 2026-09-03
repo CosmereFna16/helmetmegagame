@@ -390,6 +390,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         sortOrder: roomIndex,
         kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
         accessTagSlugs: access,
+        stash: Array.isArray(room.stash) ? room.stash.map(String).filter(Boolean) : [],
         locationSlug: location.id,
       });
     }
@@ -877,6 +878,28 @@ async function syncZonesFromYaml(prisma) {
     await syncLocationYields(prisma, location.id, entry.yields, report);
   }
 
+  // A Room's seeded stash: the kit that is simply THERE, like the Sanctuary's
+  // surgical instruments or the Factory's forge. Written as a FLOOR, never a
+  // reset — if the row already exists at any quantity the sync leaves it
+  // alone, so a re-sync can't undo a player carrying the anvil off, and
+  // can't quietly duplicate it either. Tags sync AFTER zones, so an unknown
+  // slug is skipped with a warning rather than throwing.
+  async function seedRoomStash(prisma, roomId, slugs) {
+    for (const slug of slugs) {
+      const tag = await prisma.tag.findUnique({ where: { slug }, select: { id: true } });
+      if (!tag) {
+        console.warn(`zones.yaml: room stash names unknown tag "${slug}" — run db:sync-tags first.`);
+        continue;
+      }
+      const existing = await prisma.roomTag.findUnique({
+        where: { roomId_tagId: { roomId, tagId: tag.id } },
+        select: { id: true },
+      });
+      if (existing) continue;
+      await prisma.roomTag.create({ data: { roomId, tagId: tag.id, quantity: 1 } });
+    }
+  }
+
   // Pass 1c-bis: rooms, matched by slug. A thread can't change parents, so a
   // room whose location changed is deleted and recreated by the room pass.
   const roomsBySlug = new Map();
@@ -905,6 +928,7 @@ async function syncZonesFromYaml(prisma) {
       room = await prisma.room.update({ where: { id: room.id }, data });
     }
     roomsBySlug.set(entry.slug, room);
+    if (entry.stash.length > 0) await seedRoomStash(prisma, room.id, entry.stash);
   }
 
   // Pass 1d: the travel graph. ONE LocationLink row per undirected edge,

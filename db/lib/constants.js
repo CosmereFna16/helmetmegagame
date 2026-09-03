@@ -25,6 +25,14 @@ const OVERBURDENED_SLUG = "overburdened";
 // someone whose body you can't find costs.
 const CORPSE_GROUP_SLUG = "items-corpse";
 const BUTCHER_SLUG = "butcher";
+
+// The two standing kits (db/lib/equipmentReach.js). Neither is worn: each is
+// satisfied by HOLDING it or by standing where one is already set up, which is
+// what makes a Sanctuary operating theatre and a Factory floor worth walking
+// to. Workshop Equipment gates smithing and building; Surgical Equipment is
+// +1 on a medical Gambit.
+const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
+const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // How many turns a person's corpse stays fresh before it turns. Monster
@@ -88,6 +96,8 @@ module.exports = {
   OVERBURDENED_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
+  WORKSHOP_EQUIPMENT_SLUG,
+  SURGICAL_EQUIPMENT_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,

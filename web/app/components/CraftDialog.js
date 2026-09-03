@@ -2,6 +2,7 @@
 
 import PartySelect from "./PartySelect";
 import Select from "./Select";
+import { needsWorkshop } from "@/lib/tagRequests";
 
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
 // RequestActionsProvider like every other mode — this is the form.
@@ -28,11 +29,15 @@ export default function CraftDialog({
   parties,
   selfId,
   hasMoved,
+  hasWorkshop = false,
 }) {
   const project = projects.find((p) => p.id === projectId) ?? null;
   const turns = chosen?.requirementTurns ?? 1;
   const qty = Math.max(1, Number(quantity) || 1);
   const cost = (chosen?.requirementResources ?? 0) * (chosen?.stackable ? qty : 1);
+  // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
+  // sees it before committing; craftRequest re-checks it regardless.
+  const wantsWorkshop = chosen ? needsWorkshop(chosen) : false;
 
   return (
     <>
@@ -116,6 +121,13 @@ export default function CraftDialog({
                 {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
                 {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
               </p>
+              {wantsWorkshop && (
+                <p className={`text-xs ${hasWorkshop ? "text-muted" : "text-accent"}`}>
+                  {hasWorkshop
+                    ? "Smith's work, and you have Workshop Equipment to hand. ‡"
+                    : "Smith's work: you need Workshop Equipment, held or set up where you're standing. ‡"}
+                </p>
+              )}
             </>
           )}
         </>

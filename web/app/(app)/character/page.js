@@ -4,7 +4,8 @@ import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/l
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
 import { accessibleRooms } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
-import { BUTCHER_SLUG } from "@lifeweb/db/lib/constants";
+import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { freeMovesLeft } from "@lifeweb/db/lib/locationTravel";
@@ -13,6 +14,7 @@ import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
+import { MEDICAL_TIER_CAPS } from "@/lib/requests";
 import {
   evaluateDesireCatalog,
   slotStates,
@@ -53,7 +55,9 @@ import {
   healCost,
   isHealable,
   isInflictable,
-  missingSkillsFor,
+  isGambitHeal,
+  countsAgainstHealCap,
+  healCapFor,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import CharacterSheet from "../../components/CharacterSheet";
@@ -203,6 +207,9 @@ export default async function CharacterPage() {
         select: {
           id: true,
           name: true,
+          // slug so needsWorkshop() can exempt workshop-equipment itself
+          // (web/lib/tagRequests.js) — you build your first forge in the open.
+          slug: true,
           description: true,
           category: true,
           pointCost: true,
@@ -434,6 +441,9 @@ export default async function CharacterPage() {
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
+  // Is a forge within reach? Resolved server-side so the Craft dialog can say
+  // so before a player commits, and re-checked by craftRequest either way.
+  const hasWorkshop = await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG);
   const carry = carryStatus(character, gameConfig);
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so
   // no allowance math reaches the client bundle.
@@ -511,10 +521,37 @@ export default async function CharacterPage() {
           tagName: tag.name,
           cost: healCost(tag),
           requirementLabel: formatTagRequirement(tag),
-          missingSkills: missingSkillsFor(tag, satisfied).map((s) => s.name),
+          // Above your tier, or the ladder's top rung, and it's a roll rather
+          // than a refusal — so the picker offers it, labelled, instead of
+          // greying it out (docs/systemdocs/TAGS.md §5c).
+          gambit: isGambitHeal(tag, satisfied),
+          // A 0-turn cure is a free action and never counts against the day's
+          // allowance (web/lib/requests.js MEDICAL_TIER_CAPS).
+          counts: countsAgainstHealCap(tag),
         })),
     }))
     .filter((t) => t.healable.length > 0);
+
+  // Routine cures left in the medic's day (web/lib/requests.js
+  // MEDICAL_TIER_CAPS). Resolved server-side; healCharacterRequest re-checks
+  // it under a row lock either way.
+  const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
+  const healsLeft = canHeal
+    ? Math.max(
+        0,
+        healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
+          (openTurn
+            ? await prisma.request.count({
+                where: {
+                  characterId: character.id,
+                  turnId: openTurn.id,
+                  type: "HEAL_CHARACTER",
+                  status: { not: "UNDONE" },
+                },
+              })
+            : 0),
+      )
+    : 0;
 
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
@@ -725,6 +762,7 @@ export default async function CharacterPage() {
       transferParties={transferParties}
       carry={carry}
       zoneMoves={zoneMoves}
+      hasWorkshop={hasWorkshop}
       tagCatalog={tagCatalog}
       desireSlots={desireSlots}
       desireSlotLockTurns={desireSlotLockTurns}
@@ -736,6 +774,7 @@ export default async function CharacterPage() {
       desireLockNotes={desireLockNotes}
       desiresEnabled={gameConfig?.desiresEnabled ?? true}
       canHeal={canHeal}
+      healsLeft={healsLeft}
       hasMoved={Boolean(currentAction)}
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}

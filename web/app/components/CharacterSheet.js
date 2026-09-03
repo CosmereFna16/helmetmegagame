@@ -37,6 +37,7 @@ export default function CharacterSheet({
   transferParties,
   carry = null,
   zoneMoves = null,
+  hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
   desireSlotLockTurns = 2,
@@ -48,6 +49,7 @@ export default function CharacterSheet({
   desireAddiction = null,
   desiresEnabled = true,
   canHeal = false,
+  healsLeft = null,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
   canTeach = false,
@@ -129,7 +131,9 @@ export default function CharacterSheet({
             resources={character.resources}
             transferParties={transferParties}
             carry={carry}
+            hasWorkshop={hasWorkshop}
             canHeal={canHeal}
+            healsLeft={healsLeft}
             hasMoved={hasMoved}
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}

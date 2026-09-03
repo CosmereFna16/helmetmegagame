@@ -43,6 +43,12 @@
 #   so in a -# line of its own, written by syncZones, so nobody has to be told
 #   twice. Default false; a Room never carries it, since a Room is inside its
 #   Location by definition.
+# - stash (rooms only): a list of Tag slugs to seed into the room's stash —
+#   the kit that is simply THERE, like the Sanctuary operating theatre's
+#   surgical instruments. Written as a FLOOR, never a reset: if the row
+#   already exists the sync leaves it alone, so re-syncing can neither undo a
+#   player carrying it off nor quietly duplicate it. Tags sync AFTER zones, so
+#   an unknown slug is skipped with a warning rather than throwing.
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -199,6 +205,7 @@ zones:
             name: Operating Theater
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
+            stash: [surgical-equipment]
           garden:
             name: Garden
             description: >-

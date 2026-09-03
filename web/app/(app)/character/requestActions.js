@@ -26,12 +26,13 @@ import {
   MAX_REASON_LENGTH,
   isDeadSimple,
   DEAD_SIMPLE_PER_TURN,
+  MEDICAL_TIER_CAPS,
 } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { isTradeable, addRequirementSatisfied } from "@/lib/tagRequests";
+import { isTradeable, addRequirementSatisfied, needsWorkshop } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   exclusiveConflict,
@@ -53,10 +54,12 @@ import {
 import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
+  countsAgainstHealCap,
+  healCapFor,
   healCost,
+  isGambitHeal,
   isHealable,
   isInflictable,
-  missingSkillsFor,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import { canReachParty, outOfReachMessage } from "@/lib/transferReach";
@@ -79,7 +82,10 @@ import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
-import { BUTCHER_SLUG, ENGRAVE_RESOURCE_COST } from "@lifeweb/db/lib/constants";
+import { BUTCHER_SLUG, ENGRAVE_RESOURCE_COST, WORKSHOP_EQUIPMENT_SLUG, SURGICAL_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
+import { rollDie } from "@lifeweb/db/lib/moveEffects";
+import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import { notifyCharacter } from "@/lib/notifyCharacter";
@@ -144,6 +150,20 @@ function resolveParty(key, opts) {
 
 // --- Tags -------------------------------------------------------------
 
+// Routine cures already worked this turn, against MEDICAL_TIER_CAPS.
+//
+// Counts REQUESTS, not units — one heal is one patient — and only the ones
+// that cost a turn of work: a 0-turn cure is a free action (healRequests.js).
+// A gambit heal is never in here, because it files a Move instead and the
+// Action unique constraint rations those on its own.
+async function routineHealsThisTurn(db, characterId, turnId) {
+  const filed = await db.request.findMany({
+    where: { characterId, turnId, type: "HEAL_CHARACTER", status: { not: "UNDONE" } },
+    select: { effect: true },
+  });
+  return filed.filter((r) => !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0).length;
+}
+
 // Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
 // EDITED still counts, UNDONE does not. `db` is prisma or a tx client.
 async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
@@ -197,6 +217,21 @@ async function requireRecipeSkills(character, tag) {
   if (missing.length) {
     throw new UserError(`Making that needs ${missing.map((t) => t.name).join("/")}. ‡`);
   }
+}
+
+// Smithing and building need a forge; ordinary crafting needs your hands.
+//
+// The rule is read off the recipe's own skills rather than a per-tag flag, so
+// a new sword is gated the moment it names a smithing skill and nobody has to
+// remember a second field. Reach is "hold it, or stand somewhere one is set
+// up" (db/lib/equipmentReach.js) — which is what makes the Factory floor and
+// the Keep's forge worth walking to. See docs/systemdocs/SMITHING.md.
+async function requireWorkshop(character, tag) {
+  if (!needsWorkshop(tag)) return;
+  if (await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG)) return;
+  throw new UserError(
+    `Making that is smith's work: hold Workshop Equipment, or stand somewhere a set is already put up. ‡`,
+  );
 }
 
 // The recipe's INGREDIENTS (Tag.requirementItems). Two recipes carry one, and
@@ -392,6 +427,7 @@ async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
+  await requireWorkshop(character, tag);
   await requireRecipeItems(character, tag);
   const replaced = await craftGrantChecks(character, tag);
 
@@ -497,6 +533,7 @@ async function continueCraftImpl({ projectId, reason: rawReason }) {
   const project = await loadOwnProject(character, projectId);
   const tag = project.tag;
   await requireRecipeSkills(character, tag);
+  await requireWorkshop(character, tag);
   await requireRecipeItems(character, tag);
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
@@ -971,9 +1008,33 @@ async function healCharacterRequestImpl({
   const held = target.tags.find((ct) => ct.tagId === tagId);
   if (!held || !isHealable(held.tag)) throw new UserError("That isn't something you can treat.");
 
-  const missing = missingSkillsFor(held.tag, satisfied);
-  if (missing.length) {
-    throw new UserError(`Treating that needs ${missing.map((t) => t.name).join("/")}.`);
+  // Above your tier, or the top rung of the ladder, and it is a GAMBIT rather
+  // than a refusal (docs/systemdocs/TAGS.md §5c). Nothing is out of reach any
+  // more; what changes is whether you roll for it.
+  const gambit = isGambitHeal(held.tag, satisfied);
+  // +1 on the die for a set of instruments in reach — held, or standing in a
+  // room that has one (db/lib/equipmentReach.js). Only ever asked for a
+  // Gambit, since a routine cure never rolls.
+  const surgical = gambit ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG) : false;
+
+  const openTurn = await getOpenTurn();
+  if (gambit) {
+    // A roll costs the Move, and Action's @@unique([characterId, turnId]) is
+    // what makes it one gambit heal a turn — no separate check needed.
+    await requireFreeMove(character, openTurn);
+  } else if (openTurn && countsAgainstHealCap(held.tag)) {
+    // A doctor's day has a ceiling. Checked here for a fast fail and again
+    // inside the transaction under a row lock, since two simultaneous
+    // requests would otherwise both read the same count and pass — the same
+    // shape the Dead Simple cap uses.
+    const heldSlugs = new Set(character.tags.map((ct) => ct.tag?.slug).filter(Boolean));
+    const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
+    const already = await routineHealsThisTurn(prisma, character.id, openTurn.id);
+    if (already >= allowance) {
+      throw new UserError(
+        `You've treated ${already} ${already === 1 ? "case" : "cases"} this turn, which is all you can manage. First aid still costs you nothing. ‡`,
+      );
+    }
   }
 
   const payer = await resolveParty(payerKey);
@@ -984,7 +1045,6 @@ async function healCharacterRequestImpl({
   const cost = healCost(held.tag);
   if (cost > payer.balance) throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
 
-  const openTurn = await getOpenTurn();
   const ledger = {
     actorDiscordUserId: session.discordUserId,
     actorCharacterId: character.id,
@@ -1008,6 +1068,12 @@ async function healCharacterRequestImpl({
     },
     resourcesSpent: cost,
     payer: { kind: payer.kind, id: payer.id, name: payer.name },
+    // A gambit heal is an ATTEMPT: the die is rolled at turn close and the GM
+    // applies the outcome from /gm/turns, so nothing has left the patient yet.
+    // `pending` is what tells the desk and Undo that no tag came off.
+    gambit,
+    pending: gambit,
+    surgical,
     // What the catalog charged at the time, so a later review sees the
     // price actually quoted rather than today's tags.yaml.
     requirement: {
@@ -1018,12 +1084,56 @@ async function healCharacterRequestImpl({
     },
   };
 
-  const aftermathSlugs = rollTagChain(held.tag.removesInto);
+  // Only a routine cure has an aftermath now — a Gambit's outcome, Stitched Up
+  // included, is the GM's to write once the die has been read.
+  const aftermathSlugs = gambit ? [] : rollTagChain(held.tag.removesInto);
 
   await prisma.$transaction(async (tx) => {
+    // Re-check the day's allowance under a row lock. Two tabs would otherwise
+    // both read the same count and both pass (requestActions.js's Dead Simple
+    // cap has the same pair of checks for the same reason).
+    if (!gambit && openTurn && countsAgainstHealCap(held.tag)) {
+      await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+      const heldSlugs = new Set(character.tags.map((ct) => ct.tag?.slug).filter(Boolean));
+      const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
+      const already = await routineHealsThisTurn(tx, character.id, openTurn.id);
+      if (already >= allowance) {
+        throw new UserError("You've treated all the cases you can manage this turn. ‡");
+      }
+    }
+
     await debitResources(tx, payer, cost, ledger);
-    await dropCharacterTag(tx, target.id, held.tagId);
-    effect.granted = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
+
+    if (gambit) {
+      // The Move that carries the roll. Same shape as a learner's Lesson
+      // Gambit (db/lib/lessons.js) — filed CONFIRMED with the die already
+      // rolled, left OPEN for the GM, revealed to the player at turn close by
+      // the staged push. The patient's tag is untouched: a roll that has not
+      // been read cannot have cured anything, and a failed one can leave them
+      // worse (docs/systemdocs/TAGS.md §5c).
+      const action = await tx.action.create({
+        data: {
+          characterId: character.id,
+          turnId: openTurn.id,
+          type: "MOVE",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          moveKind: "GAMBIT",
+          moveReviewStatus: "OPEN",
+          description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}. ‡`,
+          diceRoll: rollDie(),
+          diceModifier:
+            gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }) + (surgical ? 1 : 0),
+          zoneId: character.zoneId ?? null,
+          gmNotes: "auto:heal_gambit",
+        },
+      });
+      effect.actionId = action.id;
+    } else {
+      await dropCharacterTag(tx, target.id, held.tagId);
+      effect.granted = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
+    }
+
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
@@ -1043,13 +1153,18 @@ async function healCharacterRequestImpl({
 
   await afterInventoryChange([target.id, payer.kind === "character" ? payer.id : null]);
   if (target.id !== character.id) {
-    notifyCharacter(target, `Your ${held.tag.name} was treated.`);
+    notifyCharacter(
+      target,
+      gambit
+        ? `${character.name} is working on your ${held.tag.name}. You'll know how it went at the end of the turn. ‡`
+        : `Your ${held.tag.name} was treated.`,
+    );
   }
   if (payer.kind === "character" && payer.id !== character.id && cost > 0) {
     notifyCharacter(payer, `${character.name} paid ${cost} ⬢ from your purse to treat ${target.id === character.id ? "themselves" : target.name}. ‡`);
   }
   revalidateAll();
-  return { targetName: target.name, tagName: held.tag.name, cost };
+  return { targetName: target.name, tagName: held.tag.name, cost, gambit, surgical };
 }
 
 // --- Looting a living, incapacitated target ----------------------------

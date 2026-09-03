@@ -399,7 +399,10 @@ export const REQUEST_EFFECTS = {
         effect.resourcesSpent = next;
       }
 
-      if (edits.restoreHealedTag && effect.restore?.tagId && !effect.tagRestoredByGm) {
+      // A PENDING gambit heal never took the affliction off — it filed a Move
+      // and left the patient exactly as they were — so there is nothing to put
+      // back, and putting it back would hand them a second copy.
+      if (edits.restoreHealedTag && effect.restore?.tagId && !effect.pending && !effect.tagRestoredByGm) {
         for (const g of effect.granted ?? []) {
           if (g.tagId && g.added > 0) await dropCharacterTag(tx, effect.targetCharacterId, g.tagId, g.added);
         }
@@ -411,18 +414,32 @@ export const REQUEST_EFFECTS = {
       return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request, ctx) {
-      const { resourcesSpent, payer, restore, targetCharacterId, targetName, tagName, tagRestoredByGm, granted = [] } =
-        request.effect;
+      const {
+        resourcesSpent,
+        payer,
+        restore,
+        targetCharacterId,
+        targetName,
+        tagName,
+        tagRestoredByGm,
+        pending,
+        granted = [],
+      } = request.effect;
       if (resourcesSpent) {
         await creditResources(tx, payer, resourcesSpent, { ...ctx, note: `Undo of heal request ${request.id}` });
       }
-      if (restore?.tagId && targetCharacterId && !tagRestoredByGm) {
+      // A pending gambit attempt took nothing off, so there is nothing to put
+      // back; only the fee is returned. The Move it filed stays — a GM who
+      // wants that back uses Reject, the same rule Craft's auto-Actions follow.
+      if (restore?.tagId && targetCharacterId && !pending && !tagRestoredByGm) {
         for (const g of granted) {
           if (g.tagId && g.added > 0) await dropCharacterTag(tx, targetCharacterId, g.tagId, g.added);
         }
         await restoreCharacterTag(tx, targetCharacterId, restore);
       }
-      return `Put ${tagName ?? "the affliction"} back on ${targetName ?? "the patient"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`;
+      return pending
+        ? `Called off the attempt on ${targetName ?? "the patient"}'s ${tagName ?? "affliction"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`
+        : `Put ${tagName ?? "the affliction"} back on ${targetName ?? "the patient"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`;
     },
   },
 
