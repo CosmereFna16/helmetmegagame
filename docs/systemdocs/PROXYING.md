@@ -175,12 +175,40 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 |---|---|
 | ❌ | Deletes the message. Also deletes its `ArchiveEntry` row. Gated on `proxy.discordUserId`. |
 | ✏️ | Edit, via a DM button and a modal — see below. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
-| 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. |
+| 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
 
 DMs no longer carry any reaction-driven flow; the bot does not request the
 `DirectMessageReactions` intent.
+
+### 4a. 🔍 has a twin on the web: **Look at**
+
+`db/lib/examine.js` is the one readout behind both, and neither surface
+builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
+(`web/app/components/ExamineDialog.js`), but every rule that decides *what is
+in it* — the doctor's eye, the concealed read, Inscrutable, Role, ⬢ — is
+decided once, in that file. Add a field to one and both get it.
+
+The two differ only in who they can be pointed at, and that is the point of
+the web one existing:
+
+- **🔍 needs a message.** It hangs off `recentProxies`, so it only ever
+  worked on someone who had **spoken**. That was never a hiding rule — a
+  guard on a gate could not size up a silent traveller without first striking
+  up a conversation with them.
+- **Look at needs co-presence.** Everyone `ALIVE` standing at your Location,
+  silent or not. It is the one people-picker on the sheet that does **not**
+  use `peopleHere()`: it lists the concealed too, under their alias, exactly
+  as the **Who's here?** anchor button already lists them. Acting on somebody
+  means identifying them, so a hood takes you off every other menu; *looking*
+  at a hooded figure is what a hood is for. No presence leaks that
+  `Who's here?` does not already publish at Location grain.
+
+Both read a hood the same impoverished way (§5), both are free, spend no
+Move, file no `Request` and tell the subject nothing.
+`web/app/(app)/character/examineActions.js` is the web half: two server
+actions, both read-only.
 
 **✏️ is a button and a modal, and writes no inbound DM at all**
 (`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a

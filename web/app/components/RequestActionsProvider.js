@@ -37,6 +37,7 @@ import Select from "./Select";
 import ChipText from "./ChipText";
 import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
 import ReadDialog from "./ReadDialog";
+import ExamineDialog from "./ExamineDialog";
 import QuantityField from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
 import { useConfirm } from "./ConfirmProvider";
@@ -282,6 +283,10 @@ function payerLabel(parties, key) {
   const pool = kind === "room" ? parties?.rooms : parties?.characters;
   return pool?.find((p) => p.id === id)?.name ?? "They";
 }
+
+// The modes that are not Requests at all, and so never open RequestDialog.
+// Each has its own modal below.
+const NO_REQUEST_MODES = new Set(["read", "examine"]);
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
@@ -770,13 +775,16 @@ export default function RequestActionsProvider({
 
       {enabled && (
         <>
-          {/* Read is not a Request — no reason, no server action, nothing to
-          review — so it gets its own plain modal rather than being forced
-          through the Requests popup. See ReadDialog.js. */}
+          {/* The two modes that file no Request — no reason to type, nothing
+          for a GM to review, nothing to undo — so each gets its own plain
+          modal rather than being forced through the Requests popup. Read is a
+          purely local transform (ReadDialog.js); Look at does call the server,
+          but only to read (examineActions.js). */}
           <ReadDialog open={mode === "read"} onClose={() => setMode(null)} />
+          <ExamineDialog open={mode === "examine"} onClose={() => setMode(null)} />
 
           <RequestDialog
-            open={mode !== null && mode !== "read"}
+            open={mode !== null && !NO_REQUEST_MODES.has(mode)}
             title={title}
             submitLabel={title}
             width={dialogWidth}

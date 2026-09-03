@@ -1,14 +1,10 @@
 const { EmbedBuilder } = require("discord.js");
-const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
+const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
 const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
-const { inspectVision, isInscrutable } = require("@lifeweb/db/lib/inspectVision");
-const {
-  HEALTH_CATEGORY,
-  buildSkillAncestry,
-  satisfiedSkillIds,
-  seenByBystander,
-  medicallyVisibleTags,
-} = require("@lifeweb/db/lib/medicalVision");
+// The 🔍 readout is shared with the Look at button on /character — see
+// db/lib/examine.js for why it is one module and not two embeds.
+const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("@lifeweb/db/lib/examine");
+const { buildSkillAncestry, satisfiedSkillIds } = require("@lifeweb/db/lib/medicalVision");
 const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
@@ -358,137 +354,81 @@ module.exports = {
           where: { discordUserId: user.id, status: "ALIVE" },
           select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
         });
-        const { canSeeDesire } = inspectVision(viewer?.tags ?? []);
 
-        // Seductive/Demoness reads off the reactor, not the subject. A
-        // concealed message gets a hardcoded, impoverished embed instead of
-        // the normal field logic below, so nothing leaks through it.
-        if (proxy.concealed) {
-          const concealedChar = await prisma.character.findUnique({
-            where: { id: proxy.characterId },
-            select: {
-              tags: {
-                select: {
-                  equipped: true,
-                  tag: {
-                    select: {
-                      name: true,
-                      inspectVisibility: true,
-                      category: true,
-                    },
-                  },
-                },
-              },
-            },
-          });
-          if (!concealedChar) return;
+        // A concealed message is read off the PROXY, not the live row: the
+        // hood the room saw when this was posted is the hood this answers for,
+        // even if they have since taken it off. Faked onto the subject shape
+        // so one readout serves both — see db/lib/examine.js.
+        const subject = await prisma.character.findUnique({
+          where: { id: proxy.characterId },
+          select: EXAMINE_SUBJECT_SELECT,
+        });
+        if (!subject) return;
 
-          const seen = concealedChar.tags.filter((ct) => seenByBystander(ct.tag, ct));
-          // Tag.category stores the display name, not the YAML slug.
-          const ailments = seen
-            .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
-            .map((ct) => ct.tag.name);
-          const worn = seen.filter((ct) => ct.tag.category !== HEALTH_CATEGORY).map((ct) => ct.tag.name);
-
-          const hidden = new EmbedBuilder().setDescription(concealedLine(proxy.alias));
-          if (ailments.length > 0) hidden.addFields({ name: "Ailments", value: fitField(ailments.join(", ")) });
-          if (worn.length > 0) hidden.addFields({ name: "Equipment", value: fitField(worn.join(", ")) });
-          if (process.env.WEB_BASE_URL) {
-            hidden.setThumbnail(`${process.env.WEB_BASE_URL}/assets/unknown.png`);
-          }
-
-          try {
-            await sendDm(user, { embeds: [hidden] });
-          } catch (err) {
-            console.error("Inspect reaction DM failed (concealed):", err);
-          }
-          return;
-        }
-
-        const [character, openTurn, skillCatalog] = await Promise.all([
-          prisma.character.findUnique({
-            where: { id: proxy.characterId },
-            include: {
-              tags: { include: { tag: { include: { requirementSkills: { select: { id: true, name: true } } } } } },
-              faction: { select: { name: true } },
-            },
-          }),
+        const [openTurn, skillCatalog] = await Promise.all([
           prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
           // Tier chain: holding Medical (Expert) must satisfy a requirement
           // written against Medical (Basic).
           prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
         ]);
-        if (!character) return;
 
-        // The doctor's eye: an affliction treatable as ROUTINE is one you can
-        // recognise on sight; anything needing a Gambit stays hidden.
-        const satisfied = satisfiedSkillIds(
-          (viewer?.tags ?? []).map((ct) => ct.tagId),
-          buildSkillAncestry(skillCatalog),
-        );
+        const hooded = Boolean(proxy.concealed);
+        const officer =
+          !hooded && subject.factionId
+            ? (await getMyFactionRole(prisma, user.id, subject.factionId)).isOfficer
+            : false;
+        const lastDesire =
+          !hooded && canSeeDesire(viewer?.tags ?? [])
+            ? await prisma.desire.findFirst({
+                where: { characterId: subject.id, status: "FULFILLED" },
+                orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+                select: { text: true, points: true },
+              })
+            : null;
 
-        // Treat cost shows for a Health tag only — a bystander has no
-        // business learning what forging a worn sword takes.
-        const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
-          const bits = [
-            ct.tag.category === HEALTH_CATEGORY ? formatTagRequirement(ct.tag) : null,
-            formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
-            viaSkill ? "your diagnosis" : null,
-          ].filter(Boolean);
-          return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
+        const readout = examineReadout({
+          subject: hooded ? { ...subject, concealed: true } : subject,
+          viewerTags: viewer?.tags ?? [],
+          satisfied: satisfiedSkillIds(
+            (viewer?.tags ?? []).map((ct) => ct.tagId),
+            buildSkillAncestry(skillCatalog),
+          ),
+          openTurnNumber: openTurn?.number,
+          lastDesire,
+          viewerFactionId: viewer?.factionId ?? null,
+          viewerIsOfficer: officer,
         });
 
-        const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
-        const embed = new EmbedBuilder()
-          .setTitle(identity.name)
-          .setDescription(fitDescription(character.appearance || "No visible appearance."));
-        if (visibleTags.length > 0) {
-          embed.addFields({ name: "Tags", value: fitField(visibleTags.join(", ")) });
+        const embed = new EmbedBuilder();
+        if (readout.concealed) {
+          embed.setDescription(readout.line);
+        } else {
+          embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
         }
-
-        // An unseen field is absent, never a "hidden" placeholder — nothing
-        // tells the subject they were read either. Once the viewer holds the
-        // sight, an empty result gets an explicit "nothing there" line so it
-        // reads the same as Inscrutable's block (db/lib/inspectVision.js).
-        if (canSeeDesire) {
-          const desires = isInscrutable(character.tags)
-            ? []
-            : await prisma.desire.findMany({
-                where: { characterId: character.id, status: "FULFILLED" },
-                orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
-                take: 1,
-                select: { text: true, points: true },
-              });
+        if (readout.ailments.length > 0) {
+          embed.addFields({ name: "Ailments", value: fitField(readout.ailments.join(", ")) });
+        }
+        if (readout.equipment.length > 0) {
+          embed.addFields({ name: "Equipment", value: fitField(readout.equipment.join(", ")) });
+        }
+        if (readout.tags.length > 0) {
+          const value = readout.tags.map((t) => (t.detail ? `${t.name} (${t.detail})` : t.name)).join(", ");
+          embed.addFields({ name: "Tags", value: fitField(value) });
+        }
+        if (readout.desire) {
           embed.addFields({
             name: "Last Desire",
-            value:
-              desires.length > 0
-                ? fitField(desires.map((d) => `» ${d.text} (+${d.points})`).join("\n"))
-                : "Nothing you can read.",
+            value: readout.desire.text
+              ? fitField(`» ${readout.desire.text} (+${readout.desire.points})`)
+              : "Nothing you can read.",
           });
         }
-
-        // Role is same-faction knowledge, not officer authority.
-        if (
-          character.factionId &&
-          character.faction?.name !== "Unaffiliated" &&
-          viewer?.factionId === character.factionId &&
-          character.roleTitle
-        ) {
-          embed.addFields({ name: "Role", value: character.roleTitle, inline: true });
+        if (readout.roleTitle) embed.addFields({ name: "Role", value: readout.roleTitle, inline: true });
+        if (readout.resources != null) {
+          embed.addFields({ name: "Resources", value: `${readout.resources} ⬢`, inline: true });
         }
-
-        // A Leader/Treasurer of the character's OWN faction sees member
-        // Resources, same as /faction's roster column.
-        if (character.factionId && character.faction?.name !== "Unaffiliated") {
-          const role = await getMyFactionRole(prisma, user.id, character.factionId);
-          if (role.isOfficer) {
-            embed.addFields({ name: "Resources", value: `${character.resources} ⬢`, inline: true });
-          }
-        }
-
         if (process.env.WEB_BASE_URL) {
-          embed.setThumbnail(`${process.env.WEB_BASE_URL}${identity.avatarPath}`);
+          embed.setThumbnail(`${process.env.WEB_BASE_URL}${readout.avatarPath}`);
         }
 
         try {

@@ -119,6 +119,15 @@ reason.
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
 
+**Two buttons on that grid file no `Request` at all**, and both are reads
+rather than acts: **Read** (`ReadDialog.js`, a purely local decode of a
+ciphered letter) and **Look at** (`examineActions.js`, examining somebody
+standing where you stand — `PROXYING.md` §4a). Neither moves anything, costs
+anything or spends a Move, so there is nothing for a GM to review and nothing
+to undo. Both skip `RequestDialog` — `NO_REQUEST_MODES` in
+`RequestActionsProvider.js` — and get their own plain modal, because the
+universal "what is your reason?" popup has nothing to ask them.
+
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
 there, one entry in `RequestSections.js`'s `SECTIONS` map, one label in

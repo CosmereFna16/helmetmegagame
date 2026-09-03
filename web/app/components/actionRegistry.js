@@ -45,6 +45,8 @@ export const ACTION_HELP = {
   craft:
     "Make something from a recipe you know. The ⬢ are charged now, your Move is filed for you, and a long job comes back here to continue. ‡",
   destroy: "Throw away something you're holding. It's gone. ‡",
+  examine:
+    "Look someone over without saying a word to them. You see what anyone standing here could see — their face, and whatever they are carrying openly. Somebody concealed stays concealed. Costs nothing, takes no time, and they are never told. ‡",
   heal: "Works on others nearby too. Gated by your Medical skill.",
   consume: "Use something up. You can also just click on the tag on your sheet.",
   transfer: (
@@ -98,6 +100,10 @@ export const ACTION_SECTIONS = [
     key: "others",
     label: "People here ‡",
     actions: [
+      // No gate, and never one: whether there is anybody to look at is a fact
+      // about who is standing near you, which the rule at the top of this file
+      // forbids greying a button for.
+      { mode: "examine", icon: EyeIcon, label: "Look at ‡" },
       { mode: "heal", icon: BandageIcon, label: "Heal", gate: "canHeal" },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },

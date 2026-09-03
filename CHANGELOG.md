@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-03 · You can look someone over without saying a word to them
+
+✚ A Look at button on the character sheet. Pick anybody standing where you are and see what a bystander could see: their face, their open injuries, whatever they are carrying openly  
+✎ A concealed person stays concealed. You get the same impoverished read the magnifying-glass reaction gives, so a hood is still worth wearing  
+✎ The magnifying-glass reaction only ever worked on somebody who had already spoken, which meant a guard could not size up a silent traveller without starting a conversation first. It still works, and both now show exactly the same thing  
+✎ A medic still sees what their training lets them see, and a faction officer still sees a member's resources. Same rules as before, in one place now
+
 ## 2026-09-03 · A key weighs nothing: 0 becomes a real rung on the weight ladder
 
 ✎ Keys, letters, badges, spectacles and coins weigh nothing now instead of half a pound each — 0 is a real rung on the weight ladder
