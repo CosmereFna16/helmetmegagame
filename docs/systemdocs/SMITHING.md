@@ -56,10 +56,17 @@ honor system stands, it's just the Skill half that's now enforced.
 ## 2a. Workshop Equipment
 
 **Smithing and building need a forge, where smith's work is unavoidable.** A
-recipe requires **Workshop Equipment** in reach — held, or sitting in a Room
-stash you can get into at your Location (`db/lib/equipmentReach.js`, the same
-predicate the private-room threads are synced with) — when it names a
-`smithing-*` or `builder-*` skill **and does not offer `crafting`**.
+recipe requires **Workshop Equipment** in reach — held, sitting in a Room
+stash you can get into at your Location, or served by a **COMPLETE** structure
+whose `placement.provides` lists `workshop-equipment` (`db/lib/equipmentReach.js`,
+the same predicate the private-room threads are synced with) — held kit, room
+stash, or standing forge are the three reaches, and a Forge serves everyone
+standing at its Location permanently, no hauling and no door. A `DAMAGED`
+forge serves nobody — the same `COMPLETE`-only reading `structureTools` uses
+for laboring tools (`LABORING.md` §5). All of this applies when the recipe
+names a `smithing-*` or `builder-*` skill **and does not offer `crafting`**. A
+recipe whose type carries `placement.fieldwork: true` — a light field
+structure — skips the workshop rule entirely.
 
 That second half matters. Every Dead Simple recipe lists
 `skills: [crafting, smithing]`, and the `crafting` half is what says a work

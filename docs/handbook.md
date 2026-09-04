@@ -30,8 +30,9 @@
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
     - [Examining Tags](#examining-tags)  
     - [Health Tags](#health-tags)  
-10. [Character Page](#character-page)  
-11. [Death](#death)  
+10. [Building](#building)  
+11. [Character Page](#character-page)  
+12. [Death](#death)  
 
 
 ## About Bascinet
@@ -404,6 +405,22 @@ You can see the costs and skills required in the Medical Document: {document:med
 When a health tag worsens, the bot will DM you. Find a doctor before the tag shows `· last` if you want to stay alive.
 
 Even if you don't possess the skills needed to heal an injury or ailment, you may always *attempt* something above your tier. That requires a Gambit, and you stand a very real chance of making it worse.
+
+## Building
+
+Structures are built on the ground where you stand — a bridge, a palisade, a forge, a fishing weir. Once raised, anyone can see them: they show up when someone Examines the Location. ‡
+
+Opening a build site costs the recipe's skill like any other craft, its ⬢ paid up front and never refunded, and your Move for the day. ‡
+
+Anyone standing at the site can put their Move into it too. Crew makes it finish faster — it never makes something possible that isn't unlocked yet. ‡
+
+A finished structure serves everyone standing there, not just whoever built it. A Forge is a smithy for anyone who walks up to it, and racks or a weir pay out to whoever works that ground. ‡
+
+Whoever opened a site can abandon it. ‡
+
+What stands can be damaged, burned, or torn down. Attacking a structure is a Gambit like anything else risky and uncertain — and taking on a whole community's held ground gets declared publicly a turn before it can actually happen. ‡
+
+A destroyed structure leaves a ruin standing until somebody clears it away. ‡
 
 ## Character Page
 

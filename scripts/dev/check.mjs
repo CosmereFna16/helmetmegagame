@@ -55,6 +55,7 @@ const DEFAULT_ROUTES = [
   { path: "/gm/players", as: "gm" },
   { path: "/gm/turns", as: "gm" },
   { path: "/gm/audit", as: "gm" },
+  { path: "/gm/structures", as: "gm" },
   { path: "/gm/gamemasters", as: "gm" },
   { path: "/gm/dev", as: "gm" },
   { path: "/gm/dev/characters", as: "gm" },
@@ -67,6 +68,10 @@ const DEFAULT_ROUTES = [
   { path: "/gm/turns", as: "player", expect: "/character" },
   { path: "/gm/players", as: "player", expect: "/character" },
   { path: "/gm/dev", as: "player", expect: "/character" },
+  // The player negative is the interesting one for an isGm page — anon
+  // alone would under-test a gate every GM tool depends on.
+  { path: "/gm/structures", as: "player", expect: "/character" },
+  { path: "/gm/structures", as: "anon", expect: "/" },
   // Superadmin-gated too, but it bounces to /gm/players rather than
   // /character (web/app/(app)/gm/gamemasters/page.js:20), and the (desk)
   // layout then bounces a non-GM on from there. Two hops, same door.

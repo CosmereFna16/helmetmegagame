@@ -1017,6 +1017,15 @@ model LocationLink {
   openerRoleSlugs String[]
   openerTagSlugs  String[]
 
+  // Structure-controlled edge (docs/zones.yaml `modular.structural`): the
+  // opener rule is waived at sync, no gate button renders and no hand can
+  // flip it until a structure in HOLDS_EDGE status holds it
+  // (db/lib/structures.js). authoredOpen is the BORN state (`modular.open`),
+  // re-asserted by every sync unlike isOpen: it is what the Restart wipe
+  // resets isOpen to and what a destroyed holding structure reverts to.
+  structural   Boolean @default(false)
+  authoredOpen Boolean @default(true)
+
   keyed     Boolean   @default(false)
   openUntil DateTime?
 

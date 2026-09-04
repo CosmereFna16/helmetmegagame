@@ -80,9 +80,9 @@ the sender at −10 and the recipient up 20.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The nineteen types
+## 3. The twenty types
 
-Fifteen live in `web/app/(app)/character/requestActions.js`, the two
+Sixteen live in `web/app/(app)/character/requestActions.js`, the two
 Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
 in `web/app/(app)/store/actions.js`, and `CAVING_LOOT` is filed by the turn
 engine rather than by anybody. Each one
@@ -118,6 +118,11 @@ reason.
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
+| `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
+
+(`DAMAGE_STRUCTURE` is also in the enum, declared ahead of use because
+Postgres cannot drop enum values — nothing files one; GM structure rulings
+are AuditLog microactions on `/gm/structures`, not Requests.)
 
 **Two buttons on that grid file no `Request` at all**, and both are reads
 rather than acts: **Read** (`ReadDialog.js`, a purely local decode of a
@@ -241,6 +246,19 @@ Three notes on deliberate choices:
   for the Discord call outside the transaction, and a bespoke undo path for
   each type would be the `killRequestTarget` treatment for something this
   minor.
+
+  **`BUILD_STRUCTURE` is the deliberate exception, on the after-commit side.**
+  The in-transaction half of the rule stands exactly as written above — its
+  own `undo()` still makes no network call inside the `$transaction`. But
+  `resolveRequestImpl`'s existing after-commit block already reads
+  `effect.linkEndpointIds` generically, for any request type, and reposts
+  both Location anchors it names — because an anchor that lies about a gate
+  is worse than the stale side effects this rule otherwise tolerates: the
+  button itself would be the lie. The restore underneath it is conditional to
+  begin with — `BUILD_STRUCTURE`'s `undo()` only writes `LocationLink.isOpen`
+  back when no `COMPLETE`/`DAMAGED` structure still holds that edge
+  (`HOLDS_EDGE`), so an edge some other structure has since claimed is left
+  exactly as that structure needs it.
 
 ## 4. Hunger and the Gambit modifier
 

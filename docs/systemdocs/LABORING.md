@@ -173,6 +173,22 @@ than hunting, so it competes with no other weapon and the rule never bites it.
 **Butcher's bonus narrowed.** It used to be a hardcoded flat +2 on every tier
 but farming. It is hunting-only now, and it moved out of code into the YAML.
 
+**A COMPLETE structure pays into labor too, as a synthetic tool nobody
+carries.** A structure whose `placement.laborBonus` names a kind (the same
+shape as a tag's `laborBonus:` block above) enters everyone standing at its
+Location's labor — `db/lib/laborAccess.js#structureTools` — but it is never
+equipped and never a weapon, so it sums on top of the best personal weapon
+rather than competing with it. **Non-stacking per kind**: two hunting
+structures on the same ground pay like the better of the two, not both added
+together — a location-wide bonus is a faucet times occupancy, and the ceiling
+has to be enforced here rather than hoped about in catalog pricing. `DAMAGED`,
+`UNDER_CONSTRUCTION` and wrecked (`RUINED`/`ABANDONED`) structures pay
+nothing — the same `COMPLETE`-only reading `db/lib/equipmentReach.js` uses for
+Workshop Equipment (`SMITHING.md` §2a), so Damaging one is worth doing. The
+payout DM names a paying structure through the same `formatLaborBonusNote`
+path as any tool, so a player reads "Fish Weir +2" no differently from
+"Fishing Rod +1".
+
 ## 6. When the Lifeweb fails
 
 At or below `LIFEWEB_SPUTTER_THRESHOLD` (20, in `db/lib/lifeweb.js` — it moved

@@ -72,11 +72,16 @@ function gateLines(gates) {
   return (gates ?? [])
     .slice()
     .sort((x, y) => x.farName.localeCompare(y.farName))
-    .map((gate) =>
-      gate.isOpen
+    .map((gate) => {
+      // A shut structural edge nothing holds is not a closed door — it is a
+      // crossing nobody has built, and Examine is where that gets noticed.
+      if (gate.unbuilt) {
+        return `Nothing spans the way to ${gate.farName} — it would have to be built. ‡`;
+      }
+      return gate.isOpen
         ? `The way to ${gate.farName} stands open. ‡`
-        : `The way to ${gate.farName} is closed. ‡`,
-    );
+        : `The way to ${gate.farName} is closed. ‡`;
+    });
 }
 
 // The Depot's machinery, read off live state and handed over as ctx.depot —
@@ -123,21 +128,29 @@ function depotLines(ctx = {}) {
 function structureLines(ctx = {}) {
   const structures = ctx.structures;
   if (!structures?.length) return [];
-  return structures.map((structure) => {
+  return structures.flatMap((structure) => {
     const typeName = structure.type?.name ?? structure.typeName;
+    // The defenseNote (a defensive clause, or the siege licence) prints
+    // only while the structure WORKS — COMPLETE or DAMAGED — never off a
+    // wreck or a rising site, or a ruined ram would still license a storm.
+    // It is authored as a ‡-free fragment (tagShapes enforces that) because
+    // the GM Move card splices it mid-line; here it stands as its own line
+    // and picks its ‡ up on the way out.
+    const note = structure.placement?.defenseNote;
+    const noteLines = note ? [`${note} ‡`] : [];
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
-        return `A ${typeName} is going up here (${structure.turnsDone}/${structure.turnsNeeded}). ‡`;
+        return [`A ${typeName} is going up here (${structure.turnsDone}/${structure.turnsNeeded}). ‡`];
       case "COMPLETE":
-        return structure.placement?.examine ?? `A ${typeName} stands here. ‡`;
+        return [structure.placement?.examine ?? `A ${typeName} stands here. ‡`, ...noteLines];
       case "DAMAGED":
-        return `The ${typeName} here is damaged. ‡`;
+        return [`The ${typeName} here is damaged. ‡`, ...noteLines];
       case "RUINED":
-        return `The ruin of a ${typeName} lies here. ‡`;
+        return [`The ruin of a ${typeName} lies here. ‡`];
       case "ABANDONED":
-        return `The abandoned groundwork of a ${typeName} sits here, gone nowhere. ‡`;
+        return [`The abandoned groundwork of a ${typeName} sits here, gone nowhere. ‡`];
       default:
-        return null;
+        return [];
     }
   }).filter(Boolean);
 }

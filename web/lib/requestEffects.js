@@ -1,6 +1,7 @@
 import { bumpBlood, bumpAccount, OBOL_SLUG } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { HOLDS_EDGE } from "@lifeweb/db/lib/structures";
 import { UserError } from "@/lib/actionResult";
 
 // Per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -794,16 +795,31 @@ export const REQUEST_EFFECTS = {
   // were really worked, the ADD_TAG precedent, and nothing here or on the
   // desk hands one back.
   //
-  // Nothing here touches LocationLink: no structure flips a link yet, and an
-  // effect with no `linkId` must stay harmless when one does.
+  // An effect carrying `linkId` records the edge this build flipped at
+  // completion; the restore is CONDITIONAL — only when nothing else still
+  // holds the edge after the row delete, or undoing a long-dead build would
+  // swing a newer palisade's gate out from under it. In-transaction writes
+  // only; the anchor reposts ride resolveRequestImpl's after-commit block,
+  // read off the same effect fields.
   BUILD_STRUCTURE: {
     editableFields: [],
     async undo(tx, request) {
-      const { structureId, typeName, locationName, resourcesSpent, payer } = request.effect;
+      const { structureId, typeName, locationName, resourcesSpent, payer, linkId, linkWasOpen } =
+        request.effect;
       // deleteMany, not delete: the row may already be gone (a demolition, a
       // wipe), and an undo must not throw over something already true.
       // StructureWork cascades off it.
       if (structureId) await tx.structure.deleteMany({ where: { id: structureId } });
+      if (linkId && linkWasOpen != null) {
+        const holders = await tx.structure.count({
+          where: { linkId, status: { in: HOLDS_EDGE } },
+        });
+        // updateMany: the sync may have deleted the edge since (SetNull on
+        // the row), and an undo must not throw over something already gone.
+        if (holders === 0) {
+          await tx.locationLink.updateMany({ where: { id: linkId }, data: { isOpen: linkWasOpen } });
+        }
+      }
       if (resourcesSpent) {
         await moveResources(
           tx,

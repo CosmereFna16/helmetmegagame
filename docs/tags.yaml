@@ -3844,6 +3844,82 @@ tags:
       examine: "A forge stands here, anvil set and bellows hung. ‡"
       provides: [workshop-equipment]
 
+  palisade:
+    name: Palisade
+    category: assets
+    group: assets-structures
+    description: "A ring of sharpened stakes raised around the ground you stand on. It will not stop a determined assault by itself, but nobody walks through it, and everybody sees who tries. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      # The deliberate crew flagship: the one structure not meant to be
+      # soloed. Six crew-turns is a week alone or two days with friends.
+      turnsCost: 6
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
+    # hold_shut is opportunistic: where the map authors a structural gateway
+    # the finished palisade closes it and its gate answers to the authored
+    # openers; anywhere else it builds unbound and the defense prose is the
+    # whole effect. defenseNote is a spliced fragment — no ‡ (sync enforces).
+    placement:
+      fieldwork: true
+      link: hold_shut
+      examine: "A palisade of sharpened stakes rings this ground. ‡"
+      defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
+
+  barricade:
+    name: Barricade
+    category: assets
+    group: assets-structures
+    description: "Carts, timber and furniture heaped into a fighting line. One good fight's worth of cover, raised in an afternoon. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 8
+      skills: [builder-skilled]
+      gambit: false
+    # Deliberately holds NO edge (plan §5): a cheap edge-holder would be a
+    # unilateral map edit for pocket change. Cover prose only.
+    placement:
+      fieldwork: true
+      examine: "A barricade of heaped timber and carts crosses this ground. ‡"
+      defenseNote: "Heaped cover to fight from; whoever holds it meets a charge on their own terms."
+
+  battering-ram:
+    name: Battering Ram
+    category: assets
+    group: assets-structures
+    description: "A roofed ram on rollers, built where it will be used — a promise that some gate nearby is going to be opened one way or the other. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 20
+      skills: [builder-skilled]
+      gambit: false
+    # Deliberately NOT fieldwork — the siege-camp logistics beat: raising a
+    # ram outside somebody's gate means hauling Workshop Equipment there
+    # first, or building in reach of a Forge. The defenseNote IS the siege
+    # licence (plan §4f): storming a shut gate is only adjudicable where a
+    # ram stands, and this line prints on Examine and the GM Move card.
+    placement:
+      examine: "A battering ram stands here under its rough roof. ‡"
+      defenseNote: "A battering ram stands here — a shut gate can be stormed."
+
   dog:
     name: Dog
     category: assets

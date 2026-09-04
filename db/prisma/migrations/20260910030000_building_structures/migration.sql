@@ -26,6 +26,14 @@ ALTER TYPE "RequestType" ADD VALUE 'DAMAGE_STRUCTURE';
 -- AlterTable
 ALTER TABLE "Tag" ADD COLUMN     "placement" JSONB;
 
+-- AlterTable (milestone C, same unshipped migration): structure-controlled
+-- edges. authoredOpen is backfilled from the live isOpen rather than the
+-- column default, so a born-closed gate that predates this migration (the
+-- Fortress gatehouse) is not silently re-authored open.
+ALTER TABLE "LocationLink" ADD COLUMN "structural" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "LocationLink" ADD COLUMN "authoredOpen" BOOLEAN NOT NULL DEFAULT true;
+UPDATE "LocationLink" SET "authoredOpen" = "isOpen";
+
 -- CreateTable
 CREATE TABLE "Structure" (
     "id" TEXT NOT NULL,

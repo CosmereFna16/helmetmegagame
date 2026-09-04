@@ -112,6 +112,14 @@ function statusWord(status) {
 // (web/lib/tagRequests.js#placementOfferedHere) can never drift apart.
 const PRESENT_STATUSES = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
 
+// The statuses that HOLD an edge (Structure.linkId): a damaged palisade
+// still stands and its gate still answers; only completion grants the hold
+// and only destruction (RUINED) or abandonment releases it. Distinct from
+// PRESENT_STATUSES on purpose — an UNDER_CONSTRUCTION site CLAIMS its edge
+// (the binding check) but does not yet hold it (the edge stays in its
+// unbuilt state until the last crew-turn).
+const HOLDS_EDGE = ["COMPLETE", "DAMAGED"];
+
 // --- The lines a site speaks -------------------------------------------
 //
 // All three are scenery and go through ambientLine (CLAUDE.md: a line the
@@ -145,6 +153,26 @@ function siteCancelledLine(structure) {
   return ambientLine(`Work on the ${structure.typeName} is abandoned.`);
 }
 
+// The GM ruling lines (/gm/structures). Same scenery rules as the site
+// lines above: ambientLine, posted post-commit, catch-logged. The damage
+// and destruction lines deliberately do not say WHO — the desk adjudication
+// and #summary carry the story; the channel just sees the state change.
+function structureDamagedLine(structure) {
+  return ambientLine(`The ${structure.typeName} here has taken damage.`);
+}
+
+function structureRepairedLine(structure) {
+  return ambientLine(`The ${structure.typeName} here stands whole again.`);
+}
+
+function structureDestroyedLine(structure) {
+  return ambientLine(`The ${structure.typeName} here is destroyed — a ruin of it remains.`);
+}
+
+function structureClearedLine(structure) {
+  return ambientLine(`The remains of the ${structure.typeName} here have been cleared away.`);
+}
+
 // The notification list: everyone with a StructureWork row, plus the payer
 // when the payer is a character — a structure has no owner, but the people
 // whose turns raised it hear when something happens to it. Returns
@@ -163,6 +191,7 @@ async function stakeholderCharacterIds(prisma, structureId, { except = null, pay
 
 module.exports = {
   PRESENT_STATUSES,
+  HOLDS_EDGE,
   placementOf,
   structuresAt,
   canBuildHere,
@@ -171,5 +200,9 @@ module.exports = {
   siteAdvancedLine,
   siteCompletedLine,
   siteCancelledLine,
+  structureDamagedLine,
+  structureRepairedLine,
+  structureDestroyedLine,
+  structureClearedLine,
   stakeholderCharacterIds,
 };

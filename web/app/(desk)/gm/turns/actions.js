@@ -8,6 +8,7 @@ import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
+import { refreshLocationAnchor } from "@lifeweb/db/lib/syncZones";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
@@ -862,13 +863,28 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
       ...[e.from, e.to, e.payer].filter((p) => p?.kind === "character").map((p) => p.id),
     ].filter(Boolean);
 
-    return { status: updated.status, note, changed, touched };
+    // An effect naming a flipped edge (BUILD_STRUCTURE's linkEndpointIds)
+    // means an undo may have moved gate state; both endpoints' anchors get
+    // reposted after the commit, same generic-off-the-effect posture as
+    // `touched`. Harmless when the restore was skipped — the repost is
+    // hash-gated and no-ops on an unchanged anchor.
+    const anchorLocationIds =
+      mode === "undo" && Array.isArray(e.linkEndpointIds) ? e.linkEndpointIds.filter(Boolean) : [];
+
+    return { status: updated.status, note, changed, touched, anchorLocationIds };
   });
 
   // An undo moves tags or ⬢ back onto somebody; their carry caps and room
   // access follow (CARRY.md). Off the critical path, after the commit.
-  const { touched, ...outcome } = result;
-  after(() => afterInventoryChange(touched));
+  const { touched, anchorLocationIds, ...outcome } = result;
+  after(async () => {
+    await afterInventoryChange(touched);
+    for (const locationId of anchorLocationIds) {
+      await refreshLocationAnchor(prisma, locationId).catch((err) =>
+        console.error(`Undo anchor refresh failed for ${locationId}:`, err?.message ?? err),
+      );
+    }
+  });
 
   revalidatePath("/gm/audit");
   revalidatePath("/character");

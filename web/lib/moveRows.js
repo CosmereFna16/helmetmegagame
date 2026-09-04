@@ -103,13 +103,18 @@ export function paidLabel(applied) {
   return parts.join(", ");
 }
 
-// "Well — standing." for a structure with no defenseNote yet (no catalog
-// entry carries one at the moment); "Well — standing: draws from the river"
-// once one does. One line per structure at a Location, in creation order.
+// "Palisade — standing: A ring of sharpened stakes…" — one line per
+// structure at a Location, in creation order. The defenseNote prints ONLY
+// while the structure actually works (COMPLETE or DAMAGED — the HOLDS_EDGE
+// statuses): a ruined Battering Ram must not hand the desk a siege licence
+// its wreck no longer grants. The status word still prints for every row,
+// so the ruin stays visible as scenery.
+const NOTE_STATUSES = new Set(["COMPLETE", "DAMAGED"]);
+
 function standingHereLines(structures) {
   if (!structures?.length) return [];
   return structures.map((s) => {
-    const note = s.placement?.defenseNote;
+    const note = NOTE_STATUSES.has(s.status) ? s.placement?.defenseNote : null;
     return `${s.typeName} — ${statusWord(s.status)}${note ? `: ${note}` : ""}`;
   });
 }

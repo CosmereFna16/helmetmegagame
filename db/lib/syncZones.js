@@ -46,7 +46,7 @@ const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
 const { collectAttributes } = require("./locationAttributes");
 const { roomStarterRow } = require("./roomStarterRow");
 const { entriesOf } = require("./yamlEntries");
-const { orderEndpoints, linksFor, endpoints } = require("./locationGraph");
+const { orderEndpoints, linksFor, endpoints, gateOperable } = require("./locationGraph");
 
 const CHANNEL_TYPE_CATEGORY = 4;
 
@@ -156,6 +156,24 @@ function parseZonesYaml(doc) {
     if (entry) connections.push(entry);
   }
 
+  // At most ONE structural edge per location, refused at author time — the
+  // open-site binding rule (openBuildSiteImpl) has no picker, so a second
+  // ford at one location would make every hold_open build there ambiguous.
+  // A HARD failure on purpose: failing in the file being edited beats a
+  // runtime refusal a player discovers.
+  const structuralCount = new Map();
+  for (const entry of connections) {
+    if (!entry.structural) continue;
+    for (const slug of [entry.a, entry.b]) {
+      structuralCount.set(slug, (structuralCount.get(slug) ?? 0) + 1);
+    }
+  }
+  for (const [slug, count] of structuralCount) {
+    if (count > 1) {
+      problems.push(`location "${slug}" touches ${count} structural edges — a build site could not tell which one to claim (max 1)`);
+    }
+  }
+
   // Two entries for one pair would each try to claim the same unique row,
   // and the later one would silently win. Almost always a copy-paste of a
   // mirrored edge that the format no longer wants stated twice.
@@ -247,6 +265,7 @@ function parseConnection(raw, locationByRef, problems) {
     requiredTagSlug: null,
     hidden: false,
     modular: false,
+    structural: false,
     isOpen: true,
     openerRoleSlugs: [],
     openerTagSlugs: [],
@@ -323,7 +342,21 @@ function parseConnection(raw, locationByRef, problems) {
       entry.openerRoleSlugs = slugList(modular.roles, "roles");
       entry.openerTagSlugs = slugList(modular.tags, "tags");
       entry.isOpen = modular.open !== false;
-      if (entry.openerRoleSlugs.length === 0 && entry.openerTagSlugs.length === 0) {
+      // `structural: true` marks a structure-controlled edge (a ford a
+      // Bridge will span, a gateway a Palisade will hold —
+      // db/lib/structures.js). It waives the opener rule: nobody CAN open
+      // it until something is built, and the button only appears once a
+      // holding structure stands and openers are authored.
+      if (modular.structural != null && typeof modular.structural !== "boolean") {
+        problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean modular.structural`);
+      }
+      entry.structural = modular.structural === true;
+      if (entry.structural && entry.hidden) {
+        problems.push(
+          `connections ${entry.a} <-> ${entry.b} is structural but hidden — the unbuilt way IS the discovery hook, and hidden would swallow it`,
+        );
+      }
+      if (!entry.structural && entry.openerRoleSlugs.length === 0 && entry.openerTagSlugs.length === 0) {
         problems.push(
           `connections ${entry.a} <-> ${entry.b} is modular but names no roles or tags — nobody could ever open it`,
         );
@@ -621,10 +654,12 @@ async function syncRoomThread(prisma, room, location, snapshot) {
 // The modular gates on one location, shaped for locationGateRow. Reads the
 // graph rather than taking it from the sync's own state, because the button
 // handler refreshes an anchor too and has no sync state to hand.
+// gateOperable is what keeps a structural edge button-less until something
+// built holds it — and puts the button on BOTH endpoints once one does.
 async function gatesFor(prisma, locationId) {
   const links = await linksFor(prisma, locationId);
   return links
-    .filter((link) => link.modular)
+    .filter((link) => gateOperable(link))
     .map((link) => ({
       linkId: link.id,
       isOpen: link.isOpen,
@@ -973,6 +1008,11 @@ async function syncZonesFromYaml(prisma) {
       requiredTagSlug: entry.requiredTagSlug,
       hidden: entry.hidden,
       modular: entry.modular,
+      structural: entry.structural,
+      // The born state, re-asserted as authoring (isOpen itself never is):
+      // it is what the Restart wipe resets isOpen to, and what a destroyed
+      // holding structure reverts its edge to.
+      authoredOpen: entry.isOpen,
       openerRoleSlugs: entry.openerRoleSlugs,
       openerTagSlugs: entry.openerTagSlugs,
       keyed: entry.keyed,
@@ -1215,5 +1255,6 @@ module.exports = {
   reconcileChannelOverwrites,
   managedOverwriteIds,
   buildAnchorBody,
+  gatesFor,
   refreshLocationAnchor,
 };

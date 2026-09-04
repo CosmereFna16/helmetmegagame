@@ -23,6 +23,7 @@ const { dragCandidates } = require("@lifeweb/db/lib/locationTravel");
 const {
   travelOptions,
   canToggleGate,
+  gateOperable,
   endpoints,
   linksFor,
   isHeldOpen,
@@ -63,7 +64,7 @@ const {
 const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
-const { structuresAt } = require("@lifeweb/db/lib/structures");
+const { structuresAt, HOLDS_EDGE } = require("@lifeweb/db/lib/structures");
 const { ROOM_STORAGE_PREFIX, ROOM_INTERCOM_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -527,9 +528,17 @@ async function handleGateToggle(interaction, linkId) {
 
   const link = await prisma.locationLink.findUnique({
     where: { id: linkId },
-    include: { a: true, b: true },
+    include: {
+      a: true,
+      b: true,
+      // gateOperable needs to know whether anything holds a structural edge
+      // — the same HOLDS_EDGE-filtered boolean's-worth LINK_INCLUDE loads.
+      structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } },
+    },
   });
-  if (!link?.modular) {
+  // Covers "not modular" and "structural with nothing built holding it" —
+  // an unheld ford has no mechanism, whatever a stale button claimed.
+  if (!gateOperable(link)) {
     await respond(interaction, "» *There's no gate here to work.* ‡");
     return;
   }
@@ -898,7 +907,13 @@ async function handleExamine(interaction, locationId) {
   const links = await linksFor(prisma, locationId);
   const gates = links
     .filter((link) => link.modular)
-    .map((link) => ({ isOpen: link.isOpen, farName: endpoints(link, locationId).far.name }));
+    .map((link) => ({
+      isOpen: link.isOpen,
+      farName: endpoints(link, locationId).far.name,
+      // A shut structural edge with no holding structure (LINK_INCLUDE's
+      // HOLDS_EDGE-filtered `structures`) Examines as unbuilt, not closed.
+      unbuilt: Boolean(link.structural && !link.isOpen && !(link.structures?.length > 0)),
+    }));
 
   const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
   const laborLine = LABOR_QUERY_KINDS.map(
