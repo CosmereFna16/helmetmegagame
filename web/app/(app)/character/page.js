@@ -15,6 +15,7 @@ import { canRead } from "@lifeweb/db/lib/reading";
 import { PAPER_SLUG, isPaper, isSeal, sealLabel, paperDescription } from "@lifeweb/db/lib/paper";
 import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
+import { groupFactions } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
@@ -123,54 +124,55 @@ async function loadCreationData(discordUserId) {
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
-    zones: zones
-      .map((zone) => ({
-        id: zone.id,
-        name: zone.name,
-        factions: zone.factions
-          .map((faction) => ({
-            id: faction.id,
-            name: faction.name,
-            roles: faction.roles.map((role) => {
-              const cap = roleCapacity(role, playerCount);
-              // Locked roles stay in the tree; the card greys itself and says why.
-              const playtestLocked =
-                playtestMode && isPlaytestLocked({ role, zoneName: zone.name });
-              return {
-                id: role.id,
-                name: role.name,
-                intro: role.intro,
-                slug: role.slug,
-                // Null for ordinary seats; set on the four dynasty roles.
-                lockedGender: role.lockedGender,
-                difficulty: role.difficulty,
-                factionName: faction.name,
-                startingLocationName: role.startingLocation?.name ?? null,
-                startingZoneName: role.startingLocation?.zone?.name ?? null,
-                startingResources: role.startingResources,
-                extraStartingPoints: role.extraStartingPoints,
-                // Parsed, because the wizard matches these against catalog tag names
-                // and an entry may carry a count ("Obol x5").
-                startingTagNames: startingTagNames(role.startingTagSlugs),
-                grantsLeader: role.grantsLeader,
-                // Drives the "Whitelist only" hover on a greyed card. Separate
-                // from grantsLeader, which now only means faction Leader.
-                requiresWhitelist: role.requiresWhitelist,
-                whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
-                // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
-                cap: cap === Infinity ? null : cap,
-                taken: takenByRole.get(role.id) ?? 0,
-                selectable: isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked }),
-                playtestLocked,
-                // Resolved server-side so a client component never drags
-                // PrismaClient into the browser bundle.
-                lastNameLocked: isDynastyMember(role.slug),
-              };
-            }),
-          }))
-          .filter((f) => f.roles.length > 0),
+    // Seven social buckets, not five zones — db/lib/roleGroups.js says which
+    // faction lands where, and the zone a role starts in is printed on its own
+    // card instead of being a heading over it.
+    groups: groupFactions(zones.flatMap((zone) => zone.factions.map((f) => ({ ...f, zoneName: zone.name }))))
+      .map((group) => ({
+        slug: group.slug,
+        name: group.name,
+        roles: group.factions.flatMap((faction) =>
+          faction.roles.map((role) => {
+            const cap = roleCapacity(role, playerCount);
+            // Locked roles stay in the tree; the card greys itself and says why.
+            const playtestLocked =
+              playtestMode && isPlaytestLocked({ role, zoneName: faction.zoneName });
+            return {
+              id: role.id,
+              name: role.name,
+              intro: role.intro,
+              slug: role.slug,
+              // Null for ordinary seats; set on the four dynasty roles.
+              lockedGender: role.lockedGender,
+              difficulty: role.difficulty,
+              // Printed on the card itself, now that the faction is no longer
+              // a heading over it.
+              factionName: faction.name,
+              startingLocationName: role.startingLocation?.name ?? null,
+              startingZoneName: role.startingLocation?.zone?.name ?? null,
+              startingResources: role.startingResources,
+              extraStartingPoints: role.extraStartingPoints,
+              // Parsed, because the wizard matches these against catalog tag names
+              // and an entry may carry a count ("Obol x5").
+              startingTagNames: startingTagNames(role.startingTagSlugs),
+              grantsLeader: role.grantsLeader,
+              // Drives the "Whitelist only" hover on a greyed card. Separate
+              // from grantsLeader, which now only means faction Leader.
+              requiresWhitelist: role.requiresWhitelist,
+              whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
+              // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
+              cap: cap === Infinity ? null : cap,
+              taken: takenByRole.get(role.id) ?? 0,
+              selectable: isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked }),
+              playtestLocked,
+              // Resolved server-side so a client component never drags
+              // PrismaClient into the browser bundle.
+              lastNameLocked: isDynastyMember(role.slug),
+            };
+          }),
+        ),
       }))
-      .filter((z) => z.factions.length > 0),
+      .filter((g) => g.roles.length > 0),
   };
 }
 

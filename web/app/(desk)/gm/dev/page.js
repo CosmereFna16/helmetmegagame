@@ -24,6 +24,7 @@ import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import { CONFIG_HELP, DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
+import SendLetterForm from "./SendLetterForm";
 import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
 import Select from "@/app/components/Select";
@@ -69,7 +70,7 @@ const THREAT_SUMMARY = [...new Set([...OPT_IN_THREATS, ...ASSIGNABLE_THREATS])].
 }));
 const ASSIGNABLE_SUMMARY = ASSIGNABLE_THREATS.map((t) => ({ slug: t.slug, name: t.name }));
 
-const SECTIONS = new Set(["turn", "config", "depot", "move", "reports", "assignments", "antagonists", "danger"]);
+const SECTIONS = new Set(["turn", "config", "depot", "move", "letters", "reports", "assignments", "antagonists", "danger"]);
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
@@ -145,6 +146,16 @@ export default async function DevPanelPage({ searchParams }) {
           select: { id: true, name: true, location: { select: { name: true } } },
         }),
       ]);
+      break;
+    case "letters":
+      // Living only: the letter mints paper onto a sheet, and a corpse's is
+      // not read. (The player Bird lists the dead too, because there the list
+      // itself would be a casualty report — here the GM already knows.)
+      livingCharacters = await prisma.character.findMany({
+        where: { status: "ALIVE" },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, location: { select: { name: true } } },
+      });
       break;
     case "reports": {
       // Latest report per kind — the section renders what actually happened,
@@ -540,7 +551,7 @@ export default async function DevPanelPage({ searchParams }) {
                   </div>
                   <div className="ops-toggle">
                     <Switch name="leaderWhitelistEnabled" defaultChecked={config.leaderWhitelistEnabled}>
-                      Require Leader Whitelist for ★ roles
+                      Require the whitelist for gated roles
                     </Switch>
                     <InfoIcon text={CONFIG_HELP.leaderWhitelistEnabled} />
                   </div>
@@ -799,6 +810,24 @@ export default async function DevPanelPage({ searchParams }) {
               <p className="ops-lede">
                 Their location and zone roles resync in the background; the report lands under
                 System Reports. ‡
+              </p>
+            </section>
+          ) : null}
+
+          {section === "letters" ? (
+            <section className="ops-section">
+              <div className="ops-section-head">
+                <h2 className="section-title">Send a Letter</h2>
+                <p className="ops-lede">
+                  A bird arrives carrying a letter from whoever you say it is from. The paper
+                  lands on their sheet like any other, and they can answer it until the end of
+                  next turn — the answer comes back in their conversation on the Players desk. ‡
+                </p>
+              </div>
+              <SendLetterForm characters={livingCharacters} />
+              <p className="ops-lede">
+                A sealed letter reads as a seal and nothing else until somebody breaks it. An
+                illiterate recipient still gets the paper; they just get no Reply button. ‡
               </p>
             </section>
           ) : null}

@@ -15,8 +15,8 @@ separate `/character/new` route; one URL, no redirect bounce.
 
 The wizard has five steps:
 
-1. **Role** — the role list, grouped Zone → Faction → Role, with live seat
-   counts.
+1. **Role** — the role list, in seven social buckets with live seat counts.
+   See §1e.
 2. **Tags** — the point-buy menu.
 3. **Identity** — a title (only what the build has *earned* — see §1c), a
    required first name and an optional last name.
@@ -317,6 +317,33 @@ untouched — **check the model before changing one.** The client-side
 fine: those tables are searched far more than sorted, and the search matches
 the same string.
 
+
+### 1e. The seven buckets
+
+The picker groups roles into **Court, Clergy, Cerberon, Saviors, Business, Soil
+and Outsiders**, and each card prints the faction it belongs to.
+
+It used to nest **Zone → Faction → Role**, which is the shape the database
+stores, the shape `docs/roles.yaml` is written in, and the shape `#info`'s
+roles-intro thread still uses. On the picker it read as a map, and a map is not
+the question being asked — what a player chooses between is a social position,
+and those cut across the geography. The Church and the Order of the Silver
+Cross are both in Town and are both clergy; the Company sits in the Caves and
+the Factory in the Marshes and both are business.
+
+`db/lib/roleGroups.js` is the only place the mapping lives. It is by faction
+**slug**, and it is in code rather than in the YAML master for the same reason
+`roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS` is: the sync has no business
+reading it, and a typo here must not be able to throw `db:sync-roles` mid-pass
+with the factions already written.
+
+**A faction in no bucket falls into a trailing "Elsewhere" rather than
+vanishing.** A silently dropped bucket would be a seat nobody could take,
+discovered by a player rather than by us.
+
+Nothing about `Faction.zoneId` changed. The faction page still chips its zone,
+`#info` still groups by it, and each role card still names the zone its holder
+starts in — only the picker's headings moved.
 ## 2. Roles
 
 `docs/roles.yaml` is the master. `db/lib/syncRoles.js#syncRolesFromYaml`

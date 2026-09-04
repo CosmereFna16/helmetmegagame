@@ -2579,7 +2579,7 @@ input[type="radio"]:disabled {
 }
 
 .desk-move-text {
-  font-family: var(--font-serif);
+  font-family: var(--font-serif), Georgia, serif;
   font-size: 0.95rem;
   padding-left: 0.75rem;
   border-left: 2px solid var(--border);
@@ -3626,6 +3626,58 @@ input[type="radio"]:disabled {
   color: var(--muted);
   font-size: var(--fs-2xs);
   flex-shrink: 0;
+}
+
+/* A GM letter, sent or answered (BIRD.md §9). Drawn as an object rather
+   than as chat: a piece of paper with a name, sometimes a seal, and words on
+   it. The serif face is the same one a heading gets, which is the closest the
+   design system comes to "this was written by hand".
+
+   Two rules borrowed from .dm-embed: a max-width so a long letter does not
+   run the full thread, and a left rule so the eye finds where it starts.
+   Unlike an embed it never collapses — a letter is the message, not a
+   footnote to one. See DmThread.js#LetterBody. */
+.dm-letter {
+  max-width: 34rem;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+}
+
+.dm-letter-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.dm-letter-name {
+  font-family: var(--font-serif), Georgia, serif;
+  color: var(--text);
+}
+
+.dm-letter-from {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.dm-letter-seal {
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+}
+
+.dm-letter-text {
+  margin-top: 0.35rem;
+  font-family: var(--font-serif), Georgia, serif;
+  color: var(--text);
+  /* A letter keeps the line breaks whoever wrote it put in. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* A bot/effect notification (resource grant, dev-panel microaction summary,

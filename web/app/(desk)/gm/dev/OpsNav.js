@@ -17,6 +17,7 @@ const SECTIONS = [
     title: "Operations",
     items: [
       { key: "move", label: "Bulk move" },
+      { key: "letters", label: "Send a letter" },
       { key: "reports", label: "System reports" },
     ],
   },

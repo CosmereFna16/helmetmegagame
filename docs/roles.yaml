@@ -1290,14 +1290,14 @@ zones:
           refugee:
             name: Refugee
             intro: >-
-              Cut Godflesh out of the marsh for a man who can replace you. Or don’t, and make it to the town.
+              Do dangerous work—cutting Godflesh from the marshes—in exchange for good hazard pay and potential social mobility.
             description:
               - >-
-                Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. ‡
+                You arrived from the caves. You don’t really have a trade or the ability to labor, so your only opportunity to stay alive is through factory work.
               - >-
-                On the upside, working at the Factory gives you a chance of social mobility—a good Banneret will pay you much more than the average commoner would make, if only to keep you around.
+                Cutting Godflesh out is dangerous. However, as worthwhile as it is to the merchant, the Banneret should be paying you well. If that’s not the case, feel free to do a bit of protesting.
               - >-
-                Most refugees don’t stay for long and usually try to make it to the town. You are easily replaced, so it doesn’t matter. ‡
+                But not too much, you know? Your life is worthless here. And an armed revolt? Pffft.
             difficulty: easy
             multiple: true
             weight: 3

@@ -7,6 +7,7 @@ const {
   canReadLetters,
   STUPID_SLUG,
   replyDm,
+  GM_LETTER_REPLY_SOURCE,
 } = require("@lifeweb/db/lib/bird");
 const { ack, respond } = require("./respond");
 
@@ -130,7 +131,11 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
     return respond(interaction, { content: "You aren't holding that. ‡", ephemeral: true });
   }
 
-  if (!message.senderDiscordUserId) {
+  // A GM letter has no sender Character (BIRD.md §9). Everything below that
+  // reaches for one branches on this, and the DM target is the GM's own id.
+  const gmSender = message.gmSenderDiscordUserId ?? null;
+
+  if (!gmSender && !message.senderDiscordUserId) {
     return respond(interaction, { content: "The bird can't find who sent it. ‡", ephemeral: true });
   }
 
@@ -141,30 +146,74 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
     data: {
       repliedAt: new Date(),
       // A snapshot for the GM desk, null on a sealed reply — the bird did not
-      // open that one either.
-      replyBody: held.tag.paperKind === "SEALED" ? null : (held.tag.paperText ?? "").trim(),
+      // open that one either. A GM letter is the exception: there the GM IS
+      // the addressee, and a letter addressed to you is one you open.
+      replyBody:
+        !gmSender && held.tag.paperKind === "SEALED" ? null : (held.tag.paperText ?? "").trim(),
     },
   });
   if (claimed.count === 0) return respond(interaction, { content: "You already sent your answer.", ephemeral: true });
 
   // A reply to somebody who has since died goes nowhere, and the letter stays
-  // in the replier's hands rather than vanishing into an empty sheet.
-  const senderAlive = await prisma.character.findFirst({
-    where: { id: message.senderId, status: "ALIVE" },
-    select: { id: true },
-  });
-  if (!senderAlive) {
-    return respond(interaction, {
-      content: "The bird will not go. Something has happened to whoever sent it. ‡",
-      ephemeral: true,
+  // in the replier's hands rather than vanishing into an empty sheet. Skipped
+  // for a GM letter, which has no sender Character to be dead — as written,
+  // that lookup would run against a null id, find nothing, and refuse every
+  // answer a GM letter ever got.
+  if (!gmSender) {
+    const senderAlive = await prisma.character.findFirst({
+      where: { id: message.senderId, status: "ALIVE" },
+      select: { id: true },
     });
+    if (!senderAlive) {
+      return respond(interaction, {
+        content: "The bird will not go. Something has happened to whoever sent it. ‡",
+        ephemeral: true,
+      });
+    }
   }
 
-  // The letter changes hands for real — same as an outbound send.
+  // The letter changes hands for real — same as an outbound send. Answering a
+  // GM has no hands to change it into, so the paper simply leaves: the bird
+  // carried it off, which is what the replier was told would happen.
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, replier.id, tagId, 1);
-    await addToStack(tx, message.senderId, tagId, 1, {});
+    if (!gmSender) await addToStack(tx, message.senderId, tagId, 1, {});
   });
+
+  if (gmSender) {
+    // The answer itself, filed on the REPLIER's conversation — the desk keys a
+    // thread on the player's discordUserId, so that is where a GM reads it. A
+    // row keyed on the GM's own id would open a conversation with themselves
+    // that nothing on /gm/players ever shows.
+    //
+    // The letter's WORDS have to arrive somewhere. For a player sender that is
+    // the paper landing on their sheet; a GM has no sheet, so it is this row.
+    if (message.recipientDiscordUserId) {
+      await prisma.directMessage
+        .create({
+          data: {
+            discordUserId: message.recipientDiscordUserId,
+            direction: "INBOUND",
+            content: (held.tag.paperText ?? "").trim() || "(blank)",
+            source: GM_LETTER_REPLY_SOURCE,
+            meta: {
+              birdMessageId: message.id,
+              letterName: held.tag.name,
+              replierName: message.recipientName,
+              // A sealed reply's words ARE shown here. The bird's "it did not
+              // open this either" rule protects a third party; a GM letter's
+              // GM is the addressee, and you open a letter addressed to you.
+              sealed: held.tag.paperKind === "SEALED",
+              sealMark: held.tag.sealMark ?? null,
+              gmSenderDiscordUserId: gmSender,
+            },
+          },
+        })
+        .catch((err) => console.error(`GM letter reply row for ${message.recipientId} failed:`, err));
+    }
+
+    return respond(interaction, { content: `The bird is away with ${held.tag.name}. ‡`, ephemeral: true });
+  }
 
   await sendDm(prisma, message.senderDiscordUserId, replyDm({ replierName: message.recipientName, letterName: held.tag.name }), {
     source: "bird",

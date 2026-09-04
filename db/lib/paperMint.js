@@ -93,6 +93,26 @@ async function createWithRetry(tx, buildData) {
 // hand and a concealed writer does not sign their own name by accident.
 async function writeNewPaper(tx, character, blankTagId, text) {
   await dropCharacterTag(tx, character.id, blankTagId, 1);
+  return mintPaperRow(tx, character.id, character.name, text);
+}
+
+// A sheet out of nowhere, landing in somebody's hands. The GM letter's minter
+// (docs/systemdocs/BIRD.md §9) — a God-King has no sheet to take a page off,
+// so unlike writeNewPaper there is no blank stack to spend.
+//
+// `authorName` is free text the GM typed, and it goes on paperAuthor exactly
+// like a writer's presented name would. That is the whole feature: the letter
+// is FROM somebody, and who that somebody is was never checked against the
+// roster in the first place.
+async function mintLetterFor(tx, recipientId, authorName, text) {
+  return mintPaperRow(tx, recipientId, authorName, text);
+}
+
+// The shared core. Mints the row and puts it in `ownerId`'s hands; what it
+// deliberately does NOT do is spend anything, so each caller decides what the
+// paper cost.
+async function mintPaperRow(tx, ownerId, authorName, text) {
+  const character = { id: ownerId, name: authorName };
   const groupId = await paperGroupId(tx);
 
   const tag = await createWithRetry(tx, (attempt) => ({
@@ -133,7 +153,15 @@ async function appendToPaper(tx, tagId, existingText, addition) {
 // The stamp is NOT consumed. A wax stamp presses as many letters as you have
 // wax for, and metering the wax is a system nobody asked for.
 async function sealPaper(tx, paperTag, stampTag) {
-  const label = sealLabel(stampTag);
+  return sealWithMark(tx, paperTag, { label: sealLabel(stampTag), mark: stampTag.sealMark ?? null });
+}
+
+// The same seal, pressed with wax nobody owns. Every mark in the game
+// otherwise comes off a real stamp Tag, and that is right for players — a seal
+// is a physical object you can be robbed of. A GM letter has no stamp, so it
+// says outright what the wax carries, and the mark then flows through
+// paperDescription like any other.
+async function sealWithMark(tx, paperTag, { label, mark }) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       return await tx.tag.update({
@@ -143,7 +171,7 @@ async function sealPaper(tx, paperTag, stampTag) {
           // a letter — so unlike a note's title this one says something.
           name: attempt ? `${sealedName(label)} (${attempt + 1})` : sealedName(label),
           paperKind: "SEALED",
-          sealMark: stampTag.sealMark ?? null,
+          sealMark: mark ?? null,
           // Consuming a sealed letter is how you break the seal.
           consumable: true,
         },
@@ -202,6 +230,8 @@ async function breakSeal(tx, characterId, sealedTag) {
 module.exports = {
   PAPER_SHAPE,
   writeNewPaper,
+  mintLetterFor,
+  sealWithMark,
   appendToPaper,
   sealPaper,
   breakSeal,

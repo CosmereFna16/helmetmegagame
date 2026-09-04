@@ -31,6 +31,20 @@ import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { validateTurretTable } from "@lifeweb/db/lib/depotTurret";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
+import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
+import {
+  canReadLetters,
+  deliveryDm,
+  replyButtonRow,
+  GM_LETTER_SOURCE,
+} from "@lifeweb/db/lib/bird";
+import { notifyCharacter } from "@/lib/notifyCharacter";
+import { MAX_REASON_LENGTH } from "@/lib/constants";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
+
+// The same ceiling the Write dialog puts on a player's sheet — a GM letter is
+// a sheet of paper like any other, and a longer one would not fit the object.
+const GM_LETTER_MAX = 2000;
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -749,4 +763,117 @@ export async function bulkMoveCharacters(formData) {
 
   revalidatePath("/gm/dev");
   return { ok: true, moved: characters.length };
+}
+
+// --- GM letters -------------------------------------------------------
+//
+// A letter from nobody in particular. It rides BirdMessage, which buys the
+// reply window, the one-reply claim and the reply picker for free — see
+// docs/systemdocs/BIRD.md §9 for the three places it branches from a player's
+// Bird, and why.
+// `prevState` first: the form reads the result through useActionState, since
+// a fire-and-forget <form action={...}> has nowhere to report a refusal to.
+export async function sendGmLetter(_prevState, formData) {
+  const session = await requireSuperadmin();
+
+  const senderName = str(formData, "senderName").trim().slice(0, 80);
+  const recipientId = str(formData, "recipientId");
+  const body = str(formData, "body").trim().slice(0, GM_LETTER_MAX);
+  const sealed = str(formData, "sealed") === "on";
+  const sealLabelText = str(formData, "sealLabel").trim().slice(0, 40);
+  const sealMarkText = str(formData, "sealMark").trim().slice(0, 200);
+
+  if (!senderName) return { ok: false, error: "Say who it's from. ‡" };
+  if (!recipientId) return { ok: false, error: "Pick who it's for. ‡" };
+  if (!body) return { ok: false, error: "Write something first. ‡" };
+  if (sealed && !sealLabelText) return { ok: false, error: "A seal needs a name — it goes in the letter's title. ‡" };
+  if (sealed && !sealMarkText) return { ok: false, error: "Say what the wax carries. ‡" };
+
+  // The reply window is arrivalTurn + 1, so a letter sent between turns would
+  // land already unanswerable. Refuse rather than send a mute one.
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  if (!openTurn) return { ok: false, error: "No turn is open. The bird waits for one. ‡" };
+
+  const recipient = await prisma.character.findUnique({
+    where: { id: recipientId },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!recipient) return { ok: false, error: "No such character. ‡" };
+  // Unlike the picker, which lists the dead too (BIRD.md §2 — a list of the
+  // living is a casualty report), the SEND refuses. A letter to a corpse would
+  // mint paper onto a sheet nobody reads.
+  if (recipient.status !== "ALIVE") return { ok: false, error: "They're past reading it. ‡" };
+
+  const canReply = canReadLetters(recipient.tags);
+
+  let letter = null;
+  let birdMessageId = null;
+  await prisma.$transaction(async (tx) => {
+    letter = await mintLetterFor(tx, recipient.id, senderName, body);
+    if (sealed) letter = await sealWithMark(tx, letter, { label: sealLabelText, mark: sealMarkText });
+
+    const row = await tx.birdMessage.create({
+      data: {
+        // No sender Character — that is the whole loosening the gm_letters
+        // migration bought.
+        senderId: null,
+        senderName,
+        gmSenderDiscordUserId: session.discordUserId,
+        recipientId: recipient.id,
+        recipientName: recipient.name,
+        recipientDiscordUserId: recipient.discordUserId ?? null,
+        // No zone guess. A GM already knows where everyone is standing, and a
+        // GM letter reaches the Depths, which no bird will fly to.
+        guessedZoneId: null,
+        guessedZoneName: null,
+        tagId: letter.id,
+        tagName: letter.name,
+        body: sealed ? null : body,
+        delivered: true,
+        arrivalTurnId: openTurn.id,
+        replyDeadlineTurn: openTurn.number + 1,
+      },
+    });
+    birdMessageId = row.id;
+
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "gm_send_letter",
+        targetCharacterId: recipient.id,
+        // The letter IS the record, the same call the player Bird makes.
+        reason: sealed ? `Sealed: ${letter.name}` : body.slice(0, MAX_REASON_LENGTH),
+        details: { birdMessageId: row.id, senderName, sealed, tagId: letter.id, tagName: letter.name },
+      },
+    });
+  });
+
+  // Post-commit: a DM must never hold up or undo the write (ARCHITECTURE.md
+  // §5). One row on the recipient's thread — the desk keys a conversation on
+  // the PLAYER's id, so that is where a GM reads the exchange back. `content`
+  // stays what the player actually received; the letter itself rides in meta,
+  // and DmThread.js renders the card from that.
+  notifyCharacter(recipient, deliveryDm({ senderName, letterName: letter.name }), {
+    authorDiscordUserId: session.discordUserId,
+    components: canReply ? replyButtonRow(birdMessageId) : undefined,
+    source: GM_LETTER_SOURCE,
+    meta: {
+      birdMessageId,
+      senderName,
+      letterName: letter.name,
+      letterBody: body,
+      sealed,
+      sealMark: sealed ? sealMarkText : null,
+    },
+  });
+
+  await afterInventoryChange([recipient.id]);
+  revalidatePath("/gm/dev");
+  revalidatePath("/gm/players");
+  return {
+    ok: true,
+    message: canReply
+      ? `${letter.name} is on ${recipient.name}'s sheet. They can answer it until turn ${openTurn.number + 1}. ‡`
+      : `${letter.name} is on ${recipient.name}'s sheet. They can't read, so there's no Reply button. ‡`,
+  };
 }

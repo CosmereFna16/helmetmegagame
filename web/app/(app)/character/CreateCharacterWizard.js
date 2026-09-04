@@ -77,7 +77,12 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
-        <strong>{role.name}</strong>
+        <span className="flex flex-wrap items-baseline gap-2">
+          <strong>{role.name}</strong>
+          {/* The bucket heading no longer says which faction this is — a
+              bucket holds several — so the card does. */}
+          <span className="text-xs text-muted">{role.factionName}</span>
+        </span>
         <span className="text-sm" style={{ color: full ? "var(--accent-text)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}
         </span>
@@ -118,7 +123,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
 }
 
 export default function CreateCharacterWizard({
-  zones,
+  groups,
   tags,
   startingTagPoints,
   maxDrawbackTags,
@@ -160,10 +165,7 @@ export default function CreateCharacterWizard({
   const [heldUntil, setHeldUntil] = useState(null);
   const [reserving, setReserving] = useState(false);
 
-  const allRoles = useMemo(
-    () => zones.flatMap((z) => z.factions.flatMap((f) => f.roles)),
-    [zones],
-  );
+  const allRoles = useMemo(() => groups.flatMap((g) => g.roles), [groups]);
   const role = allRoles.find((r) => r.id === roleId) ?? null;
 
   const byId = useMemo(() => buildTagsById(tags), [tags]);
@@ -374,29 +376,25 @@ export default function CreateCharacterWizard({
 
       {step === 0 && (
         <div className="flex flex-col gap-6">
-          {zones.map((zone) => (
-            <section key={zone.id} className="flex flex-col gap-3">
-              <h2 className="panel-header">{zone.name}</h2>
-              {zone.factions.map((faction) => (
-                <div key={faction.id} className="flex flex-col gap-2">
-                  <h3 className="text-sm font-bold text-muted">
-                    {faction.name}
-                  </h3>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {faction.roles.map((r) => (
-                      <RoleCard
-                        key={r.id}
-                        role={r}
-                        cap={r.cap}
-                        taken={r.taken}
-                        selected={r.id === roleId}
-                        disabled={!r.selectable || (r.cap !== null && r.taken >= r.cap)}
-                        onSelect={pickRole}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+          {/* Seven social buckets, not five zones — db/lib/roleGroups.js. The
+              faction moved off the heading and onto the card, because a
+              bucket holds more than one of them now. */}
+          {groups.map((group) => (
+            <section key={group.slug} className="flex flex-col gap-3">
+              <h2 className="panel-header">{group.name}</h2>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {group.roles.map((r) => (
+                  <RoleCard
+                    key={r.id}
+                    role={r}
+                    cap={r.cap}
+                    taken={r.taken}
+                    selected={r.id === roleId}
+                    disabled={!r.selectable || (r.cap !== null && r.taken >= r.cap)}
+                    onSelect={pickRole}
+                  />
+                ))}
+              </div>
             </section>
           ))}
         </div>

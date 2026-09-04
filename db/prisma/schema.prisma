@@ -3289,17 +3289,27 @@ model Request {
 model BirdMessage {
   id String @id @default(cuid())
 
-  senderId               String
+  // Null when a GM sent the letter rather than a character — see
+  // gmSenderDiscordUserId below. senderName is never null: a GM types the name
+  // the letter arrives under, which is the whole point of the feature.
+  senderId               String?
   senderName             String
   senderDiscordUserId    String?
   recipientId            String
   recipientName          String
   recipientDiscordUserId String?
 
+  // Set instead of senderId when a GM wrote the letter from the Dev Panel. The
+  // reply comes back to this Discord user as a DirectMessage rather than to a
+  // character's hands — the God-King has no sheet to put a letter on.
+  gmSenderDiscordUserId String?
+
   // Where the sender GUESSED the recipient was standing. The whole mechanic is
-  // that this can be wrong, so it is recorded whether or not it matched.
-  guessedZoneId   String
-  guessedZoneName String
+  // that this can be wrong, so it is recorded whether or not it matched. Null
+  // on a GM letter: a GM already knows where everyone is, so there is no guess
+  // to record and the letter simply arrives.
+  guessedZoneId   String?
+  guessedZoneName String?
 
   // The letter the bird actually carried, and the whole of what a Bird send is
   // now: you pick a paper you are HOLDING (docs/systemdocs/PAPERWORK.md). Null

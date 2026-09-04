@@ -508,9 +508,10 @@ superadmin gate lives in `page.js` itself rather than the layout, because
 `(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
 share that layout and are meant to stay GM-open.
 
-Eight sections: **Turn**, **Configuration** and **The Depot** under "Game";
-**Bulk move** and **System reports** under "Operations"; **Assignments** and
-**Antagonists** under "Threats"; **Restart game** on its own under "Danger".
+Nine sections: **Turn**, **Configuration** and **The Depot** under "Game";
+**Bulk move**, **Send a letter** and **System reports** under "Operations";
+**Assignments** and **Antagonists** under "Threats"; **Restart game** on its
+own under "Danger".
 The two Threats sections replaced the old Antagonist Roster popup and have
 their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game itself, and the
 Depot section is this doc's appendix.
@@ -539,6 +540,19 @@ raw relocation like `updateCharacterRaw`'s, **not** travel: no Move cost, no
 Discord half (role swap, special-channel access, pending thread invites) runs
 sequentially in `after()` and lands on a `BULK_MOVE` report.
 
+**Send a Letter** puts a bird at somebody's window carrying a letter from
+whoever the GM says it is from — the God-King, a dead man, nobody at all. It is
+the Bird system with three branches, and `BIRD.md` §9 is its doc: the paper is
+minted rather than taken off a sender's sheet, the seal's mark is typed rather
+than pressed from a stamp, and the reply comes back as a row on that player's
+conversation at `/gm/players` instead of as paper in a sender's hands.
+
+It is the one section on this page whose form is a **client component**
+(`SendLetterForm.js`). Everything else here is a bare `<form action={...}>`
+inside the server page, which has nowhere to report a refusal to; a letter has
+two of them worth reading ("no turn is open", "they're past reading it") and a
+pair of seal fields that only appear once Sealed is on.
+
 ## 12. Where the code lives
 
 | Concern | File |
@@ -562,6 +576,7 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
+| Send a Letter (§11) — the form, and the action behind it | `web/app/(desk)/gm/dev/SendLetterForm.js`, `web/app/(app)/gm/dev/actions.js#sendGmLetter` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
 | The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |

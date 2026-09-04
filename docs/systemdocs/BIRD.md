@@ -191,3 +191,57 @@ can undo is that they read it.
 - **The Meister starts with a Bird** (`docs/roles.yaml`), because the role's own
   description has always said it uses the Keep's messenger ravens. Only the
   mechanical tag was missing.
+
+## 9. A letter from the GM
+
+`/gm/dev?s=letters`. A GM types a name, picks a living character, writes, and
+optionally seals it with a mark they invent on the spot. The letter arrives
+exactly like a bird's, and the answer comes back on that player's conversation
+at `/gm/players`.
+
+It **rides `BirdMessage`** rather than getting a table of its own, which buys
+the reply window, the one-reply claim, the Reply button and the whole picker in
+`birdReply.js` for free. Three columns loosened to allow it (the `gm_letters`
+migration): `senderId` is nullable, `guessedZoneId`/`guessedZoneName` are
+nullable, and `gmSenderDiscordUserId` records which GM wrote it.
+
+Three things branch, and only three:
+
+- **The paper is minted, not moved.** A player's bird takes a sheet out of the
+  sender's hands. A God-King has no hands, so
+  `paperMint.js#mintLetterFor` writes a fresh runtime row straight onto the
+  recipient — the same `PAPER_SHAPE` as any written sheet, so it has weight,
+  can be handed on, pinned up, stolen, and is swept by a Restart Game.
+- **The seal is typed, not stamped.** `paperMint.js#sealWithMark` takes the
+  label and the mark directly instead of deriving them from a wax-stamp `Tag`.
+  Everything downstream is unchanged: `paperDescription` renders "…bears a
+  seal: {mark}" to every viewer, and breaking it is the same Consume.
+- **The reply is a row, not a sheet.** The replier's paper leaves their hands
+  and goes nowhere — the bird carried it off — and its words are written as an
+  **INBOUND `DirectMessage`** on that player's thread, `source:
+  "gm_letter_reply"`. The outbound half is the delivery notice, `source:
+  "gm_letter"`, with the letter itself in `meta`.
+
+Both rows are keyed on the **player's** `discordUserId`, never the GM's: the
+desk keys a conversation on the player, so a row under a GM's own id would open
+a thread with themselves that nothing ever shows. `DmThread.js#LetterBody`
+draws them as paper rather than as chat.
+
+**A sealed reply's words ARE shown to the GM.** Everywhere else in this file a
+seal is opaque to the system, because there the bird is a third party carrying
+somebody else's mail. Here the GM is the addressee, and you open a letter
+addressed to you.
+
+### What it deliberately does not do
+
+- **No day claim.** `birdTurnId` is the price of a *player's* crossing.
+- **No zone rule.** A GM already knows where everyone is standing, so there is
+  no guess to record — and a GM letter reaches the Depths, which §3 closes to
+  every bird.
+- **No `Request`.** A Request is a player's act filed for adjudication. This is
+  a GM's, so it writes an `AuditLog` row and the conversation is the record.
+- **It refuses between turns.** `replyDeadlineTurn` is the arrival turn plus
+  one, so a letter sent with no turn open would land already unanswerable.
+- **It refuses a dead recipient**, unlike the send picker, which lists the dead
+  for the reason §2 gives. A GM already knows who is alive; minting paper onto
+  a sheet nobody reads is just litter.

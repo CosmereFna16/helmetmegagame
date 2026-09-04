@@ -21,7 +21,15 @@ import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib
 const SOURCE_LABELS = {
   staged_push: "turn result",
   gm_broadcast: "broadcast",
+  gm_letter: "by bird",
 };
+
+// The two GM-letter sources (db/lib/bird.js). Repeated as LITERALS on purpose:
+// this is a client component, and importing them from @lifeweb/db would drag
+// PrismaClient into the browser bundle and kill the route with a node:fs error
+// carrying no digest. Keep them in step with the constants by hand.
+const LETTER_SOURCE = "gm_letter";
+const LETTER_REPLY_SOURCE = "gm_letter_reply";
 
 const RUN_GAP_MS = 7 * 60_000;
 const AT_BOTTOM_PX = 80;
@@ -34,12 +42,39 @@ function isEmbed(m) {
   return m.meta?.embed === true;
 }
 
+// A letter sent or answered from the Dev Panel (BIRD.md §9). It renders as an
+// object rather than as chat, because that is what it is — a piece of paper
+// that changed hands, with a name and possibly a seal on it.
+//
+// The outbound row's `content` is the notice the player actually received
+// ("A bird finds you..."), so the letter's own words ride in meta and are what
+// gets drawn. The inbound row's content IS the reply, so it falls back to that.
+function isLetter(m) {
+  return m.source === LETTER_SOURCE || m.source === LETTER_REPLY_SOURCE;
+}
+
 // Bot/effect notifications — resource grants, dev-panel summaries, Move
 // unlocks. They render as centred system lines, and runs of three or more
 // collapse. Pure UI plumbing (source: "system_notice", "prompt_reply") never
 // reaches this component: @/lib/dmThread#withoutDmNoise excludes it at the query.
 function isEffect(m) {
   return !isEmbed(m) && m.direction === "OUTBOUND" && AUTOMATED_EFFECT_SOURCES.includes(m.source);
+}
+
+function LetterBody({ message }) {
+  const meta = message.meta ?? {};
+  const text = (meta.letterBody ?? message.content ?? "").trim();
+  return (
+    <div className="dm-letter">
+      <div className="dm-letter-head">
+        <span className="dm-letter-name">{meta.letterName ?? "A letter"}</span>
+        {meta.senderName && <span className="dm-letter-from">from {meta.senderName}</span>}
+        {meta.replierName && <span className="dm-letter-from">from {meta.replierName}</span>}
+      </div>
+      {meta.sealed && meta.sealMark && <p className="dm-letter-seal">Sealed. {meta.sealMark}</p>}
+      {text && <div className="dm-letter-text">{text}</div>}
+    </div>
+  );
 }
 
 function speakerKey(m) {
@@ -200,6 +235,7 @@ function Row({ item, gmProfileById, character, now }) {
   const name = outbound ? (message.authorDiscordUserId ? profile?.username ?? "GM" : "Bascinet") : character?.name ?? "Player";
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
   const embed = isEmbed(message);
+  const letter = isLetter(message);
 
   return (
     <div
@@ -228,7 +264,13 @@ function Row({ item, gmProfileById, character, now }) {
             </time>
           </div>
         )}
-        {embed ? <EmbedBody message={message} /> : <MarkdownContent content={message.content} />}
+        {letter ? (
+          <LetterBody message={message} />
+        ) : embed ? (
+          <EmbedBody message={message} />
+        ) : (
+          <MarkdownContent content={message.content} />
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · A GM can send anyone a letter, and the picker reads as seven groups
+
+✚ A Send a Letter button on the Dev Panel: a bird arrives carrying a letter from whoever you say it is from — the God-King, a dead man, nobody at all  
+✚ A letter can go out sealed with a mark you invent on the spot, and it reads as a seal to everyone until somebody breaks it  
+✚ The reply comes back on that player's conversation on the Players desk, drawn as paper rather than as chat  
+✎ Character creation now groups roles as Court, Clergy, Cerberon, Saviors, Business, Soil and Outsiders, with the faction printed on each card  
+✎ The Refugee's brief now says what the job actually is
+
 ## 2026-09-04 · Minstrels can actually play something now
 
 ✚ An Instrument tag, 1 point, granted free with the Minstrel role  

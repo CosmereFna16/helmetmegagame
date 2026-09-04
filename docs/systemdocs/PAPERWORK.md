@@ -131,6 +131,12 @@ Depot turret his face (`db/lib/merchantSeal.js`). `db:sync-tags` leaves both
 `sealMark` and `description` alone for any stamp that names an office but
 carries no authored mark, so a re-sync cannot rub it back off.
 
+**One seal comes off no stamp at all.** `paperMint.js#sealWithMark` takes the
+label and mark as plain text, and `sealPaper` is now a wrapper that reads them
+off a stamp `Tag`. Its only caller is the GM letter (`BIRD.md` §9), where there
+is no object to press — everything downstream, `paperDescription` and the break
+included, cannot tell the two apart.
+
 **Sealing renames the row in place**, the same move a corpse makes when it rots
 — a letter somebody is carrying seals in their hands with no second row to
 reconcile. The stamp is **not** consumed.
