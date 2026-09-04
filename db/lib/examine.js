@@ -112,7 +112,6 @@ function concealedReadout(identity, subject) {
   };
 }
 
-
 // `subject` is a row loaded with EXAMINE_SUBJECT_SELECT.
 // `viewerTags` is the LOOKER's CharacterTag rows (for Seductive), `satisfied`
 // their satisfiedSkillIds() (for the doctor's eye), and `lastDesire` the

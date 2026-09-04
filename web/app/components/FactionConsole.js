@@ -9,6 +9,9 @@ import EmptyState, { EmptyRow } from "./EmptyState";
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import { useConfirm } from "./ConfirmProvider";
+import { useTableState, SortHeader, FilterBar } from "./DataTable";
+import Pager from "./Pager";
+import FormError from "./FormError";
 import { useRefresh } from "./useRefresh";
 import {
   leaveFaction,
@@ -36,6 +39,8 @@ import {
 // hint; the actions re-resolve the acting character from the session and
 // re-check the officer seat inside their own transactions.
 
+const DIRECTORY_SEARCH = [(f) => f.name, (f) => f.leaderName ?? ""];
+
 const ALL_TABS = [
   { key: "roster", label: "Roster" },
   { key: "silo", label: "Silo" },
@@ -43,6 +48,9 @@ const ALL_TABS = [
   { key: "standing", label: "Standing" },
 ];
 
+// Informational only. An ERROR goes through FormError instead, which carries
+// the role="alert" its own comment calls non-optional — this one has none, so
+// a failed action would have been silent to a screen reader.
 function Notice({ children, tone }) {
   return <p className={tone === "danger" ? "console-notice console-notice-danger" : "console-notice"}>{children}</p>;
 }
@@ -153,7 +161,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
         <h2 className="panel-header">
           {silo.name} <span className="text-muted">· {silo.locationName}</span>
         </h2>
-        <span className="mono">{silo.resources} ⬢</span>
+        <span className="mono">{silo.resources == null ? "—" : `${silo.resources} ⬢`}</span>
       </div>
 
       {/* The two things a member has to be told, in priority order. */}
@@ -419,7 +427,9 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
 function StandingTab({ faction, isLeader, myApplications, run, pending }) {
   const confirm = useConfirm();
   const [renaming, setRenaming] = useState(false);
+  const [founding, setFounding] = useState(false);
   const [name, setName] = useState(faction.name);
+  const [newName, setNewName] = useState("");
 
   return (
     <div className="flex flex-col gap-4">
@@ -516,6 +526,12 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
             Secede from {faction.parentName}
           </button>
         )}
+        {/* Founding works from inside a faction too — foundFaction detaches
+            you on the way out. Leaving first and then founding was two steps
+            for one decision. */}
+        <button type="button" className="btn-quiet" onClick={() => setFounding(true)}>
+          Found your own
+        </button>
         <button
           type="button"
           className="btn-quiet"
@@ -554,6 +570,38 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
           <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} maxLength={48} />
         </label>
       </RequestDialog>
+
+      <RequestDialog
+        modeless
+        open={founding}
+        title="Found a faction"
+        submitLabel="Found it"
+        busy={pending}
+        reasonRequired={false}
+        canSubmit={newName.trim().length >= 2}
+        onCancel={() => setFounding(false)}
+        onConfirm={async () => {
+          const done = await run(() => foundFaction({ name: newName }));
+          if (done) {
+            setFounding(false);
+            setNewName("");
+          }
+        }}
+      >
+        <label className="field">
+          <span className="field-label">Name</span>
+          <input
+            className="field-input"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            maxLength={48}
+          />
+        </label>
+        <p className="text-sm text-muted mt-2">
+          You leave {faction.name} and become the new faction&apos;s Leader. It starts with nobody
+          else in it, no silo and no standing. ‡
+        </p>
+      </RequestDialog>
     </div>
   );
 }
@@ -567,27 +615,49 @@ function Directory({ directory, myApplications, run, pending }) {
   const [founding, setFounding] = useState(false);
   const [name, setName] = useState("");
   const pendingIds = new Set(myApplications.map((a) => a.factionId));
+  // Founding is free and unlimited, so this list has no natural ceiling —
+  // search and paging rather than a bare table that grows forever.
+  const table = useTableState({
+    rows: directory,
+    searchFields: DIRECTORY_SEARCH,
+    filterDefs: [],
+    initialSort: { key: "name", dir: "asc" },
+  });
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="panel overflow-x-auto p-4">
+      <section className="panel overflow-x-auto p-4 flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-3 flex-wrap">
           <h2 className="panel-header">Factions</h2>
           <button type="button" className="btn-quiet" onClick={() => setFounding(true)}>
             Found your own
           </button>
         </div>
+        <FilterBar
+          filterDefs={[]}
+          filters={table.filters}
+          setFilters={table.setFilters}
+          options={table.options}
+          query={table.query}
+          setQuery={table.setQuery}
+          searchLabel="Search factions"
+        />
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
+              <SortHeader label="Name" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
               <th>Leader</th>
-              <th>Members</th>
+              <SortHeader
+                label="Members"
+                sortKey="memberCount"
+                sort={table.sort}
+                onSort={table.toggleSort}
+              />
               <th />
             </tr>
           </thead>
           <tbody>
-            {directory.map((f) => (
+            {table.pageRows.map((f) => (
               <tr key={f.id}>
                 <td>{f.name}</td>
                 <td>{f.leaderName ?? "—"}</td>
@@ -603,9 +673,16 @@ function Directory({ directory, myApplications, run, pending }) {
                 </td>
               </tr>
             ))}
-            {directory.length === 0 && <EmptyRow cols={4}>There are none yet. ‡</EmptyRow>}
+            {table.pageRows.length === 0 && <EmptyRow cols={4}>There are none yet. ‡</EmptyRow>}
           </tbody>
         </table>
+        <Pager
+          page={table.page}
+          totalPages={table.totalPages}
+          total={table.total}
+          unit="factions"
+          onPage={table.setPage}
+        />
       </section>
 
       {myApplications.length > 0 && (
@@ -743,7 +820,7 @@ export default function FactionConsole(props) {
   if (!faction) {
     return (
       <div className="flex flex-col gap-4">
-        {error && <Notice tone="danger">{error}</Notice>}
+        <FormError>{error}</FormError>
         <Directory directory={directory} myApplications={myApplications} run={run} pending={pending} />
       </div>
     );
@@ -756,7 +833,9 @@ export default function FactionConsole(props) {
       <section className="panel console-strip">
         <div className="console-strip-head">
           <span className="console-title">{faction.name}</span>
-          <span className="mono console-figure">{silo ? `${silo.resources} ⬢` : "no silo"}</span>
+          <span className="mono console-figure">
+            {!silo ? "no silo" : silo.resources == null ? "locked" : `${silo.resources} ⬢`}
+          </span>
         </div>
         <div className="console-strip-stats">
           <span className="console-stat">
@@ -780,7 +859,7 @@ export default function FactionConsole(props) {
         </div>
       </section>
 
-      {error && <Notice tone="danger">{error}</Notice>}
+      <FormError>{error}</FormError>
 
       <nav className="console-tabs" aria-label="Faction sections">
         {tabs.map((t) => (

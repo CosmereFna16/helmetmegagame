@@ -8,6 +8,7 @@
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
+const { isUnaffiliated } = require("./factionConstants");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
@@ -89,6 +90,10 @@ function canDrag(mover, target) {
   if (target.status === "DEAD") return true;
   if (target.status !== "ALIVE") return false;
   if (target.tags?.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) return true;
+  // Unaffiliated is not a faction (FACTIONS.md §1a), so a Leader of it — which
+  // no role grants, but a GM could create — must not be able to drag every
+  // unaffiliated character in the zone around.
+  if (isUnaffiliated(mover.faction)) return false;
   return Boolean(mover.isLeader && target.factionId && target.factionId === mover.factionId);
 }
 

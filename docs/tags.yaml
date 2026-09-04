@@ -400,7 +400,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    removable: true
+    # Not removable: you cannot un-know where a place is, and Destroying it
+    # would have locked a Brigand out of their own faction's home for good —
+    # untradeable means nobody could hand them another.
+    removable: false
 
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.

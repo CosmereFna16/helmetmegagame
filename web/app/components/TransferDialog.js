@@ -112,7 +112,7 @@ export default function TransferDialog({
           hint="Choose a destination… ‡"
           characters={others}
           rooms={rooms}
-          silo={silo && !silo.here ? silo : null}
+          silo={silo && (!silo.here || !silo.canOpen) ? silo : null}
         />
       </div>
       {sameParty && <p className="text-xs text-accent">Source and recipient are the same.</p>}

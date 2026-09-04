@@ -53,7 +53,7 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
             <th scope="col">Zone</th>
             <th scope="col">Parent</th>
             <th scope="col">Silo</th>
-            <th scope="col">Members</th>
+            <th scope="col" title="✦ marks a faction a player founded in play">Members</th>
             <th scope="col" aria-label="Save" />
             <th scope="col" aria-label="Delete" />
           </tr>
@@ -104,7 +104,7 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
               </td>
               <td className="mono">
                 {f.memberCount}
-                {f.foundedInPlay ? " ✦" : ""}
+                {f.foundedInPlay ? <span title="Founded in play, not from roles.yaml"> ✦</span> : null}
               </td>
               <td>
                 {/* Outside its <form> (wired by form={...}), so useFormStatus

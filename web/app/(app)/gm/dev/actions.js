@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isUnaffiliated, UNAFFILIATED_SLUG } from "@/lib/factionConstants";
+import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { after } from "next/server";
 import {
   prisma,
@@ -330,6 +330,15 @@ export async function wipeGameData(formData) {
       // deletes, so they go explicitly and the ⬢ column is zeroed.
       prisma.roomTag.deleteMany({}),
       prisma.room.updateMany({ data: { resources: 0 } }),
+      // Factions are live game state now (FACTIONS.md), so a restart has to
+      // undo the parts players wrote. Handshakes go with the characters they
+      // named; every silo is un-pointed so db:sync-roles' null-fill floor can
+      // seed the authored ones again; and a faction somebody FOUNDED in the
+      // last game is deleted outright rather than lingering as a leaderless
+      // ghost. Founded factions carry no Role rows, so nothing cascades into
+      // the creation wizard.
+      prisma.factionApplication.deleteMany({}),
+      prisma.faction.updateMany({ data: { siloRoomId: null } }),
       prisma.auditLog.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
@@ -346,6 +355,10 @@ export async function wipeGameData(formData) {
         data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
       }),
     ]);
+
+    // After the character sweep above, so the FK from Character.factionId is
+    // already gone and the delete cannot be blocked by a member.
+    await prisma.faction.deleteMany({ where: { foundedById: { not: null } } });
 
     const firstTurn = await prisma.turn.create({
       data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
@@ -581,7 +594,7 @@ export async function assignFactionMember(formData) {
     // Whatever they had open elsewhere is moot once a GM has placed them.
     await tx.factionApplication.updateMany({
       where: { characterId, status: "PENDING" },
-      data: { status: "WITHDRAWN", decidedAt: new Date() },
+      data: { status: "WITHDRAWN" },
     });
   });
 

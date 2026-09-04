@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import FactionLink from "@/app/components/FactionLink";
 import CharacterLink from "@/app/components/CharacterLink";
-import { isUnaffiliated } from "@/lib/factionConstants";
+import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 
 // The all-factions overview, the Factions tab of the Players panel.
 //

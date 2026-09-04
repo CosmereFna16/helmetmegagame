@@ -47,9 +47,15 @@ at once. They all go through `db/lib/factionConstants.js` now:
 aren't now, and nothing should reintroduce them as tags.
 
 - **Leader** is set by a GM (`setFactionLeader`, `assignFactionMember`), or
-  taken by founding a faction, or inherited: a Leader who walks out hands the
-  seat to the longest-standing member, Treasurer first
-  (`promoteSuccessor`). A faction with nobody left is leaderless, not deleted.
+  taken by founding a faction, or inherited. A Leader who walks out **or dies**
+  hands the seat on: Treasurer first, then longest-standing, and a Catatonic
+  member last — crowning somebody who has left Discord leaves the faction as
+  stuck as leaving the seat with a corpse. `promoteSuccessor`
+  (`faction/actions.js`) and `vacateFactionOffice`
+  (`db/lib/characterDeath.js`) are the two halves of the same rule; death has
+  to carry it too, or a dead Leader freezes rename, secede and every officer
+  verb until a GM intervenes. A faction with nobody left is leaderless, not
+  deleted.
 - **Treasurer** is set by a GM *or* by the faction's current Leader.
 
 A role can also grant either at creation, via `leader:`/`treasurer:` booleans
@@ -92,6 +98,12 @@ An application is withdrawn automatically when the applicant joins somewhere
 else, founds a faction, leaves, is moved by a GM, or dies
 (`db/lib/characterDeath.js`).
 
+**A player-founded faction is never pruned.** `db:sync-roles` deletes factions
+absent from `roles.yaml`, and a founded one is absent by nature — so the prune
+skips any row with `foundedById` set. Without that, the first sync after its
+last member walked out would have deleted it. A Restart Game wipe *does* delete
+them, which is the one time it is right.
+
 ## 4. Silos are rooms
 
 `Faction.siloRoomId` points at a `Room`. The room's own `Room.resources` and
@@ -100,7 +112,14 @@ else, founds a faction, leaves, is moved by a GM, or dies
 stores tags: a room always did (`CARRY.md`).
 
 Two factions may share a room. The Church and the Order both sit in the
-Cathedral.
+Cathedral. A silo must be **in the faction's own zone** — deposits are
+zone-scoped, so one anywhere else could never be used; both pickers filter to
+that zone and `setSiloRoom` re-checks.
+
+Four of the nine authored silos — the Storehouse, the Warehouse, the Mess Hall
+and the Cargo Bay — are **public rooms**, and that is deliberate. Anyone
+standing there can walk off with the faction's treasury. A faction that wants a
+door has to move its silo behind one.
 
 - **Deposit** works from anywhere in the silo room's **zone**. You walk your
   loot home to the district, not to the exact door.
@@ -123,6 +142,16 @@ everybody but the key-holder, and a Watchman handing in loot should not need
 the Captain present. Both surfaces say it out loud rather than letting a
 player post goods into a hole — the Silo tab's banner, and the Transfer
 dialog's footnote when the silo is the destination.
+
+Two consequences worth stating, because both were bugs once:
+
+- The **balance is withheld too**, not just the contents. Otherwise a member
+  without the key could watch the treasury rise and fall directly under a
+  banner promising they could not see inside.
+- The silo appears in the Transfer dialog's destination list **even when the
+  locked room is at your own Location**. `rooms` there is access-filtered, so
+  a locked silo is in neither list on its own; without the pinned entry a
+  keyless member could deposit from across the zone but not from the doorway.
 
 **The Armory and the Baron's Study are not silos**, and should not become
 them. They are locked storerooms. A silo that is also the faction's weapon
@@ -193,11 +222,20 @@ its Leader, its member count, an Apply button, and a Found your own button.
 That replaces a dead end that read "You aren't assigned to a faction yet."
 with nothing to do about it.
 
-Accepting somebody into a faction whose silo is locked offers to hand them the
-key — **only** a slug already in that room's `accessTagSlugs`, so the join
-handshake can't become a general-purpose tag faucet. Forgetting it hands a
-recruit a home they can't find, which is why the checkbox sits on the row
-rather than inside a dialog.
+Accepting somebody into a faction whose silo is locked hands them the key.
+Which keys travel depends on **who is answering**, and that is a permission
+check, not a preference:
+
+- An officer answering an **application** chooses, with a checkbox under the
+  queue. The choice is bounded to slugs already in that room's
+  `accessTagSlugs`, so the handshake can't become a general-purpose tag faucet.
+- An **invitation** is answered by the invitee, so their `grantTagSlug` is
+  ignored outright — honouring it would let anyone holding an invitation post
+  themselves a key the officer chose not to give. The silo's keys are granted
+  in full instead, because an officer who invited somebody has already decided
+  they belong there. Without this an invited Brigand could never get the camp
+  tag at all: `hills-camp` is untradeable and unremovable, so no later
+  hand-over exists.
 
 Every hidden tab and disabled button is a hint. The actions re-resolve the
 acting character from the session and re-check the officer seat inside their

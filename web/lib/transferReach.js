@@ -24,7 +24,7 @@ import { isHere } from "@/lib/peopleHere";
 // one — a mail slot. They can never open it, which the deposit control says
 // out loud (FactionConsole.js). Refusing the deposit instead would make a
 // locked silo useless to everybody but the key-holder.
-async function isOwnFactionSilo(actor, party) {
+export async function isOwnFactionSilo(actor, party) {
   if (!actor?.factionId || !actor?.zoneId) return false;
   if (party.zoneId !== actor.zoneId) return false;
   const faction = await prisma.faction.findFirst({

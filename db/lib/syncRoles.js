@@ -225,8 +225,6 @@ async function syncRolesFromYaml(prisma) {
   for (const entry of factions) {
     if (!entry.siloRoomSlug) continue;
     const id = factionIdBySlug.get(entry.slug);
-    const current = await prisma.faction.findUnique({ where: { id }, select: { siloRoomId: true } });
-    if (current?.siloRoomId) continue;
     const room = await prisma.room.findUnique({
       where: { slug: entry.siloRoomSlug },
       select: { id: true },
@@ -237,7 +235,12 @@ async function syncRolesFromYaml(prisma) {
       );
       continue;
     }
-    await prisma.faction.update({ where: { id }, data: { siloRoomId: room.id } });
+    // The `siloRoomId: null` in the WHERE *is* the floor — one round trip,
+    // and a faction whose officers have already picked a silo is skipped.
+    await prisma.faction.updateMany({
+      where: { id, siloRoomId: null },
+      data: { siloRoomId: room.id },
+    });
   }
 
   // Pass 3: Role scalars.
@@ -291,7 +294,13 @@ async function syncRolesFromYaml(prisma) {
   }
 
   for (const faction of await prisma.faction.findMany({
-    where: { slug: { notIn: [...slugs.faction] } },
+    // A faction founded in play was never in roles.yaml and never will be, so
+    // "absent from the YAML" cannot mean "delete" for it. Without this, the
+    // moment its last member walked out or died the next `db:sync-roles` —
+    // which `npm run db:sync` runs every time — would delete the row and
+    // cascade its applications away (FACTIONS.md §3: a faction with nobody
+    // left is leaderless, not deleted).
+    where: { slug: { notIn: [...slugs.faction] }, foundedById: null },
     include: { _count: { select: { characters: true, roles: true } } },
   })) {
     if (faction._count.characters > 0 || faction._count.roles > 0) {

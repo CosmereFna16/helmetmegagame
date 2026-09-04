@@ -63,7 +63,7 @@ import {
   isInflictable,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
-import { canReachParty, outOfReachMessage } from "@/lib/transferReach";
+import { canReachParty, outOfReachMessage, isOwnFactionSilo } from "@/lib/transferReach";
 import { isHere, notHereMessage } from "@/lib/peopleHere";
 import { applyBind, createBindOffer, needsNoConsent, isBound as isBoundTarget, requireBoundTag, BIND_SELECT } from "@lifeweb/db/lib/bind";
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
@@ -823,17 +823,6 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
 // into someone's pockets from here, and listing what's in them would show
 // their hidden tags. Loot is how you take from a person, and only a helpless
 // one (REQUESTS.md §5b).
-// Only ever asked on the failure path, to pick which of the two out-of-reach
-// sentences to write. Never a gate — canReachParty owns that.
-async function isFactionSiloRoom(factionId, roomId) {
-  if (!factionId) return false;
-  const faction = await prisma.faction.findFirst({
-    where: { id: factionId, siloRoomId: roomId },
-    select: { id: true },
-  });
-  return Boolean(faction);
-}
-
 async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawAmount, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -868,7 +857,9 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   for (const [direction, party] of [["from", from], ["to", to]]) {
     if (!(await canReachParty(character, party, { heldSlugs, direction }))) {
-      const isSilo = party.kind === "room" && (await isFactionSiloRoom(character.factionId, party.id));
+      // Only to pick which of the two out-of-reach sentences to write —
+      // the same predicate the gate itself used, not a second one.
+      const isSilo = party.kind === "room" && (await isOwnFactionSilo(character, party));
       throw new UserError(outOfReachMessage(party, { isSilo }));
     }
   }

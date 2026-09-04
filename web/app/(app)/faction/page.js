@@ -5,7 +5,7 @@ import { roomAccessKeys, accessibleRooms } from "@lifeweb/db/lib/roomAccess";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
-import { isUnaffiliated } from "@/lib/factionConstants";
+import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import Select from "@/app/components/Select";
 import SubmitButton from "@/app/components/SubmitButton";
@@ -43,6 +43,11 @@ async function loadFaction(factionId) {
         },
       },
       characters: {
+        // ALIVE only. A corpse in the roster inflated the member count the
+        // directory shows (which always counted the living), so a faction
+        // advertised as "4 members" became 9 the moment you joined it — and
+        // the dead carried live Remove and Treasurer buttons.
+        where: { status: "ALIVE" },
         orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
         select: {
           id: true,
@@ -132,22 +137,11 @@ function FactionTable({ factions, isGm = false }) {
 // in the component so no prisma row crosses the boundary — the console gets
 // plain data and never a model.
 async function buildPlayerProps(session, me) {
-  const [pendingForMe, allFactions] = await Promise.all([
-    prisma.factionApplication.findMany({
-      where: { characterId: me.id, status: "PENDING" },
-      select: { id: true, kind: true, note: true, factionId: true, faction: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.faction.findMany({
-      orderBy: { name: "asc" },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        characters: { select: { id: true, name: true, isLeader: true, status: true } },
-      },
-    }),
-  ]);
+  const pendingForMe = await prisma.factionApplication.findMany({
+    where: { characterId: me.id, status: "PENDING" },
+    select: { id: true, kind: true, note: true, factionId: true, faction: { select: { name: true } } },
+    orderBy: { createdAt: "desc" },
+  });
 
   const myApplications = pendingForMe.map((a) => ({
     id: a.id,
@@ -159,8 +153,19 @@ async function buildPlayerProps(session, me) {
 
   const faction = me.factionId ? await loadFaction(me.factionId) : null;
 
-  // No faction, or the placeholder one: the directory, not the console.
+  // No faction, or the placeholder one: the directory, not the console. The
+  // every-faction-with-every-member query lives INSIDE this branch: a player
+  // who is in a faction was paying for a full character scan they never saw.
   if (!faction || isUnaffiliated(faction)) {
+    const allFactions = await prisma.faction.findMany({
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        characters: { select: { id: true, name: true, isLeader: true, status: true } },
+      },
+    });
     return {
       faction: null,
       myApplications,
@@ -197,9 +202,11 @@ async function buildPlayerProps(session, me) {
       zoneName: room.location.zone?.name ?? "",
       inZone: Boolean(me.zoneId) && me.zoneId === room.location.zoneId,
       canOpen,
-      resources: room.resources,
-      // Withheld outright when the door is shut: a locked silo is a mail slot,
-      // and reading the contents through it would defeat the lock.
+      // Both withheld when the door is shut. The balance leaked before, so a
+      // member without the Cathedral Key could watch the Church's treasury
+      // rise and fall directly above a banner promising they could not see
+      // inside (FACTIONS.md §4a).
+      resources: canOpen ? room.resources : null,
       tags: canOpen
         ? room.tags
             .filter((rt) => rt.quantity > 0)
@@ -228,7 +235,11 @@ async function buildPlayerProps(session, me) {
             select: { id: true, name: true, faction: { select: { name: true, slug: true } } },
             take: 500,
           }),
+          // Only the faction's own zone. A silo anywhere else could never be
+          // deposited into — deposits are zone-scoped — so offering the whole
+          // map was offering rooms that could not work. setSiloRoom re-checks.
           prisma.room.findMany({
+            where: faction.zoneId ? { location: { zoneId: faction.zoneId } } : undefined,
             orderBy: { name: "asc" },
             select: {
               id: true,
@@ -308,13 +319,12 @@ export default async function FactionPage({ searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  const [{ isGm: gm }, myCharacter, allFactions] = await Promise.all([
+  const [{ isGm: gm }, myCharacter] = await Promise.all([
     getGmSession(),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
-      select: { id: true, factionId: true, resources: true, zoneId: true },
+      select: { id: true, factionId: true, zoneId: true },
     }),
-    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const params = await searchParams;
@@ -351,6 +361,11 @@ export default async function FactionPage({ searchParams }) {
   // still lives here, and it is what a faction name links to for either role.
   if (!requestedFactionId) redirect("/gm/players?tab=factions");
 
+  // Only the GM branch's picker reads this, so it is fetched only here.
+  const allFactions = await prisma.faction.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
   const [faction, unassignedCharacters] = await Promise.all([
     loadFaction(requestedFactionId),
     prisma.character.findMany({

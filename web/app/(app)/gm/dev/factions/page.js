@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { isUnaffiliated } from "@/lib/factionConstants";
+import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import DevSubNav from "../DevSubNav";
 import FactionsTable from "./FactionsTable";
@@ -52,7 +52,6 @@ export default async function DevFactionsPage() {
   // Flat DTOs for the client table — flat strings/numbers only.
   const rows = factions.map((f) => ({
     id: f.id,
-    slug: f.slug,
     name: f.name,
     zoneName: f.zone?.name ?? "",
     parentFactionId: f.parentFactionId,
@@ -71,7 +70,6 @@ export default async function DevFactionsPage() {
   const members = characters.map((c) => ({
     id: c.id,
     name: c.name,
-    factionId: c.factionId,
     isLeader: c.isLeader,
     isTreasurer: c.isTreasurer,
   }));
@@ -79,7 +77,6 @@ export default async function DevFactionsPage() {
     id: a.id,
     kind: a.kind,
     note: a.note,
-    factionId: a.factionId,
     factionName: a.faction.name,
     characterId: a.character.id,
     characterName: a.character.name,

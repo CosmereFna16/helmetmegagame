@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
-import { isUnaffiliated, UNAFFILIATED_SLUG } from "@/lib/factionConstants";
+import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { after } from "next/server";
 import { guarded, UserError } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
@@ -108,6 +108,14 @@ export async function addCharacterToFaction(formData) {
     data: { factionId, isLeader: false },
   });
 
+  // Same sweep assignFactionMember does: a handshake this character had open
+  // is moot once a GM has placed them, and leaving it pending would put a
+  // ghost row in some officer's queue.
+  await prisma.factionApplication.updateMany({
+    where: { characterId, status: "PENDING" },
+    data: { status: "WITHDRAWN" },
+  });
+
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
@@ -136,7 +144,13 @@ export async function removeCharacterFromFaction(formData) {
 
   await prisma.character.update({
     where: { id: characterId },
-    data: { factionId: unaffiliated.id, isLeader: false },
+    // isTreasurer too: the seat belongs to the faction, not the person, and
+    // leaving it set followed them out the door.
+    data: { factionId: unaffiliated.id, isLeader: false, isTreasurer: false },
+  });
+  await prisma.factionApplication.updateMany({
+    where: { characterId, status: "PENDING" },
+    data: { status: "WITHDRAWN" },
   });
 
   await prisma.auditLog.create({
@@ -226,25 +240,27 @@ async function detachMember(tx, character, toFactionId) {
   });
   await tx.factionApplication.updateMany({
     where: { characterId: character.id, status: "PENDING" },
-    data: { status: "WITHDRAWN", decidedAt: new Date() },
+    data: { status: "WITHDRAWN" },
   });
   if (character.isLeader && character.factionId) await promoteSuccessor(tx, character.factionId);
 }
 
 // A faction whose Leader just walked out is not left ownerless: the
 // longest-standing living member takes the seat. A Treasurer is preferred,
-// because they already held office. If nobody is left the faction simply has
-// no Leader — it still exists, and a GM or a new member can fill the seat.
+// because they already held office; a Catatonic member is taken LAST, since
+// crowning somebody who has left the Discord server leaves the faction just
+// as stuck as leaving the seat empty. If nobody is left the faction simply
+// has no Leader — it still exists, and a GM or a new member can fill it.
 async function promoteSuccessor(tx, factionId) {
   const remaining = await tx.character.findMany({
     where: { factionId, status: "ALIVE", isLeader: false },
     orderBy: [{ isTreasurer: "desc" }, { createdAt: "asc" }],
-    take: 1,
-    select: { id: true },
+    select: { id: true, tags: { where: { tag: { slug: CATATONIC_SLUG } }, select: { id: true } } },
   });
-  if (remaining.length === 0) return null;
-  await tx.character.update({ where: { id: remaining[0].id }, data: { isLeader: true } });
-  return remaining[0].id;
+  const heir = remaining.find((c) => c.tags.length === 0) ?? remaining[0];
+  if (!heir) return null;
+  await tx.character.update({ where: { id: heir.id }, data: { isLeader: true } });
+  return heir.id;
 }
 
 // Slug from a player-typed name, uniquified. The slug is permanent and the
@@ -269,6 +285,21 @@ function cleanName(raw) {
   if (name.length < 2) throw new UserError("A faction needs a name. ‡");
   if (name.length > 48) throw new UserError("That name is too long. ‡");
   return name;
+}
+
+// Only `slug` is unique in the database, so nothing stopped two factions from
+// both being called "The Ash Company" — or "Unaffiliated". Code no longer
+// branches on the name (§1a), but a roster with two identical entries is a
+// people problem whether or not it is a code one.
+async function requireFreeName(name, exceptFactionId = null) {
+  const clash = await prisma.faction.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      ...(exceptFactionId ? { id: { not: exceptFactionId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (clash) throw new UserError("Something is already called that. ‡");
 }
 
 function cleanNote(raw) {
@@ -352,12 +383,11 @@ async function applyToFactionImpl({ factionId, note }) {
   });
   await audit(session, "faction_application_filed", character.id, { factionId: faction.id });
 
-  const officers = await officersOf(faction.id);
-  for (const officer of officers) {
+  for (const officer of await officersOf(faction.id)) {
     notifyCharacter(officer, `${character.name} has asked to join ${faction.name}. ‡`);
   }
   revalidateFaction();
-  return { factionName: faction.name, reached: officers.length };
+  return { factionName: faction.name };
 }
 
 async function inviteToFactionImpl({ characterId, note }) {
@@ -412,7 +442,7 @@ async function withdrawApplicationImpl({ applicationId }) {
 
   await prisma.factionApplication.update({
     where: { id: row.id },
-    data: { status: "WITHDRAWN", decidedById: session.discordUserId, decidedAt: new Date() },
+    data: { status: "WITHDRAWN" },
   });
   await audit(session, "faction_application_withdrawn", row.characterId, { factionId: row.factionId });
   revalidateFaction();
@@ -441,7 +471,7 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
   if (!accept) {
     await prisma.factionApplication.update({
       where: { id: row.id },
-      data: { status: "DECLINED", decidedById: session.discordUserId, decidedAt: new Date() },
+      data: { status: "DECLINED" },
     });
     await audit(session, "faction_application_declined", row.characterId, { factionId: row.factionId });
     if (row.kind === "APPLICATION") {
@@ -459,16 +489,37 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
   if (row.character.status !== "ALIVE") throw new UserError(`${row.character.name} is beyond joining. ‡`);
   if (row.character.factionId === row.factionId) throw new UserError("They're already with you. ‡");
 
-  // The knowledge a recruit needs to reach their new faction's silo — the
-  // Brigands' camp is behind a tag, so accepting one without granting it
-  // hands them a home they can't find (FACTIONS.md).
-  const grantTag = grantTagSlug
-    ? await prisma.tag.findUnique({ where: { slug: grantTagSlug.toString() }, select: { id: true, slug: true, name: true } })
-    : null;
-  if (grantTagSlug && !grantTag) throw new UserError("No such tag. ‡");
-  if (grantTag && !(await siloKeySlugs(row.factionId)).includes(grantTag.slug)) {
-    throw new UserError("That tag isn't a key to your silo. ‡");
+  // The keys a recruit needs to reach their new faction's silo. The Brigands'
+  // camp is behind a tag, so letting somebody in without it hands them a home
+  // they can't find (FACTIONS.md §6).
+  //
+  // Which keys travel depends on WHO is answering, and that is a permission
+  // check, not a preference:
+  //
+  // - An officer answering an APPLICATION chooses, via `grantTagSlug`, and
+  //   the choice is bounded to their own silo's keys.
+  // - An INVITE is answered by the invitee, so `grantTagSlug` is ignored
+  //   outright — honouring it would let anyone holding an invitation post
+  //   themselves the Cathedral Key the officer chose not to give. Instead the
+  //   silo's keys are granted in full, because an officer who invited
+  //   somebody in has already decided they belong there. Without this an
+  //   invited Brigand could never receive the camp tag at all: `hills-camp`
+  //   is untradeable, so no later hand-over exists.
+  const keySlugs = await siloKeySlugs(row.factionId);
+  let grantSlugs = [];
+  if (row.kind === "INVITE") {
+    grantSlugs = keySlugs;
+  } else if (grantTagSlug) {
+    const wanted = grantTagSlug.toString();
+    if (!keySlugs.includes(wanted)) throw new UserError("That tag isn't a key to your silo. ‡");
+    grantSlugs = [wanted];
   }
+  const grantTags = grantSlugs.length
+    ? await prisma.tag.findMany({
+        where: { slug: { in: grantSlugs } },
+        select: { id: true, slug: true, name: true },
+      })
+    : [];
 
   const unaffiliated = await unaffiliatedFaction();
   await prisma.$transaction(async (tx) => {
@@ -482,20 +533,22 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
     // Every other handshake this character had open is moot now.
     await tx.factionApplication.updateMany({
       where: { characterId: row.characterId, status: "PENDING", id: { not: row.id } },
-      data: { status: "WITHDRAWN", decidedAt: new Date() },
+      data: { status: "WITHDRAWN" },
     });
     await tx.factionApplication.update({
       where: { id: row.id },
-      data: { status: "ACCEPTED", decidedById: session.discordUserId, decidedAt: new Date() },
+      data: { status: "ACCEPTED" },
     });
-    if (grantTag) await addToStack(tx, row.characterId, grantTag.id, 1, { source: "GM_GRANT" });
+    for (const tag of grantTags) {
+      await addToStack(tx, row.characterId, tag.id, 1, { source: "GM_GRANT" });
+    }
   });
   await audit(session, "faction_application_accepted", row.characterId, {
     factionId: row.factionId,
-    grantedTag: grantTag?.slug ?? null,
+    grantedTags: grantTags.map((t) => t.slug),
   });
 
-  if (grantTag) await syncCharacterRoomAccessFor(row.characterId);
+  if (grantTags.length) await syncCharacterRoomAccessFor(row.characterId);
   notifyCharacter(row.character, `You are now part of ${row.faction.name}. ‡`);
   for (const officer of await officersOf(row.factionId)) {
     if (officer.id === row.characterId) continue;
@@ -538,6 +591,7 @@ async function renameFactionImpl({ name }) {
   if (isUnaffiliated(character.faction)) throw new UserError("Unaffiliated can't be renamed. ‡");
 
   const clean = cleanName(name);
+  await requireFreeName(clean, character.factionId);
   const was = character.faction.name;
   // The slug is deliberately untouched: it is what every gate in the game
   // matches on (db/lib/factionConstants.js), and a rename must not move it.
@@ -577,6 +631,7 @@ async function secedeFactionImpl() {
 async function foundFactionImpl({ name }) {
   const { session, character } = await requireActor();
   const clean = cleanName(name);
+  await requireFreeName(clean);
   const was = character.faction;
 
   const slug = await freeSlug(clean);
@@ -595,7 +650,7 @@ async function foundFactionImpl({ name }) {
     });
     await tx.factionApplication.updateMany({
       where: { characterId: character.id, status: "PENDING" },
-      data: { status: "WITHDRAWN", decidedAt: new Date() },
+      data: { status: "WITHDRAWN" },
     });
     return created;
   });
@@ -622,9 +677,21 @@ async function setSiloRoomImpl({ roomId }) {
   if (id) {
     room = await prisma.room.findUnique({
       where: { id },
-      select: { id: true, name: true, location: { select: { name: true } } },
+      select: { id: true, name: true, location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } } },
     });
     if (!room) throw new UserError("No such room. ‡");
+    // A silo has to be in the faction's own zone. Otherwise deposits — which
+    // are zone-scoped — would never work for anybody, and the picker would
+    // happily offer a room on the far side of the map.
+    const home = await prisma.faction.findUnique({
+      where: { id: character.factionId },
+      select: { zoneId: true, zone: { select: { name: true } } },
+    });
+    if (home?.zoneId && room.location.zoneId !== home.zoneId) {
+      throw new UserError(
+        `A silo has to be somewhere in ${home.zone?.name ?? "your own zone"} — nobody could put anything into one in ${room.location.zone?.name ?? "another zone"}. ‡`,
+      );
+    }
   }
   await prisma.faction.update({ where: { id: character.factionId }, data: { siloRoomId: room?.id ?? null } });
   await audit(session, "faction_silo_set", character.id, {

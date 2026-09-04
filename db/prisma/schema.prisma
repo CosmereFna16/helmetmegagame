@@ -753,11 +753,10 @@ model FactionApplication {
   // other side verbatim.
   note String @default("")
 
-  // Who answered, as a Discord user id -- a snapshot column, the same posture
-  // as the log tables (ARCHITECTURE.md): the officer may have left the
-  // faction by the time anyone reads this back.
-  decidedById String?
-  decidedAt   DateTime?
+  // Who answered and when are deliberately NOT columns here. Every decision
+  // already writes an AuditLog row naming the actor, and `updatedAt` below is
+  // the timestamp -- two more fields nothing read would have been state
+  // stored twice.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
