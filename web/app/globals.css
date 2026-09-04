@@ -828,6 +828,19 @@ input[type="radio"]:focus-visible,
   cursor: pointer;
 }
 
+/* A filled slot is wrapped in a Tooltip, and .tag-hover is inline-flex — so
+   the wrapper stretched across its grid cell but the button inside shrank to
+   the tag, leaving a gap before the next slot. Make the wrapper a stretching
+   flex row and let the button fill it, so filled and empty slots match. */
+.equip-slots > .tag-hover {
+  display: flex;
+}
+
+.equip-slots > .tag-hover > .equip-slot {
+  flex: 1;
+  min-width: 0;
+}
+
 .equip-slot:disabled {
   cursor: default;
 }
