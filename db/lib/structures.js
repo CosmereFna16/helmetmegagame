@@ -15,10 +15,11 @@
 const { ambientLine } = require("./ambientLine");
 const { hasAttribute } = require("./locationAttributes");
 
-// The TagGroup structure types live in (docs/taggroups.yaml). Group
-// membership is what the non-stacking and unique rules key on later; for
-// now it is display color and the catalog's own organisation.
-const STRUCTURE_GROUP_SLUG = "assets-structures";
+// Structure types live in the assets-structures TagGroup
+// (docs/taggroups.yaml) — display color and catalog organisation only.
+// The runtime rules never key on the group: unique is per-type
+// (placement.unique), and non-stacking is per labor kind
+// (laborAccess.js#structureTools).
 
 // placement with its defaults applied. Normalisation/validation happen at
 // sync time (db/lib/tagShapes.js); this is the read-side accessor, and the
@@ -161,7 +162,6 @@ async function stakeholderCharacterIds(prisma, structureId, { except = null, pay
 }
 
 module.exports = {
-  STRUCTURE_GROUP_SLUG,
   PRESENT_STATUSES,
   placementOf,
   structuresAt,

@@ -3798,6 +3798,52 @@ tags:
       examine: "Drying racks stand here, lines strung for the catch. ‡"
       laborBonus: { kind: hunting, amount: 1 }
 
+  fish-weir:
+    name: Fish Weir
+    category: assets
+    group: assets-structures
+    description: "Staked wickerwork walling off a stretch of water, funnelling whatever swims into a trap that never sleeps. Raised where you stand, serving whoever fishes this ground. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "A fish weir stands in the water here, its stakes walling the current. ‡"
+      laborBonus: { kind: fishing, amount: 1 }
+
+  forge:
+    name: Forge
+    category: assets
+    group: assets-structures
+    description: "A standing hearth, anvil and bellows — a smithy in the open, built to stay. Anyone working this ground can do smith's work here without hauling a kit around. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 4
+      resourceCost: 30
+      skills: [builder-skilled]
+      gambit: false
+    # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
+    # the first one needs Workshop Equipment hauled into reach — the item is
+    # exempt from its own gate (needsWorkshop), which is the bootstrap. Once
+    # it stands, provides: makes every workshop-gated recipe work on site,
+    # for everyone, permanently.
+    placement:
+      examine: "A forge stands here, anvil set and bellows hung. ‡"
+      provides: [workshop-equipment]
+
   dog:
     name: Dog
     category: assets
