@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · One ruined face per character, and Scarred is no longer a build choice
+
+✎ Ugly and Disfigured now conflict with each other, as both already did with Leper  
+− Scarred can no longer be bought at creation
+
 ## 2026-09-04 · Two fixes on the Threats tables and the character sheet
 
 ✎ The Threats tables now use the full width instead of half the screen  
