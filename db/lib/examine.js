@@ -18,6 +18,7 @@
 // last fulfilled Desire and the skill catalog behind the doctor's eye. Both
 // come in as arguments; see EXAMINE_SUBJECT_SELECT for the rest.
 const { concealedLine } = require("./concealedIdentity");
+const { inRealFaction } = require("./factionConstants");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { inspectVision, isInscrutable } = require("./inspectVision");
 const {
@@ -42,7 +43,7 @@ const EXAMINE_SUBJECT_SELECT = {
   roleTitle: true,
   resources: true,
   factionId: true,
-  faction: { select: { name: true } },
+  faction: { select: { name: true, slug: true } },
   tags: {
     select: {
       equipped: true,
@@ -111,11 +112,6 @@ function concealedReadout(identity, subject) {
   };
 }
 
-// A real faction, as opposed to the Unaffiliated catch-all that everybody who
-// picked nothing shares — which is not a group whose members know each other.
-function inRealFaction(subject) {
-  return Boolean(subject.factionId) && subject.faction?.name !== "Unaffiliated";
-}
 
 // `subject` is a row loaded with EXAMINE_SUBJECT_SELECT.
 // `viewerTags` is the LOOKER's CharacterTag rows (for Seductive), `satisfied`

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isUnaffiliated, UNAFFILIATED_SLUG } from "@/lib/factionConstants";
 import { after } from "next/server";
 import {
   prisma,
@@ -489,11 +490,22 @@ export async function updateFaction(formData) {
     if (ancestorIds.includes(factionId)) return;
   }
 
+  // A room id straight off the form. Validated by existence rather than
+  // trusted, and "" clears the pointer.
+  const siloRoomRaw = str(formData, "siloRoomId").trim();
+  let siloRoomId = null;
+  if (siloRoomRaw) {
+    const room = await prisma.room.findUnique({ where: { id: siloRoomRaw }, select: { id: true } });
+    if (!room) return;
+    siloRoomId = room.id;
+  }
+
   await prisma.faction.update({
     where: { id: factionId },
     data: {
       name: str(formData, "name").trim(),
       parentFactionId,
+      siloRoomId,
     },
   });
 
@@ -510,9 +522,9 @@ export async function deleteFaction(formData) {
   if (!factionId) return;
 
   const faction = await prisma.faction.findUnique({ where: { id: factionId } });
-  if (!faction || faction.name === "Unaffiliated") return;
+  if (!faction || isUnaffiliated(faction)) return;
 
-  const unaffiliated = await prisma.faction.findFirst({ where: { name: "Unaffiliated" } });
+  const unaffiliated = await prisma.faction.findFirst({ where: { slug: UNAFFILIATED_SLUG } });
   if (unaffiliated) {
     await prisma.character.updateMany({
       where: { factionId },
@@ -527,6 +539,58 @@ export async function deleteFaction(formData) {
       actorDiscordUserId: session.discordUserId,
       actionType: "faction_deleted",
       details: { factionId, name: faction.name },
+    },
+  });
+
+  revalidatePath("/gm/dev/factions");
+  revalidatePath("/faction");
+  revalidatePath("/gm/players", "layout");
+}
+
+// Moves a character into a faction and sets their seats, in one write.
+// Deliberately not built out of the player-facing actions: those all check
+// "is this your faction", which is the check a GM is here to skip.
+export async function assignFactionMember(formData) {
+  const session = await requireSuperadmin();
+
+  const characterId = str(formData, "characterId");
+  const factionId = str(formData, "factionId");
+  if (!characterId || !factionId) return;
+
+  const [character, faction] = await Promise.all([
+    prisma.character.findUnique({ where: { id: characterId }, select: { id: true, name: true } }),
+    prisma.faction.findUnique({ where: { id: factionId }, select: { id: true, name: true, slug: true } }),
+  ]);
+  if (!character || !faction) return;
+
+  const makeLeader = str(formData, "isLeader") === "true" && !isUnaffiliated(faction);
+  const makeTreasurer = str(formData, "isTreasurer") === "true" && !isUnaffiliated(faction);
+
+  await prisma.$transaction(async (tx) => {
+    // One Leader per faction, same rule setFactionLeader keeps.
+    if (makeLeader) {
+      await tx.character.updateMany({
+        where: { factionId, isLeader: true },
+        data: { isLeader: false },
+      });
+    }
+    await tx.character.update({
+      where: { id: characterId },
+      data: { factionId, isLeader: makeLeader, isTreasurer: makeTreasurer },
+    });
+    // Whatever they had open elsewhere is moot once a GM has placed them.
+    await tx.factionApplication.updateMany({
+      where: { characterId, status: "PENDING" },
+      data: { status: "WITHDRAWN", decidedAt: new Date() },
+    });
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "faction_member_assigned",
+      targetCharacterId: characterId,
+      details: { factionId, factionName: faction.name, isLeader: makeLeader, isTreasurer: makeTreasurer },
     },
   });
 

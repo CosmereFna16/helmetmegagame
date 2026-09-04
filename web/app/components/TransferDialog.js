@@ -26,6 +26,7 @@ function stackLabel(name, quantity) {
 export default function TransferDialog({
   selfId,
   parties,
+  silo = null,
   transferable,
   carry,
   fromKey,
@@ -45,6 +46,10 @@ export default function TransferDialog({
   const others = people.filter((c) => c.id !== selfId);
   const fromRoom = fromKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === fromKey) : null;
   const toRoom = toKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === toKey) : null;
+  // The silo when it is the destination: either the elsewhere-in-zone entry
+  // PartySelect adds, or the ordinary room entry when you happen to be
+  // standing in it.
+  const toSilo = silo && toKey === `room:${silo.id}` ? silo : null;
   const toIsCharacter = toKey.startsWith("character:");
 
   // What the source has on offer. From yourself: every tradeable tag you
@@ -107,6 +112,7 @@ export default function TransferDialog({
           hint="Choose a destination… ‡"
           characters={others}
           rooms={rooms}
+          silo={silo && !silo.here ? silo : null}
         />
       </div>
       {sameParty && <p className="text-xs text-accent">Source and recipient are the same.</p>}
@@ -169,9 +175,13 @@ export default function TransferDialog({
         </p>
       )}
       <p className="text-xs text-muted">
-        {toRoom
-          ? "Anyone who can get into that room can take what you leave there. ‡"
-          : "Only people standing where you are, with their face showing, are listed. ‡"}
+        {toSilo && !toSilo.canOpen
+          ? `${toSilo.name} is locked to you. This will go in, and you will not be able to take it back out. ‡`
+          : toSilo
+            ? "Anyone in the faction who can get into the silo can take what you leave there. ‡"
+            : toRoom
+              ? "Anyone who can get into that room can take what you leave there. ‡"
+              : "Only people standing where you are, with their face showing, are listed. ‡"}
       </p>
     </>
   );

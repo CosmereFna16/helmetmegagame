@@ -380,6 +380,24 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # --- Locations you know about (group general-location) --------------------
+  # Knowledge, not a possession. It is the `access:` key on a hidden Room in
+  # docs/zones.yaml and nothing else, so it weighs nothing, cannot be bought
+  # and cannot be handed over — you either were shown the place or you were
+  # not. A faction that recruits somebody has to grant it deliberately.
+  hills-camp:
+    name: Hills Camp
+    category: general
+    group: general-location
+    description: "You know about the camp in the ravine."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.
   vain:
@@ -1196,11 +1214,14 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Slug kept deliberately (see this file's header) — renamed Mime's Vow.
+  # Renamed from Vow of Silence, slug and all: db/lib/syncTags.js requires a
+  # slug to BE its name slugified, and refused to run at all until this
+  # matched. Nothing referenced the old slug but the conflictsWith below, and
+  # nobody held the tag.
   #
   # Minstrel-only. A singer who has sworn off singing is a character; anybody
   # else taking it is picking up a free tag with no cost to it.
-  vow-of-silence:
+  mimes-vow:
     name: "Mime's Vow"
     category: general
     group: general-traits
@@ -3309,7 +3330,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: false
-    conflictsWith: [stutter, vow-of-silence]
+    conflictsWith: [stutter, mimes-vow]
 
   # --- Maiming -----------------------------------------------------------
 
@@ -4311,6 +4332,30 @@ tags:
       - sake
       - sweets
 
+  # A crate sitting in the Merchant's Cargo Bay. The Depot's real crates are
+  # runtime Tag rows minted per shuttle (docs/systemdocs/DEPOT.md §5), which a
+  # YAML stash cannot name — so the one that is simply THERE at the start is
+  # an ordinary authored consumable, the same shape as Starting Wares above.
+  # Heavy, because it is a crate: carrying one off is a decision.
+  cargo-crate:
+    name: Cargo Crate
+    category: items
+    group: items-gear
+    description: "A merchant's crate, still nailed shut. The manifest on the side reads: coffee, coffee, alcohol, work knife. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - coffee
+      - coffee
+      - alcohol
+      - work-knife
+
   ridiculous-hat:
     name: Ridiculous Hat
     category: items
@@ -4366,7 +4411,7 @@ tags:
   sewer-key:
     name: Sewer Key
     category: items
-    group: items-gear
+    group: items-keys
     description: "A key to the Underquarter's sewers. ‡"
     pointCost: 0
     tradeable: true
@@ -4376,7 +4421,7 @@ tags:
   elevator-key:
     name: Elevator Key
     category: items
-    group: items-gear
+    group: items-keys
     description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
     pointCost: 0
     tradeable: true
@@ -4386,12 +4431,87 @@ tags:
   the-barons-key:
     name: "The Baron's Key"
     category: items
-    group: items-gear
+    group: items-keys
     description: "Opens the Charon."
     pointCost: 0
     tradeable: true
     weight: 0
     purchasable: false
+
+  # The rest of Ravenheart's locks. Every one is weightless, tradeable and
+  # stackable: a key is meant to be handed over, stolen off a body or copied,
+  # and a role that hands out three of them needs a stack to put them in.
+  # Invisible on the sheet, so carrying one is not something a stranger reads
+  # off you.
+  armory-key:
+    name: Armory Key
+    category: items
+    group: items-keys
+    description: "A key to the armory."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  cellar-key:
+    name: Cellar Key
+    category: items
+    group: items-keys
+    description: "A key to the inn's cellar."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  order-key:
+    name: Order Key
+    category: items
+    group: items-keys
+    description: "A key to the Order Chambers. It's old and simple."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  cathedral-key:
+    name: Cathedral Key
+    category: items
+    group: items-keys
+    description: "A key to the Cathedral's locked rooms."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  sanctuary-key:
+    name: Sanctuary Key
+    category: items
+    group: items-keys
+    description: "A key to the Sanctuary's locked rooms."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   #Uncraftable
   neoclassic-rw10:
@@ -5756,7 +5876,7 @@ tags:
   depot-keycard:
     name: Depot Keycard
     category: items
-    group: items-special
+    group: items-keys
     description: "A worn plastic card on a lanyard. It opens the hangar door and the sealed crates, and it will not stop a single bullet from the thing in the ceiling. ‡"
     pointCost: 0
     tradeable: true
@@ -5769,7 +5889,7 @@ tags:
   incarns-key:
     name: Incarn's Key
     category: items
-    group: items-special
+    group: items-keys
     description: "A elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
     pointCost: 0
     equippable: true

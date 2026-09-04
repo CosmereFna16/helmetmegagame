@@ -47,6 +47,15 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   await cancelOffersForCharacter(prisma, character.id).catch((err) =>
     console.error(`Failed to void offers on death for ${character.id}:`, err),
   );
+  // The same rule for a faction handshake (FACTIONS.md): an application or an
+  // invitation nobody can answer any more is withdrawn rather than left in a
+  // queue for an officer to trip over.
+  await prisma.factionApplication
+    .updateMany({
+      where: { characterId: character.id, status: "PENDING" },
+      data: { status: "WITHDRAWN", decidedAt: new Date() },
+    })
+    .catch((err) => console.error(`Failed to void faction applications on death for ${character.id}:`, err));
   await prisma.craftProject
     .updateMany({ where: { characterId: character.id, status: "ACTIVE" }, data: { status: "CANCELLED" } })
     .catch((err) => console.error(`Failed to cancel craft projects on death for ${character.id}:`, err));

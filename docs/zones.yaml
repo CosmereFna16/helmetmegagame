@@ -50,12 +50,22 @@
 #   never says what it is. `indoors` is deliberately NOT one of these — it is a
 #   real column that mounts and carts act on — but Examine prints it alongside
 #   them as though it were.
-# - stash (rooms only): a list of Tag slugs to seed into the room's stash —
-#   the kit that is simply THERE, like the Sanctuary operating theatre's
-#   surgical instruments. Written as a FLOOR, never a reset: if the row
-#   already exists the sync leaves it alone, so re-syncing can neither undo a
-#   player carrying it off nor quietly duplicate it. Tags sync AFTER zones, so
-#   an unknown slug is skipped with a warning rather than throwing.
+# - stash (rooms only): what is simply THERE in the room, like the Sanctuary
+#   operating theatre's surgical instruments. Two shapes, both accepted:
+#
+#       stash: [surgical-equipment]          # the short one: each slug, x1
+#
+#       stash:                               # the long one, with quantities
+#         resources: 24
+#         items:
+#           obol: 3
+#           cleaning-powder: 1
+#
+#   Written as a FLOOR, never a reset. A stack already at or above the
+#   authored quantity is left alone, and `resources` is written only while the
+#   room still holds none — so re-syncing can neither undo a player carrying
+#   the anvil off nor quietly duplicate it. Tags sync AFTER zones, so an
+#   unknown slug is skipped with a warning rather than throwing.
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -157,6 +167,14 @@ zones:
             name: Smithery
             description: >-
               The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
+          warehouse:
+            name: Warehouse
+            description: >-
+              A long building storing food and other public goods.
+            stash:
+              resources: 4
+              items:
+                workshop-equipment: 1
       # Promoted out of the Square, where it was a room, because the map makes
       # it a place you walk to. Its prose is unchanged.
       old-cock-inn:
@@ -164,7 +182,16 @@ zones:
         indoors: true
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
-        rooms: {}
+        rooms:
+          cellar:
+            name: Cellar
+            description: >-
+              A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
+            access: [cellar-key]
+            stash:
+              resources: 3
+              items:
+                alcohol: 1
       # Named "Gate" in play; the id is north-gate because the Gatehouse
       # already owns the slug "gate" for its own room.
       north-gate:
@@ -190,6 +217,14 @@ zones:
             name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
+            access: [order-key]
+          pantry:
+            name: Pantry
+            description: >-
+              Shelves of bread, oil and candle-stubs behind a door the Bishop keeps shut. What the Cathedral gives away it gives away from here, which is why it is locked. ‡
+            access: [cathedral-key]
+            stash:
+              resources: 3
           scriptorium:
             name: Scriptorium
             description: >-
@@ -213,6 +248,17 @@ zones:
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
             stash: [surgical-equipment]
+          supply-storage:
+            name: Supply Storage
+            description: >-
+              Neatly organized shelves, labeled, archived, illuminated by standardized electric lights. Possibly the most valuable place in Ravenheart.
+            access: [sanctuary-key]
+            stash:
+              resources: 24
+              items:
+                obol: 3
+                cleaning-powder: 1
+                surgical-equipment: 2
           garden:
             name: Garden
             description: >-
@@ -290,7 +336,15 @@ zones:
         name: Servant Wing
         description: >-
           Where the fortress actually runs from: laundries, sculleries, a back stair that reaches every floor without passing a single door the nobility use. The people here know more about the Keep than anyone in it, and are paid partly in the understanding that they will not say so. ‡
-        rooms: {}
+        rooms:
+          storehouse:
+            name: Storehouse
+            description: >-
+              A larder and a cellar combined in one, holding the keep's goods.
+            stash:
+              resources: 3
+              items:
+                fine-meal: 1
       keep:
         name: Keep
         indoors: true
@@ -336,6 +390,15 @@ zones:
             description: >-
               The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
             access: [incarns-key]
+          barons-study:
+            name: "Baron's Study"
+            description: >-
+              Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
+            access: [the-barons-key]
+            stash:
+              items:
+                armory-key: 1
+                elevator-key: 1
       garrison:
         name: Garrison
         description: >-
@@ -349,10 +412,36 @@ zones:
             name: Barracks
             description: >-
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
+          mess-hall:
+            name: Mess Hall
+            description: >-
+              The Watch's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
+            stash:
+              resources: 2
+              items:
+                alcohol: 1
           armory:
             name: Armory
             description: >-
-              The garrison's store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Simple smithing document or below) — but nothing else. Consider stocking it.
+              There's a statue of the good Baron Casimir II. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
+            access: [armory-key]
+            stash:
+              items:
+                halberd: 2
+                broadsword: 1
+                gladius: 2
+                mace: 3
+                dagger: 2
+                spear: 3
+                buckler: 4
+                shield: 3
+                longbow: 2
+                breastplate: 2
+                simple-helm: 6
+                mail-coif: 3
+                mail-shirt: 4
+                padded-armor: 5
+                padded-cap: 3
           dungeons:
             name: Dungeons
             description: >-
@@ -527,13 +616,31 @@ zones:
           Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
         yield: { hunting: 0.8 }
         rooms: {}
-      # map node 26
+      # map node 26. Renamed off the numbered series because the brigands live
+      # here now — a place people talk about needs a name people can say.
       east-forests-26:
-        name: Black Hills 4
+        name: Ravine
         description: >-
-          The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. Someone has built a cairn. Someone else has knocked it down. ‡
+          The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. The hills split here, a dry cut too steep to walk into and too deep to see the bottom of. Roots come through the wall of it. Somebody has been up and down this more than once, and has been careful about where they put their feet. ‡
         yield: { hunting: 0.8 }
-        rooms: {}
+        rooms:
+          ravine-camp:
+            name: Ravine Camp
+            description: >-
+              Roots hang over the ravine ledge, further obscuring the hidden camp. There's meats drying on a rack, a couple of fires, and some stolen crates.
+            access: [hills-camp]
+            stash:
+              resources: 4
+              items:
+                spear: 2
+                buckler: 2
+                work-knife: 3
+                mace: 1
+                shortbow: 1
+                padded-armor: 1
+                padded-cap: 2
+                brigandine: 1
+                skinned-cave-rat: 1
       # map node 27
       east-forests-27:
         name: Black Hills 5
@@ -661,6 +768,15 @@ zones:
                 access: [depot-keycard]
                 description: >-
                   A scorched circle of plating under a hatch in the rock, wide enough to set a shuttle down on and not one inch wider. Most days it holds nothing but the smell of burnt fuel. On the days it does hold something, the crates are stacked where they fell. ‡
+              cargo-bay:
+                name: Cargo Bay
+                description: >-
+                  Shelves on either side, stacked high with crates.
+                stash:
+                  resources: 4
+                  items:
+                    obol: 2
+                    cargo-crate: 1
           # map node 14
           caves-14:
             name: Caves 1

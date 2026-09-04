@@ -823,6 +823,17 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
 // into someone's pockets from here, and listing what's in them would show
 // their hidden tags. Loot is how you take from a person, and only a helpless
 // one (REQUESTS.md §5b).
+// Only ever asked on the failure path, to pick which of the two out-of-reach
+// sentences to write. Never a gate — canReachParty owns that.
+async function isFactionSiloRoom(factionId, roomId) {
+  if (!factionId) return false;
+  const faction = await prisma.faction.findFirst({
+    where: { id: factionId, siloRoomId: roomId },
+    select: { id: true },
+  });
+  return Boolean(faction);
+}
+
 async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawAmount, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -850,10 +861,15 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
   // Both ends have to be where you stand — re-checked here on the posted
   // key, the same predicate that built the menu (web/lib/peopleHere.js). A
   // room adds "and its door opens for you".
+  //
+  // The one asymmetry: `direction` lets a member DEPOSIT into their own
+  // faction's silo from anywhere in that room's zone, while taking anything
+  // back out keeps the strict rule (web/lib/transferReach.js).
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
-  for (const party of [from, to]) {
-    if (!(await canReachParty(character, party, { heldSlugs }))) {
-      throw new UserError(outOfReachMessage(party));
+  for (const [direction, party] of [["from", from], ["to", to]]) {
+    if (!(await canReachParty(character, party, { heldSlugs, direction }))) {
+      const isSilo = party.kind === "room" && (await isFactionSiloRoom(character.factionId, party.id));
+      throw new UserError(outOfReachMessage(party, { isSilo }));
     }
   }
   if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);

@@ -665,13 +665,32 @@ model Depot {
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]
-// (db/lib/syncRoles.js#syncRolesFromYaml, npm run db:sync-roles). `slug` is
-// the stable match key. Factions used to bank ⬢ in a Silo; that was removed
-// in 9/2026 (FACTIONS.md), so a Faction is now membership and a home zone.
+// (db/lib/syncRoles.js#syncRolesFromYaml, npm run db:sync-roles), then LIVE:
+// players found factions, rename them, secede from a parent and move between
+// them, so nothing here is safe to re-derive from the YAML.
+//
+// `slug` is the stable match key and the ONLY thing code may branch on --
+// `name` is player-editable (db/lib/factionConstants.js#isUnaffiliated).
 model Faction {
-  id   String  @id @default(cuid())
-  slug String? @unique
+  id   String @id @default(cuid())
+  slug String @unique
   name String
+
+  // Where this faction banks: a Room, whose own `resources` and RoomTag
+  // stacks ARE the silo (CARRY.md, FACTIONS.md). There is no faction-level
+  // balance -- a Silo model existed until 9/2026 and is not coming back.
+  // Seeded create-only from roles.yaml's `silo:`, then owned by the faction's
+  // officers. SetNull, so pruning a room in db:sync-zones unpoints the silo
+  // rather than cascading the faction away.
+  siloRoomId String?
+  siloRoom   Room?   @relation("FactionSilo", fields: [siloRoomId], references: [id], onDelete: SetNull)
+
+  // The character who founded this faction in play; null for every faction
+  // the YAML authored. Kept as a plain id rather than a relation: the founder
+  // can die, leave or be deleted, and none of that should touch the faction.
+  foundedById String?
+
+  applications FactionApplication[]
 
   // The Zone this faction belongs to, from its nesting in roles.yaml. Groups
   // the character-creation role picker (Zone -> Faction -> Role) and labels
@@ -695,6 +714,56 @@ model Faction {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// One live handshake between a character and a faction, in whichever
+// direction it was opened. Deliberately NOT a Request (REQUESTS.md): a
+// Request lands immediately and is reviewed afterwards, carrying an applied
+// `effect` snapshot, and an application's whole nature is that it sits
+// pending until somebody answers it.
+enum FactionApplicationKind {
+  // The character knocked. Any officer of the faction answers.
+  APPLICATION
+  // An officer knocked. The named character answers.
+  INVITE
+}
+
+enum FactionApplicationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  // Pulled back by whoever opened it -- including automatically, when the
+  // applicant joins somewhere else or dies.
+  WITHDRAWN
+}
+
+model FactionApplication {
+  id String @id @default(cuid())
+
+  factionId String
+  faction   Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  kind   FactionApplicationKind
+  status FactionApplicationStatus @default(PENDING)
+
+  // What the applicant or the inviting officer wrote. Free text, shown to the
+  // other side verbatim.
+  note String @default("")
+
+  // Who answered, as a Discord user id -- a snapshot column, the same posture
+  // as the log tables (ARCHITECTURE.md): the officer may have left the
+  // faction by the time anyone reads this back.
+  decidedById String?
+  decidedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([factionId, status])
+  @@index([characterId, status])
 }
 
 // A region of the map: a Discord category, its #summary channel and the
@@ -1069,6 +1138,11 @@ model Room {
   playerThreads PlayerThread[]
   guests        RoomGuest[]
 
+  // Factions banking here. A list rather than a single back-reference because
+  // nothing stops two factions sharing a room -- the Church and the Order
+  // both sit in the Cathedral.
+  siloOf Faction[] @relation("FactionSilo")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1283,6 +1357,9 @@ model Character {
 
   factionId String?
   faction   Faction? @relation(fields: [factionId], references: [id])
+
+  // Applications this character has open, in either direction.
+  factionApplications FactionApplication[]
 
   // AUTHORITATIVE "where is this character" since Bascinet 2. Drives the
   // "Location: {Name}" Discord role (swapped by

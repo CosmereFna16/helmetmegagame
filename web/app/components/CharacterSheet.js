@@ -35,6 +35,7 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferParties,
+  transferSilo,
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
@@ -135,6 +136,7 @@ export default function CharacterSheet({
             characterTags={character.tags}
             resources={character.resources}
             transferParties={transferParties}
+            transferSilo={transferSilo}
             carry={carry}
             hasWorkshop={hasWorkshop}
             canHeal={canHeal}

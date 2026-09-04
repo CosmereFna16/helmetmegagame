@@ -451,6 +451,44 @@ export default async function CharacterPage() {
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
+  // Your faction's silo, if it has one and you are standing in its zone: a
+  // deposit-only destination pinned above the rooms here (FACTIONS.md). The
+  // `here` flag says whether it is already in `rooms` above, so the dialog
+  // doesn't list the same room twice; `canOpen` is what decides whether the
+  // dialog warns that this is a one-way trip.
+  const siloFaction = character.factionId
+    ? await prisma.faction.findFirst({
+        where: { id: character.factionId, siloRoomId: { not: null } },
+        select: {
+          siloRoom: {
+            select: {
+              id: true,
+              name: true,
+              kind: true,
+              accessTagSlugs: true,
+              locationId: true,
+              location: { select: { name: true, zoneId: true } },
+            },
+          },
+        },
+      })
+    : null;
+  const siloRoom = siloFaction?.siloRoom ?? null;
+  const transferSilo =
+    siloRoom && character.zoneId && siloRoom.location.zoneId === character.zoneId
+      ? {
+          id: siloRoom.id,
+          name: siloRoom.name,
+          locationName: siloRoom.location.name,
+          here: siloRoom.locationId === character.locationId,
+          canOpen:
+            accessibleRooms(
+              [{ id: siloRoom.id, kind: siloRoom.kind, accessTagSlugs: siloRoom.accessTagSlugs }],
+              heldSlugsForRooms,
+              guestRoomIds,
+            ).length === 1,
+        }
+      : null;
   // Is a forge within reach? Resolved server-side so the Craft dialog can say
   // so before a player commits, and re-checked by craftRequest either way.
   const hasWorkshop = await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG);
@@ -785,6 +823,7 @@ export default async function CharacterPage() {
       avatarSrc={avatarSrc}
       forcedIdentity={forcedIdentity}
       transferParties={transferParties}
+      transferSilo={transferSilo}
       carry={carry}
       zoneMoves={zoneMoves}
       zoneMovesReason={zoneMovesReason}

@@ -3958,14 +3958,16 @@ input[type="radio"]:disabled {
    you are doing. Every colour here is a token, so the whole thing follows the
    active theme. */
 
-.depot-cockpit {
+.depot-cockpit,
+.console-strip {
   padding: var(--sp-4) var(--sp-5);
   display: flex;
   flex-direction: column;
   gap: var(--sp-3);
 }
 
-.depot-cockpit-head {
+.depot-cockpit-head,
+.console-strip-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -3973,31 +3975,36 @@ input[type="radio"]:disabled {
   flex-wrap: wrap;
 }
 
-.depot-greeting {
+.depot-greeting,
+.console-title {
   font-size: var(--fs-lg);
   color: var(--text);
 }
 
-.depot-balance {
+.depot-balance,
+.console-figure {
   font-size: var(--fs-xl);
   color: var(--accent);
 }
 
-.depot-cockpit-stats {
+.depot-cockpit-stats,
+.console-strip-stats {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-2) var(--sp-6);
   align-items: center;
 }
 
-.depot-stat {
+.depot-stat,
+.console-stat {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
   font-size: var(--fs-sm);
 }
 
-.depot-stat-label {
+.depot-stat-label,
+.console-stat-label {
   color: var(--muted);
   font-size: var(--fs-2xs);
   letter-spacing: var(--ls-wide);
@@ -4038,26 +4045,30 @@ input[type="radio"]:disabled {
 .depot-lamp-off { color: var(--muted); }
 .depot-lamp-armed { color: var(--danger); border-color: var(--danger); }
 
-.depot-notice {
+.depot-notice,
+.console-notice {
   font-size: var(--fs-sm);
   color: var(--muted);
   padding: var(--sp-2) var(--sp-3);
   border-left: 2px solid var(--border);
 }
 
-.depot-notice-danger {
+.depot-notice-danger,
+.console-notice-danger {
   color: var(--danger);
   border-left-color: var(--danger);
 }
 
-.depot-tabs {
+.depot-tabs,
+.console-tabs {
   display: flex;
   gap: var(--sp-1);
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
 }
 
-.depot-tab {
+.depot-tab,
+.console-tab {
   appearance: none;
   background: none;
   border: none;
@@ -4068,9 +4079,11 @@ input[type="radio"]:disabled {
   cursor: pointer;
 }
 
-.depot-tab:hover { color: var(--text); }
+.depot-tab:hover,
+.console-tab:hover { color: var(--text); }
 
-.depot-tab-on {
+.depot-tab-on,
+.console-tab-on {
   color: var(--accent);
   border-bottom-color: var(--accent);
 }

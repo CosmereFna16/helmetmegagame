@@ -855,6 +855,10 @@ global CLIs. To make one able to build, run, and deploy:
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
+  `FactionApplication_pending_unique` is the same shape of ghost: a PARTIAL
+  unique index (`WHERE status = 'PENDING'`), which Prisma's schema language
+  cannot express. Decline that drop too — without it a character could hold
+  two live applications to one faction.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

@@ -64,6 +64,12 @@
 # Caves group itself is not standable, but its levels (caverns, railroad,
 # aberrant-pits) are.
 #
+# `silo` (faction-level, optional) is a Room **slug** from docs/zones.yaml —
+# the room this faction banks in. CREATE-ONLY, exactly like `parent:` below:
+# it seeds the pointer when the faction row is first written and is never
+# re-applied, because a Leader or Treasurer re-points their own silo in play
+# and a re-sync must not drag it back. See docs/systemdocs/FACTIONS.md.
+#
 # `starting_location` (role-level, optional) is a Location **slug** from
 # docs/zones.yaml — it decides which Location channel (and "Location: {Name}"
 # role) the character lands in. If a role gives none, it defaults to the
@@ -89,6 +95,7 @@ zones:
     factions:
       the-court:
         name: The Court
+        silo: storehouse
         roles:
           baron:
             name: Baron
@@ -126,6 +133,7 @@ zones:
             extra_starting_points: 7
             leader: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Nobility
               - The Baron's Key
@@ -247,6 +255,7 @@ zones:
             extra_starting_points: 7
             treasurer: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Courtier
               - Literate
@@ -384,6 +393,7 @@ zones:
               - fortressstarting
       the-watch:
         name: The Watch
+        silo: mess-hall
         parent: The Court
         roles:
           captain:
@@ -410,6 +420,7 @@ zones:
             leader: true
             treasurer: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Watchman
               - Tactician
@@ -447,6 +458,7 @@ zones:
             starting_zone: fortress
             treasurer: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Melee (Basic)
               - Radio Bracelet (Watch)
@@ -535,6 +547,7 @@ zones:
     factions:
       the-church:
         name: The Church
+        silo: pantry
         roles:
           bishop:
             name: Bishop
@@ -555,6 +568,7 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Cathedral Key
               - Ravenhearter
               - Chaplain
               - Pious
@@ -584,6 +598,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Cathedral Key
               - Ravenhearter
               - Chaplain
               - Pious
@@ -607,6 +622,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Cathedral Key
               - Ravenhearter
               - Literate
               - Post-Christian
@@ -617,6 +633,7 @@ zones:
               - church
       the-sanctuary:
         name: The Sanctuary
+        silo: supply-storage
         roles:
           esculap:
             name: Esculap
@@ -639,6 +656,7 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Sanctuary Key
               - Ravenhearter
               - Medical (Expert)
               - Brewing (Skilled)
@@ -669,6 +687,7 @@ zones:
             starting_resources: 8
             starting_zone: town
             starting_tags:
+              - Sanctuary Key
               - Ravenhearter
               - Medical (Skilled)
               - Brewing (Basic)
@@ -678,6 +697,7 @@ zones:
               - medical
       order-of-the-silver-cross:
         name: Order of the Silver Cross
+        silo: order-chambers
         parent: The Church
         roles:
           inquisitor:
@@ -703,6 +723,8 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Order Key
+              - Cathedral Key
               - Ravenhearter
               - Pious
               - Melee (Basic)
@@ -740,6 +762,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Order Key
               - Ravenhearter
               - Pious
               - Melee (Basic)
@@ -777,6 +800,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Order Key
               - Ravenhearter
               - Pious
               - Post-Christian
@@ -787,6 +811,7 @@ zones:
               - church
       the-town:
         name: The Town
+        silo: warehouse
         roles:
           headman:
             name: Headman
@@ -1027,6 +1052,7 @@ zones:
               - independent
       the-inn:
         name: The Inn
+        silo: cellar
         parent: The Town
         roles:
           innkeeper:
@@ -1046,6 +1072,7 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Cellar Key x3
               - Ravenhearter
               - Cooking (Basic)
               - Brewing (Basic)
@@ -1067,6 +1094,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Cellar Key
               - Ravenhearter
               - Cooking (Basic)
             doc_elements:
@@ -1077,6 +1105,7 @@ zones:
               - independent
       brigands:
         name: Brigands
+        silo: ravine-camp
         roles:
           brigand-leader:
             name: Brigand Leader
@@ -1098,9 +1127,11 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 3
-            starting_zone: town
+            starting_zone: east-forests
+            starting_location: east-forests-26
             leader: true
             starting_tags:
+              - Hills Camp
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1130,8 +1161,10 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
-            starting_zone: town
+            starting_zone: east-forests
+            starting_location: east-forests-26
             starting_tags:
+              - Hills Camp
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1150,6 +1183,7 @@ zones:
     factions:
       the-company:
         name: The Company
+        silo: cargo-bay
         roles:
           merchant:
             name: Merchant

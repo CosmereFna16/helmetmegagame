@@ -345,6 +345,12 @@ one. Deleting a Tag from the catalog cascades its **room** stacks
 
 ## 7. Transfer
 
+> One exception to everything below: your own faction's **silo**. It is an
+> ordinary Room stash, but you can put things into it from anywhere in that
+> room's zone, and take things out only by standing in it — even when the door
+> is locked to you. See `FACTIONS.md` §4.
+
+
 One dialog on `/character` (`TransferDialog.js`, mode `transfer` in
 `RequestActionsProvider.js`) replaces the old Transfer Tag and Transfer
 Resources buttons. From → To, any number of tag lines, a ⬢ amount, one reason.

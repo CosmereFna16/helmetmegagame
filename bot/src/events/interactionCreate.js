@@ -1,5 +1,6 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
+const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
 const { forcedNameFrom, loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const {
   MENU_OPTION_LIMIT,
@@ -819,7 +820,7 @@ async function handleWhosHere(interaction, locationId) {
         concealed: true,
         age: true,
         gender: true,
-        faction: { select: { name: true } },
+        faction: { select: { name: true, slug: true } },
         tags: {
           where: { tag: { forcedName: { not: null } } },
           select: { tag: { select: { forcedName: true } } },
@@ -842,7 +843,7 @@ async function handleWhosHere(interaction, locationId) {
       const sameFaction =
         viewer?.factionId &&
         c.factionId === viewer.factionId &&
-        c.faction?.name !== "Unaffiliated" &&
+        !isUnaffiliated(c.faction) &&
         c.roleTitle;
       return sameFaction ? `${c.name}, ${c.roleTitle}` : c.name;
     });
