@@ -49,7 +49,7 @@ function fuelTurnsLeft(depot) {
 // How much room is left on the credit line.
 //
 // Clamped at BOTH ends, and the upper clamp is the load-bearing one — the same
-// trap db/lib/depot.js#creditAvailable documents. A debt driven below zero by
+// trap the retired ⬢ credit helper documented. A debt driven below zero by
 // an Undo landing after a repayment would otherwise read as MORE headroom than
 // the cap allows, minting credit out of nothing.
 function creditAvailableObols(depot) {
@@ -107,13 +107,6 @@ function bumpAccount(tx, amount) {
   return bumpColumn(tx, "accountObols", amount);
 }
 
-// The credit line. Positive draws, negative repays. The cap is enforced by the
-// caller (which must refuse rather than silently clamp, so the Merchant is
-// told he hit the ceiling) — this only stops it going below zero.
-function bumpDebt(tx, amount) {
-  return bumpColumn(tx, "debtObols", amount);
-}
-
 // Fuel, capped at the tank's size so shovelling coal into a full generator
 // wastes it rather than banking it.
 async function bumpFuel(tx, amount) {
@@ -159,6 +152,5 @@ module.exports = {
   creditAvailableObols,
   loadDepot,
   bumpAccount,
-  bumpDebt,
   bumpFuel,
 };

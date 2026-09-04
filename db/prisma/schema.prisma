@@ -248,6 +248,12 @@ enum RequestType {
   DEPOT_ATM
   DEPOT_CRATE_OPEN
   DEPOT_REFUEL
+  // ⬢ across the counter at a flat rate, both directions, no spread. The one
+  // place the Merchant converts his own Resources into money and back. Priced
+  // in whole obols so it is EXACT — N ¢ is always N × obolRate ⬢ — because a
+  // rounded conversion is a margin however small, and this counter is
+  // deliberately marginless.
+  DEPOT_EXCHANGE
 
   // One written letter, carried by a bird to a named person in a GUESSED
   // zone. Gated on holding both `bird` and `literate`; the once-a-day limit

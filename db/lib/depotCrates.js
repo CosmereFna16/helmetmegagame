@@ -175,14 +175,8 @@ function crateTagData(shipment, crates, { groupId = null } = {}) {
 }
 
 module.exports = {
-  CRATE_WEIGHT_LBS,
-  MAX_CRATES,
   shipmentId,
-  shuffle,
   splitIntoCrates,
-  crateDescription,
-  canOpenCrate,
-  crateSlug,
-  crateName,
   crateTagData,
+  canOpenCrate,
 };

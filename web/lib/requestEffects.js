@@ -539,11 +539,33 @@ export const REQUEST_EFFECTS = {
   DEPOT_ORDER: {
     editableFields: [],
     async undo(tx, request) {
-      const { total, manifestBefore = [] } = request.effect;
-      // The manifest is restored to the exact snapshot taken before the order,
-      // not by subtracting these lines from whatever is on it now — a second
-      // order filed since would otherwise be silently thrown away.
-      await tx.depot.update({ where: { id: 1 }, data: { manifest: manifestBefore } });
+      const { total, lines = [] } = request.effect;
+
+      // Refuse once the shuttle has flown the manifest down. The goods
+      // physically exist as crates on the landing pad by then, so a refund
+      // would hand back the obols AND leave the crates — and restoring the
+      // pre-order manifest snapshot would re-queue any OTHER order that was
+      // waiting alongside this one, delivering it a second time. Same posture
+      // as DEPOT_BUY, which refuses when the goods are gone.
+      const depot = await tx.depot.findUnique({ where: { id: 1 }, select: { manifest: true } });
+      const current = Array.isArray(depot?.manifest) ? depot.manifest : [];
+
+      // Subtract this order's own lines from whatever is on the manifest now,
+      // rather than restoring a snapshot — an order filed since must survive.
+      const remaining = [...current];
+      for (const line of lines) {
+        const at = remaining.findIndex(
+          (l) => l.tagId === line.tagId && l.quantity === line.quantity,
+        );
+        if (at === -1) {
+          throw new UserError(
+            "That order has already flown down — the crates are on the landing pad. Undo it by hand.",
+          );
+        }
+        remaining.splice(at, 1);
+      }
+
+      await tx.depot.update({ where: { id: 1 }, data: { manifest: remaining } });
       await bumpAccount(tx, total);
       return `Cancelled the order and refunded ${total} ¢.`;
     },
@@ -571,7 +593,7 @@ export const REQUEST_EFFECTS = {
   DEPOT_REFUEL: {
     editableFields: [],
     async undo(tx, request) {
-      const { slug, tagName, quantity, fuelBefore } = request.effect;
+      const { slug, tagName, quantity, fuelBefore, fuelAfter } = request.effect;
       const fuelTag = await tx.tag.findUnique({ where: { slug } });
       if (fuelTag) {
         await addToStack(tx, request.characterId, fuelTag.id, quantity, {
@@ -579,9 +601,17 @@ export const REQUEST_EFFECTS = {
           stackable: true,
         });
       }
-      // Restored to the snapshot rather than by subtracting what went in,
-      // because the burn pass has very likely moved it since.
-      await tx.depot.update({ where: { id: 1 }, data: { generatorFuel: fuelBefore } });
+      // Subtract what actually went in, do not restore the snapshot. The burn
+      // pass eats fuel every turn, so writing fuelBefore back would MINT every
+      // unit burned since — undoing a three-turn-old refuel would refill the
+      // tank. Floored at zero, so an undo after the generator already ran dry
+      // takes it to empty rather than negative.
+      const moved = fuelAfter - fuelBefore;
+      const now = await tx.depot.findUnique({ where: { id: 1 }, select: { generatorFuel: true } });
+      await tx.depot.update({
+        where: { id: 1 },
+        data: { generatorFuel: Math.max(0, (now?.generatorFuel ?? 0) - moved) },
+      });
       return `Pulled ${formatStack(tagName, quantity)} back out of the generator.`;
     },
   },

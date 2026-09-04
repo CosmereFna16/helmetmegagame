@@ -37,7 +37,7 @@ function FuelGauge({ fuel, fuelMax, turnsLeft, on }) {
   const pct = fuelMax > 0 ? Math.max(0, Math.min(100, Math.round((fuel / fuelMax) * 100))) : 0;
   // Amber at two turns, red at one. The colour is the warning; the number is
   // the detail behind it.
-  const tone = !on || turnsLeft === 0 ? "danger" : turnsLeft <= 1 ? "danger" : turnsLeft <= 2 ? "warning" : "positive";
+  const tone = !on || turnsLeft <= 1 ? "danger" : turnsLeft <= 2 ? "warning" : "positive";
   return (
     <Tooltip text={`${fuel} of ${fuelMax} units in the tank. The generator burns a fixed amount every turn; at zero it shuts itself off and nothing at the Depot works.`}>
       <span className="depot-stat">
@@ -64,7 +64,7 @@ function ShuttleStat({ shuttleState, turnsLeft }) {
         ? "inbound"
         : "at the station";
   return (
-    <Tooltip text="The shuttle sits on the landing pad for at most six turns and then flies back on its own, loaded or not. Anything still on the pad when it goes stays on the pad.">
+    <Tooltip text="The shuttle sits on the landing pad for at most six turns and then flies back on its own, loaded or not. Anything still on the pad when it goes stays on the pad. ‡">
       <span className="depot-stat">
         <span className="depot-stat-label">Shuttle</span>
         <span className={shuttleState === "DOCKED" ? "text-accent" : "text-muted"}>{text}</span>
@@ -117,7 +117,7 @@ export default function DepotConsole(props) {
           <span className="depot-greeting">
             {greetingName ? `Good evening, ${greetingName}.` : "The Depot. ‡"}
           </span>
-          <Tooltip text="The station's account, in obols. It is the Depot's money, not yours — hand the licence to someone else and the balance goes with it.">
+          <Tooltip text="The station's account, in obols. It is the Depot's money, not yours — hand the licence to someone else and the balance goes with it. ‡">
             <span className="depot-balance mono">{depot.accountObols} ¢</span>
           </Tooltip>
         </div>

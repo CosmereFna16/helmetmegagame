@@ -68,7 +68,7 @@ async function burnGenerator(prisma, depot) {
 // awake. Returns the line to speak.
 async function runShuttleClock(prisma, depot, turn) {
   if (depot.shuttleState !== "DOCKED") return { departed: false };
-  const landed = depot.shuttleTurn ?? turn.number;
+  const landed = depot.shuttleTurn ?? 0;
   if (turn.number - landed < (depot.shuttleMaxTurns ?? 6)) return { departed: false };
 
   await prisma.depot.update({
@@ -166,14 +166,18 @@ async function applyTurretShot(prisma, shot, turn) {
 // has, because the turret needs `equipped` and `forcedName` off the tags and
 // the mover's select carries neither.
 async function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
-  const depot = await loadDepot(prisma);
-  if (!depotPowered(depot) || !depot.turretArmed) return null;
-
+  // The location check comes FIRST and is deliberately the cheapest thing
+  // here. loadDepot is an upsert — a write — and this runs on every arrival
+  // anywhere in the game; at 100+ players that had every move in Ravenheart
+  // contending on the one row bumpColumn takes a FOR UPDATE lock on.
   const location = await prisma.location.findUnique({
     where: { id: toLocationId },
     select: { slug: true },
   });
   if (location?.slug !== DEPOT_LOCATION_SLUG) return null;
+
+  const depot = await loadDepot(prisma);
+  if (!depotPowered(depot) || !depot.turretArmed) return null;
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
@@ -192,7 +196,10 @@ async function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) 
   if (turretSpares(name, depot)) return null;
 
   const shot = { character, ...rollTurret(character.tags, depot) };
-  const outcome = await applyTurretShot(prisma, shot, turn ?? { number: null });
+  // null, not a { number: null } stand-in: that object is truthy, so
+  // corpseMint's `turn ? expiryFrom(turn.number + 1, …)` would take it and
+  // rot the body off turn 1.
+  const outcome = await applyTurretShot(prisma, shot, turn ?? null);
   return { ...outcome, severity: shot.severity, tier: shot.tier };
 }
 
@@ -205,7 +212,16 @@ async function runDepotPass(prisma, turn) {
   const afterBurn = await loadDepot(prisma);
 
   const shuttle = await runShuttleClock(prisma, afterBurn, turn);
-  const { shots, locationId } = await sweepTurret(prisma, afterBurn, turn);
+  const { shots } = await sweepTurret(prisma, afterBurn, turn);
+
+  // Loaded here rather than taken from sweepTurret's return. It used to come
+  // from there, which meant an unpowered Depot produced no locationId — and a
+  // generator that has just died IS unpowered, so the one line most worth
+  // hearing could never be spoken.
+  const location = await prisma.location
+    .findUnique({ where: { slug: DEPOT_LOCATION_SLUG }, select: { id: true } })
+    .catch(() => null);
+  const locationId = location?.id ?? null;
 
   const dms = [];
   const outcomes = [];
@@ -240,11 +256,9 @@ async function runDepotPass(prisma, turn) {
 module.exports = {
   runDepotPass,
   rollTurretOnArrival,
-  applyTurretShot,
-  sweepTurret,
-  GENERATOR_DIED_LINE,
-  SHUTTLE_DEPARTED_LINE,
-  SHUTTLE_LANDED_LINE,
-  LANDING_PAD_SLUG,
   TURRET_DM,
+  // The two shuttle lines are spoken from the web actions as well as from the
+  // pass, so they do cross a boundary; the generator line does not.
+  SHUTTLE_LANDED_LINE,
+  SHUTTLE_DEPARTED_LINE,
 };

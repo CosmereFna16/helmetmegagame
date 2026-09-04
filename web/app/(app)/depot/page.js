@@ -83,6 +83,7 @@ export default async function DepotPage() {
       id: true,
       name: true,
       concealed: true,
+      resources: true,
       location: { select: { slug: true } },
       tags: {
         select: {
@@ -237,6 +238,7 @@ export default async function DepotPage() {
         }}
         crates={crates}
         heldObols={obolTag ? (heldByTagId.get(obolTag.id) ?? 0) : 0}
+        resources={character?.resources ?? 0}
         creditAvailable={creditAvailableObols(depot)}
         fuel={{
           turnsLeft: fuelTurnsLeft(depot),

@@ -185,14 +185,12 @@ function turretSpares(presentedName, depot) {
 }
 
 module.exports = {
-  columnSumsToOne,
-  TURRET_SEVERITIES,
-  TURRET_SEVERITY_TAGS,
-  TURRET_ARMOR_TIERS,
-  DEFAULT_TURRET_TABLE,
+  // Only what crosses a module boundary. The severity ladder, the armour
+  // tiers, the shipped table and the per-column check are all internals of
+  // this file; exporting them put four names on the @lifeweb/db barrel that
+  // read as API and had no readers.
   turretTable,
   validateTurretTable,
-  armorTierFor,
   rollTurret,
   turretSpares,
 };

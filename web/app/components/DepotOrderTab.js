@@ -133,7 +133,7 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
                   <td>
                     <TagChip tag={row.tag} />
                     {row.sealed && (
-                      <Tooltip text="Ships sealed. Its crate prints no manifest, and only a Depot Keycard opens it.">
+                      <Tooltip text="Ships sealed. Its crate prints no manifest, and only a Depot Keycard opens it. ‡">
                         <span className="depot-seal">SEALED</span>
                       </Tooltip>
                     )}

@@ -15,7 +15,6 @@ import {
   normalizeQuantity,
   loadDepot,
   bumpAccount,
-  bumpDebt,
   bumpFuel,
   depotPowered,
   creditAvailableObols,
@@ -32,8 +31,11 @@ import { getOpenTurn } from "@/lib/turn";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { TURNS_PATH } from "@/lib/routes";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
-import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag } from "@/lib/requestEffects";
+import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/requestEffects";
 import { UserError, guarded } from "@/lib/actionResult";
+import { postMessage } from "@lifeweb/db/lib/discordRest";
+import { ambientLine } from "@lifeweb/db/lib/ambientLine";
+import { SHUTTLE_LANDED_LINE, SHUTTLE_DEPARTED_LINE } from "@lifeweb/db/lib/depotPass";
 
 // The Merchant's station. Same contract as every other player Request
 // (docs/systemdocs/REQUESTS.md): authenticate, re-validate everything the
@@ -117,6 +119,23 @@ function revalidateAll() {
 // The landing pad, loaded with its stash. Every shuttle action works through
 // this one room, so a missing row is a sync problem worth naming out loud
 // rather than a silent no-op.
+// A line the room witnesses, spoken into the Depot's Location channel.
+//
+// Best-effort and never inside the transaction: a Discord outage must not roll
+// back a shuttle that really did land. `signed` rides with the line because
+// the two shuttle lines are Bascinet's own words and must not be marked with a
+// ‡ — see db/lib/ambientLine.js.
+async function speakAtDepot(line) {
+  const location = await prisma.location
+    .findUnique({ where: { slug: DEPOT_LOCATION_SLUG }, select: { discordChannelId: true } })
+    .catch(() => null);
+  if (!location?.discordChannelId) return;
+  await postMessage(
+    location.discordChannelId,
+    ambientLine(line.text, [], { signed: line.signed }),
+  ).catch((err) => console.error("Depot ambient line failed:", err));
+}
+
 async function landingPad(tx = prisma) {
   const room = await tx.room.findUnique({
     where: { slug: LANDING_PAD_SLUG },
@@ -170,6 +189,13 @@ async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
     // submitted line — otherwise two lines of 99 would slip 198 through.
     if (normalizeQuantity(quantity) == null) {
       throw new UserError(`That's more ${tag.name} than the station will put on one shuttle. ‡`);
+    }
+    // A non-stackable ware can only ever be held once (CharacterTag is unique
+    // on character+tag), so ordering two would charge for two and deliver one
+    // when the crate is opened. Refused here rather than silently clamped —
+    // 182 ⬢ quietly vanishing is worse than being told no.
+    if (!tag.stackable && quantity > 1) {
+      throw new UserError(`The station will not ship more than one ${tag.name} — you can only ever carry one. ‡`);
     }
     const unitPrice = tag.depotPrice;
     totalResources += unitPrice * quantity;
@@ -265,7 +291,13 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
       where: { id: 1 },
       data: {
         shuttleState: "DOCKED",
-        shuttleTurn: openTurn?.number ?? null,
+        // NEVER null. A null clock made both timers read "landed this turn"
+        // forever: send-up stayed inside its cooldown, the auto-departure
+        // never fired, and re-calling was refused because the state was not
+        // AWAY — a permanently docked shuttle only SQL could free.
+        // getOpenTurn() is legitimately null between advances, so 0 is the
+        // floor: an already-elapsed turn number, which frees it immediately.
+        shuttleTurn: openTurn?.number ?? 0,
         manifest: [],
       },
     });
@@ -288,6 +320,7 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
     });
   });
 
+  await speakAtDepot(SHUTTLE_LANDED_LINE);
   revalidateAll();
   return { shipment, crates: crates.length };
 }
@@ -303,7 +336,7 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
   if (depot.shuttleState !== "DOCKED") throw new UserError("The shuttle isn't here. ‡");
 
   const openTurn = await getOpenTurn();
-  const landed = depot.shuttleTurn ?? openTurn?.number ?? 0;
+  const landed = depot.shuttleTurn ?? 0;
   const cooldown = depot.shuttleCooldown ?? 0;
   if (openTurn && openTurn.number - landed < cooldown) {
     throw new UserError("It only just landed. Give the crew a turn to work. ‡");
@@ -317,20 +350,45 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
   const rate = depot.obolRate ?? 5;
   let goodsResources = 0;
   const soldTags = [];
+
+  // A crate has no sellablePrice of its own — it is a box. Sending one back up
+  // unopened has to pay for what is INSIDE it, or returning an unopened
+  // shipment would silently annihilate it. Contents are priced off the live
+  // catalog here rather than off the crate, since the crate only stores names
+  // and counts.
+  const crateInner = room.tags.filter((rt) => Array.isArray(rt.tag.crateContents));
+  const innerIds = [...new Set(crateInner.flatMap((rt) => rt.tag.crateContents.map((c) => c.tagId)))];
+  const innerPrice = new Map(
+    innerIds.length
+      ? (
+          await prisma.tag.findMany({
+            where: { id: { in: innerIds } },
+            select: { id: true, sellablePrice: true },
+          })
+        ).map((t) => [t.id, t.sellablePrice ?? 0])
+      : [],
+  );
+
   for (const rt of room.tags) {
-    const unit = rt.tag.sellablePrice ?? 0;
+    const contents = Array.isArray(rt.tag.crateContents) ? rt.tag.crateContents : null;
+    const unit = contents
+      ? contents.reduce((sum, c) => sum + (innerPrice.get(c.tagId) ?? 0) * c.quantity, 0)
+      : (rt.tag.sellablePrice ?? 0);
     if (unit > 0) goodsResources += unit * rt.quantity;
-    soldTags.push({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity, unitPrice: unit });
+    soldTags.push({
+      tagId: rt.tagId,
+      name: rt.tag.name,
+      quantity: rt.quantity,
+      unitPrice: unit,
+      crate: Boolean(contents),
+    });
   }
-  // The goods and the loose ⬢ in the stash are ONE pool, converted once. Two
-  // separate conversions would round the Merchant down twice for no reason
-  // a player could explain.
-  const resources = room.resources ?? 0;
-  const payout = obolsEarned(goodsResources + resources, rate);
-  // Everything on the pad goes up, including the ⬢ — the shuttle is loaded,
-  // not partially loaded, and a remainder left behind in an empty room would
-  // be a rounding artifact nobody could find.
-  const resourcesSpent = resources;
+  // Loose ⬢ in the stash stay where they are. They used to ride up and convert
+  // at a floored rate, which was a second, worse exchange rate for the same
+  // thing — and the Bank's ⬢ counter is marginless and always open. One rate,
+  // one place. The shuttle sells GOODS.
+  const payout = obolsEarned(goodsResources, rate);
+  const resourcesSpent = 0;
 
   await prisma.$transaction(async (tx) => {
     for (const rt of room.tags) {
@@ -344,12 +402,6 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
           await tx.tag.delete({ where: { id: rt.tagId } }).catch(() => {});
         }
       }
-    }
-    if (resourcesSpent > 0) {
-      await tx.room.update({
-        where: { id: room.id },
-        data: { resources: { decrement: resourcesSpent } },
-      });
     }
     await bumpAccount(tx, payout);
     await tx.depot.update({
@@ -382,8 +434,9 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
     });
   });
 
+  await speakAtDepot(SHUTTLE_DEPARTED_LINE);
   revalidateAll();
-  return { payout, sold: soldTags.length, resourcesSpent };
+  return { payout, sold: soldTags.length };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -416,12 +469,23 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
   const byId = new Map(inner.map((t) => [t.id, t]));
 
   const granted = [];
+  // Contents that could not land — a non-stackable ware already held. Recorded
+  // on the effect so the Ledger and a GM can see what the crate really gave.
+  const skipped = [];
   await prisma.$transaction(async (tx) => {
     for (const line of contents) {
       const tag = byId.get(line.tagId);
       // A ware pruned out of the catalog between landing and opening is gone.
       // Skipping it beats throwing: the rest of the crate should still open.
       if (!tag) continue;
+      // addToStack returns the existing row untouched for a non-stackable tag
+      // already held, so what the Ledger records has to be what actually
+      // landed — not what the crate said it held. Otherwise a Merchant who
+      // already owns an ML-23 opens a crate, receives nothing, and is told he
+      // received a pistol.
+      const before = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
+      });
       await addToStack(tx, character.id, tag.id, line.quantity, {
         source: "EVENT",
         stackable: tag.stackable,
@@ -430,12 +494,14 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
           where: "openCrate",
         }),
       });
-      granted.push({ tagId: tag.id, name: tag.name, quantity: tag.stackable ? line.quantity : 1 });
+      const landed = tag.stackable ? line.quantity : before ? 0 : 1;
+      if (landed > 0) granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
+      else skipped.push({ tagId: tag.id, name: tag.name, reason: "already held, and only one can be carried" });
     }
 
     await dropCharacterTag(tx, character.id, crate.id, null);
 
-    const effect = { crateTagId: crate.id, crateName: crate.name, sealed: crate.sealedShipping, granted };
+    const effect = { crateTagId: crate.id, crateName: crate.name, sealed: crate.sealedShipping, granted, skipped };
     await createRequest(tx, {
       characterId: character.id,
       turnId: openTurn?.id ?? null,
@@ -462,7 +528,7 @@ async function openCrateImpl({ tagId, reason: rawReason }) {
 
   await afterInventoryChange(character.id);
   revalidateAll();
-  return { granted };
+  return { granted, skipped };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -529,6 +595,76 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason
   await afterInventoryChange(character.id);
   revalidateAll();
   return { direction, amount };
+}
+
+// ⬢ across the counter, both directions, at one flat rate with no spread.
+//
+// This is the Merchant's own float: he takes Resources off Ravenheart all day
+// and needs them as money, and he needs to put money back into Resources to
+// pay for things priced in ⬢. Charging himself a spread to use his own till
+// would be nonsense, so this counter is deliberately marginless — buying and
+// selling are the same number.
+//
+// Denominated in WHOLE OBOLS for that reason. N ¢ is exactly N × obolRate ⬢
+// in both directions, so there is no rounding anywhere and therefore no
+// margin hiding in one. Asking in ⬢ instead would mean flooring somewhere.
+async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, reason: rawReason }) {
+  const { session, character, depot } = await requireLicensedMerchant();
+  const reason = requireReason(rawReason);
+
+  const buying = rawDirection === "BUY_RESOURCES";
+  const obols = Number(rawObols);
+  if (!Number.isInteger(obols) || obols < 1) throw new UserError("That isn't an amount. ‡");
+
+  const rate = Math.max(1, depot.obolRate ?? 5);
+  const resources = obols * rate;
+
+  if (buying && (depot.accountObols ?? 0) < obols) {
+    throw new UserError(`The account holds ${depot.accountObols ?? 0} ¢. ‡`);
+  }
+  if (!buying && character.resources < resources) {
+    throw new UserError(`That's ${resources} ⬢ and you have ${character.resources}. ‡`);
+  }
+
+  const openTurn = await getOpenTurn();
+
+  await prisma.$transaction(async (tx) => {
+    // The station side first when buying, so a concurrent spend that empties
+    // the account fails BEFORE the ⬢ are handed over. moveResources is itself
+    // a conditional update, so the selling direction is guarded the same way.
+    const moved = await bumpAccount(tx, buying ? -obols : obols);
+    if (Math.abs(moved.delta) < obols) {
+      throw new UserError("The account moved while you were counting. Try again. ‡");
+    }
+    await moveResources(tx, { kind: "character", id: character.id }, buying ? resources : -resources);
+
+    const effect = {
+      direction: buying ? "BUY_RESOURCES" : "SELL_RESOURCES",
+      obols,
+      resources,
+      rate,
+      balanceBefore: moved.before,
+      balanceAfter: moved.after,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "DEPOT_EXCHANGE",
+      reason,
+      payload: { direction: effect.direction, obols },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_depot_exchange",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  revalidateAll();
+  return { direction: buying ? "BUY_RESOURCES" : "SELL_RESOURCES", obols, resources };
 }
 
 // The Company's line, in obols. Drawing puts money in the account; repaying
@@ -699,6 +835,18 @@ async function depotTurretImpl({ armed, reason: rawReason }) {
   const reason = requireReason(rawReason);
 
   const wanted = Boolean(armed);
+
+  // Arming with no face on file is a one-click suicide with a GM-only cure:
+  // the gun would fire on everyone including the Merchant, and merchantFace is
+  // writable from /gm/dev alone. Worse, disarming requires standing in the
+  // Depot — and walking in rolls the turret on you first. Refused outright
+  // rather than warned about. Disarming is always allowed.
+  if (wanted && !String(depot.merchantFace ?? "").trim()) {
+    throw new UserError(
+      "There is no face on file, so it would fire on you too. A GM has to set that first. ‡",
+    );
+  }
+
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
@@ -722,6 +870,7 @@ export const depotSendShuttle = guarded(depotSendShuttleImpl);
 export const openCrate = guarded(openCrateImpl);
 export const depotAtm = guarded(depotAtmImpl);
 export const depotCredit = guarded(depotCreditImpl);
+export const depotExchange = guarded(depotExchangeImpl);
 export const depotGenerator = guarded(depotGeneratorImpl);
 export const depotRefuel = guarded(depotRefuelImpl);
 export const depotTurret = guarded(depotTurretImpl);

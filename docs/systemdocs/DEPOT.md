@@ -106,16 +106,25 @@ The cycle:
 2. **Call it down.** The manifest becomes crates in the landing pad's stash,
    and the shuttle is `DOCKED`. An empty manifest still brings it — he needs it
    down to load anything going up.
-3. **Load and send it back.** Everything on the pad goes up and comes back as
-   obols. The goods (at their `sellablePrice`) and the room's loose ⬢ are
-   pooled into one ⬢ total and converted **once**, floored — two separate
-   conversions would round the Merchant down twice for no reason a player could
-   explain. **This is the only way ⬢ become obols.**
+3. **Load and send it back.** The goods on the pad go up and come back as
+   obols at their `sellablePrice`, converted once and floored. An **unopened
+   crate is worth what is inside it**, priced off the live catalog — otherwise
+   returning a shipment would silently annihilate it. Loose ⬢ in the stash
+   stay where they are: the ⬢ Counter (§0g) is marginless and always open, and
+   two rates for the same thing was a bug waiting to happen.
 4. Or **it leaves on its own** after `shuttleMaxTurns` (6). A timed departure
    takes nothing with it — the crates stay on the pad. Selling is a deliberate
    act and an unattended shuttle should not empty the room.
 
-`shuttleCooldown` is the gap between landing and being able to send it back.
+`shuttleCooldown` is the gap between landing and being able to send it back —
+a *departure* gate, not an arrival one. (`ShuttleState.INBOUND` is declared and
+never written; calling it down lands it immediately.)
+
+`shuttleTurn` is **never null**. It used to be set from `getOpenTurn()`, which
+is legitimately null between advances, and a null clock made both timers read
+"landed this turn" forever: send-up stayed inside its cooldown, the automatic
+departure never fired, and re-calling was refused because the state was not
+`AWAY`. Only SQL could free it. It floors to 0 instead.
 
 ## 0e. Crates
 
@@ -145,6 +154,12 @@ Unless something in it ships sealed, in which case the whole crate reads:
 lands in**, so nobody knows *which* crate the dangerous thing is in — only that
 one of them is worse news than the others.
 
+**A non-stackable ware can only be ordered one at a time.** `CharacterTag` is
+unique on character+tag, so a crate reading `ML-23 x 2` could only ever hand
+over one pistol; the order is refused rather than silently clamped. Opening a
+crate also records what actually landed, not what the crate claimed — a
+non-stackable ware you already hold is reported as skipped rather than granted.
+
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
 what it does not stock. Currently sealed: the two firearms, the flamethrower,
@@ -166,8 +181,10 @@ licence, not the keycard, not the role. So:
 - A concealed Merchant is shot by his own gun.
 - A Docker who steals the card is still shot.
 - Anyone who comes back wearing the Merchant's name walks past it.
-- With no face on file it fires on **everyone**, which is the safe failure for
-  a gun you have to deliberately arm.
+- With no face on file it fires on **everyone**, so **arming it is refused
+  until a GM sets the face**. That was a one-click suicide with a GM-only cure:
+  disarming needs you standing in the Depot, and walking in rolls the gun on
+  you first.
 
 It fires **on entry** (`db/lib/locationMove.js`, before the Discord guard —
 being shot is a database fact) and **again at the end of every turn**
@@ -213,8 +230,12 @@ The Merchant is the only faucet of currency in the game.
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
-- **He still takes ⬢.** They are worth something to him because he can put them
-  on the shuttle. He just cannot turn them into obols at a keyboard.
+- **The ⬢ Counter** converts his own Resources to obols and back, **at one flat
+  rate with no spread**. He does not charge himself a margin to use his own
+  till. Denominated in whole obols so it is exact: N ¢ is always N × `obolRate`
+  ⬢ in both directions, and there is no rounding for a margin to hide in.
+  This replaced an earlier rule that ⬢ could only become obols by riding the
+  shuttle up — one counter, one rate.
 
 Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
 (`Obol x5`), parsed by `db/lib/startingTags.js`. Baron 5, Hand 2, Esculap 2,

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRefresh } from "./useRefresh";
-import { depotAtm, depotCredit } from "@/app/(app)/depot/actions";
+import { depotAtm, depotCredit, depotExchange } from "@/app/(app)/depot/actions";
 import RequestDialog from "./RequestDialog";
 import Tooltip from "./Tooltip";
 
@@ -13,7 +13,7 @@ import Tooltip from "./Tooltip";
 // them, and it is the ONLY door — every coin in Ravenheart came out of this
 // button, which is why lending is a thing he can actually do and nobody else
 // can.
-export default function DepotBankTab({ depot, heldObols, creditAvailable, disabled }) {
+export default function DepotBankTab({ depot, heldObols, creditAvailable, resources, disabled }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [dialog, setDialog] = useState(null); // { kind, direction }
@@ -28,9 +28,15 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, disabl
 
   function submit(reason) {
     const n = Math.max(1, Math.min(Number(amount) || 0, dialog.max));
-    const act = dialog.kind === "atm" ? depotAtm : depotCredit;
     startTransition(async () => {
-      const result = await act({ direction: dialog.direction, amount: n, reason });
+      const result =
+        dialog.kind === "exchange"
+          ? await depotExchange({ direction: dialog.direction, obols: n, reason })
+          : await (dialog.kind === "atm" ? depotAtm : depotCredit)({
+              direction: dialog.direction,
+              amount: n,
+              reason,
+            });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -65,7 +71,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, disabl
         </dl>
 
         <div className="mt-4 flex gap-2">
-          <Tooltip text="Takes obols out of the account as physical coins you can carry, spend, lend, or lose.">
+          <Tooltip text="Takes obols out of the account as physical coins you can carry, spend, lend, or lose. ‡">
             <button
               type="button"
               className="btn"
@@ -75,7 +81,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, disabl
               Withdraw
             </button>
           </Tooltip>
-          <Tooltip text="Puts coins you are carrying back into the account.">
+          <Tooltip text="Puts coins you are carrying back into the account. ‡">
             <button
               type="button"
               className="btn-quiet"
@@ -83,6 +89,51 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, disabl
               onClick={() => ask("atm", "DEPOSIT", heldObols)}
             >
               Deposit
+            </button>
+          </Tooltip>
+        </div>
+      </section>
+
+      <section className="panel p-5">
+        <h2 className="panel-header">The ⬢ Counter</h2>
+        <p className="mt-1 text-sm text-muted">
+          Your own float, both ways, at one flat rate with no spread. One obol is exactly{" "}
+          {depot.obolRate} ⬢ whether you are buying or selling — you do not charge yourself a
+          margin to use your own till. ‡
+        </p>
+
+        <dl className="depot-totals">
+          <div>
+            <dt>Account</dt>
+            <dd className="mono">{depot.accountObols} ¢</dd>
+          </div>
+          <div>
+            <dt>Your Resources</dt>
+            <dd className="mono">{resources} ⬢</dd>
+          </div>
+        </dl>
+
+        <div className="mt-4 flex gap-2">
+          <Tooltip text={`Turns obols in the account into Resources in your hands, at ${depot.obolRate} ⬢ each. ‡`}>
+            <button
+              type="button"
+              className="btn"
+              disabled={disabled || pending || !depot.accountObols}
+              onClick={() => ask("exchange", "BUY_RESOURCES", depot.accountObols)}
+            >
+              Buy ⬢
+            </button>
+          </Tooltip>
+          <Tooltip text={`Turns Resources you are carrying into obols in the account, at ${depot.obolRate} ⬢ each. ‡`}>
+            <button
+              type="button"
+              className="btn-quiet"
+              disabled={disabled || pending || resources < (depot.obolRate ?? 5)}
+              onClick={() =>
+                ask("exchange", "SELL_RESOURCES", Math.floor(resources / Math.max(1, depot.obolRate ?? 5)))
+              }
+            >
+              Sell ⬢
             </button>
           </Tooltip>
         </div>
@@ -136,7 +187,11 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, disabl
         <RequestDialog
           open
           title={
-            dialog.kind === "atm"
+            dialog.kind === "exchange"
+              ? dialog.direction === "BUY_RESOURCES"
+                ? "Buy Resources"
+                : "Sell Resources"
+              : dialog.kind === "atm"
               ? dialog.direction === "WITHDRAW"
                 ? "Withdraw obols"
                 : "Deposit obols"
@@ -160,7 +215,13 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, disabl
               onChange={(e) => setAmount(e.target.value)}
             />
           </label>
-          <p className="mt-2 text-xs text-muted">At most {dialog.max} ¢. ‡</p>
+          <p className="mt-2 text-xs text-muted">
+            At most {dialog.max} ¢
+            {dialog.kind === "exchange"
+              ? `, which is ${(Number(amount) || 0) * (depot.obolRate ?? 5)} ⬢ either way`
+              : ""}
+            . ‡
+          </p>
         </RequestDialog>
       )}
     </div>

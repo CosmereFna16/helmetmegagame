@@ -93,7 +93,7 @@ export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurn
           </div>
         </dl>
 
-        <Tooltip text="Everything on the pad goes up and comes back as obols. Resources convert at the station's rate and the remainder stays behind — the station does not make change.">
+        <Tooltip text="Everything on the pad goes up and comes back as obols. Resources convert at the station's rate and the remainder stays behind — the station does not make change. ‡">
           <button
             type="button"
             className="btn mt-4"

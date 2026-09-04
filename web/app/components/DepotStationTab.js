@@ -172,7 +172,9 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
         <button
           type="button"
           className={depot.turretArmed ? "btn-quiet mt-4" : "btn mt-4"}
-          disabled={disabled || pending}
+          // Disarming is always allowed. Arming with no face on file is
+          // refused server-side, so the button says so rather than failing.
+          disabled={disabled || pending || (!depot.turretArmed && !depot.merchantFace)}
           onClick={askTurret}
         >
           {depot.turretArmed ? "Disarm it" : "Arm it"}
