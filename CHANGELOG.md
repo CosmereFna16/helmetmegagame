@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The drawback cap lands on 5 tags and 12 points
+
+✎ A character may take 5 drawbacks claiming back 12 points, not 4 and 14
+
 ## 2026-09-04 · Four drawbacks, worth 14 points, and a Fast Metabolism
 
 ✎ A character may now take 4 drawbacks claiming back 14 points, was 6 and 12  
