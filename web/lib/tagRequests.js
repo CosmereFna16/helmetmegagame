@@ -29,12 +29,13 @@ export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
 export function placementOfferedHere(tag, { buildable = false, sites = [] } = {}) {
   if (!tag?.placement) return true;
   if (!buildable) return false;
-  // The wreck statuses never occupy the ground — this list mirrors
-  // db/lib/structures.js#PRESENT_STATUSES (kept local so a client bundle
-  // never pulls the db module in) and must change with it.
-  const sameType = sites.filter(
-    (s) => s.typeSlug === tag.slug && s.status !== "RUINED" && s.status !== "ABANDONED",
-  );
+  // The statuses that OCCUPY the ground, mirroring
+  // db/lib/structures.js#PRESENT_STATUSES as the same INCLUSION list (kept
+  // local so a client bundle never pulls the db module in). Inclusion on
+  // both sides means both fail closed on a status neither knows — a new
+  // wreck status can never be hidden here while the server accepts it.
+  const PRESENT = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
+  const sameType = sites.filter((s) => s.typeSlug === tag.slug && PRESENT.includes(s.status));
   if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) return false;
   // Tag.placement's own default: absent means unique.
   return tag.placement.unique === false || sameType.length === 0;

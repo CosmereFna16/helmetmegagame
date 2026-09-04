@@ -2,6 +2,13 @@
 -- request kinds (DAMAGE_STRUCTURE declared ahead of use — an enum value
 -- cannot be dropped, so both ride one migration).
 --
+-- EDITED IN PLACE while still unshipped (2026-09-04): hp/maxHp dropped and
+-- StructureStatus gained ABANDONED. Production never ran the original, so
+-- `migrate deploy` is unaffected. Any OTHER dev database that applied the
+-- earlier version must either be recreated, or hand-repaired: drop the two
+-- columns, add the enum value, and fix the recorded checksum — the remedy
+-- documented in 20260903120000_carry_bonus_additive/migration.sql.
+--
 -- Three drops the generator proposed were DECLINED by hand, per the standing
 -- rule in CLAUDE.md: the ArchiveEntry/DirectMessage trgm indexes live only in
 -- raw migration SQL (the schema cannot express them), and Action.opposed is

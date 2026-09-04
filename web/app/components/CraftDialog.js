@@ -202,7 +202,7 @@ export default function CraftDialog({
               {wantsWorkshop && (
                 <p className={`text-xs ${hasWorkshop ? "text-muted" : "text-accent"}`}>
                   {hasWorkshop
-                    ? "Smith's work, and you have Workshop Equipment to hand. ‡"
+                    ? "Smith's work, and the means are in reach — a kit to hand, or one standing where you are. ‡"
                     : "Smith's work: you need Workshop Equipment, held or set up where you're standing. ‡"}
                 </p>
               )}

@@ -772,6 +772,12 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   if (!["confirm", "undo"].includes(mode)) throw new UserError("Unknown mode.");
 
   const result = await prisma.$transaction(async (tx) => {
+    // One lock order for both modes: the Request row first, then whatever
+    // the handler touches. Confirm used to lock effect rows first and the
+    // Request last while Undo claimed the Request first — a Confirm and an
+    // Undo landing on the same request at the same instant could deadlock.
+    // Locking here also makes both branches' status reads race-free.
+    await tx.$queryRaw`SELECT "id" FROM "Request" WHERE "id" = ${requestId ?? ""} FOR UPDATE`;
     const request = await tx.request.findUnique({ where: { id: requestId } });
     if (!request) throw new UserError("Request not found.");
 
@@ -799,10 +805,14 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
         where: { id: requestId, status: { not: "UNDONE" } },
         data: { status: "UNDONE" },
       });
-      status = "UNDONE";
       if (claim.count === 0) {
+        // A claim that matched nothing proves the row already reads UNDONE
+        // (it exists — findUnique just returned it), so the final write
+        // below must say UNDONE too, never the status read above.
+        status = "UNDONE";
         note = "Already undone — no changes made.";
       } else {
+        status = "UNDONE";
         note = (await handler.undo(tx, request, ctx)) ?? "Undone.";
       }
     } else {

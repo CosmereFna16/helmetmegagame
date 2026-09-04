@@ -271,8 +271,11 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
       throw new Error(`${label}: placement.laborBonus.kind must be one of ${[...LABOR_BONUS_KINDS].join(", ")}`);
     }
     const amount = Number(raw.laborBonus.amount);
-    if (!Number.isInteger(amount) || amount === 0) {
-      throw new Error(`${label}: placement.laborBonus.amount must be a non-zero integer`);
+    // Positive only: a malus would apply to EVERYONE laboring the ground,
+    // and a negative bonus can drag the paid range's floor below zero,
+    // where the machine expression stops parsing and pays nothing at all.
+    if (!Number.isInteger(amount) || amount < 1) {
+      throw new Error(`${label}: placement.laborBonus.amount must be a positive integer`);
     }
     laborBonus = { kind, amount };
   }
@@ -312,6 +315,11 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
   }
   if (tag.carryBonus != null) {
     throw new Error(`${label}: tag "${slug}" declares placement but carries a carryBonus — a structure is never on anyone's person`);
+  }
+  if (tag.laborBonus != null) {
+    throw new Error(
+      `${label}: tag "${slug}" declares placement but a top-level laborBonus — a structure is never held, so that would be dead config; use placement.laborBonus`,
+    );
   }
   for (const provided of placement.provides) {
     if (!knownSlugs.has(provided)) {

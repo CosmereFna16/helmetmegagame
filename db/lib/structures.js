@@ -9,17 +9,17 @@
 // (web/app/(app)/character/requestActions.js) — the web face is the only
 // builder, the same way it is the only crafter.
 //
+// Structure types live in the assets-structures TagGroup
+// (docs/taggroups.yaml) — display color and catalog organisation only. The
+// runtime rules never key on the group: unique is per-type
+// (placement.unique), non-stacking is per labor kind
+// (laborAccess.js#structureTools).
+//
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
 
 const { ambientLine } = require("./ambientLine");
 const { hasAttribute } = require("./locationAttributes");
-
-// Structure types live in the assets-structures TagGroup
-// (docs/taggroups.yaml) — display color and catalog organisation only.
-// The runtime rules never key on the group: unique is per-type
-// (placement.unique), and non-stacking is per labor kind
-// (laborAccess.js#structureTools).
 
 // placement with its defaults applied. Normalisation/validation happen at
 // sync time (db/lib/tagShapes.js); this is the read-side accessor, and the
