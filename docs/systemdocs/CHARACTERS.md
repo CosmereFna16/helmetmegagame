@@ -745,7 +745,7 @@ never deletes. See `SYNC.md`.
 
 A few seats begin the game with coin in their pocket, so the Merchant has
 somebody to trade with on turn one: Baron 25 ¢, Hand 10 ¢, Esculap 10 ¢, and
-Baroness, Heir and Meister 5 ¢ each. The Merchant starts with 30 ¢ and a Depot
+Baroness, Heir and Meister 5 ¢ each. The Merchant starts with 20 ¢ and a Depot
 Keycard; every Docker starts with a Keycard. An obol is one ⬢, so those are
 also the ⬢ figures.
 

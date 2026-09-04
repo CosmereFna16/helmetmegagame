@@ -1223,7 +1223,7 @@ zones:
               - Merchant's License
               - Depot Keycard
               - Silencer
-              - Obol x30
+              - Obol x20
             doc_elements:
               - squeeze
               - townstarting

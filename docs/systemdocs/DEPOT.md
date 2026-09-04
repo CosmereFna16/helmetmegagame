@@ -242,11 +242,11 @@ The Merchant is the only faucet of currency in the game.
   one place.
 
 Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
-(`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 30, Hand
-10, Esculap 10, Baroness / Heir / Meister 5 each — 90 ¢ across the whole cast,
-and the same buying power those grants had at the old rate. His float is
-deliberately thin: the Company's line, 75 ¢, is where the rest of his first
-order comes from, and it has to be paid back.
+(`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
+10, Esculap 10, Baroness / Heir / Meister 5 each — 80 ¢ across the whole cast.
+His float is deliberately thin, and thinner than the rest of the cast's scaled
+with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
+is where most of his first order has to come from. It has to be paid back.
 
 ## 0h. The console
 
