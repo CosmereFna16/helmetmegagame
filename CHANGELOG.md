@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · An obol is one Resource, so the Merchant can sell you a cup of tea
+
+✎ An obol is now worth one Resource instead of five, so the Depot can price a cup of tea  
+✎ Everything cheap is buyable and sellable again — 32 wares used to sell back for nothing at all  
+✎ Starting money and the Company's line went up five times to match, so nobody is poorer  
+− The Resources/obols toggle on the console; there is nothing left for it to switch between  
+− The ⬢-per-obol field on the Dev Panel
+
 ## 2026-09-04 · The Black Hills hunt evenly, and the Forest fishes better
 
 ✎ Hunting is the same everywhere in the Black Hills now, at 1.0. It was 0.8 across most of the zone with two richer spots; those are gone  
