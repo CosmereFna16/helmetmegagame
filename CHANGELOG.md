@@ -6,6 +6,21 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Paperwork: paper you can write on, seal, post and tear down
+
+✚ Write and Seal Letter on the Actions grid, for anyone with their letters  
+✚ Noticeboards at the Square, the Gatehouse, the Garrison, the Factory and the Depot — pin a paper, read one, or tear it down  
+✚ Paper at the Depot for 1 obol, the cheapest thing on his shelf  
+✚ Six courtier wax seals, and eight office stamps each starting in the room its seat works out of  
+✚ The Merchant's stamp bears his own initials, taken when he is created  
+− The glyph cipher and the Read button, which paper replaces outright  
+✎ The Bird carries a letter you are holding instead of typed text, and a wrong guess brings it back rather than eating it  
+✎ An illiterate or blind character can now carry a letter they cannot read, and hand it to somebody who can  
+✎ A Restart Game now clears crates, headstones and paper instead of leaving them in the catalog forever
+
+## 2026-09-04 · Equipped slots stay full width instead of shrinking to the tag
+
+
 ## 2026-09-04 · The Spillway no longer eats a shift by accident
 
 
