@@ -255,7 +255,7 @@ function SheetView({
     ["Status", data.status],
     ["Role", data.roleTitle ?? "—"],
     ["Faction", <FactionLink key="f" factionId={data.factionId} name={data.factionName ?? "—"} />],
-    ["Zone", data.locationLabel],
+    ["Standing", data.locationLabel],
     [
       "Resources",
       <StagedDeltaFact

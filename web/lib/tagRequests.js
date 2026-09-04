@@ -19,6 +19,22 @@ export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
   );
 }
 
+// A placement is raised on the ground you stand on rather than landing in a
+// pocket (db/lib/structures.js), so the Craft menu drops the ones this ground
+// would refuse: nowhere to build at all, a site of the same type already
+// going up, or a unique one already standing. Menu hygiene only —
+// openBuildSiteImpl refuses the same three cases server-side. Pure, so this
+// module stays importable from a client component: `sites` are the structures
+// standing here as { typeSlug, status }, resolved in character/page.js.
+export function placementOfferedHere(tag, { buildable = false, sites = [] } = {}) {
+  if (!tag?.placement) return true;
+  if (!buildable) return false;
+  const sameType = sites.filter((s) => s.typeSlug === tag.slug && s.status !== "RUINED");
+  if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) return false;
+  // Tag.placement's own default: absent means unique.
+  return tag.placement.unique === false || sameType.length === 0;
+}
+
 // The Craft menu's gate: the group's hidden-category check, plus
 // `craftable`. Recipe skills are checked separately (satisfiedSkillIds), in
 // the page and again in craftRequest. Character creation and /store use

@@ -184,6 +184,9 @@ export default function MoveDesk({
             {move.roleTitle && <>{move.roleTitle} · </>}
             {move.locationLabel} · {move.factionName || "No faction"} · {move.resources} ⬢ on hand
           </p>
+          {move.standingHere?.length ? (
+            <p className="text-xs text-muted">Standing here: {move.standingHere.join(" · ")} ‡</p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           {/* Straight to their conversation on the player desk. The reverse

@@ -30,6 +30,13 @@ const ATTRIBUTES = {
   depot: {
     describe: () => "A shuttle berth, and the only door Ravenheart has to anywhere else. ‡",
   },
+  // Ground nothing may be built on, for the handful of one-off places the
+  // DERIVED rules (indoors, a cave level — db/lib/structures.js#canBuildHere)
+  // don't already cover: the Lifeweb's ground is the first. Exists to be
+  // matched on; the place's own description carries whatever there is to say.
+  noBuild: {
+    describe: () => null,
+  },
 };
 
 // The authored half: whatever is in Location.attributes, in registry order so
@@ -103,6 +110,36 @@ function depotLines(ctx = {}) {
   return lines;
 }
 
+// The structures standing (or rising, or ruined) here, read off live state
+// and handed over as ctx.structures — the db/lib/structures.js#structuresAt
+// output. This module cannot import structures.js itself: that module
+// already imports locationAttributes.js (for hasAttribute), and a back-import
+// would make a cycle out of what is meant to be a one-way layering, caller
+// loads, this module only says.
+//
+// One line per structure, oldest first (structuresAt's own order), and a
+// ruin stays on the list rather than dropping off — a ruin is a standing
+// accusation, not scenery that tidies itself away.
+function structureLines(ctx = {}) {
+  const structures = ctx.structures;
+  if (!structures?.length) return [];
+  return structures.map((structure) => {
+    const typeName = structure.type?.name ?? structure.typeName;
+    switch (structure.status) {
+      case "UNDER_CONSTRUCTION":
+        return `A ${typeName} is going up here (${structure.turnsDone}/${structure.turnsNeeded}). ‡`;
+      case "COMPLETE":
+        return structure.placement?.examine ?? `A ${typeName} stands here. ‡`;
+      case "DAMAGED":
+        return `The ${typeName} here is damaged. ‡`;
+      case "RUINED":
+        return `The ruin of a ${typeName} lies here. ‡`;
+      default:
+        return null;
+    }
+  }).filter(Boolean);
+}
+
 // Everything true about where you stand, as prose lines. The labor readout is
 // NOT here: it is a fixed-order table of its own that predates this module
 // (db/lib/laborYield.js#qualityWord), and the caller prints it first.
@@ -111,6 +148,7 @@ function describeLocation(location, ctx = {}) {
     indoorsLine(location),
     ...authoredLines(location, ctx),
     ...depotLines(ctx),
+    ...structureLines(ctx),
     ...gateLines(ctx.gates),
   ].filter(Boolean);
 }
@@ -144,6 +182,7 @@ function hasAttribute(location, key) {
 
 module.exports = {
   depotLines,
+  structureLines,
   ATTRIBUTES,
   authoredLines,
   indoorsLine,

@@ -4,6 +4,7 @@
 // throws at load. Pure helpers a client component needs go in their own
 // import-free file (see stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
+import { statusWord } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
@@ -21,6 +22,10 @@ export const MOVE_INCLUDE = {
       // zone, where they physically stand, which is what the desk labels.
       faction: { include: { zone: true } },
       zone: true,
+      // The presence zone's name alone used to be all a Move could show —
+      // Character.locationId is the authoritative "where they stand" since
+      // Bascinet 2 (MAP.md §1), so the desk needs the Location's name too.
+      location: { select: { id: true, name: true } },
       tags: {
         select: {
           tagId: true,
@@ -98,8 +103,19 @@ export function paidLabel(applied) {
   return parts.join(", ");
 }
 
-// ctx: { usernameById, now }
-export function moveRow(a, { usernameById, now }) {
+// "Well — standing." for a structure with no defenseNote yet (no catalog
+// entry carries one at the moment); "Well — standing: draws from the river"
+// once one does. One line per structure at a Location, in creation order.
+function standingHereLines(structures) {
+  if (!structures?.length) return [];
+  return structures.map((s) => {
+    const note = s.placement?.defenseNote;
+    return `${s.typeName} — ${statusWord(s.status)}${note ? `: ${note}` : ""}`;
+  });
+}
+
+// ctx: { usernameById, now, structuresByLocationId }
+export function moveRow(a, { usernameById, now, structuresByLocationId }) {
   const username = usernameById.get(a.character.discordUserId) ?? a.character.discordUserId;
   return {
     id: a.id,
@@ -129,12 +145,21 @@ export function moveRow(a, { usernameById, now }) {
     // silently break a `solved` check (MoveDesk.js).
     reviewStatus: a.moveReviewStatus,
     // Where they stand. Key name kept because MoveDesk and InspectorColumn
-    // still read `locationLabel`; the value is now just the presence zone,
-    // since Locations are prose Topics and no longer a place on the sheet.
-    locationLabel: a.character.zone?.name || "Unassigned",
+    // still read `locationLabel`. Character.locationId is the authoritative
+    // place since Bascinet 2 (MAP.md §1), so this is "Zone · Location" when
+    // they're placed, falling back to the presence zone alone for the rare
+    // character with no Location yet.
+    locationLabel: a.character.location
+      ? `${a.character.zone?.name ?? "?"} · ${a.character.location.name}`
+      : a.character.zone?.name || "Unassigned",
     // The bare zoneId alongside the label above — PublicComposer needs the
     // id to preselect the Move's own zone, not just its name.
     zoneId: a.character.zone?.id ?? null,
+    // "Fine House — half-built" per structure standing at the filer's
+    // Location, for the Move card's "Standing here" line. Bulk-loaded by the
+    // caller (one query for every Move on the desk, not one per row) and
+    // handed in keyed by locationId; empty when there's nothing built there.
+    standingHere: standingHereLines(structuresByLocationId?.get(a.character.locationId ?? "")),
     resources: a.character.resources,
     tags: a.character.tags.map((ct) => ({
       tagId: ct.tagId,

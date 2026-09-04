@@ -913,6 +913,7 @@ async function getCharacterInspectorImpl({ characterId }) {
     include: {
       faction: { select: { id: true, name: true } },
       zone: { select: { name: true } },
+      location: { select: { name: true } },
       tags: {
         select: { tagId: true, quantity: true, expiresTurn: true, equipped: true, tag: { select: TAG_CHIP_FIELDS } },
       },
@@ -934,7 +935,12 @@ async function getCharacterInspectorImpl({ characterId }) {
     factionId: character.faction?.id ?? null,
     factionName: character.faction?.name ?? null,
     isLeader: character.isLeader,
-    locationLabel: character.zone?.name || "Unassigned",
+    // Zone · Location, because Character.locationId is where a ruling
+    // actually happens — a placed structure, a stash, a fight are all
+    // Location-grain facts (MAP.md §1). Same shape moveRows.js now carries.
+    locationLabel: character.location?.name
+      ? `${character.zone?.name ?? "?"} · ${character.location.name}`
+      : character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
     gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),

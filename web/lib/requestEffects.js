@@ -785,6 +785,38 @@ export const REQUEST_EFFECTS = {
       return parts.length ? parts.join(" ") : `Nothing to reverse on ${targetName ?? "them"}.`;
     },
   },
+
+  // The one Request a finished build files (db/lib/structures.js). Undo
+  // DELETES the row rather than winding it back to UNDER_CONSTRUCTION: this
+  // request records the completion, but a GM reversing a build is unwinding
+  // the whole thing, not handing back a half-raised site nobody asked for.
+  // The mid-build turns survive as Actions a GM can Reject one at a time —
+  // the ADD_TAG precedent, whose undo leaves the auto-filed Routine spent.
+  //
+  // Nothing here touches LocationLink: no structure flips a link yet, and an
+  // effect with no `linkId` must stay harmless when one does.
+  BUILD_STRUCTURE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { structureId, typeName, locationName, resourcesSpent, payer } = request.effect;
+      // deleteMany, not delete: the row may already be gone (a demolition, a
+      // wipe), and an undo must not throw over something already true.
+      // StructureWork cascades off it.
+      if (structureId) await tx.structure.deleteMany({ where: { id: structureId } });
+      if (resourcesSpent) {
+        await moveResources(
+          tx,
+          payer?.id ? payer : { kind: "character", id: request.characterId },
+          resourcesSpent,
+        );
+      }
+      const where = locationName ? ` at ${locationName}` : "";
+      const refund = resourcesSpent
+        ? ` and refunded ${resourcesSpent} ⬢ to ${payer?.name ?? "them"}`
+        : "";
+      return `Tore the ${typeName ?? "structure"}${where} back down${refund}. ‡`;
+    },
+  },
 };
 
 // A GM can only set a non-negative amount; anything else is a typo.

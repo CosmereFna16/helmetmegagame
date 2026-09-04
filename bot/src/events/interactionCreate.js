@@ -63,6 +63,7 @@ const {
 const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
+const { structuresAt } = require("@lifeweb/db/lib/structures");
 const { ROOM_STORAGE_PREFIX, ROOM_INTERCOM_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -920,10 +921,15 @@ async function handleExamine(interaction, locationId) {
     };
   }
 
+  // Structures are live state — built, rising or ruined — so they are loaded
+  // here and handed to describeLocation as ctx rather than being authored on
+  // the Location, the same reasoning as depot above.
+  const structures = await structuresAt(prisma, locationId);
+
   const lines = [
     `» *${location.name}.*`,
     laborLine,
-    ...describeLocation(location, { gates, depot }),
+    ...describeLocation(location, { gates, depot, structures }),
   ];
   await respond(interaction, lines.join("\n"));
 }

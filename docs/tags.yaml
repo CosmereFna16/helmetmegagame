@@ -26,9 +26,12 @@
 # Serpent" is `true-form-serpent`. db/lib/syncTags.js throws when they
 # disagree, so renaming a tag means renaming its slug — and then every
 # reference to it, since the slug is the match key everywhere else (desires,
-# taggroups, code). The one exception is a hidden category (demoness),
-# where a generic name like "Heal" would collide with a general tag and the
-# slug leads with the category instead: `demoness-heal`.
+# taggroups, code). Two exceptions. A hidden category (demoness), where a
+# generic name like "Heal" would collide with a general tag and the slug
+# leads with the category instead: `demoness-heal`. And `keepSlug: true` on
+# an entry, for a tag RENAMED mid-stream whose old slug is load-bearing —
+# the sync then accepts the mismatch, and throws instead if the flag sits on
+# a slug that already matches, so it can never quietly go stale.
 #
 # This file is hand-edited and is the ONLY thing that writes the catalog.
 # There is deliberately no automated sync from anywhere else — drafted
@@ -1202,6 +1205,7 @@ tags:
   # else taking it is picking up a free tag with no cost to it.
   vow-of-silence:
     name: "Mime's Vow"
+    keepSlug: true
     category: general
     group: general-traits
     description: "You can't speak. You mean, you really shouldn't."
@@ -3750,6 +3754,48 @@ tags:
       resourceCost: 25
       skills: [builder-skilled]
       gambit: false
+
+  wayside-shrine:
+    name: Wayside Shrine
+    category: assets
+    group: assets-structures
+    description: "A small shrine raised where you stand — stacked stones, a niche, whatever the ground gives. It does nothing but stand there, and everyone who passes knows somebody put it up. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      gambit: false
+    placement:
+      hp: 1
+      fieldwork: true
+      examine: "A wayside shrine stands here. ‡"
+
+  drying-racks:
+    name: Drying Racks
+    category: assets
+    group: assets-structures
+    description: "Lashed poles and lines for smoking and drying a catch, so less of it spoils on the way home. Raised where you stand, serving whoever works this ground. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      hp: 2
+      fieldwork: true
+      examine: "Drying racks stand here, lines strung for the catch. ‡"
+      laborBonus: { kind: hunting, amount: 1 }
 
   dog:
     name: Dog

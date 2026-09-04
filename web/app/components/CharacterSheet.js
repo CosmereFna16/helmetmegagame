@@ -57,6 +57,10 @@ export default function CharacterSheet({
   canTeach = false,
   knownRecipeIds = [],
   craftProjects = [],
+  // Building (db/lib/structures.js): what stands at this Location, and
+  // whether the ground takes anything new. Both built in character/page.js.
+  sitesHere = [],
+  buildable = false,
   teachers = [],
   learners = [],
   pendingOffers = [],
@@ -143,6 +147,8 @@ export default function CharacterSheet({
             canTeach={canTeach}
             knownRecipeIds={knownRecipeIds}
             craftProjects={craftProjects}
+            sitesHere={sitesHere}
+            buildable={buildable}
             teachers={teachers}
             learners={learners}
             hasBird={hasBird}
@@ -172,6 +178,7 @@ export default function CharacterSheet({
                 zoneMoves={zoneMoves}
                 zoneMovesReason={zoneMovesReason}
                 pendingOffers={pendingOffers}
+                sitesHere={sitesHere}
               />
 
               <TagsPanel

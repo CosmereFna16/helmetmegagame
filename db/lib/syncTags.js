@@ -18,6 +18,8 @@ const {
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
+  normalizePlacement,
+  validatePlacement,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -36,6 +38,19 @@ const VISIBILITY_BY_YAML = new Map([
 // hidden power's name ("Heal", "Seductive") is generic enough to collide with
 // a general tag. Everywhere else the slug is exactly the slugified name.
 const HIDDEN_CATEGORIES = new Set(["demoness"]);
+
+// JSON.stringify with object keys sorted recursively, array order kept.
+// Only for the change-detection compare below — jsonb hands keys back in its
+// own order, so a naive stringify of a stored object never matches the
+// authored one and the row updates on every run.
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
 
 // The one slug rule, applied to Tag.name. Lowercase, punctuation dropped,
 // whitespace and colons to hyphens: "Old Ways (Bacchus)" -> old-ways-bacchus,
@@ -166,15 +181,25 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has unknown category "${t.category}"`);
     }
     // A slug is always its name, slugified — so anyone reading a slug in code
-    // or in a Desire's requires knows which tag it is. The only exception is a
+    // or in a Desire's requires knows which tag it is. Two exceptions: a
     // hidden category (demoness), where a bare name like "Heal" or
-    // "Seductive" collides with a general tag and the category leads instead.
+    // "Seductive" collides with a general tag and the category leads instead;
+    // and an entry marked `keepSlug: true`, for a tag RENAMED in play whose
+    // old slug is load-bearing (desires, code, live CharacterTag references)
+    // — the entries' own comments say why, and a keepSlug on a slug that
+    // already matches its name throws, so the flag can never go stale.
     const wantSlug = slugifyName(t.name);
     const prefixed = `${t.category}-${wantSlug}`;
     const allowed = HIDDEN_CATEGORIES.has(t.category) ? [wantSlug, prefixed] : [wantSlug];
-    if (!allowed.includes(t.slug)) {
+    if (t.keepSlug === true) {
+      if (allowed.includes(t.slug)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets keepSlug but its slug already matches its name — drop the flag`,
+        );
+      }
+    } else if (!allowed.includes(t.slug)) {
       throw new Error(
-        `docs/tags.yaml: tag "${t.slug}" is named "${t.name}", so its slug should be "${allowed.join('" or "')}" — rename the slug with the name, or fix the name`,
+        `docs/tags.yaml: tag "${t.slug}" is named "${t.name}", so its slug should be "${allowed.join('" or "')}" — rename the slug with the name, fix the name, or mark the rename deliberate with keepSlug: true`,
       );
     }
     // concealsIdentity requires equippable — a typo guard, not a rule.
@@ -310,6 +335,15 @@ async function syncTagsFromYaml(prisma) {
       tagSlugs: allTagSlugs,
       equippable: t.equippable ?? false,
     });
+    // placement — the building system's catalog half (db/lib/structures.js is
+    // the read side). Validated up front like requirement.items: craftable
+    // only, never tradeable/stackable/equippable/carryBonus, and provides
+    // must name real tags, so a typo fails before any write.
+    validatePlacement(normalizePlacement(t.placement), {
+      slug: t.slug,
+      tag: t,
+      knownSlugs: allTagSlugs,
+    });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -422,6 +456,7 @@ async function syncTagsFromYaml(prisma) {
       requirementPerTurn: entry.requirement?.perTurn ?? null,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
+      placement: normalizePlacement(entry.placement),
       // Membership of the corpse group IS being a corpse, so the flag is
       // derived here rather than hand-written on three entries that could
       // drift from it. Always FRESH: a monster corpse never rots, and the
@@ -437,11 +472,15 @@ async function syncTagsFromYaml(prisma) {
       tag = await prisma.tag.create({ data: { slug: entry.slug, ...scalars } });
       tagsCreated += 1;
     } else {
-      // Arrays/Json fields compare by value (JSON.stringify), order-sensitive
-      // — a repeated slug means "grant two", so these are sequences not sets.
+      // Arrays/Json fields compare by value. ARRAY order stays significant —
+      // a repeated slug means "grant two", so those are sequences not sets —
+      // but OBJECT keys are sorted before comparing, because Postgres jsonb
+      // does not preserve key order: a straight JSON.stringify made every
+      // desireLocks/placement carrier read as changed on every run, so seven
+      // rows "updated" forever and the diff discipline meant nothing.
       const needsUpdate = Object.entries(scalars).some(([key, value]) => {
         if (Array.isArray(value) || (value !== null && typeof value === "object")) {
-          return JSON.stringify(value) !== JSON.stringify(tag[key]);
+          return stableStringify(value) !== stableStringify(tag[key]);
         }
         return tag[key] !== value;
       });

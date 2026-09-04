@@ -223,7 +223,105 @@ function validateLaborBonus(normalized, { selfSlug, tagSlugs, equippable, label 
   }
 }
 
+// The `placement:` block — what makes a craftable BUILD ON SITE (a Structure
+// row at the builder's Location) instead of landing in a pocket, from
+// docs/tags.yaml (schema.prisma's Tag.placement comment has the full shape).
+// Normalised here, same posture as laborBonus above: db/lib/structures.js is
+// the read side and trusts this shape rather than re-deriving it.
+//
+// Shape checks only — no selfSlug in the messages, matching
+// normalizeLaborBonus above. Cross-field rules (craftable, never
+// tradeable/stackable/equippable/carryBonus, provides naming real tags) need
+// the rest of the tag entry and knownSlugs, so those live in validatePlacement.
+function normalizePlacement(raw, label = "docs/tags.yaml") {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: placement must be a mapping`);
+  }
+  const hp = Number(raw.hp);
+  if (!Number.isInteger(hp) || hp < 1) {
+    throw new Error(`${label}: placement.hp must be a positive integer`);
+  }
+  if (raw.unique != null && typeof raw.unique !== "boolean") {
+    throw new Error(`${label}: placement.unique must be a boolean`);
+  }
+  if (raw.fieldwork != null && typeof raw.fieldwork !== "boolean") {
+    throw new Error(`${label}: placement.fieldwork must be a boolean`);
+  }
+  if (raw.examine != null && (typeof raw.examine !== "string" || !raw.examine.trim())) {
+    throw new Error(`${label}: placement.examine must be a non-empty string`);
+  }
+  if (raw.defenseNote != null && (typeof raw.defenseNote !== "string" || !raw.defenseNote.trim())) {
+    throw new Error(`${label}: placement.defenseNote must be a non-empty string`);
+  }
+  if (raw.provides != null && (!Array.isArray(raw.provides) || raw.provides.some((s) => typeof s !== "string"))) {
+    throw new Error(`${label}: placement.provides must be a list of tag slugs`);
+  }
+  if (raw.link != null && raw.link !== "hold_open" && raw.link !== "hold_shut") {
+    throw new Error(`${label}: placement.link must be "hold_open" or "hold_shut"`);
+  }
+  let laborBonus = null;
+  if (raw.laborBonus != null) {
+    if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
+      throw new Error(`${label}: placement.laborBonus must be a mapping`);
+    }
+    const kind = String(raw.laborBonus.kind ?? "").toLowerCase();
+    if (!LABOR_BONUS_KINDS.has(kind)) {
+      throw new Error(`${label}: placement.laborBonus.kind must be one of ${[...LABOR_BONUS_KINDS].join(", ")}`);
+    }
+    const amount = Number(raw.laborBonus.amount);
+    if (!Number.isInteger(amount) || amount === 0) {
+      throw new Error(`${label}: placement.laborBonus.amount must be a non-zero integer`);
+    }
+    laborBonus = { kind, amount };
+  }
+  return {
+    hp,
+    unique: raw.unique !== false,
+    fieldwork: raw.fieldwork === true,
+    examine: raw.examine ?? null,
+    defenseNote: raw.defenseNote ?? null,
+    laborBonus,
+    provides: raw.provides ?? [],
+    link: raw.link ?? null,
+  };
+}
+
+// Two things the shape alone can't catch: a placement block on a tag nothing
+// would ever build (the Craft path is the only enforcement point, same
+// reasoning as validateRequirementItems), and a placement block on a tag that
+// could otherwise leave a Location — tradeable, stackable, equippable and
+// carryBonus all mean "this can end up on somebody's person", which a
+// Structure never does. `tag` is the raw YAML entry, so those flags are read
+// as authored rather than re-derived.
+function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tags.yaml" }) {
+  if (!placement) return;
+  if (!tag?.craftable) {
+    throw new Error(
+      `${label}: tag "${slug}" declares placement but is not craftable — the build path is the only enforcement point`,
+    );
+  }
+  if (tag.tradeable) {
+    throw new Error(`${label}: tag "${slug}" declares placement but is tradeable — a structure is never on anyone's person`);
+  }
+  if (tag.stackable) {
+    throw new Error(`${label}: tag "${slug}" declares placement but is stackable — a structure is never on anyone's person`);
+  }
+  if (tag.equippable) {
+    throw new Error(`${label}: tag "${slug}" declares placement but is equippable — a structure is never on anyone's person`);
+  }
+  if (tag.carryBonus != null) {
+    throw new Error(`${label}: tag "${slug}" declares placement but carries a carryBonus — a structure is never on anyone's person`);
+  }
+  for (const provided of placement.provides) {
+    if (!knownSlugs.has(provided)) {
+      throw new Error(`${label}: tag "${slug}" placement.provides references unknown tag "${provided}"`);
+    }
+  }
+}
+
 module.exports = {
+  LABOR_BONUS_KINDS,
   normalizeLaborBonus,
   validateLaborBonus,
   normalizeExpiresInto,
@@ -233,4 +331,6 @@ module.exports = {
   rollTagChain,
   normalizeRequirementItems,
   validateRequirementItems,
+  normalizePlacement,
+  validatePlacement,
 };

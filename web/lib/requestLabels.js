@@ -31,6 +31,7 @@ export const REQUEST_TYPE_LABELS = {
   BUTCHER_CORPSE: "Butcher ‡",
   ENGRAVE_HEADSTONE: "Engrave ‡",
   BIRD_MESSAGE: "Bird Message",
+  BUILD_STRUCTURE: "Build ‡",
   DEPOT_BUY: "Depot Purchase",
   DEPOT_SELL: "Depot Sale",
   DEPOT_CREDIT: "Depot Credit",

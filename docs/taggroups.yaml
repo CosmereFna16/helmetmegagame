@@ -230,6 +230,14 @@ groups:
     name: Companions
     category: assets
     color: "#a48d7c"
+  # Structures: what a Craft with a `placement:` block raises at a Location
+  # (db/lib/structures.js), rather than landing in a pocket. Stone family
+  # like the rest of Assets, stepped between Property's pale grey and
+  # Companions' warm brown.
+  assets-structures:
+    name: Structures
+    category: assets
+    color: "#b5aa98"
   # Skill families, clustered the same way General and Status already are.
   # A handful of standalone Skills tags (forester,
   # musician, lockpicking, butcher, climbing, navigating, stealth) stay

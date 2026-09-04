@@ -120,7 +120,19 @@ async function characterDiscordId(query, env) {
 export async function resolveTarget(argv, env = loadEnv()) {
   const gmIndex = argv.indexOf("--gm");
   if (gmIndex !== -1) {
-    const id = superadminIds()[0];
+    // Which superadmin to mint for. The first listed one is not necessarily a
+    // member of THIS environment's guild (a throwaway dev guild has only the
+    // developer), and a superadmin who fails the isGm() REST check bounces
+    // off /gm/turns exactly like a player — which made dev:check read as
+    // failing on routes that were fine. DEV_SUPERADMIN_ID picks a different
+    // one; it must still be on the superadmin.js list, so this stays a
+    // selector, never a door.
+    const ids = superadminIds();
+    const wanted = process.env.DEV_SUPERADMIN_ID;
+    if (wanted && !ids.includes(wanted)) {
+      throw new Error(`DEV_SUPERADMIN_ID ${wanted} is not in web/lib/superadmin.js`);
+    }
+    const id = wanted || ids[0];
     return { discordUserId: id, label: `superadmin ${id}` };
   }
 

@@ -5,6 +5,7 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { placementOf } from "@lifeweb/db/lib/structures";
 import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
@@ -114,6 +115,8 @@ function summarize(request) {
       const kill = e.lethal ? (e.killed ? "killed" : "NOT YET KILLED") : null;
       return [hurt ?? `Moved to finish ${e.targetName ?? "?"}`, kill].filter(Boolean).join(" · ");
     }
+    case "BUILD_STRUCTURE":
+      return `Built ${e.typeName ?? "a structure"} at ${e.locationName ?? "?"}`;
     default:
       return "";
   }
@@ -280,7 +283,35 @@ export default async function TurnsWorkspacePage({ params }) {
   const catatonicIds = new Set(catatonicTagRows.map((row) => row.characterId));
 
   const tagsById = tagsByIdFor(actions);
-  const moves = actions.map((a) => moveRow(a, { usernameById, now }));
+
+  // Every structure standing at a Move filer's Location, loaded in ONE bulk
+  // query rather than one per row (mirrors db/lib/structures.js#structuresAt's
+  // two-query-joined-in-JS shape, just widened to every locationId on the
+  // queue at once), then grouped so moveRow can hand each row its own slice.
+  const moveLocationIds = [...new Set(actions.map((a) => a.character.locationId).filter(Boolean))];
+  const structureRows = moveLocationIds.length
+    ? await prisma.structure.findMany({
+        where: { locationId: { in: moveLocationIds } },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+  const structureTypeSlugs = [...new Set(structureRows.map((s) => s.typeSlug))];
+  const structureTypes = structureTypeSlugs.length
+    ? await prisma.tag.findMany({
+        where: { slug: { in: structureTypeSlugs } },
+        select: { slug: true, placement: true },
+      })
+    : [];
+  const structureTypeBySlug = new Map(structureTypes.map((t) => [t.slug, t]));
+  const structuresByLocationId = new Map();
+  for (const row of structureRows) {
+    const type = structureTypeBySlug.get(row.typeSlug) ?? null;
+    const list = structuresByLocationId.get(row.locationId) ?? [];
+    list.push({ ...row, placement: type ? placementOf(type) : null });
+    structuresByLocationId.set(row.locationId, list);
+  }
+
+  const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
 
   const requestRows = requests.map((r) => ({
     id: r.id,

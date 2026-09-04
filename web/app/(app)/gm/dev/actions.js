@@ -325,6 +325,11 @@ export async function wipeGameData(formData) {
       prisma.desire.deleteMany({}),
       prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
+      // Structures: same reasoning as RoomTag below — Structure cascades from
+      // Location, which the wipe never deletes, so it goes explicitly.
+      // StructureWork first, since it has a required FK to Structure.
+      prisma.structureWork.deleteMany({}),
+      prisma.structure.deleteMany({}),
       // Room stashes (CARRY.md): the rows cascade from nothing the wipe
       // deletes, so they go explicitly and the ⬢ column is zeroed.
       prisma.roomTag.deleteMany({}),
