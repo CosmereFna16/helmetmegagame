@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Minstrels can actually play something now
+
+✚ An Instrument tag, 1 point, granted free with the Minstrel role  
+✚ /play, which puts a line into the room you are standing in  
+✎ The room hears it full size; the street outside only overhears it, small
+
 ## 2026-09-04 · The Forest is a real place now, and Farms moved into it
 
 ✚ Every Forest location has its rooms: 22 of them, from the Headwaters cave to the Beaver Dam, with their locked doors and their loot  
