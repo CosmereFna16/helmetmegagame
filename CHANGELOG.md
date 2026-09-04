@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Forest is a real place now, and Farms moved into it
+
+✚ Every Forest location has its rooms: 22 of them, from the Headwaters cave to the Beaver Dam, with their locked doors and their loot  
+✚ The Farms are in the Forest now, with three rooms — Fields, the Village Green, and the Old Church. Getting there from the woods no longer costs a Move  
+✎ Fishing pays better in the marsh: 1.3 everywhere, 1.5 at the fishing village  
+✎ The Hills Camp tag is now Ravine Camp, and says which ravine it means  
+✎ Caving costs 3 points instead of 5, and its description says what it actually does  
+✚ The Overseer Box starts with 8 ⬢ and the Logistics Room with 2 ⬢  
+✚ The Headman starts with the sewer key  
+✚ Refugees start with 2 ⬢ instead of 1, and Migrants get 10 more points to build with  
+✎ Three broken ways through the Forest that would have refused to open at all: the climb to the mountain, the crawl to the caves, and a road that led back to itself
+
 ## 2026-09-04 · The gun in the fortress yard works now
 
 ✚ The triple-barrelled turret on the rotor in the Gatehouse yard can be turned on. It has been described as "off" in the Baron's charter since before anything could switch it  
