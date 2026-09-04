@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · A helmet is a face: concealment now takes something over yours
+
+✎ /conceal needs concealing headgear equipped — a bare face can no longer go unnamed  
+✚ Seventeen helmets, hoods and masks, each with its own face for the room to see  
+✚ Some conceal by force: a sack or a plague mask gives the wearer no say, and a turn summary honours it too  
+✚ Headgear and body armor now sit in layers 1-4, so a coif goes under a helm but two helms do not go together  
+✚ One shield at a time  
+✚ Bound characters can no longer equip, unequip, craft or destroy — a hostage cannot take the bag off  
+✚ A Leper trait, and a Leper's Hood that costs nothing if you have it  
+✚ The Merchant stocks a Rat Mask; the Armory trades two Simple Helms for four Cerberus Helmets  
+− The Ridiculous Hat
+
 ## 2026-09-04 · The drawback cap lands on 5 tags and 12 points
 
 ✎ A character may take 5 drawbacks claiming back 12 points, not 4 and 14
