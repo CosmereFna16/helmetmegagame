@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The point-buy meter stops tripping the contrast gate
+
+✎ No player-visible change — the meter is the colour it always was
+
 ## 2026-09-04 · One ruined face per character, and Scarred is no longer a build choice
 
 ✎ Ugly and Disfigured now conflict with each other, as both already did with Leper  
