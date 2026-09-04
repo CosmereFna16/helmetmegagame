@@ -449,15 +449,11 @@ Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 at whichever it reaches first:**
 
 - **`GameConfig.maxDrawbackTags`** — how many drawback tags may be bought.
-  **4** by default.
+  **5** by default.
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
-  claim back in total, stored as a **positive magnitude**. **14** by default.
-  That sits a little *above* `startingTagPoints`, on purpose. The two used to
-  match, on the tidy rule *you can never claim back more than you started
-  with* — but that made the heavy-drawback build a trap rather than a trade:
-  four real problems bought you nothing the ordinary budget couldn't already
-  reach. At 14 the ceiling is exactly one Character-defining pick, so a
-  character who takes on that much trouble gets something for it.
+  claim back in total, stored as a **positive magnitude**. **12** by default,
+  matching `startingTagPoints` on purpose, so the rule says itself: *you can
+  never claim back more than you started with.*
 
 Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.
@@ -466,7 +462,7 @@ at all.
 count cap by itself spends the same slot on a −1 and on a −11, so five
 drawbacks are worth −5 to one player and −43 to another — the cap reads as an
 instruction to stack the heaviest tags in the catalog, and the player taking
-four small human flaws is simply playing it wrong. A point cap by itself is
+five small human flaws is simply playing it wrong. A point cap by itself is
 the mirror problem: one Appendicitis finishes you, while ten −1s are never
 stopped by anything. The game shipped each in turn — `maxNegativeTags`
 (points, retired 2026-08-31) then `maxDrawbackTags` (count) — before landing

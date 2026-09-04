@@ -532,16 +532,14 @@ model GameConfig {
 
   // How many drawback TAGS may be bought — a cap on the COUNT of
   // negative-cost tags picked, whatever they are worth.
-  maxDrawbackTags Int @default(4)
+  maxDrawbackTags Int @default(5)
 
   // How many points those drawbacks may claim back in total. Stored as a
-  // POSITIVE magnitude — "at most 14 points may be claimed" — even though
+  // POSITIVE magnitude — "at most 12 points may be claimed" — even though
   // every drawback carries a negative pointCost, so nothing has to do a sign
-  // dance to compare against it. It sits a little ABOVE startingTagPoints on
-  // purpose: a character carrying four real problems should be able to buy
-  // something the default budget could never reach, or the heavy-drawback
-  // build is a trap rather than a trade.
-  maxDrawbackPoints Int @default(14)
+  // dance to compare against it. It matches startingTagPoints on purpose:
+  // you can never claim back more than you started with.
+  maxDrawbackPoints Int @default(12)
 
   // How many Desire slots a character has, each of which can be claimed into
   // once every desireSlotLockTurns turns. Same live-editable posture as
