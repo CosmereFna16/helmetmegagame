@@ -543,13 +543,27 @@ zones:
     kind: surface
     sort: 3
     description: >-
-      Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, bountiful visages. The trees thin on their approach to the mountains.
+      Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, and bountiful visages. The trees thin on their approach to the mountains.
     locations:
-      forest-river:
-        name: River
+      forest-headwaters:
+        name: Headwaters
         map_node: 1
         description: >-
-          The river comes out of the rock here, cold enough to ache. Beyond it the trees give up and the land goes to scree. Nobody has any reason to be this far west, which is its own kind of reason. ‡
+          The trees thin, tough grasses filling the gaps, snapping in the mountain breeze. Rubble from the mountain crowds the creek, creating pockets and swimming holes fed by small waterfalls. It turns into scree further up. You'd have to climb to get a better look, but there's a big waterfall up north.
+
+          # public rooms:
+          Scree Field
+          An uneven slope of gravel surrounding the cliffs.
+
+          Basin
+          The waterfall plunges into a cool, refreshing pond. You can't see the creek. It seems to have disappeared into the rocks, to reemerge further downhill.
+
+          # private requires
+          Cave
+          It's loud. You can barely hear yourself. There's a rusted steel box and a couple of obols on the floor.
+          # requires Caving
+          # start with 32 obols, a gladius, a refined poppy, and a gladiator helmet
+
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       forest-cliffs:

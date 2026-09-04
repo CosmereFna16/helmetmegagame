@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The gun in the fortress yard works now
+
+✚ The triple-barrelled turret on the rotor in the Gatehouse yard can be turned on. It has been described as "off" in the Baron's charter since before anything could switch it  
+✚ A red Toggle Turret button in the Censor's Office. You have to be standing in the office to use it, and you have to type ARM or DISARM into the confirm — Discord has no confirm dialog, and a misclick here should not be able to shoot the Keep  
+✎ It spares nobody. Unlike the Merchant's turret it reads no faces and checks no keycards: armed, it fires on whoever is in the yard, the Censor included. Armour still decides how badly, so the Cerberon's mail is worth wearing  
+✎ Arming or disarming it says one line into the Gatehouse. That is the only warning anyone crossing the yard gets  
+✎ It fires on entry and again at the end of every turn, the same two triggers the Merchant's gun uses
+
 ## 2026-09-04 · The Tag Catalog opens on /documents, and the building system lands
 
 ✚ A Tags tab on /documents — the whole tag catalog, searchable, each card showing what a tag costs and what it asks for  
