@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Mime's Vow, and a tag can be whitelisted to one seat
+
+Vow of Silence is renamed Mime's Vow, and only a Minstrel can take it  
+Tags can be whitelisted to a seat, not just blacklisted away from one, so a role-only tag no longer means listing the other 38 roles
+
 ## 2026-09-04 · The intercom is loud now, and it lands in the transcript
 
 ✎ The PA is no longer small grey subtext. Everything else the world says is scenery and sits under the conversation, but a loudspeaker is the opposite of scenery — and it pings everyone, so delivering it in the quietest text Discord renders was backwards  
