@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Laboring pays about 7% less
+
+✎ The production coefficient drops from 1 to 0.93, in the default and in the live game  
+✎ Hunting is 0-17 now, Farming 11-15, Fishing 7-13 at a full-strength location  
+✎ Basic laboring is untouched on purpose — it is the floor of the economy — and Skilled's 1-4 is too coarse to move 7%
+
 ## 2026-09-04 · A dead faction Leader hands the seat on, and a founded faction survives a sync
 
 ✚ A Leader who dies gives up the seat; it passes on, skipping anyone Catatonic  
