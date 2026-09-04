@@ -15,7 +15,6 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
 const { postMessage } = require("./discordRest");
-const { ambientLine } = require("./ambientLine");
 
 // The Council Room, hardcoded for the db/lib/roleIds.js reason: one guild, one
 // correct value, and a missing env var would have been a silent no-op.
@@ -48,14 +47,20 @@ function defang(text) {
 // would ping @here once per chunk.
 const MAX_BODY = 1200;
 
+// Deliberately NOT ambientLine. Every other line the world says is scenery and
+// belongs in `-#` subtext, under the conversation rather than in it — but a PA
+// is the opposite of scenery. It is a loudspeaker. It carries an @here, and
+// delivering the loudest notification Discord has in the quietest text Discord
+// renders was exactly backwards. This one is full size.
+//
+// Full size also means the body can carry newlines safely: there is no
+// per-line prefix left to break.
 function intercomLine(text) {
-  // The template supplies the full stop, so a body that already ends in one
-  // doesn't read "…intercom: get to the wall.." — but a body that is NOTHING
-  // but dots strips to empty, so keep the trimmed original in that case rather
-  // than announcing a sentence with nothing in it.
-  const trimmed = defang(String(text ?? "").trim().slice(0, MAX_BODY));
-  const stripped = trimmed.replace(/[.\s]+$/, "");
-  return ambientLine(`@here You hear a voice from the intercom: ${stripped || trimmed}.`);
+  const body = defang(String(text ?? "").trim().slice(0, MAX_BODY));
+  // Supply a full stop only when the speaker didn't end on one themselves,
+  // so "Get to the wall!" doesn't broadcast as "Get to the wall!."
+  const stop = /[.!?…]$/.test(body) ? "" : ".";
+  return `@here You hear a voice from the intercom: ${body}${stop} ‡`;
 }
 
 // Posts to every zone in range, sequentially and individually caught. Never

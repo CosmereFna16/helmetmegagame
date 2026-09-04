@@ -31,9 +31,10 @@ Keep them in sync if the rule changes.
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
 locationId, locationName, channelKind }`, so the proxy can stamp an archive
 row with where a message was said without a DB round trip per message.
-`channelKind` is one of `summary | location | watch` (a plain
-string field, not a Prisma enum — see `ARCHIVE.md`). `intercom` is a retired
-value nothing writes any more; old archive rows still carry it. A Room thread or a
+`channelKind` is one of `summary | location | watch | intercom` (a plain
+string field, not a Prisma enum — see `ARCHIVE.md`). `intercom` no longer means
+the channel of that name, which is gone: it is now what a PA broadcast is
+filed as in the archive (§7a). A Room thread or a
 Conversation reports its parent Location
 channel's context and keeps its own name as the scene.
 
@@ -568,8 +569,16 @@ starter row (`db/lib/roomStarterRow.js`, keyed on `INTERCOM_ROOM_SLUG =
 the modal posts one line into each zone's `#summary`:
 
 ```
--# @here You hear a voice from the intercom: {text}. ‡
+@here You hear a voice from the intercom: {text}. ‡
 ```
+
+**This is the one world-narration line that is NOT `-#` subtext**, and the
+exception is deliberate. Everything else the world says is scenery and belongs
+under the conversation; a PA is a loudspeaker. Delivering the loudest
+notification Discord has in the quietest text it renders was backwards. Full
+size also means the body may carry newlines safely — there is no per-line
+prefix left to break, which is what `ambientLine` has to handle for everyone
+else.
 
 - **The gate is standing in the Council Room**, and nothing else. Getting into
   the Keep and up to that table is the whole barrier. Re-checked at *submit*,
@@ -591,6 +600,12 @@ the modal posts one line into each zone's `#summary`:
   posture `proxy.js` takes with character speech pointed the other way. The
   modal caps the body at 1200 characters so the message never chunks, because
   chunking would ping `@here` once per chunk.
+- **Archived.** One `ArchiveEntry` per broadcast (not per zone — it was one
+  thing said, heard in several places), `channelKind: "intercom"`, naming the
+  speaker even though the channel line names nobody. The old `#intercom` was a
+  tupper channel, so its traffic was proxied and archived; a bot post is not,
+  and without this the PA would be the one kind of public talk missing from
+  `/archive`.
 - Audited as `intercom_broadcast`.
 
 `#mindlink` used to be the Cult of Bacchus's own telepathy channel, and set

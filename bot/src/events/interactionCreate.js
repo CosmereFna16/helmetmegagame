@@ -316,6 +316,13 @@ async function handleRoomGuestCommand(interaction, action, room) {
     await prisma.roomGuest
       .deleteMany({ where: { roomId: room.id, characterId: target.id } })
       .catch((err) => console.error("Failed to delete room guest:", err));
+    // No account behind the character means there is no thread member to drop.
+    // Calling with an undefined id fails, and the catch below would report it
+    // as a missing bot permission — a wrong answer to a question nobody asked.
+    if (!target.discordUserId) {
+      await respond(interaction, `» *${target.name} was shown out.* ‡`, { fleeting: true });
+      return;
+    }
     try {
       await removeThreadMember(room.discordThreadId, target.discordUserId);
     } catch (err) {
@@ -388,6 +395,21 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   const { sent, failed } = await broadcastIntercom(prisma, body);
 
+  // The transcript. The old #intercom was a tupper channel, so PA traffic went
+  // through the proxy and was archived like any other speech; a bot post is
+  // not, so without this the Baron's announcements would be the one kind of
+  // public talk missing from /archive. One row for the broadcast, not one per
+  // zone — it was one thing said, heard in several places.
+  //
+  // The speaker IS recorded even though the channel line names nobody: the
+  // archive is the record of what happened, and it stays shut to players until
+  // the game ends (GameConfig.archiveVisible, ARCHIVE.md).
+  await recordArchiveMessage(prisma, {
+    character,
+    content: body,
+    channelKind: "intercom",
+  });
+
   await prisma.auditLog
     .create({
       data: {
@@ -400,12 +422,10 @@ async function handleIntercomSubmit(interaction, roomId) {
     .catch((err) => console.error("Intercom audit failed:", err.message ?? err));
 
   // Say what actually happened. A PA that reached four zones out of five is
-  // not a failure, but the speaker has to know which one nobody heard.
-  const note =
-    failed.length > 0
-      ? `\n-# Nothing came through in ${failed.join(", ")}. ‡`
-      : "";
-  await respond(interaction, `» *Your voice goes out across Ravenheart.* ‡${note}`, { fleeting: true });
+  // not a failure, but the speaker has to know which one nobody heard. One ‡
+  // for the whole message, riding the last line rather than the first.
+  const note = failed.length > 0 ? `\n-# Nothing came through in ${failed.join(", ")}.` : "";
+  await respond(interaction, `» *Your voice goes out across Ravenheart.*${note} ‡`, { fleeting: true });
 }
 
 // Custom IDs below are "loc:"-namespaced for the travel flow off the Travel

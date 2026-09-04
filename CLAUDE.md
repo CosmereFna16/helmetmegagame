@@ -308,7 +308,7 @@ npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
                                      #   retires a template absent from the
                                      #   YAML — see DESIRES.md §10)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
-npm run db:sync-narrowcast-channels  # #watch/#intercom provisioning + reconcile.
+npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
                                      #   Run AFTER db:sync-zones.
 npm run db:rebuild-info-channel      # destructive rebuild of #info
 
@@ -451,7 +451,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 
 | Role | Source | What it gates |
 |---|---|---|
-| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`/`#intercom`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
+| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
 | **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
@@ -560,12 +560,18 @@ footnoting prose.
 **A line the WORLD says into a channel is `-#` subtext, and it goes through
 `db/lib/ambientLine.js`.** A gate crossing into a zone's `#summary`, a smell in
 a Location, a whisper overheard in a Room, somebody moving goods around a
-stash, the intercom — all of it is scenery. It arrives unprompted, often
-mid-scene, and full-size bot text competing with player prose read as an
-interruption. Subtext sits under the conversation instead of in it. Two things
-are easy to get wrong by hand and the helper handles both: `-#` is **per line**,
-so a multi-line block needs the prefix on every line, and there is still only
-**one ‡ per message**, at the very end.
+stash — all of it is scenery. It arrives unprompted, often mid-scene, and
+full-size bot text competing with player prose read as an interruption. Subtext
+sits under the conversation instead of in it. Two things are easy to get wrong
+by hand and the helper handles both: `-#` is **per line**, so a multi-line block
+needs the prefix on every line, and there is still only **one ‡ per message**,
+at the very end.
+
+**The intercom is the deliberate exception** (`db/lib/intercom.js`). A PA is
+not scenery, it is a loudspeaker, and it carries an `@here` — delivering the
+loudest notification Discord has in the quietest text it renders was
+backwards. Full size, no helper. If something else ever needs to be *heard*
+rather than noticed, it belongs on that side of the line too.
 
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix

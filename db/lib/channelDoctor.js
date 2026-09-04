@@ -482,8 +482,10 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     // hand (RoomGuest). Thread-major: one member-list read per private room.
     //
     // Guests are NOT optional here. This check deletes anyone it can't account
-    // for, so a doctor that only knew about keys would evict every guest on
-    // its next run — and it runs on every bot ready.
+    // for, so a doctor that only knew about keys would evict every guest the
+    // next time anyone ran it. Full scope only — the bot's ready pass is
+    // `cheap` and never reaches this line — but "only on demand" is not
+    // "never".
     if (privateRooms.length > 0) {
       const keysByCharacter = new Map();
       for (const c of alive) keysByCharacter.set(c.id, await roomAccessKeys(prisma, c.id));

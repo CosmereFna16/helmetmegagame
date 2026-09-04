@@ -39,7 +39,7 @@ Five things about it are load-bearing:
 
   The place columns are **`zoneId`/`zoneName`** — a row records the zone it
   was said in, and the Room or Conversation it was said in is `threadName`.
-  `channelKind` reads `summary | location | watch` (a plain
+  `channelKind` reads `summary | location | watch | intercom` (a plain
   string field, not a Prisma enum, so old rows can still say `mindlink`
   from before the Cult of Bacchus was archived).
 - **Restart Game clears the table.** `wipeGameData` deletes every
