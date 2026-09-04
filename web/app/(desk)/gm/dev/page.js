@@ -867,7 +867,7 @@ export default async function DevPanelPage({ searchParams }) {
           ) : null}
 
           {section === "assignments" ? (
-            <section className="ops-section">
+            <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Assignments</h2>
                 <p className="ops-lede">
@@ -886,7 +886,7 @@ export default async function DevPanelPage({ searchParams }) {
           ) : null}
 
           {section === "antagonists" ? (
-            <section className="ops-section">
+            <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Antagonists</h2>
                 <p className="ops-lede">

@@ -3790,6 +3790,15 @@ input[type="radio"]:disabled {
   gap: 1rem;
 }
 
+/* The cap above is for SETTINGS: a row of number inputs stretched across a
+   wide monitor is unreadable. A section whose body is a table wants the
+   opposite — the Threats tables carry eight columns and were being squeezed
+   into 46rem and then scrolled sideways, which is exactly the cramped feel
+   this modifier removes. */
+.ops-section--wide {
+  max-width: none;
+}
+
 .ops-section-head {
   display: flex;
   flex-direction: column;
