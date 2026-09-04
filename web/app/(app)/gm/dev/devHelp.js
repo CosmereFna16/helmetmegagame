@@ -63,7 +63,6 @@ export const DEPOT_HELP = {
   shuttleMaxTurns: "How many turns the shuttle sits on the pad before flying back on its own, loaded or not. ‡",
   shuttleCooldown: "Turns that must pass after it lands before it can be sent back up. ‡",
   creditCapObols: "The ceiling on the Company's credit line, in obols. ‡",
-  obolRate: "How many ⬢ one obol is worth when the Depot takes Resources in trade. ‡",
   turretTable:
     "The turret's severity odds, one column per armour tier. Each column must sum to exactly 1, and the save is refused if any does not. Severities: graze, minor-wound, deep-wound, grievous-wound, dying, dead. ‡",
 };

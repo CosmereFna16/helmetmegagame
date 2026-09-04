@@ -6,7 +6,6 @@ import { depotSendShuttle, openCrate } from "@/app/(app)/depot/actions";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
 import Tooltip from "./Tooltip";
-import { formatMoney } from "./depotMoney";
 import EmptyState from "./EmptyState";
 
 // What is on the landing pad, and the button that sends it up.
@@ -15,18 +14,18 @@ import EmptyState from "./EmptyState";
 // this panel is a VIEW of a stash, not a separate inventory. Anything here can
 // also be picked up by hand by anyone who can get into the room, which is the
 // point: a shipment sitting on the pad is a shipment that can be robbed.
-export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurnsLeft, unit }) {
+export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurnsLeft }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(null); // "send" | a crate row
   const [error, setError] = useState(null);
 
   const docked = depot.shuttleState === "DOCKED";
-  // Goods and the loose ⬢ in the stash are one pool, converted once — the
-  // same arithmetic the server does. See db/lib/depotState.js#obolsEarned.
-  const goodsResources = pad.rows.reduce((s, r) => s + (r.sellPrice ?? 0) * r.quantity, 0);
-  const poolResources = goodsResources + (pad.resources ?? 0);
-  const payout = Math.floor(poolResources / Math.max(1, depot.obolRate ?? 5));
+  // The shuttle sells GOODS. Loose ⬢ in the stash stay where they are — the
+  // Bank's ⬢ counter is marginless and always open, so there is no reason to
+  // fly them up. An obol is one ⬢, so the payout is just the goods total. The
+  // same arithmetic the server does; see the depot's sendShuttle action.
+  const payout = pad.rows.reduce((s, r) => s + (r.sellPrice ?? 0) * r.quantity, 0);
 
   function submitSend(reason) {
     startTransition(async () => {
@@ -72,7 +71,7 @@ export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurn
                 <TagChip tag={row.tag} />
                 <span className="mono">
                   ×{row.quantity}
-                  {row.sellPrice ? ` · ${formatMoney(row.sellPrice * row.quantity, depot.obolRate, unit)}` : ""}
+                  {row.sellPrice ? ` · ${row.sellPrice * row.quantity} ¢` : ""}
                 </span>
               </li>
             ))}
@@ -88,13 +87,11 @@ export default function DepotHoldTab({ pad, crates, depot, disabled, shuttleTurn
         <dl className="depot-totals">
           <div>
             <dt>Sends up as</dt>
-            <dd className="mono">
-              {poolResources} ⬢ = {payout} ¢
-            </dd>
+            <dd className="mono">{payout} ¢</dd>
           </div>
         </dl>
 
-        <Tooltip text="Everything on the pad goes up and comes back as obols. Resources convert at the station's rate and the remainder stays behind — the station does not make change. ‡">
+        <Tooltip text="Everything on the pad goes up and comes back as obols, one for every ⬢ it is worth. ‡">
           <button
             type="button"
             className="btn mt-4"

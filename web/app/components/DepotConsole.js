@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Tooltip from "./Tooltip";
-import useDepotUnit from "./useDepotUnit";
 import DepotOrderTab from "./DepotOrderTab";
 import DepotPriceListTab from "./DepotPriceListTab";
 import DepotHoldTab from "./DepotHoldTab";
@@ -93,38 +92,9 @@ function TurretStat({ armed, face }) {
   );
 }
 
-// Which currency the price columns are printed in. Display only — the counter
-// still settles in whole obols whichever way this is set, which is what the
-// tooltip has to say, because a Merchant reading 1.6 ¢ on a row needs to know
-// he cannot pay 1.6 of anything.
-function UnitToggle({ unit, setUnit }) {
-  return (
-    <Tooltip text="Which currency the price columns are shown in. The catalog is priced in Resources; obols are shown converted at the station's rate, so a row can read a fraction. Either way the counter settles in whole obols, on the total. ‡">
-      <span className="depot-unit-toggle" role="group" aria-label="Price units">
-        {[
-          { key: "res", glyph: "⬢", label: "Show prices in Resources" },
-          { key: "obol", glyph: "¢", label: "Show prices in obols" },
-        ].map((u) => (
-          <button
-            key={u.key}
-            type="button"
-            className={u.key === unit ? "depot-unit depot-unit-on" : "depot-unit"}
-            aria-pressed={u.key === unit}
-            aria-label={u.label}
-            onClick={() => setUnit(u.key)}
-          >
-            {u.glyph}
-          </button>
-        ))}
-      </span>
-    </Tooltip>
-  );
-}
-
 export default function DepotConsole(props) {
   const { depot, greetingName, readOnly, atDepot, powered } = props;
   const [tab, setTab] = useState("order");
-  const [unit, setUnit] = useDepotUnit();
 
   const shuttleTurnsLeft =
     depot.shuttleState === "DOCKED" && depot.shuttleTurn != null && props.turnNumber != null
@@ -148,8 +118,7 @@ export default function DepotConsole(props) {
             {greetingName ? `Good evening, ${greetingName}.` : "The Depot. ‡"}
           </span>
           <span className="depot-cockpit-money">
-            <UnitToggle unit={unit} setUnit={setUnit} />
-            <Tooltip text="The station's account, in obols. It is the Depot's money, not yours — hand the licence to someone else and the balance goes with it. ‡">
+            <Tooltip text="The station's account, in obols — one for every ⬢ it is worth. It is the Depot's money, not yours: hand the licence to someone else and the balance goes with it. ‡">
               <span className="depot-balance mono">{depot.accountObols} ¢</span>
             </Tooltip>
           </span>
@@ -201,7 +170,7 @@ export default function DepotConsole(props) {
 
       {/* Keyed, so switching tabs resets each one's search box and page
           number rather than carrying a stale filter across. */}
-      <Body key={tab} {...props} unit={unit} shuttleTurnsLeft={shuttleTurnsLeft} />
+      <Body key={tab} {...props} shuttleTurnsLeft={shuttleTurnsLeft} />
     </div>
   );
 }

@@ -167,7 +167,6 @@ export async function updateDepot(formData) {
       shuttleCooldown: Math.max(0, intOrZero(formData, "shuttleCooldown")),
       creditCapObols: Math.max(0, intOrZero(formData, "creditCapObols")),
       // Never zero: the ⬢-to-obol conversion divides by it.
-      obolRate: Math.max(1, intOrZero(formData, "obolRate")),
       ...(turretTable ? { turretTable } : {}),
     },
   });

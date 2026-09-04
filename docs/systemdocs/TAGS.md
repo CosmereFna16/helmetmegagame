@@ -1620,8 +1620,9 @@ equips all land against a cap of 6 (verified).
 Three things the Depot rework added to the catalog.
 
 **`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,
-`visible: false`. One obol is worth `Depot.obolRate` ⬢ (5) and only at the
-Depot; everywhere else it is a coin nobody will take. It has no `pointCost` and
+`visible: false`. One obol is worth exactly one ⬢ — it is that same value made
+physical, rather than a compression of it — and it is money only at the Depot;
+everywhere else it is a coin nobody has to take. It has no `pointCost` and
 is not purchasable — the only door it enters the world through is the Depot's
 ATM.
 

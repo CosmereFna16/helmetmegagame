@@ -248,11 +248,10 @@ enum RequestType {
   DEPOT_ATM
   DEPOT_CRATE_OPEN
   DEPOT_REFUEL
-  // ⬢ across the counter at a flat rate, both directions, no spread. The one
-  // place the Merchant converts his own Resources into money and back. Priced
-  // in whole obols so it is EXACT — N ¢ is always N × obolRate ⬢ — because a
-  // rounded conversion is a margin however small, and this counter is
-  // deliberately marginless.
+  // ⬢ across the counter, both directions, no spread. The one place the
+  // Merchant turns his own Resources into money and back. One obol IS one ⬢,
+  // so it changes the form of a value rather than the amount, and there is no
+  // rounding for a margin to hide in.
   DEPOT_EXCHANGE
 
   // One written letter, carried by a bird to a named person in a GUESSED
@@ -610,9 +609,11 @@ model Depot {
 
   // ─── Live state ───
 
-  // The account. One balance for the whole station, in obols. It is NOT on the
-  // Merchant's character on purpose: the licence is tradeable, so handing it
-  // over hands over the money too, which is what makes the card worth stealing.
+  // The account. One balance for the whole station, in obols — and an obol is
+  // one ⬢, so this compares directly against any price in the catalog. It is
+  // NOT on the Merchant's character on purpose: the licence is tradeable, so
+  // handing it over hands over the money too, which is what makes the card
+  // worth stealing.
   accountObols Int @default(0)
 
   // Drawn against the Company's line, in obols. Repaying frees the room back
@@ -655,10 +656,7 @@ model Depot {
   shuttleMaxTurns Int @default(6)
   shuttleCooldown Int @default(1)
 
-  creditCapObols Int @default(15)
-
-  // How many ⬢ one obol is worth when the Depot takes Resources in trade.
-  obolRate Int @default(5)
+  creditCapObols Int @default(75)
 
   // The turret's severity distribution, one weighted column per armour tier.
   // JSON rather than columns because a GM retuning it should not need a

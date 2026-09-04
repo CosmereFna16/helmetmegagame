@@ -114,34 +114,20 @@ async function bumpFuel(tx, amount) {
   return bumpColumn(tx, "generatorFuel", amount, { max: depot.fuelMax ?? 100 });
 }
 
-// ⬢ to obols, and the direction matters.
+// There is no ⬢-to-obol conversion, on purpose. One obol IS one ⬢.
 //
 // The catalog's depotPrice/sellablePrice stay denominated in ⬢ — they are what
 // a thing is WORTH, and that has to keep meaning the same number whether the
-// Merchant is buying it or a player is pricing it in conversation. Obols are a
-// compression of ⬢, not a replacement, so the conversion happens at the
-// counter and only there.
+// Merchant is buying it or a player is pricing it in conversation. An obol is
+// simply that same value made physical: a stackable tag you can carry, trade,
+// stash and have stolen, which a number on a character sheet never was.
 //
-// Always on the TOTAL, never per unit. Per-unit rounding would make anything
-// under one obol either free or unsellable — a lump of coal at 3 ⬢ floors to
-// zero — and ten of them would still be worth nothing. On the total, ten coal
-// is 30 ⬢ is 6 ¢, which is the answer a person would give.
-//
-// The station rounds in its own favour both ways, which is what a station
-// does: you pay the ceiling and you are paid the floor.
-function obolsToPay(resourceTotal, rate) {
-  const r = Math.max(1, rate ?? 5);
-  return Math.ceil(Math.max(0, resourceTotal) / r);
-}
-
-function obolsEarned(resourceTotal, rate) {
-  const r = Math.max(1, rate ?? 5);
-  return Math.floor(Math.max(0, resourceTotal) / r);
-}
+// A rate above 1 used to sit here, and it broke the bottom of the price table
+// — a 3 ⬢ cup of tea cost a whole 5 ⬢ coin to buy and paid nothing to sell.
+// At parity every price in the catalog is already a whole number of obols, so
+// nothing anywhere rounds and there is no margin for rounding to hide in.
 
 module.exports = {
-  obolsToPay,
-  obolsEarned,
   DEPOT_KEYCARD_SLUG,
   COAL_SLUG,
   SALTPETER_SLUG,

@@ -18,8 +18,6 @@ import {
   bumpFuel,
   depotPowered,
   creditAvailableObols,
-  obolsToPay,
-  obolsEarned,
   shipmentId,
   splitIntoCrates,
   crateTagData,
@@ -208,10 +206,9 @@ async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
     });
   }
 
-  // The catalog prices in ⬢; the account pays in obols. Converted on the
-  // total, so a cart of cheap things is not rounded to death one line at a
-  // time. See db/lib/depotState.js#obolsToPay.
-  const total = obolsToPay(totalResources, depot.obolRate);
+  // The catalog prices in ⬢ and an obol is one ⬢, so the cart total IS the
+  // price. Nothing converts and nothing rounds. See db/lib/depotState.js.
+  const total = totalResources;
   if ((depot.accountObols ?? 0) < total) {
     throw new UserError(`That order is ${total} ¢ and the account holds ${depot.accountObols ?? 0}. ‡`);
   }
@@ -347,7 +344,6 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
   // A crate going back up is worth what is inside it, not nothing — otherwise
   // an unopened shipment would be destroyed by returning it, which reads as a
   // bug however you explain it.
-  const rate = depot.obolRate ?? 5;
   let goodsResources = 0;
   const soldTags = [];
 
@@ -383,11 +379,10 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
       crate: Boolean(contents),
     });
   }
-  // Loose ⬢ in the stash stay where they are. They used to ride up and convert
-  // at a floored rate, which was a second, worse exchange rate for the same
-  // thing — and the Bank's ⬢ counter is marginless and always open. One rate,
-  // one place. The shuttle sells GOODS.
-  const payout = obolsEarned(goodsResources, rate);
+  // Loose ⬢ in the stash stay where they are. The Bank's ⬢ counter is
+  // marginless and always open, so there is no reason to move them through the
+  // shuttle instead. The shuttle sells GOODS.
+  const payout = goodsResources;
   const resourcesSpent = 0;
 
   await prisma.$transaction(async (tx) => {
@@ -597,17 +592,16 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount, reason
   return { direction, amount };
 }
 
-// ⬢ across the counter, both directions, at one flat rate with no spread.
+// ⬢ across the counter, both directions, with no spread.
 //
 // This is the Merchant's own float: he takes Resources off Ravenheart all day
 // and needs them as money, and he needs to put money back into Resources to
 // pay for things priced in ⬢. Charging himself a spread to use his own till
-// would be nonsense, so this counter is deliberately marginless — buying and
-// selling are the same number.
+// would be nonsense, so this counter is deliberately marginless.
 //
-// Denominated in WHOLE OBOLS for that reason. N ¢ is exactly N × obolRate ⬢
-// in both directions, so there is no rounding anywhere and therefore no
-// margin hiding in one. Asking in ⬢ instead would mean flooring somewhere.
+// One obol is one ⬢, so what this really does is change the FORM of a value
+// rather than its amount: a number on a character sheet becomes coins that can
+// be carried, handed over and stolen, and back again. Asking in ⬢ instead would mean flooring somewhere.
 async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, reason: rawReason }) {
   const { session, character, depot } = await requireLicensedMerchant();
   const reason = requireReason(rawReason);
@@ -616,8 +610,7 @@ async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, rea
   const obols = Number(rawObols);
   if (!Number.isInteger(obols) || obols < 1) throw new UserError("That isn't an amount. ‡");
 
-  const rate = Math.max(1, depot.obolRate ?? 5);
-  const resources = obols * rate;
+  const resources = obols;
 
   if (buying && (depot.accountObols ?? 0) < obols) {
     throw new UserError(`The account holds ${depot.accountObols ?? 0} ¢. ‡`);
@@ -642,7 +635,6 @@ async function depotExchangeImpl({ direction: rawDirection, obols: rawObols, rea
       direction: buying ? "BUY_RESOURCES" : "SELL_RESOURCES",
       obols,
       resources,
-      rate,
       balanceBefore: moved.before,
       balanceAfter: moved.after,
     };

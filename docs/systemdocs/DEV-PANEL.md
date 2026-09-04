@@ -560,7 +560,8 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 `/gm/dev?s=depot`. The Merchant's station, split into live state you can
 override (account, debt, fuel, the face the turret spares, the two switches)
 and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
-clock and cooldown, credit cap, ⬢-per-obol).
+clock and cooldown, credit cap). There is no ⬢-per-obol field: an obol is one
+⬢ and the rate is gone (`DEPOT.md` §0).
 
 The turret's severity table is edited as JSON, one weighted column per armour
 tier. **The save is refused if any column does not sum to 1** — a broken die is

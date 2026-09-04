@@ -3,7 +3,6 @@
 import { FilterBar, TableScroll, SortHeader, useTableState } from "./DataTable";
 import Pager from "./Pager";
 import TagChip from "./TagChip";
-import { formatMoney } from "./depotMoney";
 
 // The reference book: every priced tag in the game on one page, whether the
 // station stocks it, buys it back, or both.
@@ -20,8 +19,7 @@ const FILTER_DEFS = [
   { key: "side", label: "Counter", value: (r) => r.side },
 ];
 
-export default function DepotPriceListTab({ priceList, depot, unit }) {
-  const rate = depot?.obolRate ?? 5;
+export default function DepotPriceListTab({ priceList }) {
   const table = useTableState({
     rows: priceList,
     searchFields: SEARCH_FIELDS,
@@ -33,9 +31,9 @@ export default function DepotPriceListTab({ priceList, depot, unit }) {
     <section className="panel p-5">
       <h2 className="panel-header">Price List</h2>
       <p className="mt-1 text-sm text-muted">
-        {unit === "obol"
-          ? "Everything the Depot has a price for, in either direction, converted to obols at the station\u2019s rate. A row can read a fraction because the counter settles on the total rather than line by line. What you charge Ravenheart is between you and Ravenheart. \u2021"
-          : "Everything the Depot has a price for, in either direction, in \u2b22. The counter settles in obols at the station\u2019s rate, on the total rather than line by line. What you charge Ravenheart is between you and Ravenheart. \u2021"}
+        Everything the Depot has a price for, in either direction. An obol is one ⬢, so these
+        are both what the station settles at and what the thing is worth. What you charge
+        Ravenheart is between you and Ravenheart. ‡
       </p>
 
       <div className="mt-4 flex flex-col gap-3">
@@ -64,8 +62,8 @@ export default function DepotPriceListTab({ priceList, depot, unit }) {
                 <td>
                   <TagChip tag={row.tag} />
                 </td>
-                <td className="mono">{formatMoney(row.price, rate, unit) ?? "—"}</td>
-                <td className="mono">{formatMoney(row.sellPrice, rate, unit) ?? "—"}</td>
+                <td className="mono">{row.price != null ? `${row.price} ¢` : "—"}</td>
+                <td className="mono">{row.sellPrice != null ? `${row.sellPrice} ¢` : "—"}</td>
                 <td className="mono text-muted">{row.held || "—"}</td>
               </tr>
             ))}

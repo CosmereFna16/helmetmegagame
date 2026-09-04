@@ -211,7 +211,6 @@ export default async function DepotPage() {
           shuttleState: depot.shuttleState,
           shuttleTurn: depot.shuttleTurn,
           shuttleMaxTurns: depot.shuttleMaxTurns,
-          obolRate: depot.obolRate,
         }}
         greetingName={greeting}
         turnNumber={openTurn?.number ?? null}

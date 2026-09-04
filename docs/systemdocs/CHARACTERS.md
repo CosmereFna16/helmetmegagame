@@ -744,12 +744,13 @@ never deletes. See `SYNC.md`.
 ## Starting obols
 
 A few seats begin the game with coin in their pocket, so the Merchant has
-somebody to trade with on turn one: Baron 5 ¢, Hand 2 ¢, Esculap 2 ¢, and
-Baroness, Heir and Meister 1 ¢ each. The Merchant starts with 20 ¢ and a Depot
-Keycard; every Docker starts with a Keycard.
+somebody to trade with on turn one: Baron 25 ¢, Hand 10 ¢, Esculap 10 ¢, and
+Baroness, Heir and Meister 5 ¢ each. The Merchant starts with 30 ¢ and a Depot
+Keycard; every Docker starts with a Keycard. An obol is one ⬢, so those are
+also the ⬢ figures.
 
 These are authored in `docs/roles.yaml` with a **count suffix** —
-`- Obol x5` — parsed by `db/lib/startingTags.js`. A bare name still means one,
+`- Obol x25` — parsed by `db/lib/startingTags.js`. A bare name still means one,
 which is every other entry in every other role. Repeating the name five times
 could not work: `createCharacter` resolves the list with `name: { in: [...] }`,
 a set lookup that collapses duplicates.

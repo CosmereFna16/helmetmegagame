@@ -594,7 +594,6 @@ export default async function DevPanelPage({ searchParams }) {
                     value={depot.creditCapObols}
                     help={DEPOT_HELP.creditCapObols}
                   />
-                  <DepotField name="obolRate" label="⬢ per obol" value={depot.obolRate} help={DEPOT_HELP.obolRate} />
                 </div>
 
                 <div className="field">

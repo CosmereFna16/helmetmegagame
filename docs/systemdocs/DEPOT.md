@@ -29,16 +29,20 @@ Merchant's own sheet. It worked and nobody wanted to open it twice. The rework
 turned it into a machine somebody operates, and five things are now true that
 were not before.
 
-- **The money is obols (¢), not ⬢.** One obol is worth `Depot.obolRate` ⬢
-  (5 by default) and only at this counter. They are a weightless stackable tag,
-  so a fortune fits in a pocket — which is the point, because ⬢ do not.
-  **The catalog still prices in ⬢.** `depotPrice` and `sellablePrice` are what
-  a thing is *worth*, and that has to keep meaning the same number whether the
-  Merchant is buying it or a player is haggling over it. The conversion happens
-  at the counter and only there — on the **total**, never per unit, because
-  per-unit rounding makes anything under one obol either free or unsellable.
-  You pay the ceiling (`obolsToPay`) and you are paid the floor
-  (`obolsEarned`); the station rounds in its own favour both ways.
+- **The money is obols (¢), and one obol is one ⬢.** Nothing converts and
+  nothing rounds. **The catalog still prices in ⬢** — `depotPrice` and
+  `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
+  same number whether the Merchant is buying it or a player is haggling over
+  it — so every authored price is already a whole number of obols too.
+  An obol does not compress value, it makes value **physical**: a weightless
+  stackable tag holding the same amount as the number on a sheet, but one you
+  can carry, hand over, stash and have stolen.
+
+  It used to be worth 5 ⬢, and that broke the bottom of the price table. A 3 ⬢
+  cup of tea cost a whole coin to buy and paid nothing at all to sell, because
+  the station took the ceiling one way and the floor the other. Thirty-two
+  wares sold for under a coin and were therefore worth zero at the counter. The
+  rate, the two rounding helpers and the ⬢/¢ display toggle are all gone.
 - **The money belongs to the station, not the Merchant.** It lives on
   `Depot.accountObols`. The licence is tradeable, so handing it over hands over
   the balance too, and that is what makes the card worth stealing.
@@ -230,18 +234,19 @@ The Merchant is the only faucet of currency in the game.
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
-- **The ⬢ Counter** converts his own Resources to obols and back, **at one flat
-  rate with no spread**. He does not charge himself a margin to use his own
-  till. Denominated in whole obols so it is exact: N ¢ is always N × `obolRate`
-  ⬢ in both directions, and there is no rounding for a margin to hide in.
-  This replaced an earlier rule that ⬢ could only become obols by riding the
-  shuttle up — one counter, one rate.
+- **The ⬢ Counter** moves his own Resources to obols and back, one for one and
+  **with no spread**. He does not charge himself a margin to use his own till.
+  What it really changes is the *form* of a value rather than the amount: a
+  number on his sheet becomes coins, and back again. This replaced an earlier
+  rule that ⬢ could only become obols by riding the shuttle up — one counter,
+  one place.
 
 Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
-(`Obol x5`), parsed by `db/lib/startingTags.js`. Baron 5, Hand 2, Esculap 2,
-Baroness / Heir / Meister 1 each, Merchant 6 — about 30 ⬢ at the default rate.
-His float is deliberately thin: the Company's line, 15 ¢, is where the rest of
-his first order comes from, and it has to be paid back.
+(`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 30, Hand
+10, Esculap 10, Baroness / Heir / Meister 5 each — 90 ¢ across the whole cast,
+and the same buying power those grants had at the old rate. His float is
+deliberately thin: the Company's line, 75 ¢, is where the rest of his first
+order comes from, and it has to be paid back.
 
 ## 0h. The console
 
@@ -249,16 +254,11 @@ his first order comes from, and it has to be paid back.
 generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
 **Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
 
-Beside the balance sits a **⬢/¢ toggle** (`useDepotUnit.js`, persisted per
-browser; `depotMoney.js` does the formatting). It changes what the price
-columns on Order, Price List and Hold are printed in, and nothing else. Two
-things it deliberately does not do. Obol figures on a row are **exact to the
-decimal** — an 8 ⬢ ware reads 1.6 ¢ — because the station converts on the total
-and a row rounded to a whole obol would misprice a cart of ten. And the
-settlement figures never follow it: the order total, the Hold payout, the
-account and the credit line stay in whole obols in both modes, because those
-are the numbers that actually move. Sorting is unaffected, since dividing by a
-positive rate keeps the order.
+There is no ⬢/¢ toggle any more, and no need for one: an obol is one ⬢, so
+every price column reads the same number in either unit. Prices print in ¢
+throughout, whole, with no decimals anywhere — the row figure, the cart total,
+the Hold payout, the account and the credit line are all the same kind of
+number now.
 
 The strip is pinned because all four of those facts matter whichever job you
 are doing; hiding the generator behind a tab is how you order three hundred

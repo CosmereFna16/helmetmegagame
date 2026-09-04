@@ -4170,16 +4170,18 @@ tags:
     sellable: true
     sellablePrice: 1
 
-  # The Depot's currency. Weightless on purpose — the whole point of a coin is
-  # that it compresses a cartload of ⬢ into something you can carry, which is
-  # what makes the Merchant's bank worth walking to. Only he issues them and
-  # only he redeems them, so a purse of these is worth exactly as much as your
-  # ability to reach the Depot. See docs/systemdocs/DEPOT.md.
+  # The Depot's currency, and worth exactly one ⬢. It does not compress value,
+  # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick
+  # your pocket for, and these are the same amount as an object you can carry,
+  # hand over, stash and lose. Weightless, so a fortune still fits in a pocket.
+  # Only the Merchant issues them and only he redeems them, so a purse of these
+  # is worth exactly as much as your ability to reach the Depot.
+  # See docs/systemdocs/DEPOT.md.
   obol:
     name: Obol
     category: items
     group: items-gear
-    description: "Obols (¢) are worth 5 ⬢ at the merchant's depot."
+    description: "Obols (¢) are worth 1 ⬢ at the merchant’s depot. They weigh nothing, which is the whole reason to hold them. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
