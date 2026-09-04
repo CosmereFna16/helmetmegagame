@@ -6,6 +6,21 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Merchant's own till, and seven things the Depot got wrong
+
+✚ A ⬢ counter at the Depot: Resources to obols and back at one flat rate with  
+− The shuttle no longer converts loose ⬢ — one rate, one place  
+✎ An unopened crate sent back up is worth what is inside it, instead of nothing  
+✎ You can only order one of anything you can only carry one of, instead of  
+✎ Opening a crate records what actually landed, not what the crate claimed  
+✎ Undoing an order that already flew down is refused instead of refunding the  
+✎ A shuttle called between turns no longer parks itself forever  
+✎ The generator's death can actually be heard — the line was wired to the  
+✎ The shuttle landing and departing are announced, which they never were  
+✎ Arming the turret with no face on file is refused, not warned about: the cure  
+✎ Undoing a refuel no longer mints back the fuel already burned  
+✎ Tooltips and GM help text carry their ‡
+
 ## 2026-09-04 · The Merchant runs a station now, not a shop
 
 ✚ Obols (¢), a weightless coin worth 5 ⬢ at the Depot and nothing anywhere else  
