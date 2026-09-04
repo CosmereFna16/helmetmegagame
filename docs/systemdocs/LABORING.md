@@ -50,6 +50,13 @@ nothing to switch between — §4 pays the best one you qualify for.
 dial down to rebalance specialists must not quietly delete subsistence too.
 Everything else scales.
 
+The dial ships at **0.93** rather than 1 — laboring was cut about 7% before
+launch. Two things that buys less than it looks like: Basic is exempt as above,
+and Skilled's 1–4 rounds straight back to 1–4, so a small move on the dial
+reaches only the three specialisations. At 0.93 and a location coefficient of
+1.0 those become Hunting 0–17, Farming 11–15, Fishing 7–13. Moving the general
+tiers at all means editing `PRODUCTION_RATES`, where one whole point is 25%.
+
 ## 3. What a place is worth
 
 Each Location carries up to three `LocationYield` rows, one per `LaborKind`.

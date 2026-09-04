@@ -274,7 +274,7 @@ const DEFAULT_GAME_CONFIG = {
   nicknameSyncEnabled: false,
   archiveVisible: false,
   archiveTravelEvents: false,
-  productionCoefficient: 1,
+  productionCoefficient: 0.93,
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,

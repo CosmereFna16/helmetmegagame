@@ -401,8 +401,13 @@ model GameConfig {
   // PRODUCTION_RATES table — read live by the Labor checkbox
   // (db/lib/laborAccess.js). docs/documents.yaml renders its numbers through
   // live {resource:...} bubbles, so nothing needs regenerating when this
-  // changes. See docs/systemdocs/PRODUCTION.md.
-  productionCoefficient Float @default(1)
+  // changes. See docs/systemdocs/LABORING.md.
+  //
+  // Default is 0.93, not 1: laboring was brought down about 7% before launch.
+  // Note what that does NOT reach — Basic is in UNSCALED_TIERS on purpose, and
+  // Skilled's 1-4 rounds back to 1-4, so the cut lands on the three
+  // specialisations, which is where the volume is.
+  productionCoefficient Float @default(0.93)
 
   // Base point-buy budget every new character starts with, before the
   // role's own `extra_starting_points` and the Cursed penalty are applied
