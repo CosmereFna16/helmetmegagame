@@ -1,4 +1,4 @@
-import { prisma } from "@lifeweb/db";
+import { prisma, startingTagNames } from "@lifeweb/db";
 
 // The tag catalog exactly as PointBuy consumes it, shared by the creation
 // wizard's loader and /store so the two menus can never disagree about a
@@ -13,9 +13,11 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   if (extraTagIds.length) or.push({ id: { in: extraTagIds } });
   if (includeRoleStartingTags) {
     // Despite the column name, startingTagSlugs holds tag NAMES (roles.yaml
-    // `starting_tags: [Pale]`, matched by name in sync-roles and PointBuy).
+    // `starting_tags: [Pale]`, matched by name in sync-roles and PointBuy),
+    // and an entry may carry a count ("Obol x5") which has to come off before
+    // the lookup.
     const roles = await prisma.role.findMany({ select: { startingTagSlugs: true } });
-    const names = [...new Set(roles.flatMap((r) => r.startingTagSlugs))];
+    const names = [...new Set(roles.flatMap((r) => startingTagNames(r.startingTagSlugs)))];
     if (names.length) or.push({ name: { in: names } });
   }
   const tags = await prisma.tag.findMany({
@@ -52,6 +54,12 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     pointCost: t.pointCost,
     purchasable: t.purchasable,
     purchasableAfterStart: t.purchasableAfterStart,
+    // roleExcluded() reads this off the projection — drop it and Devoted
+    // Follower reappears in a Migrant's menu.
+    excludedRoleSlugs: t.excludedRoleSlugs,
+    // The whitelist half of the same gate — drop it and Mime's Vow shows
+    // up in every seat's menu.
+    onlyRoleSlugs: t.onlyRoleSlugs,
     parentTagId: t.parentTagId,
     requiredTagId: t.requiredTagId,
     requiredTag: t.requiredTag,

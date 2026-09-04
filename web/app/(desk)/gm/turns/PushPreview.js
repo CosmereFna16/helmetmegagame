@@ -26,11 +26,12 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
     }
     for (const e of stagedEffects) {
       if (e.applied) continue;
-      // A Silo -> Silo transfer has no character to group under — give each
-      // one its own bucket (keyed by its own row id) rather than piling every
-      // such row into one shared "no character" entry.
-      const id = e.targetCharacterId ?? `silo:${e.id}`;
-      const name = e.targetCharacterId ? e.targetName : "Silo transfer";
+      // A transfer with no character end (an old, pre-Silo-removal row
+      // between two factions) has nothing to group under — give each one its
+      // own bucket (keyed by its own row id) rather than piling every such
+      // row into one shared "no character" entry.
+      const id = e.targetCharacterId ?? `party:${e.id}`;
+      const name = e.targetCharacterId ? e.targetName : "Transfer";
       entry(id, name).effects.push({ id: e.id, text: effectSummary(e, tagNames) });
     }
     for (const msg of stagedMessages) {
@@ -52,7 +53,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
   const publicPosts = stagedMessages.filter((m) => m.kind === "PUBLIC" && !m.sent);
 
   return (
-    <Modal title="Push preview" width="wide" onClose={onClose}>
+    <Modal modeless title="Push preview" width="wide" onClose={onClose}>
       <p className="mt-2 text-xs text-muted">
         What goes out when the turn ends — declared payouts, staged effects, and every DM, per
         character. Open Moves not listed here close silently on their declared numbers.
@@ -62,7 +63,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
         {perCharacter.map((c) => (
           <div key={c.id} className="panel p-3">
             <p className="text-sm font-medium">
-              {c.id.startsWith("silo:") ? (
+              {c.id.startsWith("party:") ? (
                 c.name
               ) : (
                 <button type="button" className="desk-name" onClick={() => onInspect?.(c.id, c.name)}>

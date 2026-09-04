@@ -5,6 +5,7 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requests";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { placementOf } from "@lifeweb/db/lib/structures";
 import { getMyZones } from "@/lib/gmZone";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
@@ -49,7 +50,7 @@ function summarize(request) {
     case "FULFILL_DESIRE":
       return `+${e.pointsAwarded ?? 0} Tag Points — ${truncate(e.desireText, 60)}`;
     case "ADD_TAG":
-      return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢` : ""}`;
+      return `+${e.tagName ?? "tag"}${e.resourcesSpent ? ` for ${e.resourcesSpent} ⬢${e.payer?.name ? ` (${e.payer.name})` : ""}` : ""}`;
     case "BUY_TAGS":
       return `${(e.items ?? []).map((i) => i.tagName).join(", ")} for ${e.totalPoints ?? 0} Tag Points`;
     case "REMOVE_TAG":
@@ -57,7 +58,7 @@ function summarize(request) {
     case "TRANSFER_RESOURCES":
       return `${e.amount ?? 0} ⬢: ${e.from?.name ?? "?"} → ${e.to?.name ?? "?"}`;
     case "TRANSFER_TAG":
-      return `${e.tagName ?? "tag"} → ${e.toName ?? "?"}`;
+      return `${e.tagName ?? "tag"}: ${e.from?.name ?? e.fromName ?? "?"} → ${e.to?.name ?? e.toName ?? "?"}`;
     case "CONSUME_TAG":
       return `Used up ${e.tagName ?? "a tag"}${
         (e.granted ?? []).filter((g) => g.added > 0).length
@@ -93,6 +94,18 @@ function summarize(request) {
       }`;
     case "BURY_CHARACTER":
       return `Buried ${e.targetName ?? "?"} — curse lifted`;
+    case "BUTCHER_CORPSE":
+      return `Butchered ${e.corpseTagName ?? "a body"} → ${e.yieldTagName ?? "nothing"}`;
+    case "EXTRACT_GODFLESH":
+      return `Rolled ${e.die ?? "?"} — +${e.quantity ?? 0} Godflesh${
+        e.injuryTagName ? `, and ${e.injuryTagName}` : ""
+      }`;
+    case "PACKAGE_ITEMS":
+      return `Crated ${(e.contents ?? []).length} kind${(e.contents ?? []).length === 1 ? "" : "s"} — ${
+        e.innerLbs ?? 0
+      } lb → ${e.weightLbs ?? 0} lb`;
+    case "ENGRAVE_HEADSTONE":
+      return `Engraved ${e.targetName ?? "?"} — curse lifted, ${e.resourcesSpent ?? 0} ⬢`;
     case "BIRD_MESSAGE":
       return `${e.delivered ? "Wrote" : "Missed"} ${e.recipientName ?? "?"} in ${e.guessedZoneName ?? "?"}`;
     case "DEPOT_BUY":
@@ -110,6 +123,8 @@ function summarize(request) {
       const kill = e.lethal ? (e.killed ? "killed" : "NOT YET KILLED") : null;
       return [hurt ?? `Moved to finish ${e.targetName ?? "?"}`, kill].filter(Boolean).join(" · ");
     }
+    case "BUILD_STRUCTURE":
+      return `Built ${e.typeName ?? "a structure"} at ${e.locationName ?? "?"}`;
     default:
       return "";
   }
@@ -167,7 +182,6 @@ export default async function TurnsWorkspacePage({ params }) {
     members,
     myZones,
     gmProfiles,
-    factions,
     resolvedTurns,
     catatonicTagRows,
   ] = await Promise.all([
@@ -254,14 +268,6 @@ export default async function TurnsWorkspacePage({ params }) {
     // Moves are fetched on demand by getMoveHistory when a GM actually
     // opens the lens, so the open turn's desk never pays for history it
     // isn't looking at (and neither does the 45s router.refresh()).
-    // The transfer composer's Silo picker. Unaffiliated has no Silo worth
-    // moving ⬢ into or out of — same exclusion db/lib/parties.js#resolveParty
-    // applies.
-    prisma.faction.findMany({
-      where: { name: { not: "Unaffiliated" } },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, silo: true },
-    }),
     prisma.turn.findMany({
       where: { status: "RESOLVED" },
       orderBy: { number: "desc" },
@@ -285,7 +291,37 @@ export default async function TurnsWorkspacePage({ params }) {
   const catatonicIds = new Set(catatonicTagRows.map((row) => row.characterId));
 
   const tagsById = tagsByIdFor(actions);
-  const moves = actions.map((a) => moveRow(a, { usernameById, now }));
+
+  // Every structure standing at a Move filer's Location, loaded in ONE bulk
+  // query rather than one per row (mirrors db/lib/structures.js#structuresAt's
+  // two-query-joined-in-JS shape, just widened to every locationId on the
+  // queue at once), then grouped so moveRow can hand each row its own slice.
+  const moveLocationIds = [...new Set(actions.map((a) => a.character.locationId).filter(Boolean))];
+  const structureRows = moveLocationIds.length
+    ? await prisma.structure.findMany({
+        where: { locationId: { in: moveLocationIds } },
+        // The id tiebreaker keeps two same-instant rows in one stable order,
+        // matching structuresAt.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      })
+    : [];
+  const structureTypeSlugs = [...new Set(structureRows.map((s) => s.typeSlug))];
+  const structureTypes = structureTypeSlugs.length
+    ? await prisma.tag.findMany({
+        where: { slug: { in: structureTypeSlugs } },
+        select: { slug: true, placement: true },
+      })
+    : [];
+  const structureTypeBySlug = new Map(structureTypes.map((t) => [t.slug, t]));
+  const structuresByLocationId = new Map();
+  for (const row of structureRows) {
+    const type = structureTypeBySlug.get(row.typeSlug) ?? null;
+    const list = structuresByLocationId.get(row.locationId) ?? [];
+    list.push({ ...row, placement: type ? placementOf(type) : null });
+    structuresByLocationId.set(row.locationId, list);
+  }
+
+  const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
 
   const requestRows = requests.map((r) => ({
     id: r.id,
@@ -363,6 +399,8 @@ export default async function TurnsWorkspacePage({ params }) {
       ]);
       initialHistory = {
         turnId: past.turnId,
+        // No structuresByLocationId, deliberately: a past Move under today's
+        // ground would lie, and the history desk shows no Standing-here line.
         move: moveRow(past, { usernameById, now }),
         effects: pastEffects.map((e) => stagedEffectRow(e, effectCtx)),
         messages: pastMessages.map((m) => stagedMessageRow(m, messageCtx)),
@@ -402,8 +440,19 @@ export default async function TurnsWorkspacePage({ params }) {
   // History lens can list the open turn in its Turn dropdown alongside them
   // with no second formatting rule to keep in sync (Workspace.js only appends
   // the "· open" suffix).
+  // `endsAtMs` rides along so the desk's push countdown can tick against the
+  // same turnClock derivation everything else uses, instead of the header
+  // re-deriving the cron's boundary hours in the browser (it did, and held the
+  // old two-a-day rule). Present even when there is no Move lock — a short
+  // manual turn still ends at a real time.
   const openTurnDto = openTurn
-    ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase, label: turnLabel(openTurn) }
+    ? {
+        id: openTurn.id,
+        number: openTurn.number,
+        phase: openTurn.phase,
+        label: turnLabel(openTurn),
+        endsAtMs: window_?.endsAt ? window_.endsAt.getTime() : null,
+      }
     : null;
 
   return (
@@ -427,7 +476,6 @@ export default async function TurnsWorkspacePage({ params }) {
       }))}
       presenceZones={presenceZones}
       stagingLocations={locationRows}
-      factions={factions}
       moves={moves}
       requests={requestRows}
       cavingRolls={cavingRows}

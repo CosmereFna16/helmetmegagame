@@ -1,5 +1,4 @@
 import BioForm from "./BioForm";
-import DefaultEffortPanel from "./DefaultEffortPanel";
 import GoalsPanel from "./GoalsPanel";
 import StatusPanel from "./StatusPanel";
 import RequestActionsProvider from "./RequestActionsProvider";
@@ -36,8 +35,13 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferParties,
+  transferSilo,
+  carry = null,
+  zoneMoves = null,
+  zoneMovesReason = null,
+  examineBlocked = null,
+  hasWorkshop = false,
   tagCatalog,
-  otherCharacters,
   desireSlots = 2,
   desireSlotLockTurns = 2,
   desireSlotStates = [],
@@ -48,8 +52,27 @@ export default function CharacterSheet({
   desireAddiction = null,
   desiresEnabled = true,
   canHeal = false,
+  healsLeft = null,
+  // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
+  hasMoved = false,
+  canTeach = false,
+  knownRecipeIds = [],
+  craftProjects = [],
+  // Building (db/lib/structures.js): what stands at this Location, and
+  // whether the ground takes anything new. Both built in character/page.js.
+  sitesHere = [],
+  buildable = false,
+  teachers = [],
+  learners = [],
+  pendingOffers = [],
   hasBird = false,
-  isLiterate = false,
+  canRead = false,
+  canWrite = false,
+  hasSeal = false,
+  canSeal = false,
+  paperOptions = [],
+  letterOptions = [],
+  sealOptions = { stamps: [], letters: [] },
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
@@ -58,6 +81,12 @@ export default function CharacterSheet({
   // Everyone and everything in this character's zone worth acting on, built
   // once in character/page.js so the Actions dialogs can't disagree about who
   // is standing here. Empty on someone else's sheet.
+  corpses = [],
+  canButcher = false,
+  canSeeExtract = false,
+  canExtract = false,
+  extractBlocked = null,
+  canSeePackage = false,
   lootTargets = [],
   moveTargets = [],
   moveLocations = [],
@@ -70,11 +99,17 @@ export default function CharacterSheet({
   portraitFantasyPartsEnabled = false,
   portraitSelection = null,
   hasCustomAvatar = false,
+  // { name, tagName } while a held tag fixes the character's presented name
+  // and face (Tag.forcedName); null otherwise. Self sheet only.
+  forcedIdentity = null,
   lastNameLocked = false,
   // The mid-game Store, folded into the Tags panel as a modal (see
   // TagsPanel.js / StorePanel.js). Absent on someone else's sheet.
   storeTags = null,
   storeHeldTags = null,
+  // The seat, so the store's shelf can drop a tag this role may never buy
+  // (Tag.excludedRoleSlugs). Null on someone else's sheet, like the two above.
+  storeRoleSlug = null,
 }) {
   const isSelf = mode === "self";
 
@@ -114,25 +149,59 @@ export default function CharacterSheet({
             catalog={tagCatalog ?? []}
             characterTags={character.tags}
             resources={character.resources}
-            otherCharacters={otherCharacters ?? []}
             transferParties={transferParties}
+            transferSilo={transferSilo}
+            carry={carry}
+            hasWorkshop={hasWorkshop}
             canHeal={canHeal}
+            healsLeft={healsLeft}
+            hasMoved={hasMoved}
+            canTeach={canTeach}
+            knownRecipeIds={knownRecipeIds}
+            craftProjects={craftProjects}
+            sitesHere={sitesHere}
+            buildable={buildable}
+            teachers={teachers}
+            learners={learners}
             hasBird={hasBird}
-            isLiterate={isLiterate}
+            canRead={canRead}
+            canWrite={canWrite}
+            hasSeal={hasSeal}
+            canSeal={canSeal}
+            paperOptions={paperOptions}
+            letterOptions={letterOptions}
+            sealOptions={sealOptions}
             birdSentToday={birdSentToday}
             birdTargets={birdTargets}
             birdZones={birdZones}
             healTargets={healTargets}
             healParties={healParties}
+            corpses={corpses}
+            canButcher={canButcher}
+            canSeeExtract={canSeeExtract}
+            canExtract={canExtract}
+            extractBlocked={extractBlocked}
+            canSeePackage={canSeePackage}
             lootTargets={lootTargets}
             moveTargets={moveTargets}
             moveLocations={moveLocations}
             bindTargets={bindTargets}
             harmTargets={harmTargets}
             harmTags={harmTags}
+            examineBlocked={examineBlocked}
           >
             <div className="flex flex-col gap-6">
-              <StatusPanel character={character} isSelf={isSelf} currentAction={currentAction} openTurn={openTurn} />
+              <StatusPanel
+                character={character}
+                isSelf={isSelf}
+                currentAction={currentAction}
+                openTurn={openTurn}
+                carry={carry}
+                zoneMoves={zoneMoves}
+                zoneMovesReason={zoneMovesReason}
+                pendingOffers={pendingOffers}
+                sitesHere={sitesHere}
+              />
 
               <TagsPanel
                 characterTags={character.tags}
@@ -142,6 +211,7 @@ export default function CharacterSheet({
                 equipSlots={equipSlots}
                 storeTags={storeTags}
                 storeHeldTags={storeHeldTags}
+                storeRoleSlug={storeRoleSlug}
               />
             </div>
           </RequestActionsProvider>
@@ -161,14 +231,6 @@ export default function CharacterSheet({
             />
 
           )}
-
-          {isSelf && (
-            <DefaultEffortPanel
-              characterId={character.id}
-              defaultEffort={character.defaultEffort ?? null}
-              zone={character.zone ?? null}
-            />
-          )}
         </div>
 
         <div className="flex flex-col gap-6 md:sticky md:top-4">
@@ -183,6 +245,7 @@ export default function CharacterSheet({
                 portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
                 portraitSelection={portraitSelection}
                 hasCustomAvatar={hasCustomAvatar}
+                forcedIdentity={forcedIdentity}
               />
             </section>
           )}

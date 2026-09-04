@@ -5,7 +5,6 @@ const {
   TextInputStyle,
   TextDisplayBuilder,
   RadioGroupBuilder,
-  CheckboxBuilder,
 } = require("discord.js");
 
 // The whole Move, in one popup. Replaces the old flow entirely: a message in
@@ -15,9 +14,9 @@ const {
 // itself in the moment before deletion) and cost four round trips.
 //
 // This is the repo's first modal. It needs discord.js >= 14.27 for the
-// component types below: Label (18) wrapping a TextInput (4), a RadioGroup
-// (21) and a Checkbox (23), plus a bare TextDisplay (10) for the `-#` line.
-// Older builders will silently produce a payload Discord rejects.
+// component types below: Label (18) wrapping a TextInput (4) and a RadioGroup
+// (21), plus a bare TextDisplay (10) for the `-#` line. Older builders will
+// silently produce a payload Discord rejects.
 //
 // A modal must be shown within 3 seconds of the interaction and CANNOT be
 // deferred first, so nothing here reads the database — the gates all run on
@@ -27,10 +26,14 @@ const MOVE_MODAL_ID = "move:new";
 
 // Label.description caps at 100 characters, which the full guidance line
 // overruns, so it lives in the TextDisplay below instead.
+// Labor is on the same radio group as Routine and Gambit because it is the
+// same slot: a turn buys one of the three, and choosing to work is choosing
+// not to act. Filing nothing at all picks Labor for you (db/lib/autoLaborPass.js).
 const MOVE_HELP =
   "-# Describe what you're hoping to accomplish — in the broadest sense, the ideal outcome, your intent. " +
   "Mention relevant tags or circumstances that the GMs should consider. " +
-  "Careful! This can't be changed or canceled.";
+  "Labor needs no arbitration: it pays your best Laboring skill for where you're standing. " +
+  "Careful! This can't be changed or canceled. ‡";
 
 function buildMoveModal() {
   return new ModalBuilder()
@@ -55,12 +58,9 @@ function buildMoveModal() {
             .addOptions(
               { label: "Routine", value: "ROUTINE", description: "Easy — it resolves itself." },
               { label: "Gambit", value: "GAMBIT", description: "Could go either way — rolls a die." },
+              { label: "Labor", value: "LABOR", description: "Work the day. Your best skill, where you stand." },
             ),
         ),
-      new LabelBuilder()
-        .setLabel("Labor")
-        .setDescription("Auto-applies your skills, but consumes your turn without doing anything else.")
-        .setCheckboxComponent(new CheckboxBuilder().setCustomId("move:labor")),
     )
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(MOVE_HELP));
 }

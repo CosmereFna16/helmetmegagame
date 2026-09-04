@@ -12,6 +12,7 @@ import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import QuantityField from "@/app/components/QuantityField";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
 // one target or many at once (the "Explosion Burns ×4 players" case — one
@@ -234,13 +235,11 @@ export default function EffectComposer({
     return (
       <>
         {tag.stackable && (
-          <input
-            type="number"
-            min="1"
-            className="desk-qty"
+          <QuantityField
+            inline
+            ariaLabel="Quantity to add ‡"
             value={draft ?? "1"}
-            onChange={(e) => setAddQtyDrafts((prev) => new Map(prev).set(tag.id, e.target.value))}
-            aria-label="Quantity to add"
+            onChange={(v) => setAddQtyDrafts((prev) => new Map(prev).set(tag.id, v))}
           />
         )}
         <button type="button" className="btn-quiet" onClick={() => stageOp(tag.id, "add", qty)}>
@@ -312,6 +311,7 @@ export default function EffectComposer({
 
   return (
     <Modal
+      modeless
       title={existing ? "Edit staged effect" : "Stage an effect"}
       onClose={() => !pending && guardedClose(onCancel)}
       width="widest"
@@ -442,20 +442,25 @@ export default function EffectComposer({
                 <span className="mono">{op.op === "add" ? "+" : "−"}</span>
                 {tag ? <TagChip tag={tag} /> : <span>Unknown tag</span>}
                 {tag?.stackable && (
-                  <input
-                    type="number"
-                    min="1"
-                    className="desk-qty"
-                    value={quantityDrafts.has(op.tagId) ? quantityDrafts.get(op.tagId) : (op.quantity ?? "")}
-                    placeholder={op.op !== "add" && op.quantity == null ? "all" : undefined}
-                    onChange={(e) => {
-                      setQuantityDrafts((prev) => new Map(prev).set(op.tagId, e.target.value));
+                  /* A remove reads a BLANK box as "the whole holding", so this
+                     one allows blank — see commitQuantity above. An add has no
+                     whole holding to mean, so it doesn't. */
+                  <QuantityField
+                    inline
+                    allowBlank={op.op !== "add"}
+                    ariaLabel={
+                      op.op === "add" ? "Quantity ‡" : "Quantity — blank means the whole holding ‡"
+                    }
+                    value={
+                      quantityDrafts.has(op.tagId)
+                        ? quantityDrafts.get(op.tagId)
+                        : String(op.quantity ?? "")
+                    }
+                    onChange={(v) => {
+                      setQuantityDrafts((prev) => new Map(prev).set(op.tagId, v));
                       markDirty();
                     }}
-                    onBlur={(e) => commitQuantity(op.tagId, e.target.value)}
-                    aria-label={
-                      op.op === "add" ? "Quantity" : "Quantity — blank means the whole holding"
-                    }
+                    onCommit={(v) => commitQuantity(op.tagId, v)}
                   />
                 )}
                 <button

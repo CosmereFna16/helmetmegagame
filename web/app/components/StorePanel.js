@@ -15,7 +15,7 @@ import { buyTags } from "@/app/(app)/store/actions";
 // PointBuy. Mounts as the body of a Modal opened from the Tags panel of the
 // character sheet, so a shopping trip never leaves the sheet. `onDone` closes
 // that modal after a successful purchase (web/app/(app)/store/actions.js).
-export default function StorePanel({ tags, budget, heldTags, onDone }) {
+export default function StorePanel({ tags, budget, heldTags, roleSlug = null, onDone }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -53,17 +53,23 @@ export default function StorePanel({ tags, budget, heldTags, onDone }) {
     });
   };
 
-  // No negativeCap/negativeHeld: the drawback cap is a CHARACTER CREATION
-  // rule (TAGS.md §4a) and stops existing once play starts — the Addictions
-  // are deliberately purchasableAfterStart, so a cap the store neither
-  // enforces nor can move is noise on the shelf. PointBuy renders nothing at
-  // all for a null cap.
+  // None of the four drawback props — negativeCap/negativeHeld or
+  // negativePointCap/negativePointsHeld. BOTH ceilings are CHARACTER CREATION
+  // rules (TAGS.md §4a) and stop existing once play starts: the Addictions are
+  // deliberately purchasableAfterStart, so a limit the store neither enforces
+  // nor can move is noise on the shelf. PointBuy renders nothing at all for a
+  // null cap, so the build pane here shows the budget and nothing else.
+  //
+  // Deliberate, not an oversight — a character can still trade suffering for
+  // points mid-game. It is not a farm, because a drawback the store pays for
+  // must be one that can never be handed back (see buyTags).
   return (
     <PointBuy
       tags={tags}
       budget={budget}
       grantedTags={heldTags}
       afterStartOnly
+      roleSlug={roleSlug}
       selectedIds={selectedIds}
       onChange={setSelectedIds}
       actions={

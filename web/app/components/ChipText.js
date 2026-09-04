@@ -2,12 +2,11 @@
 
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
-import { usePartySizes } from "./PartySizeProvider";
+import { useCarryReference } from "./CarryProvider";
 import { useDocuments } from "./DocumentsProvider";
 import ChipLabel from "./ChipLabel";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
-import PartySizeChip from "./PartySizeChip";
 import { splitTokens } from "./richTokens";
 
 // RichText's quiet twin: same {tag:…} / {resource:…} tokens, but a tag
@@ -28,7 +27,7 @@ import { splitTokens } from "./richTokens";
 export default function ChipText({ text, as: Wrapper = "span", className, inTooltip = false }) {
   const { tagsById, tagsBySlug } = useTags();
   const { rates } = useProductionRates();
-  const { sizes } = usePartySizes();
+  const { lines: carryLines } = useCarryReference();
   const { docsByKey } = useDocuments();
 
   if (!text) return null;
@@ -54,11 +53,8 @@ export default function ChipText({ text, as: Wrapper = "span", className, inTool
       return <ResourceChip key={`r-${i}`} value={rate.display} />;
     }
 
-    if (part.kind === "partysize") {
-      const size = sizes[part.payload.trim()];
-      if (!size) return part.raw;
-      return <PartySizeChip key={`p-${i}`} value={size.display} />;
-    }
+    // Plain text either way — a carry sentence has nothing to hover.
+    if (part.kind === "carry") return carryLines[part.payload.trim()] ?? part.raw;
 
     // Always the flat face, never DocumentChip: this renderer exists for text
     // inside a tooltip or a <button>, and a document chip is a link. A link

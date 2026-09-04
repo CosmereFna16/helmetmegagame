@@ -29,6 +29,8 @@ const BEHAVIOUR_FIELDS = [
   ["consumable", "Consumable"],
   ["removable", "Player can drop it"],
   ["tradeable", "Tradeable (can be handed over, or looted off a body)"],
+  ["healable", "Healable (a cure exists — Heal lists it) ‡"],
+  ["teachable", "Teachable (Learn and Teach can move it) ‡"],
 ];
 
 const ECONOMY_FLAGS = [
@@ -54,6 +56,8 @@ export const BLANK_TAG = {
   consumable: false,
   removable: false,
   tradeable: false,
+  healable: false,
+  teachable: false,
   purchasable: false,
   purchasableAfterStart: false,
   sellable: false,

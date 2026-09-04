@@ -1,5 +1,6 @@
-const { concealedAlias } = require("@lifeweb/db");
+const { concealedAlias, withArticle, capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
+const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 
 // Every 15 minutes, each Room hears who has been whispering in the
 // Conversations linked to it — "A young man and an old woman are whispering…"
@@ -18,14 +19,6 @@ const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const WINDOW_MINUTES = 15;
 // Past this many, the line stops being informative and starts being a wall.
 const MAX_NAMED = 5;
-
-function withArticle(word) {
-  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
-}
-
-function capitalizeFirst(text) {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
 
 // Oxford comma throughout, and a hard stop at MAX_NAMED so a crowded thread
 // reads as a crowd instead of a roster.
@@ -87,7 +80,7 @@ async function runWhisperPoll(prisma) {
       withArticle(concealedAlias(speakers.get(id) ?? {}).toLowerCase()),
     );
     const verb = speakerIds.length === 1 ? "is" : "are";
-    const line = `*${capitalizeFirst(joinAliases(aliases))} ${verb} whispering…* ‡`;
+    const line = ambientLine(`${capitalizeFirst(joinAliases(aliases))} ${verb} whispering…`);
 
     // Sequential and catch-logged: one unreachable room must not stop the
     // rest of the tick, and a burst of parallel posts is what trips the

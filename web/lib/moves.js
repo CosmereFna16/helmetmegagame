@@ -26,7 +26,17 @@ export const MOVE_REVIEW_LABELS = {
 const MOVE_KIND_LABELS = {
   ROUTINE: "Routine",
   GAMBIT: "Gambit",
+  LABOR: "Labor",
 };
+
+// A Move the auto-labor pass filed for someone who submitted nothing
+// (db/lib/autoLaborPass.js). Same shape as AUTO_ZONE_CHANGE below: a gmNotes
+// marker no GM ever types.
+export const AUTO_LABOR = "auto:labor";
+
+export function isAutoLabor(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_LABOR);
+}
 
 // A gmNotes marker a GM never types themselves — stamped by
 // db/lib/locationTravel.js to identify a Move the desk generated rather than
@@ -53,6 +63,9 @@ export const MOVE_REVIEW_TONES = {
 
 export function moveKindLabel(moveKind, gmNotes) {
   if (isTravelMove(gmNotes)) return "Travel";
+  // Worth distinguishing on the desk: an auto-labored turn is a player who
+  // wasn't there, not a player who chose to work.
+  if (isAutoLabor(gmNotes)) return "Labor (auto)";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 

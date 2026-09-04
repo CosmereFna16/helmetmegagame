@@ -15,26 +15,37 @@ const { PrismaClient, Prisma } = require("@prisma/client");
 const { rollWeather, buildTurnAnnouncement } = require("./weather");
 const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
 const { expiryFrom } = require("./lib/turnFormat");
+const { runCorpseRotPass } = require("./lib/corpseRotPass");
+const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
+const { runCarryPass } = require("./lib/carryPass");
+const { runDepotPass } = require("./lib/depotPass");
+const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
+const { ambientLine } = require("./lib/ambientLine");
+const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
+const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
 const { runCavingPass } = require("./lib/cavingPass");
-const { runDefaultMovePass } = require("./lib/defaultMovePass");
+const { runAutoLaborPass } = require("./lib/autoLaborPass");
+const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
+const { runLessonPass } = require("./lib/lessonPass");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
+const { loadForcedName } = require("./lib/presentedIdentity");
 const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole, deleteGuildRole, addMemberRole, getGuildMember, setGuildNickname } = require("./lib/discordRest");
-const { bumpBlood } = require("./lib/lifeweb");
+const { bumpBlood, LIFEWEB_SPUTTER_THRESHOLD } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
@@ -51,7 +62,7 @@ const globalForPrisma = globalThis;
 // module into two separate chunks/registries in the web build, and gating
 // the cache meant two PrismaClients per container. transactionOptions raises
 // Prisma's defaults (2s/5s) because the per-character transactions in
-// db/lib/defaultMovePass.js compete for pool slots at turn rollover.
+// db/lib/autoLaborPass.js compete for pool slots at turn rollover.
 const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -83,13 +94,15 @@ attachBreakerStore({
   write: (data) => prisma.gameConfig.updateMany({ where: { id: 1 }, data }),
 });
 
-const LIFEWEB_SPUTTER_THRESHOLD = 20;
+
 
 // The stackable half of resolveNeeds()' expiry sweep: each expired stack
 // loses one unit and the remainder's clock restarts from the tag's catalog
 // duration, so a stack sheds one unit at a time rather than all at once.
-async function sweepExpiredStacks(turn) {
-  const expired = await prisma.characterTag.findMany({
+// `model` is "characterTag" or "roomTag": a stack lying in a Room sheds
+// exactly the way one in a pocket does (docs/systemdocs/CARRY.md).
+async function sweepExpiredStacks(turn, model = "characterTag") {
+  const expired = await prisma[model].findMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: true } },
     select: { id: true, quantity: true, tag: { select: { defaultDurationTurns: true } } },
   });
@@ -109,11 +122,11 @@ async function sweepExpiredStacks(turn) {
   }
 
   await prisma.$transaction([
-    ...(spent.length ? [prisma.characterTag.deleteMany({ where: { id: { in: spent } } })] : []),
+    ...(spent.length ? [prisma[model].deleteMany({ where: { id: { in: spent } } })] : []),
     // decrement, not a computed literal, so a concurrent grant on the same
     // row can't be clobbered between the read above and this write.
     ...[...rescheduled].map(([expiresTurn, ids]) =>
-      prisma.characterTag.updateMany({
+      prisma[model].updateMany({
         where: { id: { in: ids } },
         data: { quantity: { decrement: 1 }, expiresTurn },
       }),
@@ -125,16 +138,45 @@ async function sweepExpiredStacks(turn) {
 // cron advance and the GM dashboard's manual close-turn. Returns Discord work
 // (posts/DMs) for the caller's runSideEffects() rather than sending it here.
 const TURN_PASSES = [
-  "defaultMoves",
+  "autoLabor",
+  "lessons",
   "stagedPush",
   "tagExpiry",
+  // Counts Damaged Vision stacks and turns 5 of them into Blind. After
+  // tagExpiry so a stack that grew this turn is counted, before the sweep so
+  // the rows it deletes are its own. See db/lib/visionDecayPass.js.
+  "visionDecay",
   "dyingDeath",
+  // Corpses turn before the sweep, and the order is load-bearing: the sweep
+  // is a blind deleteMany over expiresTurn, so a body that reached its clock
+  // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
+  "corpseRot",
   "expirySweep",
+  // After the sweep, and it has nothing to do with it: a notice is on a board
+  // rather than on a sheet, so nothing above can see one.
+  "noticeboard",
   "catatonic",
   "catatonicDeath",
   "bird",
   "hunger",
+  "carry",
+  // After "carry", because the overflow drop can put a corpse on a floor.
+  // Pull-based, so it just re-reads where every body's tag ended up.
+  "corpseFollow",
+  // The map's own weather. Late on purpose: it must land AFTER "autoLabor" so
+  // a day is paid at the coefficients that were live during it, and what this
+  // writes is what the next turn's labor is worth.
+  "laborYield",
   "lifewebDecay",
+  // The Depot's hardware: the generator burns a turn of fuel, the shuttle's
+  // six-turn clock runs out, and the turret sweeps whoever is standing in the
+  // room. Last, so the turret fires on the sheet everything else left behind —
+  // in particular the armour the carry pass may have made someone drop.
+  "depot",
+  // The Gatehouse gun, for the same reason and in the same breath. Separate
+  // from "depot" so a failed Depot pass cannot swallow it, and so a resume
+  // re-runs exactly the one that did not finish.
+  "gatehouseTurret",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -169,27 +211,47 @@ async function resolveNeeds(turn, config) {
       .catch((logErr) => console.error("Failed to log turn_pass_failed — this failure now has no record:", logErr));
   }
 
-  // Default Moves first: income has to land before Hunger's upkeep charge,
-  // and it must run while the turn is still the one being closed.
-  let defaults = null;
-  if (!done.has("defaultMoves")) {
-    defaults = await runDefaultMovePass(prisma, turn).catch(async (err) => {
-      await passFailed("Default Move", err);
+  // Auto-labor first: income has to land before Hunger's upkeep charge, and it
+  // must run while the turn is still the one being closed. It also has to run
+  // BEFORE the yield drift pass below, so a day's payouts use the coefficients
+  // that were live during that day.
+  let autoLabor = null;
+  if (!done.has("autoLabor")) {
+    autoLabor = await runAutoLaborPass(prisma, turn).catch(async (err) => {
+      await passFailed("Auto-labor", err);
       return null;
     });
-    if (defaults) await markDone("defaultMoves");
+    if (autoLabor) await markDone("autoLabor");
   }
-  const { posts: defaultMovePosts = [], dms: defaultMoveDms = [], ...defaultSummary } = defaults ?? {};
-  if (defaults?.filed) {
+  const { dms: autoLaborDms = [], ...autoLaborSummary } = autoLabor ?? {};
+  if (autoLabor?.filed) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "default_moves_resolved", details: defaultSummary },
+        data: { actorDiscordUserId: "system", actionType: "auto_labor_resolved", details: autoLaborSummary },
       })
-      .catch((err) => console.error("Default Move audit log failed:", err));
+      .catch((err) => console.error("Auto-labor audit log failed:", err));
+  }
+
+  // Lessons (db/lib/lessonPass.js): the learner's Gambit is SOLVED here,
+  // before the push closes it, and PENDING offers expire. After autoLabor
+  // only so a learner who never accepted still worked their day.
+  let lessons = null;
+  if (!done.has("lessons")) {
+    lessons = await runLessonPass(prisma, turn).catch(async (err) => {
+      await passFailed("Lessons", err);
+      return null;
+    });
+    if (lessons) await markDone("lessons");
+  }
+  const { dms: lessonDms = [], ...lessonSummary } = lessons ?? {};
+  if (lessons && (lessons.resolved || lessons.expired || lessons.failed)) {
+    await prisma.auditLog
+      .create({ data: { actorDiscordUserId: "system", actionType: "lessons_resolved", details: lessonSummary } })
+      .catch((err) => console.error("Lessons audit log failed:", err));
   }
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
-  // load-bearing: after defaultMoves (which stamps appliedEffects), before
+  // load-bearing: after autoLabor (which stamps appliedEffects), before
   // tagExpiry/expirySweep (a staged grant/cure must land first), and before
   // hunger (deferred Routine/Labor income must land before upkeep).
   let stagedPush = null;
@@ -248,6 +310,29 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Tag expiry audit log failed:", err));
   }
 
+  // Moonshine's slow bill. Rides the tagExpiry DM channel rather than
+  // threading a variable of its own through runSideEffects — it is the same
+  // kind of notice, "a tag on your sheet became a different tag".
+  let visionDecay = null;
+  if (!done.has("visionDecay")) {
+    visionDecay = await runVisionDecayPass(prisma, turn).catch(async (err) => {
+      await passFailed("Vision decay", err);
+      return null;
+    });
+    if (visionDecay) await markDone("visionDecay");
+  }
+  if (visionDecay) {
+    tagExpiryDms.push(...(visionDecay.dms ?? []));
+    if (visionDecay.blinded > 0) {
+      const { dms: _visionDms, ...visionSummary } = visionDecay;
+      await prisma.auditLog
+        .create({
+          data: { actorDiscordUserId: "system", actionType: "vision_decay_resolved", details: visionSummary },
+        })
+        .catch((err) => console.error("Vision decay audit log failed:", err));
+    }
+  }
+
   // Dying death — the engine's second auto-kill, run down from the Dying
   // tag's one-turn clock. After stagedPush/tagExpiry, before the sweep.
   // See db/lib/dyingDeathPass.js.
@@ -291,15 +376,68 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Bird audit log failed:", err));
   }
 
+  // Bodies turn. Must precede the sweep below — see db/lib/corpseRotPass.js.
+  if (!done.has("corpseRot")) {
+    const rot = await runCorpseRotPass(prisma, turn).catch(async (err) => {
+      await passFailed("Corpse rot", err);
+      return null;
+    });
+    if (rot) {
+      await markDone("corpseRot");
+      if (rot.rotted > 0) {
+        await prisma.auditLog
+          .create({
+            data: { actorDiscordUserId: "system", actionType: "corpses_rotted", details: rot },
+          })
+          .catch((err) => console.error("Corpse rot audit log failed:", err));
+      }
+    }
+  }
+
   if (!done.has("expirySweep")) {
     try {
       await prisma.characterTag.deleteMany({
         where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
       });
       await sweepExpiredStacks(turn);
+      // A stashed tag sheds on the same clock. The one progression that
+      // reaches a floor is the corpse rot above, which has already nulled
+      // expiresTurn on anything it turned, so this cannot see it.
+      await prisma.roomTag.deleteMany({
+        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
+      });
+      await sweepExpiredStacks(turn, "roomTag");
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);
+    }
+  }
+
+  // Noticeboards. A paper nobody took down blows away, and it takes the paper
+  // with it — that is what expiring MEANS here, and it is why a notice is
+  // worth tearing down rather than leaving. See docs/systemdocs/PAPERWORK.md.
+  //
+  // The Tag row goes too. Nothing else can reference it (NoticePost.tagId is
+  // @unique, and the paper left its holder's sheet when it went up), so
+  // leaving it would be an orphan waiting for the next Restart Game — which
+  // is exactly the accumulation Tag.ephemeral was added to stop.
+  if (!done.has("noticeboard")) {
+    try {
+      const blown = await prisma.noticePost.findMany({
+        where: { expiresTurn: { lte: turn.number } },
+        select: { id: true, tagId: true },
+      });
+      if (blown.length > 0) {
+        const ids = blown.map((p) => p.id);
+        const tagIds = blown.map((p) => p.tagId);
+        await prisma.noticePost.deleteMany({ where: { id: { in: ids } } });
+        // Only the runtime paper rows, never a catalog tag that somehow found
+        // its way onto a board — `ephemeral` is the whole guard.
+        await prisma.tag.deleteMany({ where: { id: { in: tagIds }, ephemeral: true } });
+      }
+      await markDone("noticeboard");
+    } catch (err) {
+      await passFailed("Noticeboards", err);
     }
   }
 
@@ -368,6 +506,68 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
 
+  // Carry caps: Overburdened on and off, and overflow drops for anyone whose
+  // Cart or Pack Mule left during the turn. After hunger so it sees the
+  // final sheet. See db/lib/carryPass.js, CARRY.md.
+  let carry = null;
+  if (!done.has("carry")) {
+    carry = await runCarryPass(prisma, turn).catch(async (err) => {
+      await passFailed("Carry", err);
+      return null;
+    });
+    if (carry) await markDone("carry");
+  }
+  const { drops: carryDrops = [], ...carrySummary } = carry ?? {};
+  if (carry) {
+    await prisma.auditLog
+      .create({
+        data: { actorDiscordUserId: "system", actionType: "carry_resolved", details: carrySummary },
+      })
+      .catch((err) => console.error("Carry audit log failed:", err));
+  }
+
+  // Every dead sheet catches up with wherever its corpse ended up. Last of
+  // the inventory-shaped passes, so it sees the carry drop above.
+  if (!done.has("corpseFollow")) {
+    const followed = await reconcileCorpses(prisma).catch(async (err) => {
+      await passFailed("Corpse follow", err);
+      return null;
+    });
+    if (followed) {
+      await markDone("corpseFollow");
+      if (followed.length > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "corpses_followed",
+              details: { moved: followed.length },
+            },
+          })
+          .catch((err) => console.error("Corpse follow audit log failed:", err));
+      }
+    }
+  }
+
+  // Drift every Location's yield coefficients one turn forward
+  // (db/lib/laborYield.js). Random and therefore NOT idempotent, which is
+  // exactly why it is a named pass: markDone stops a resumed advance from
+  // drifting the whole map twice.
+  if (!done.has("laborYield")) {
+    const yields = await runLaborYieldPass(prisma, turn).catch(async (err) => {
+      await passFailed("Labor yield drift", err);
+      return null;
+    });
+    if (yields) {
+      await markDone("laborYield");
+      if (yields.drifted) {
+        await prisma.auditLog
+          .create({ data: { actorDiscordUserId: "system", actionType: "labor_yields_drifted", details: yields } })
+          .catch((err) => console.error("Labor yield audit log failed:", err));
+      }
+    }
+  }
+
   // bumpBlood rather than a computed literal off `config`: that snapshot
   // predates the passes above, so a donation made during the advance would
   // otherwise be discarded by the write-back.
@@ -383,6 +583,54 @@ async function resolveNeeds(turn, config) {
   } else {
     const fresh = await prisma.gameConfig.findUnique({ where: { id: 1 } });
     lifewebBlood = fresh?.lifewebBlood ?? lifewebBlood;
+  }
+
+  // The Depot's hardware. Returns the ambient lines and DMs it owes rather
+  // than speaking them — see TURN-ENGINE.md §3.
+  let depot = null;
+  if (!done.has("depot")) {
+    depot = await runDepotPass(prisma, turn).catch(async (err) => {
+      await passFailed("Depot", err);
+      return null;
+    });
+    if (depot) await markDone("depot");
+  }
+  let gatehouse = null;
+  if (!done.has("gatehouseTurret")) {
+    gatehouse = await runGatehouseTurretPass(prisma, turn).catch(async (err) => {
+      await passFailed("Gatehouse turret", err);
+      return null;
+    });
+    if (gatehouse) await markDone("gatehouseTurret");
+  }
+  if (gatehouse?.turretShots) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "gatehouse_turret_fired",
+          details: { turretShots: gatehouse.turretShots, turretOutcomes: gatehouse.turretOutcomes },
+        },
+      })
+      .catch((err) => console.error("Gatehouse turret audit log failed:", err));
+  }
+
+  if (depot && (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "depot_resolved",
+          details: {
+            fuelBurned: depot.fuelBurned,
+            generatorDied: depot.generatorDied,
+            shuttleDeparted: depot.shuttleDeparted,
+            turretShots: depot.turretShots,
+            turretOutcomes: depot.turretOutcomes,
+          },
+        },
+      })
+      .catch((err) => console.error("Depot audit log failed:", err));
   }
 
   // needsResolvedAt is the sole selector for advanceTurn()'s resume query,
@@ -407,8 +655,8 @@ async function resolveNeeds(turn, config) {
     lifewebBlood,
     hungerNotices,
     disappointedNotices,
-    defaultMovePosts,
-    defaultMoveDms,
+    autoLaborDms,
+    lessonDms,
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
@@ -417,11 +665,17 @@ async function resolveNeeds(turn, config) {
     dyingDeaths,
     dyingDeathWarnings,
     birdNotices,
+    carryDrops,
     privateDeliveries,
     publicPosts,
     zoneMoves,
     routineNotices,
     gambitRollNotices,
+    depotLines: depot?.lines ?? [],
+    // Both guns' DMs, delivered by one loop. It was `depotDms` when there was
+    // only the one turret.
+    turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
+    depotLocationId: depot?.locationId ?? null,
   };
 }
 
@@ -445,9 +699,12 @@ async function advanceTurn() {
   let lifewebBlood = config.lifewebBlood;
   let hungerNotices = [];
   let disappointedNotices = [];
-  let defaultMovePosts = [];
-  let defaultMoveDms = [];
+  let autoLaborDms = [];
+  let lessonDms = [];
   let tagExpiryDms = [];
+  let depotLines = [];
+  let turretDms = [];
+  let depotLocationId = null;
   let catatonicDms = [];
   let catatonicRoleUpdates = [];
   let catatonicDeaths = [];
@@ -455,6 +712,7 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let dyingDeathWarnings = [];
   let birdNotices = [];
+  let carryDrops = [];
   let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
@@ -480,7 +738,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, turretDms, depotLocationId } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
@@ -530,7 +788,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, defaultMovePosts, defaultMoveDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, turretDms, depotLocationId } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -598,28 +856,15 @@ async function advanceTurn() {
     // nothing posted by this thunk gets swept. See db/lib/dawnWipe.js.
     const sideEffectsStartedAt = Date.now();
 
-    for (const post of defaultMovePosts) {
-      const sent = await postAsCharacter(post.channelId, post.character, post.message).catch((err) => {
-        console.error(`Default Move summary post for ${post.character.id} failed:`, err);
-        return null;
-      });
-      if (sent) {
-        await recordArchiveMessage(prisma, {
-          discordMessageId: sent.id,
-          content: post.message,
-          character: post.character,
-          zoneId: post.zoneId,
-          zoneName: post.zoneName,
-          channelKind: "summary",
-          discordChannelId: post.channelId,
-          turn: openTurn,
-        });
-      }
+    for (const dm of autoLaborDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Auto-labor DM to ${dm.discordUserId} failed:`, err),
+      );
     }
 
-    for (const dm of defaultMoveDms) {
+    for (const dm of lessonDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Default Move DM to ${dm.discordUserId} failed:`, err),
+        console.error(`Lesson DM to ${dm.discordUserId} failed:`, err),
       );
     }
 
@@ -629,9 +874,37 @@ async function advanceTurn() {
       );
     }
 
+    // The Depot's hardware, speaking for itself: the generator dying and the
+    // shuttle leaving on its own clock are both things the room witnesses.
+    if (depotLocationId && depotLines.length) {
+      const depotLocation = await prisma.location
+        .findUnique({ where: { id: depotLocationId }, select: { discordChannelId: true } })
+        .catch(() => null);
+      if (depotLocation?.discordChannelId) {
+        for (const line of depotLines) {
+          await postMessage(
+            depotLocation.discordChannelId,
+            ambientLine(line.text, [], { signed: line.signed }),
+          ).catch((err) => console.error("Depot ambient line failed:", err));
+        }
+      }
+    }
+
+    for (const dm of turretDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Turret DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
     for (const dm of birdNotices) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Bird failure DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    for (const result of carryDrops) {
+      await deliverCarryDrop(prisma, result).catch((err) =>
+        console.error(`Carry drop delivery for ${result.characterId} failed:`, err),
       );
     }
 
@@ -879,11 +1152,16 @@ module.exports = {
   ...require("./lib/nameCorpus"),
   ...require("./lib/dynasty"),
   ...require("./lib/concealedIdentity"),
-  ...require("./lib/antagonists"),
+  ...require("./lib/presentedIdentity"),
+  ...require("./lib/threats"),
   ...require("./lib/roleCapacity"),
-  ...require("./lib/partySize"),
   ...require("./lib/production"),
   ...require("./lib/depot"),
+  ...require("./lib/depotState"),
+  ...require("./lib/depotTurret"),
+  ...require("./lib/depotCrates"),
+  ...require("./lib/startingTags"),
+  ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),
   ...require("./lib/turnClock"),
@@ -892,6 +1170,7 @@ module.exports = {
   ...require("./lib/moveEffects"),
   ...require("./lib/resourceDelta"),
   ...require("./lib/laborAccess"),
+  ...require("./lib/laborYield"),
   // Only the pure helper — the revoke functions take prisma as a parameter
   // and are kept off the barrel; require db/lib/accessSweep.js by path.
   zoneChannelIds: require("./lib/accessSweep").zoneChannelIds,

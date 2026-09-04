@@ -1,5 +1,9 @@
 const HUNGER_SLUG = "hungry";
 const HUNGERLESS_SLUG = "hungerless";
+// Doubles the per-turn upkeep to 2 ⬢ (db/lib/hungerPass.js). The magnitude of
+// the charge is hardcoded by slug the same way hungerless/ate-meal exemptions
+// are — there is no generic upkeep field on Tag.
+const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
 const NOBILITY_SLUG = "nobility";
 const COURTIER_SLUG = "courtier";
@@ -7,11 +11,63 @@ const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
 const EXHAUSTED_SLUG = "exhausted";
-const LABORER_BASIC_SLUG = "laborer-basic";
-const LABORER_SKILLED_SLUG = "laborer-skilled";
-const LABORER_FARMING_SLUG = "laborer-farming";
+const LABORING_BASIC_SLUG = "laboring-basic";
+const LABORING_SKILLED_SLUG = "laboring-skilled";
+const LABORING_FARMING_SLUG = "laboring-farming";
+const LABORING_HUNTING_SLUG = "laboring-hunting";
+const LABORING_FISHING_SLUG = "laboring-fishing";
 const CATATONIC_SLUG = "catatonic-afk";
 const DISAPPOINTED_SLUG = "disappointed";
+// Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
+// never by a player; read by the travel gate in db/lib/locationTravel.js.
+const OVERBURDENED_SLUG = "overburdened";
+
+// Corpses (docs/systemdocs/CORPSES.md). CORPSE_GROUP_SLUG is the whole
+// discriminator on the catalog side — the three monster corpses live in that
+// group, and so does every "{name}'s Corpse" a death writes. BUTCHER_SLUG
+// gates the Butcher button; ENGRAVE_RESOURCE_COST is what carving a stone for
+// someone whose body you can't find costs.
+const CORPSE_GROUP_SLUG = "items-corpse";
+const BUTCHER_SLUG = "butcher";
+
+// The two standing kits (db/lib/equipmentReach.js). Neither is worn: each is
+// satisfied by HOLDING it or by standing where one is already set up, which is
+// what makes a Sanctuary operating theatre and a Factory floor worth walking
+// to. Workshop Equipment gates smithing and building; Surgical Equipment is
+// +1 on a medical Gambit.
+const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
+// Packaging Equipment is the third standing kit, alongside the two above:
+// having it in reach is what turns the Package button on. Unlike those two it
+// is not craftable — there are exactly two in the world, one on the Godard
+// Factory's Logistics Room floor and one in the Merchant's Cargo Bay.
+const PACKAGING_EQUIPMENT_SLUG = "packaging-equipment";
+// What one crate holds, and how long the line printed on its side may be.
+// 150 lb is the number the Squeeze economy is balanced on: at 20 lb a cube
+// that is 7 to a crate, 70 lb each, and a Horse-and-Cart takes 8 of them.
+// See docs/systemdocs/FACTORY.md.
+const PACKAGE_MAX_LBS = 150;
+// The weight cap does not bound the weightless — obols are 0 lb and stackable
+// without a ceiling — and a crate's consumesInto repeats a slug per unit.
+const PACKAGE_MAX_UNITS = 200;
+const PACKAGE_LABEL_MAX = 120;
+const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
+const HUMAN_FLESH_SLUG = "human-flesh";
+const ENGRAVE_RESOURCE_COST = 4;
+// How many turns a person's corpse stays fresh before it turns. Monster
+// corpses never rot — only a person stinks.
+const CORPSE_ROT_TURNS = 3;
+
+// The Teaching tree (docs/systemdocs/LESSONS.md). Holding Teaching lets you
+// run a lesson; Lecturing widens one Routine to LECTURE_CAPACITY learners;
+// a Drill Instructor's students succeed on a 4 when the skill's group is
+// FIGHTING_GROUP_SLUG. Thresholds are the die's face after the modifier.
+const TEACHING_SLUG = "teaching";
+const LECTURING_SLUG = "teaching-lecturing";
+const DRILL_INSTRUCTOR_SLUG = "teaching-drill-instructor";
+const FIGHTING_GROUP_SLUG = "skills-fighting";
+const LECTURE_CAPACITY = 3;
+const LESSON_THRESHOLD = 5;
+const DRILL_THRESHOLD = 4;
 
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
@@ -23,11 +79,6 @@ const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 // The counter to both of the above, read off the SUBJECT rather than the
 // viewer — see db/lib/inspectVision.js.
 const INSCRUTABLE_SLUG = "inscrutable";
-
-
-// Consumed with everything a Rite: Rage caster examines — see
-// db/lib/inspectVision.js. Read off the REACTOR, same posture as Seductive.
-const RAGE_SLUG = "rage";
 
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
@@ -46,6 +97,7 @@ module.exports = {
   LEAVE_ANNOUNCE_CHANNEL_ID,
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
+  FAST_METABOLISM_SLUG,
   DYING_SLUG,
   NOBILITY_SLUG,
   COURTIER_SLUG,
@@ -53,12 +105,32 @@ module.exports = {
   MORTUS_SLUG,
   DRAINED_SLUG,
   EXHAUSTED_SLUG,
-  LABORER_BASIC_SLUG,
-  LABORER_SKILLED_SLUG,
-  LABORER_FARMING_SLUG,
+  LABORING_BASIC_SLUG,
+  LABORING_SKILLED_SLUG,
+  LABORING_FARMING_SLUG,
+  LABORING_HUNTING_SLUG,
+  LABORING_FISHING_SLUG,
   CATATONIC_SLUG,
   DISAPPOINTED_SLUG,
+  OVERBURDENED_SLUG,
+  CORPSE_GROUP_SLUG,
+  BUTCHER_SLUG,
+  WORKSHOP_EQUIPMENT_SLUG,
+  PACKAGING_EQUIPMENT_SLUG,
+  PACKAGE_MAX_LBS,
+  PACKAGE_MAX_UNITS,
+  PACKAGE_LABEL_MAX,
+  SURGICAL_EQUIPMENT_SLUG,
+  HUMAN_FLESH_SLUG,
+  ENGRAVE_RESOURCE_COST,
+  CORPSE_ROT_TURNS,
+  TEACHING_SLUG,
+  LECTURING_SLUG,
+  DRILL_INSTRUCTOR_SLUG,
+  FIGHTING_GROUP_SLUG,
+  LECTURE_CAPACITY,
+  LESSON_THRESHOLD,
+  DRILL_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
-  RAGE_SLUG,
 };

@@ -18,7 +18,7 @@ provisioned channels, or a special channel whose registry entry says
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
 | A Location's channel (text), and every Room or Conversation thread under it | yes | no |
-| `#watch` / `#intercom` / `#mindlink` | yes | no |
+| `#cerberon` | yes | no |
 
 The special channels aren't tied to a place, so they're never summary.
 
@@ -83,7 +83,7 @@ Tracking through `trackProxy` is not optional for either caller: every
 reaction below is gated on `recentProxies`, so an untracked message is inert
 to all of them.
 
-`db/lib/discordRest.js#postAsCharacter` is the REST twin, used for Default Move
+`db/lib/discordRest.js#postAsCharacter` is the REST twin, used for staged public
 summaries posted from `advanceTurn`'s side effects.
 
 **Speaking without being seen to type.** Discord fires the typing indicator
@@ -175,12 +175,40 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 |---|---|
 | ❌ | Deletes the message. Also deletes its `ArchiveEntry` row. Gated on `proxy.discordUserId`. |
 | ✏️ | Edit, via a DM button and a modal — see below. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
-| 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. |
+| 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
 
 DMs no longer carry any reaction-driven flow; the bot does not request the
 `DirectMessageReactions` intent.
+
+### 4a. 🔍 has a twin on the web: **Look at**
+
+`db/lib/examine.js` is the one readout behind both, and neither surface
+builds its own. The bot maps it to an `EmbedBuilder`, the web app to JSX
+(`web/app/components/ExamineDialog.js`), but every rule that decides *what is
+in it* — the doctor's eye, the concealed read, Inscrutable, Role, ⬢ — is
+decided once, in that file. Add a field to one and both get it.
+
+The two differ only in who they can be pointed at, and that is the point of
+the web one existing:
+
+- **🔍 needs a message.** It hangs off `recentProxies`, so it only ever
+  worked on someone who had **spoken**. That was never a hiding rule — a
+  guard on a gate could not size up a silent traveller without first striking
+  up a conversation with them.
+- **Look at needs co-presence.** Everyone `ALIVE` standing at your Location,
+  silent or not. It is the one people-picker on the sheet that does **not**
+  use `peopleHere()`: it lists the concealed too, under their alias, exactly
+  as the **Who's here?** anchor button already lists them. Acting on somebody
+  means identifying them, so a hood takes you off every other menu; *looking*
+  at a hooded figure is what a hood is for. No presence leaks that
+  `Who's here?` does not already publish at Location grain.
+
+Both read a hood the same impoverished way (§5), both are free, spend no
+Move, file no `Request` and tell the subject nothing.
+`web/app/(app)/character/examineActions.js` is the web half: two server
+actions, both read-only.
 
 **✏️ is a button and a modal, and writes no inbound DM at all**
 (`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a
@@ -219,19 +247,39 @@ The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
 
 ## 5. Concealed identity (`/conceal`)
 
-Concealment is a **toggle on the character** — `Character.concealed`, flipped
-by the `/conceal` slash command (registered everywhere, the bot's DMs included)
-or the switch beside turn-ping on `/character`. While it is on, every message
-the character sends — typed into a channel or through the Speak modal — is
-reposted under an anonymous alias instead of the name, and **Who's here?** on
-a Location's anchor lists them under that alias too (`CHANNELS.md` §4). The
-old per-message `/conceal` text prefix and the Speak modal's checkbox are
-gone: a player who wants to be unnamed is unnamed until they say otherwise.
+Concealment is a property of **what is over your face**. `Character.concealed`
+is only the player's wish, flipped by the `/conceal` slash command (registered
+everywhere, the bot's DMs included) or the switch beside turn-ping on
+`/character`; it takes effect solely while a `Tag.concealsIdentity` item is
+**equipped**. While it is in effect, every message the character sends — typed
+into a channel or through the Speak modal — is reposted under an anonymous
+alias instead of the name, and **Who's here?** on a Location's anchor lists
+them under that alias too (`CHANNELS.md` §4). The old per-message `/conceal`
+text prefix and the Speak modal's checkbox are gone: a player who wants to be
+unnamed is unnamed until they say otherwise. A concealed character is also
+excluded from every people-picker on `/character` (Heal, Loot, Move Player,
+Bind, Free, Harm, Transfer) and cannot be targeted through those menus
+(`db/lib/presence.js`).
 
-**It is open to everyone** — nothing equipped, no tag required. A player
-decides for themselves when to go unnamed. `Tag.concealsIdentity` still exists
-in the catalog and is still synced but nothing reads it (`TAGS.md`); re-gating
-would be one query where `messageCreate.js` reads the flag.
+**It is not open to everyone.** With a bare face there is nothing to toggle and
+both surfaces refuse. This is `Tag.concealsIdentity`, which sat inert in the
+catalog for a long time and is now the gate it was always kept for.
+
+`Tag.forcesConceal` is the stricter version, and the difference is the whole
+point of the pair: a hood is a choice, a sack tied over the head is not. While
+a forcing item is equipped the character is concealed whatever the column says,
+and **both toggles refuse in both directions** — there is no choice to make, so
+the stored preference is left alone and comes back when the thing comes off.
+Being **Bound** blocks unequipping entirely (`TAGS.md`), which is what makes a
+sack worth tying on.
+
+Concealment is **derived at read time**, never written. Nothing has to happen
+when a mask is put on or taken off, no catch-up pass exists, and a row left
+`concealed: true` after the mask came off simply resolves back to the real face
+on its own. `concealmentFrom(tags)` in `db/lib/presentedIdentity.js` is the
+whole of it, and `CONCEALMENT_TAG_FIELDS` beside it is the field list every
+call site selects — miss one and concealment silently stops working at that
+surface only.
 
 The slash command only flips the column and replies; the message itself still
 rides the ordinary proxy path, so ✏️/❌/⭐/🔍 all behave unchanged.
@@ -245,7 +293,7 @@ The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
   Person.
 
 **This used to be inferred from the title**, which meant an untitled character
-was always "Person" however they present, and so was a Captain. Gender is a
+was always "Person" however they present, and so was a Censor. Gender is a
 real column now (`CHARACTERS.md` §1c), so the alias simply says it: an untitled
 woman conceals as "a young woman". Concealing hides the name, the face and the
 faction — it was never meant to hide how someone presents, which is what the
@@ -255,9 +303,26 @@ The alias is frozen into `ArchiveEntry.concealedAlias` at send time, so a later
 gender correction never rewrites the archive. That is correct: it records who
 someone was as they were known then.
 
-The avatar is `web/public/assets/unknown.png`, served straight out of `public/`
-and **identical for everyone** — a per-character concealed avatar would be a
-fingerprint.
+The avatar is the concealing item's own `Tag.concealSprite`, served straight
+out of `public/` as `/assets/helms/<sprite>.webp` and **identical for every
+wearer of that item** — a per-character concealed avatar would be a
+fingerprint. The sprite says *what* is over the face, never *who* is behind it,
+so a room full of Tribunal helmets is a room full of identical Tribunal
+helmets. Two things follow: no per-character render, and no cache-busting,
+because the file never changes.
+
+`syncTags.js` refuses a `concealsIdentity` tag with no sprite, and refuses a
+sprite naming a file that isn't there — a typo would otherwise stay invisible
+until somebody equipped the thing in play and Discord served a broken image.
+The images are built from the source sprites in `web/assets/helms/` by
+`npm run assets:helms --workspace=web`; `PORTRAITS.md` covers the sizing.
+
+When two concealing items are worn at once, the **outermost** wins — highest
+`Tag.equipLayer` — because that is the one an onlooker can actually see. A coif
+under a knight's helm is a coif nobody can see.
+
+`web/public/assets/unknown.png` survives, but only as history: `ArchiveFeed.js`
+still needs it for entries archived before concealment had a face.
 
 `recentProxies` records `concealed`/`alias`, and three handlers read it:
 
@@ -303,6 +368,39 @@ the real `characterId`/`characterName` — so `/archive` renders
 `Young Man (Sir Alder)`. That is the one surface where concealment is undone,
 which is why `archiveVisible` is meant to stay shut until the game ends
 (`ARCHIVE.md`).
+
+### Forced identity (`Tag.forcedName`)
+
+The opposite case: a held tag that **fixes** the name and face rather than
+hiding them. Apex Form carries `forcesName: Beast` (`TAGS.md`, "`forcesName`").
+`db/lib/presentedIdentity.js` is the one resolver, and every surface above
+calls it instead of branching on `concealed` by hand:
+
+```
+presentedIdentity(character, { forcedName }) -> { name, avatarPath, alias, concealed, forced }
+```
+
+Precedence is **forced > concealed > own name**. A forced identity posts under
+the forced name with the static plaque `/assets/letters/<Initial>.webp` — not
+`/api/avatar`, so nothing about the character's real face is ever fetched for
+it. `alias` is "the name the room saw when it was not the real one" and is set
+for both a hood and a forced name; it is what `recordArchiveMessage` freezes
+into `concealedAlias` and what ⭐ files under. `concealed` stays true only for
+a real hood, so the impoverished 🔍 embed and the no-relay rule below keep
+applying only to hoods — a Beast is not hiding.
+
+Call sites that already hold `character.tags` use `forcedNameFrom(tags)`; the
+two proxy paths that load a bare `Character` (`messageCreate.js`, the Speak
+modal) run `loadForcedName(prisma, id)`, one indexed query. The REST twin
+takes `forcedName` from its caller in `db/index.js`, since `discordRest.js`
+has no prisma of its own.
+
+While a forced name is held, `/conceal` refuses and the switch on `/character`
+renders disabled; `updateCharacterProfile` writes `concealed: false` whatever
+the form posted, and drops any upload. The **@-mention role and the nickname
+keep the real bare name** on purpose (§6, §8) — so the `/add` picker naming a
+Beast by their old name is intended. Nothing is written when the tag lands, so
+there is no grant hook: the next message is already the Beast's.
 
 ## 6. Mentions and conversations
 
@@ -503,6 +601,7 @@ title off itself.
 | Reactions | `bot/src/events/messageReactionAdd.js` |
 | Channel opt-in | `bot/src/lib/channels.js`, `web/lib/discordGuild.js` |
 | Concealed alias | `db/lib/concealedIdentity.js` |
+| Presented identity (forced > concealed > own) | `db/lib/presentedIdentity.js` |
 | Mentions, `/add`, `/remove` | `bot/src/lib/mentions.js`, `bot/src/lib/commands.js` |
 | Inspect gates | `db/lib/inspectVision.js` |
 | Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |

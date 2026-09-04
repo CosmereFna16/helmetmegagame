@@ -1,5 +1,5 @@
 // Provisioning + reconciliation for the special channels registry
-// (#watch/#intercom and future siblings). Run with
+// (#cerberon/#intercom and future siblings). Run with
 // `npm run db:sync-narrowcast-channels`. Safe to re-run — channel identity is
 // one-time, everything else (topic, overwrites, zone-role view grants)
 // reconciles. Run it AFTER db:sync-zones so the zone roles it grants view to

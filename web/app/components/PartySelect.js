@@ -1,16 +1,29 @@
-// One end of a resource movement: a faction Silo or a living player, as the
-// "faction:<id>" / "character:<id>" keys resolveParty() parses server-side.
+// One end of a movement of things or ⬢: a person standing here or a Room
+// stash here, as the "character:<id>" / "room:<id>" keys resolveParty()
+// parses server-side.
 //
-// Factions and players are listed as two flat, alphabetical optgroups.
-// Players are deliberately NOT nested under their faction — that grouping
-// would leak allegiances to anyone who opened the dropdown.
+// Players are a flat, alphabetical list, deliberately NOT nested under their
+// faction — that grouping would leak allegiances to anyone who opened the
+// dropdown. The list itself is already narrowed to who is at your Location
+// and not concealed (web/lib/peopleHere.js).
 //
-// Lives here rather than inside TransferResourcesButton because the Heal
-// dialog asks the same question ("who pays for this?") over a different set
-// of people.
+// Lives here rather than inside the Transfer dialog because Heal and Craft
+// ask the same question ("who pays for this?") over the same people.
+//
+// `rooms` — the Room stashes at the character's Location they can get into
+// (docs/systemdocs/CARRY.md), as "room:<id>". `selfId` puts "(you)" after
+// your own name so a payer or destination list reads right.
+//
+// `silo` — the character's own faction silo, when the "Rooms here" list
+// cannot carry it: either it is elsewhere in the zone, or it is a locked room
+// at this very Location that `accessibleRooms` filtered out. That second case
+// is the mail slot (FACTIONS.md §4a) — you may deposit into a silo you cannot
+// open, and without this group the picker would hide the one destination the
+// server actually allows. Only ever passed for a DESTINATION: you deposit
+// from across the zone, and take things out only by standing in the room.
 import Select from "./Select";
 
-export default function PartySelect({ label, value, onChange, characters, factions, hint }) {
+export default function PartySelect({ label, value, onChange, characters, rooms, hint, selfId = null, silo = null }) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
@@ -18,20 +31,29 @@ export default function PartySelect({ label, value, onChange, characters, factio
         <option value="" disabled>
           {hint}
         </option>
-        {factions?.length ? (
-          <optgroup label="Factions (Silo)">
-            {factions.map((f) => (
-              <option key={f.id} value={`faction:${f.id}`}>
-                {f.name}
+        {silo ? (
+          <optgroup label="Your silo ‡">
+            <option value={`room:${silo.id}`}>
+              ★ {silo.name}
+              {silo.here ? " — locked to you ‡" : ` — ${silo.locationName} ‡`}
+            </option>
+          </optgroup>
+        ) : null}
+        {rooms?.length ? (
+          <optgroup label="Rooms here ‡">
+            {rooms.map((r) => (
+              <option key={r.id} value={`room:${r.id}`}>
+                {r.name}
               </option>
             ))}
           </optgroup>
         ) : null}
         {characters?.length ? (
-          <optgroup label="Players">
+          <optgroup label="People here ‡">
             {characters.map((c) => (
               <option key={c.id} value={`character:${c.id}`}>
                 {c.name}
+                {selfId && c.id === selfId ? " (you) ‡" : ""}
               </option>
             ))}
           </optgroup>

@@ -50,7 +50,8 @@ const commandDefinitions = [
     .setDescription("Clear afflictions off a character (GM only).")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to heal").setRequired(true))
     .setContexts(GUILD_ONLY),
-  // The Conversation guest list. A ROLE option rather than a user option on
+  // The guest list of a Conversation, or of a private Room. A ROLE option
+  // rather than a user option on
   // purpose: the picker then names characters, never Discord accounts, so
   // inviting someone can't reveal who plays them — the same reason the
   // personal role is the mentionable name token in the first place. The
@@ -58,12 +59,12 @@ const commandDefinitions = [
   // isn't one (GM, spectator, player roles).
   new SlashCommandBuilder()
     .setName("add")
-    .setDescription("Bring a character into this conversation. ‡")
+    .setDescription("Bring a character into this conversation or private room. ‡")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to add").setRequired(true))
     .setContexts(GUILD_ONLY),
   new SlashCommandBuilder()
     .setName("remove")
-    .setDescription("Remove a character from this conversation. ‡")
+    .setDescription("Show a character out of this conversation or private room. ‡")
     .addRoleOption((opt) => opt.setName("character").setDescription("Whose role to remove").setRequired(true))
     .setContexts(GUILD_ONLY),
 
@@ -91,6 +92,13 @@ const commandDefinitions = [
     .setName("message")
     .setDescription("Say something as your character, without anyone seeing you type.")
     .setContexts(ANYWHERE),
+  // Guild-only for the same reason /roll below is: an instrument played into a
+  // DM has no audience, and the audience is the whole feature. The Instrument
+  // tag is the gate; the Musician tag decides which of the two lines it plays.
+  new SlashCommandBuilder()
+    .setName("play")
+    .setDescription("Play your instrument, for the room to hear. ‡")
+    .setContexts(GUILD_ONLY),
   // Guild-only: a die rolled in a DM has no audience, which is the whole
   // point of it. No options either — it is one 1d6 and nothing else.
   new SlashCommandBuilder()

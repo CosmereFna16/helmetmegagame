@@ -3,7 +3,7 @@
 The game's transcript. Every proxied character message is written to
 `ArchiveEntry` **at send time** — `db/lib/archive.js#recordArchiveMessage`,
 called from `bot/src/lib/proxy.js#sendAsCharacter` (gateway) and from
-`advanceTurn`'s `runSideEffects` for Default Move summaries (REST) — and read
+`advanceTurn`'s `runSideEffects` for staged public posts (REST) — and read
 back on the web at `/archive`.
 
 This replaced archiving at *wipe* time, which `db/lib/dawnWipe.js` used to do
@@ -29,8 +29,8 @@ character per turn before anyone speaks.
 
 Five things about it are load-bearing:
 
-- **The id columns are not foreign keys.** Same posture as `SiloTransaction`
-  and `AuditLog`'s snapshots. `syncZonesFromYaml` destructively deletes any
+- **The id columns are not foreign keys.** Same posture as
+  `AuditLog`'s snapshots. `syncZonesFromYaml` destructively deletes any
   Zone dropped from the YAML and `wipeGameData` clears Characters — a real
   relation would either take the transcript with it or fail on FK ordering
   (which Restart Game has been bitten by once already). Plain indexed ids plus
@@ -39,7 +39,9 @@ Five things about it are load-bearing:
 
   The place columns are **`zoneId`/`zoneName`** — a row records the zone it
   was said in, and the Room or Conversation it was said in is `threadName`.
-  `channelKind` reads `summary | location | watch | intercom | mindlink`.
+  `channelKind` reads `summary | location | watch | intercom` (a plain
+  string field, not a Prisma enum, so old rows can still say `mindlink`
+  from before the Cult of Bacchus was archived).
 - **Restart Game clears the table.** `wipeGameData` deletes every
   `ArchiveEntry` inside the same transaction as Characters and Turns, so a
   restart starts on an empty transcript. It is the one thing here that is not

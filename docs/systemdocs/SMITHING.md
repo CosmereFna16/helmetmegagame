@@ -43,13 +43,60 @@ not — its steel prod and lock are `smithing-skilled` work.
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
 gate is what it takes to *use* it. Character creation and `/store` enforce
 the Combat gate (`requiredTag`) — you can't buy a Crossbow at creation
-without Ranged (Basic). The **Add Tag menu enforces neither** — it's the
-honor-system door (`addRequirementSatisfied()`, `web/lib/tagRequests.js`,
-[`TAGS.md`](TAGS.md) §3b): the picker's "To make: …" line shows the Skill
-gate as guidance, and the GM reviewing the pushed request holds players to
-it. A smith with `Smithing (Skilled)` and no `Melee (Basic)` can forge a
-sword they can't swing; a fighter pulling a sword from their clan's armoury
-files the same request with the fiction as their justification.
+without Ranged (Basic). The **Craft menu enforces the Skill gate, not the
+Combat gate** (`db/lib/medicalVision.js#satisfiedSkillIds`,
+[`CRAFTING.md`](CRAFTING.md) §2, [`TAGS.md`](TAGS.md) §3b): the picker's "To
+make: …" line shows the Skill gate as a requirement, checked server-side, not
+just guidance. Nothing checks the Combat gate at craft time, so a smith with
+`Smithing (Skilled)` and no `Melee (Basic)` can still forge a sword they
+can't swing; a fighter pulling a sword from their clan's armoury still files
+the same request with the fiction as their justification — that half of the
+honor system stands, it's just the Skill half that's now enforced.
+
+## 2a. Workshop Equipment
+
+**Smithing and building need a forge, where smith's work is unavoidable.** A
+recipe requires **Workshop Equipment** in reach — held, sitting in a Room
+stash you can get into at your Location, or served by a **COMPLETE** structure
+whose `placement.provides` lists `workshop-equipment` (`db/lib/equipmentReach.js`,
+the same predicate the private-room threads are synced with) — held kit, room
+stash, or standing forge are the three reaches, and a Forge serves everyone
+standing at its Location permanently, no hauling and no door. A `DAMAGED`
+forge serves nobody — the same `COMPLETE`-only reading `structureTools` uses
+for laboring tools (`LABORING.md` §5). All of this applies when the recipe
+names a `smithing-*` or `builder-*` skill **and does not offer `crafting`**. A
+recipe whose type carries `placement.fieldwork: true` — a light field
+structure — skips the workshop rule entirely.
+
+That second half matters. Every Dead Simple recipe lists
+`skills: [crafting, smithing]`, and the `crafting` half is what says a work
+knife or a sling is something you can whittle. So the whole Dead Simple rung
+stays anvil-free, and what is gated is the real forge work: 32 recipes today —
+every Simple rung and up, plus the Cart and the Plow.
+
+The rule is read off the recipe's own skills rather than a per-tag flag, so a
+new sword is gated the moment it names a smithing skill and nobody has to
+remember a second field. `needsWorkshop()` in `web/lib/tagRequests.js` is the
+one copy, shared by the Craft dialog and `craftRequestImpl`.
+
+`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 26 ⬢, 2
+turns, `smithing-skilled` — and **Immense (100 lb)**, so it is a real decision
+to move one. It is the one recipe **exempt from its own gate**, and has to be:
+gating it would mean nobody could ever build the first forge. You raise that
+one in the open, and it is what lets you do the finer work after.
+
+It replaced the old `workshop` **Asset**, which was 2 pt, creation-only, and
+gated nothing — its own description admitted "You don't need this to craft".
+
+Crafting is always filed as a Routine now, never a Gambit — the Craft button
+(the old Add Tag) enforces a recipe's skills server-side, and Dead Simple
+recipes still need no Move at all, just the per-turn unit cap below
+(`CRAFTING.md`).
+
+A recipe may also set **`requirement.perTurn`**, its own ration, counted per
+recipe rather than against the shared Dead Simple pool below. Only meaningful
+at `turnsCost: 0` — anything costing a Move is already rationed to one by the
+turn's single Action.
 
 **Dead Simple is capped at 4 items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The cap counts *units*,
@@ -65,10 +112,12 @@ itself (a recipe's `requirementSkills`) is an **OR list** — `crafting` OR
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items
-(`purchasable: false`) sit outside the ladder — as do the Bacchus craftables
-(Nailgun, Armor Robes, Nails of Life), gated by the cult's own
-`smithing-bacchus` skill rather than `smithing`/`smithing-skilled`, priced on
-their own terms rather than a rung of this table.
+(`purchasable: false`) sit outside the ladder — a craftable gated behind a
+hidden-category skill (§3a of `TAGS.md`, or a future one like it) works the
+same way: it's priced on its own terms, not a rung of this table. The Cult
+of Bacchus's `smithing-bacchus` craftables (Nailgun, Armor Robes, Nails of
+Life) used to be the example; they're archived in
+`docs/archive/bacchus.yaml`.
 
 ## 3. Weapons
 
@@ -113,7 +162,17 @@ Off the ladder — no recipe, no smithing gate:
 | Neoclassic R&W10 | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
-| Disabler | 0 | Watch-issued. |
+| Disabler | 0 | Cerberon-issued. |
+
+### The Plow
+
+Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
+`resourceCost: 10`, `skills: [smithing]`. It is an **Asset**, not an Item, so
+it never weighs on your back — it lives in your shed and the horse does the
+hauling. It is the one Laboring tool that needs no equipping and the only one
+gated on holding something else — without a `horse` it does nothing at all. Worth +4 ⬢ to Farming, the largest single tool
+bonus in the game, because two tags and a smith stand behind it
+(`LABORING.md` §5).
 
 ## 4. Armor
 
@@ -127,7 +186,9 @@ Off the ladder — no recipe, no smithing gate:
 | Shield | Simple | `crafting` |
 | Pavise | Simple | `crafting` |
 | Mail Shirt | Moderate | |
-| Knight's Helmet | High Quality | |
+| Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
+| Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
+| Censor's Helmet | High Quality | Force conceal |
 | Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. |
 | Breastplate | High Quality | |
 | Plate Armor | Exceptional | |

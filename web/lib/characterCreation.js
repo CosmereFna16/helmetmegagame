@@ -10,13 +10,27 @@ import { roleCapacity } from "@lifeweb/db/lib/roleCapacity";
 // web/lib/discordGuild.js).
 export const CURSED_POINT_PENALTY = 6;
 
-// Default drawback-tag cap when GameConfig has no row yet. Live value is
-// GameConfig.maxDrawbackTags (default 5), editable on /gm/dev.
+// Defaults for the two drawback ceilings, used only when GameConfig has no
+// row yet. The live values are GameConfig.maxDrawbackTags and
+// maxDrawbackPoints, both editable on /gm/dev. A build stops at whichever it
+// reaches first — TAGS.md §4a has the reasoning.
 export const DEFAULT_MAX_DRAWBACK_TAGS = 5;
+export const DEFAULT_MAX_DRAWBACK_POINTS = 12;
 
 // A drawback is any tag with a negative pointCost (TAGS.md §4a).
 export function negativeTagCount(tags) {
   return tags.reduce((count, t) => ((t.pointCost ?? 0) < 0 ? count + 1 : count), 0);
+}
+
+// What those drawbacks claim back, as a POSITIVE magnitude — so it compares
+// with maxDrawbackPoints directly and nothing has to do a sign dance.
+//
+// Deliberately the RAW pointCost, never effectiveCost: the tier-chain discount
+// exists so upgrading Melee (Basic) to (Trained) bills only the difference,
+// and no drawback is a tier of another. Running them through it would only
+// give a future negative-cost chain a quiet way past the cap.
+export function negativeTagPoints(tags) {
+  return tags.reduce((sum, t) => ((t.pointCost ?? 0) < 0 ? sum - t.pointCost : sum), 0);
 }
 
 // The only roles a cursed player may take. Matched by Role.slug.
@@ -24,7 +38,7 @@ export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
 // Roster held back while GameConfig.playtestModeEnabled is on.
 export const PLAYTEST_LOCKED_ROLE_SLUGS = [];
-export const PLAYTEST_LOCKED_ZONE_NAMES = ["Windlands"];
+export const PLAYTEST_LOCKED_ZONE_NAMES = [];
 
 export function isPlaytestLocked({ role, zoneName }) {
   return (
@@ -158,6 +172,28 @@ export function conflictingTag(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
+// --- Role-gated tags (Tag.excludedRoleSlugs / Tag.onlyRoleSlugs) ---
+// A seat that can never take this tag: Devoted Follower isn't for a Migrant,
+// a Mercenary or a Bum, who have nobody to be devoted to. Unlike the gates
+// above this one never depends on what else is held, so it filters the menu
+// outright rather than dimming a row. Enforced server-side too; a GM grant
+// bypasses it.
+//
+// Two spellings, and a tag uses at most one of them (syncTags.js throws on
+// both). `excludedRoleSlugs` names the seats shut out; `onlyRoleSlugs` names
+// the only seats let in — Mime's Vow is a Minstrel's, and nobody else's.
+// Both funnel through this one function so the menu, createCharacter and the
+// store's buyTags cannot drift on which gate they honour.
+export function roleExcluded(tag, roleSlug) {
+  const only = tag.onlyRoleSlugs ?? [];
+  // No seat resolved yet: an open tag stays open, a whitelisted one stays
+  // shut. Guessing the other way would flash a Minstrel-only row at everybody
+  // before the role picker has been touched.
+  if (only.length > 0) return !roleSlug || !only.includes(roleSlug);
+  if (!roleSlug) return false;
+  return (tag.excludedRoleSlugs ?? []).includes(roleSlug);
+}
+
 // Tags a character may actually see and buy. Menus must derive category
 // tabs from THIS, or an all-locked category advertises its own secret.
 export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
@@ -173,7 +209,7 @@ export function effectiveTotalCost(tags, tagsById, heldIds = []) {
 
 export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked = false }) {
   if (playtestLocked) return false;
-  if (role.grantsLeader && !leaderWhitelisted) return false;
+  if (role.requiresWhitelist && !leaderWhitelisted) return false;
   if (!cursed) return true;
   return CURSED_ROLE_SLUGS.includes(role.slug);
 }
@@ -181,11 +217,12 @@ export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLock
 // Which catalog tags the point-buy menu offers. `afterStartOnly` distinguishes
 // creation (every purchasable tag) from the mid-game store (purchasableAfterStart
 // only). Also excludes anything the role already grants.
-export function purchasableTags({ tags, afterStartOnly, grantedNames = [] }) {
+export function purchasableTags({ tags, afterStartOnly, grantedNames = [], roleSlug = null }) {
   const granted = new Set(grantedNames);
   return tags.filter((tag) => {
     if (!tag.purchasable) return false;
     if (afterStartOnly && !tag.purchasableAfterStart) return false;
+    if (roleExcluded(tag, roleSlug)) return false;
     return !granted.has(tag.name);
   });
 }

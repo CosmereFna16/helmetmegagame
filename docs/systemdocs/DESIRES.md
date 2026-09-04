@@ -86,7 +86,8 @@ pass:
   income itself, independent of which template is being claimed. It has grown
   twice: the lock was one turn until 2026-09-02, then two, and it is now a live
   `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
-  `Turn.number` increments twice daily, so each turn of lockout is 12 hours.
+  `Turn.number` increments once daily, so each turn of lockout is a real day —
+  and an in-game day, being two turns, is two of them.
 
   A row with `endedTurnNumber: null` is excluded from this **and** from the
   slot's "last claim" readout. That is the one lever the revoke/undo paths
@@ -120,9 +121,9 @@ every tag in it must be held. `butcher-a-human` is the only entry using it —
 butchering a person takes the stomach (`cruel`) *and* the trade (`butcher`),
 and neither alone will do. `allTags` is always AND and may never carry
 `combine: or`; the sync rejects that pairing outright, since "all of these, or
-something else entirely" is not a gate anyone writes on purpose. `anyTags: [dancer]` + `anyRoles: [minstrel, diplomat]` reads "holds
-Dancer, AND holds Minstrel or Diplomat" — not "Dancer or Minstrel or
-Diplomat". Omit a sub-key entirely rather than writing an empty list; an
+something else entirely" is not a gate anyone writes on purpose. `anyTags: [dancer]` + `anyRoles: [minstrel, courtier]` reads "holds
+Dancer, AND holds Minstrel or Courtier" — not "Dancer or Minstrel or
+Courtier". Omit a sub-key entirely rather than writing an empty list; an
 absent/empty list is no constraint at all (`db/lib/desireGates.js#evalRequires`).
 
 `notTags`/`notRoles` are checked before `anyTags`/`anyRoles`, so a held
@@ -144,7 +145,7 @@ Scholastic role, so a Serpent who bought it saw nothing change — the rows
 evaluated `locked`, and `/character` drops those server-side. The same shape
 had also quietly killed **role** entries: `bury-a-body` offered `chaplain`,
 who can never hold the role-exclusive `mortus` tag, and `imprison-someone`
-offered `sheriff`, who never holds `watchman`.
+offered `sheriff`, who never holds `cerberon`.
 
 Both lists must be non-empty for `combine: or`; the sync throws otherwise,
 because an OR over one populated list is a silent no-op that still reads
@@ -158,9 +159,9 @@ twenty-three tag+role Desires keep it on purpose:
 - the five Lifeweb `feed-*` ones — the Mortus's sacral job, not something the
   role-exclusive `mortus` tag should carry on its own;
 - all five `corrupt` ones. Unlike Esoteric, `corrupt` is `visible: false` and
-  promises no unlocks, so it reads as a Watch-flavoured tag rather than a
-  broad purchase that disappoints. `sell-a-watch-secret` is the clearest case
-  — you cannot sell Watch equipment you were never issued.
+  promises no unlocks, so it reads as a Cerberon-flavoured tag rather than a
+  broad purchase that disappoints. `sell-a-cerberon-secret` is the clearest
+  case — you cannot sell Cerberon equipment you were never issued.
 
 ### Lock-clause grammar and the union rule
 
@@ -237,8 +238,8 @@ breath (Ruling R7).
 
 ## 4. Hidden templates and the identical-error oracle defense
 
-A `requires.anyTags` gate whose gating tag is itself hidden (Demoness,
-Bacchus — `TAGS.md` §3a) is a special case: failing it doesn't produce a
+A `requires.anyTags` gate whose gating tag is itself hidden (Demoness —
+`TAGS.md` §3a) is a special case: failing it doesn't produce a
 "locked" state at all. `evaluateDesireCatalog` **withholds the entry
 entirely** from its `visible` array — it never reaches a picker, dimmed or
 otherwise (`db/lib/desireGates.js` §evaluation order, step 1). Getting this
@@ -249,7 +250,7 @@ fails and the gating tag is hidden, the function returns `{ hidden: true }`
 rather than a `{ ok: false, reason }` — and the reason string for an
 *ordinary* locked entry never names a hidden tag, on pain of becoming the
 oracle the hidden rule exists to prevent. If a locked-reason string ever
-told a non-cultist "Requires the Cultist of Bacchus tag," that sentence
+told a non-holder "Requires the Demoness tag," that sentence
 alone would out the category — which is exactly why the code path is
 "withhold the row," not "show a generic reason." The two failure modes
 (gated-and-hidden vs. gated-and-visible-but-locked) must produce
@@ -374,7 +375,7 @@ about the largest `endedTurnNumber` among them.
 Curing an Addiction or a negative Personality tag (a Chaplain confessing
 someone free of one, say) is a `HEAL_CHARACTER`-shaped GM adjudication, not a
 code-enforced transaction — and when a GM does cure one, the rule is:
-**deduct the points that tag granted, even into negative.** A Cultist who took
+**deduct the points that tag granted, even into negative.** A character who took
 Glutton for the −6 points and later gets cured of it loses those 6 points
 back out of `Character.tagPoints`, even if that takes the balance below
 zero. This closes the loop a curable, maximally valuable drawback would
@@ -480,7 +481,7 @@ desires:
     families: [alcohol]
     requires:                    # optional
       anyTags: [dancer]
-      anyRoles: [minstrel, diplomat]
+      anyRoles: [minstrel, courtier]
       notTags: [...]
       notRoles: [...]
       combine: or                 # optional, default "and"; ORs anyTags with

@@ -16,7 +16,7 @@ const OLD_FROM = 55;
 // Straight off Character.gender. This used to be inferred from the title —
 // first from two hardcoded MAN/WOMAN arrays here, then from a `gender` on each
 // word — which meant an untitled character was always "Person" however they
-// present, and that a Captain was too. A character carries their own gender
+// present, and that a Censor was too. A character carries their own gender
 // now, so the alias can simply say it.
 function genderWord(gender) {
   if (gender === "MAN") return "Man";
@@ -51,8 +51,27 @@ function concealedLine(alias) {
   return `An unknown ${(alias || "person").toLowerCase()}, their identity concealed.`;
 }
 
+// "a young man" / "an old woman" — the alias as a noun phrase for a line of
+// prose. Shared by the whisper poll and the room stash announcements so the
+// same person reads the same way in both.
+function withArticle(word) {
+  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
+}
+
+function capitalizeFirst(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+// "An old woman", ready to start a sentence.
+function aliasSubject(character) {
+  return capitalizeFirst(withArticle(concealedAlias(character ?? {}).toLowerCase()));
+}
+
 module.exports = {
   concealedAlias,
   concealedLine,
   genderWord,
+  withArticle,
+  capitalizeFirst,
+  aliasSubject,
 };

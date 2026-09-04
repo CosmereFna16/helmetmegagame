@@ -184,7 +184,7 @@ const DUAL_SURFACE_FILES = new Set([
 
 // The `»` rule is per-call-site, not per-file. All three sendDm twins apply
 // the prefix automatically, so a hand-written one there doubles up
-// (db/lib/defaultMovePass.js:214 carries a comment about exactly this).
+// (db/lib/autoLaborPass.js carries a comment about exactly this).
 // Everywhere else — interaction replies, channel posts, bot-composed DMs that
 // pair the line with other formatting — it IS written inline and must stay.
 const GUILLEMET_AUTO_KINDS = new Set(["call:sendDm"]);
@@ -226,7 +226,7 @@ const JS_GROUPS = [
   {
     group: "bot-turns",
     test: (f) =>
-      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|moveModal|moveConfirm|defaultMovePass|hungerPass|tagExpiryPass|weather|labor|travel/i.test(
+      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|moveModal|moveConfirm|autoLaborPass|hungerPass|tagExpiryPass|weather|labor|travel/i.test(
         f,
       ),
   },

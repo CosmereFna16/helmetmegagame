@@ -22,7 +22,7 @@ design:
 
 | | Staged | Immediate |
 |---|---|---|
-| What | Values — every editable column, and every tag change | Verbs — kill, revive, restore/spend turn, message, resync, delete |
+| What | Values — every editable column | Verbs — kill, revive, restore/spend turn, message, resync, delete — **and every tag change** |
 | When | On **Apply** | The moment it's confirmed |
 | Undo | **Cancel** discards the lot | Its own inverse, if it has one |
 | Audit | One row for the whole Apply | One row each |
@@ -49,18 +49,29 @@ from the form and lives only as the Kill and Revive buttons. That is why
 `applyCharacterEdits` never has to reason about "did they also just kill this
 character" — it reads status from the database, never from the payload.
 
-Four staging buttons sit in the action bar despite being edits rather than
-verbs — **Heal all**, **Feed**, **Refund points**, and the **Inflict wound**
-picker. They make no server call: they push ops into the same pending diff the
-Tags tab uses. Because they sit in a row of verbs that DO fire, they are
-captioned `stages`, and staging one prints an inline
+**Tags used to be staged too, and are not any more.** That made the commonest
+gesture on the panel the slowest: adjusting one stack cost a stage, a scroll
+and an Apply, and Cancel then discarded every unrelated edit along with it. A
+tag change now commits on the gesture, one call each.
+
+The two halves still hold to **disjoint fields**, so they still cannot race —
+and a tags-only write never bumps `Character.updatedAt`, because
+`applyCharacterEdits` skips its `character.update` when the core diff is empty.
+So it cannot invalidate a core edit staged beside it, and the Tags tab
+deliberately sends no `expectedUpdatedAt`.
+
+**One staging button is left.** **Refund points** writes the `tagPoints`
+column, still a staged value, so it keeps the `stages` caption and the inline
 "Staged X — press Apply" line: an unlabelled icon that silently stages reads
-as a dead button, which is exactly how it was first reported.
-Heal-all and Inflict both read `isHealable` from
-`web/lib/healRequests.js` (a **Health** tag carrying a cure cost) rather than
-re-deriving the predicate, so the picker and the server can't disagree about
-what an affliction is. So they show in the pending count, go through the one tag write
-path, and Cancel undoes them like anything else.
+as a dead button, which is exactly how it was first reported. **Heal all**,
+**Feed** and the **Inflict wound** picker all push *tag* ops, so all three are
+now plain verbs — they fire, and say what they did. Each is one gesture, one
+call, one audit row, one DM however many ops it carries, since
+`applyTagOpsInTx` takes a batch: healing a ward is still one thing that
+happened to the player rather than a burst of them. Heal-all and Inflict both
+read `isHealable` from `web/lib/healRequests.js` (a **Health** tag carrying a
+cure cost) rather than re-deriving the predicate, so the picker and the server
+can't disagree about what an affliction is.
 
 ## 3. Layout
 
@@ -85,9 +96,9 @@ path, and Cancel undoes them like anything else.
   one. Sticky rather than fixed so it stays in the page column and can't cover
   the nav rail on a narrow screen.
 
-A staged edit's own affordance is the shared pair from `DESIGN-SYSTEM.md` §5:
-`.field-dirty` outlines a single control with an unsaved edit, `.staged-row`
-outlines a whole row, toned by `data-staged` for a staged add versus remove.
+A staged edit's own affordance is `.field-dirty` from `DESIGN-SYSTEM.md` §5,
+which outlines a single control with an unsaved edit. The Tags tab no longer
+uses `.staged-row`: nothing there is pending long enough to need marking.
 
 ## 4. `applyCharacterEdits`
 
@@ -135,13 +146,29 @@ address, and it is what every `requestEffects.js` helper already takes.
 { tagId, op: "patch",  quantity?, equipped?, expiry? }
 ```
 
-A catalog Grant row and a Held row carry a quantity stepper **only when the
-tag is `stackable`**, so a GM can grant four meals at once instead of clicking
-one at a time. Everything else is a holds-it-or-doesn't flag: no box, the
-button just reads "Grant", and repeated clicks stage `quantity: 1` because
-`mergeTagOp` pins a non-stackable add back to 1 rather than accumulating. The
-`force: true` escape hatch that used to let a GM stack anything is gone
-(`TAGS.md` §5a).
+A quantity stepper (`web/app/components/QuantityField.js`) is rendered **only
+when the tag is `stackable`**. Everything else is a holds-it-or-doesn't flag:
+no box, and the button just reads "Grant". The `force: true` escape hatch that
+used to let a GM stack anything is gone (`TAGS.md` §5a).
+
+**The two steppers mean different things, and that is the point.** On a
+*catalog* row — a tag not yet held — it is "how many to grant", so it feeds an
+`add`. On a *Holds* row it is **the resulting count**, so it feeds a
+`patch quantity`, which `applyTagOpsInTx` writes straight onto the row. Setting
+a stack of seven to three is one gesture; it used to be four clicks of "Take
+one", because the Remove button was pinned to `quantity: 1` and ignored the
+number box sitting beside it.
+
+Two consequences of an absolute count worth knowing:
+
+- **Zero means the whole holding goes**, and the client converts it to a
+  `remove` before sending. `validateTagOps` refuses a `patch` below 1 outright
+  rather than degrading to a removal, so the conversion cannot be left to the
+  server.
+- **Rapid steps coalesce.** An absolute quantity is idempotent, so the Holds
+  stepper debounces and sends only the number it settles on. A stream of deltas
+  could not be collapsed that way — this is the concrete reason the control
+  sets a count rather than nudging one.
 
 Applied **removes → adds → patches → equipped**. Removes lead so swapping one
 tier of a chain for another can't trip the equip cap halfway through; the
@@ -165,7 +192,7 @@ null there never expires at all.
 `PointBuy` is the *player's* rules-respecting store and stays that way. The GM
 editor shares its pure helpers and deliberately drops every gate:
 
-- **Every category**, hidden ones (Demoness, Bacchus) and `meta` included.
+- **Every category**, hidden ones (Demoness) and `meta` included.
   `TAGS.md` is explicit that a GM grant ignores `requiredTag` and the
   `TagGroup` gate; this is the surface that does it.
 - **No budget.** Cost is information, never a limit — `tagPoints` is a field
@@ -179,21 +206,28 @@ never instead of it — otherwise a lucky search string would reveal a gated tag
 
 **Layout.** `TagEditor.js` splits into two permanent sections:
 
-- **Holds** — a one-line row per tag the character actually has: name, ×qty
-  when stacked, source, an equipped chip, an expiry badge. Every action that
-  touches an existing holding lives here — Remove/Take one, Add one, Equip
-  toggle, Make permanent, Unstage — so a stage is never pushed from two
-  places for the same tag.
+- **Holds** — a one-line row per tag the character actually has: name, source,
+  an equipped chip, an expiry badge, and the count stepper. Every action that
+  touches an existing holding lives here — the count, Equip toggle, Make
+  permanent — so the same tag is never changed from two places. A
+  non-stackable tag has no count to set, so it carries a plain Remove instead.
+
+  Removing a tag whose `removesInto` chain would leave an aftermath behind
+  (`TAGS.md` §5c) still asks first, naming what it will leave. It is the one
+  gesture here that repeating its inverse does **not** undo: re-adding a Broken
+  Bone does not clear the Splinted the removal left. Everything else commits
+  silently, because the stepper is its own inverse.
 - **Catalog** — the browser, still tabbed by category. Within a tab, tags are
   bucketed under a small header per `TagGroup` (name plus the group's own
   colour as a swatch — the one inline colour in the app, since it's freeform
   data out of the database, not a theme token), chain order inside the
   group, ungrouped tags last under no header. Each row is one line — checkbox
-  (mass-grant), name, cost, badges (custom / held / staged) — with the
+  (mass-grant), name, cost, badges (custom / held) — with the
   description behind a native `<details>` disclosure so the tab isn't a mile
   of always-open panels. A held tag still shows up in the catalog (that's how
-  a GM finds a second copy or the next tier of a chain), but only carries the
-  not-yet-held action; anything on an existing holding is Holds' job.
+  a GM finds the next tier of a chain), but carries no action there — just a
+  "held ×N — edit in Holds" line. It used to offer a Grant that quietly meant
+  something different from the stepper above it.
 
   The catalog half — search, tabs, grouping, the row shell, multi-select — is
   the shared `web/app/components/TagCatalogBrowser.js`, extracted so
@@ -228,7 +262,7 @@ Everything follows from that:
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
   `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `defaultMovePass.js`'s `auto:default_move`. It DMs the player too now, so
+  `autoLaborPass.js`'s `auto:labor`. It DMs the player too now, so
   like Restore and Kill it opens a `RequestDialog` for a reason first — the
   same reason becomes both the stub's `description` and the DM text.
 
@@ -239,35 +273,30 @@ Kind switch; the Turn tab links across.
 ## 7a. Resource transfers
 
 The Identity tab's Resources field only mints or burns ⬢ — it has no
-counterparty, because a staged edit is one character's diff. "The Watchmen
+counterparty, because a staged edit is one character's diff. "The Cerberi
 paid Sera 8 ⬢" needs a party on both ends, which is what the **Transfer ⬢**
 button (`ActionBar.js`, `ResourcesIcon`) is for: two Selects, "From" and
-"To", each over the same party list — every ALIVE character plus every
-faction's Silo (Unaffiliated excluded) — with a small ⇄ button to swap them,
-plus an amount. Either end can be a character or a Silo, any pairing,
-character-to-character and Silo-to-Silo included; this panel just preselects
-"To" as this character, with "From" left on "— Select… —".
+"To", each over the roster of ALIVE characters — with a small ⇄ button to
+swap them, plus an amount. This panel just preselects "To" as this
+character, with "From" left on "— Select… —".
 
-It is **immediate, not staged**, unlike every other Dev Panel edit. The
-counterparty is a faction, not this panel's own subject, so having half of it
+It is **immediate, not staged**, unlike the panel's column edits. The
+counterparty usually isn't this panel's own subject, so having half of it
 wait on *this* character's Apply/Cancel would be incoherent — the same
 reasoning that keeps Kill, Revive, Restore turn and Spend turn off the staged
 diff. It goes through `web/lib/gmTransfer.js`, the same primitive the
-adjudication desk's staged transfers and `/gm/players`' FactionsPanel use
+adjudication desk's staged transfers use
 (`db/lib/resourceTransfer.js#applyTransfer`), open to any GM — not just a
-superadmin — and writes an `AuditLog` row plus a `SiloTransaction` row rather
-than a `Request`, so there is no one-click Undo; the reverse transfer is the
-reversal. See `FACTIONS.md` §5.
+superadmin — and writes an `AuditLog` row rather than a `Request`, so there
+is no one-click Undo; the reverse transfer is the reversal.
 
-This door now covers any pairing, not just this character against a Silo —
 `gmTransferResources({ fromKey, toKey, amount, reason })` is the same generic
-primitive `/gm/players`' FactionsPanel and the adjudication desk's
-`TransferComposer` stage a transfer through, so the Dev Panel's server action
-(`transferResourcesImpl`) just passes `fromKey`/`toKey` straight through
-rather than reconstructing them from a `characterId` + `factionId` +
-direction. It still preselects this character on one end for convenience,
-still writes an `AuditLog` row instead of a `Request`, and is still
-**immediate, not staged** — same reasoning as above.
+primitive the adjudication desk's `TransferComposer` stages a transfer
+through, so the Dev Panel's server action (`transferResourcesImpl`) just
+passes `fromKey`/`toKey` straight through. It still preselects this
+character on one end for convenience, still writes an `AuditLog` row instead
+of a `Request`, and is still **immediate, not staged** — same reasoning as
+above.
 
 ## 8. Custom tags
 
@@ -309,7 +338,7 @@ again.
 It opens on **Basics** — Name, Category, Group, Description, Seen by others on
 🔍 — with everything else folded into a collapsed `Advanced` disclosure in four
 blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
-`consumable`, `removable`, `tradeable`), **Lifespan** (`defaultDurationTurns`,
+`consumable`, `removable`, `tradeable`, `healable`, `teachable`), **Lifespan** (`defaultDurationTurns`,
 `expiresInto`, `removesInto`), **Economy** (`pointCost`, `purchasable`,
 `purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
 (`requirementTurns`, `requirementResources`, `requirementGambit`,
@@ -327,7 +356,17 @@ on a duration, since the removal chain is fired by the removal itself.
 
 Three pairings are mirrored as disabled controls and re-checked on the server:
 `concealsIdentity` and `WORN` visibility need `equippable`, `sellablePrice`
-needs `sellable`, and an `expiresInto` chain needs a duration. The chain itself
+needs `sellable`, and an `expiresInto` chain needs a duration.
+
+`concealsIdentity` is then **refused outright** on a GM-authored tag, pairing
+notwithstanding. Concealing gear also needs a `Tag.concealSprite`, and that has
+to be a real file under `web/public/assets/helms/` built by
+`npm run assets:helms` — nothing a GM can add from here. Left half-set the flag
+would do nothing at all, so the form says so rather than silently producing a
+mask that conceals nobody. Headgear is authored in `docs/tags.yaml`
+(`TAGS.md`, `PROXYING.md` §5). The read-only chips on the detail sheet still
+show `Conceals by force`, `Conceal sprite:` and the `Worn: head · layer 3`
+pair for catalog tags. The chain itself
 is a list of outcome rows, each a multi-pick — one tag means "becomes this",
 two or more an even coin-flip, the `{ oneOf: [...] }` shape
 `db/lib/tagExpiryPass.js` reads.
@@ -363,11 +402,11 @@ target in one gesture. Either way it's **one transaction, one audit row**
 the tag's creation and its assignment together. The server half is
 `createCustomTagAndAssign` in `web/app/(app)/gm/dev/tags/actions.js`.
 
-The Dev Panel's own door (`TagEditor.js`) is a deliberate exception to §2's
-staged/immediate split: a custom-tag assignment from there commits through
-the dialog's own transaction immediately, rather than riding the Tags tab's
-own pending-ops/Apply-bar flow — the same posture Bulk tagging (§9) already
-takes for its own convenience action. `DevPanel.js` passes the current
+The Dev Panel's own door (`TagEditor.js`) commits a custom-tag assignment
+through the dialog's own transaction, in the same gesture that creates the tag
+— the same posture Bulk tagging (§9) takes. This used to be an exception to
+§2's split, back when the Tags tab staged; now that tag changes fire anyway it
+is simply the same rule, reached by a different transaction. `DevPanel.js` passes the current
 character's id and name into `TagEditor.js` so "Assign to" comes preselected.
 The same door also sits in the shared inspector's Tags tab on both desks
 (`web/app/components/InspectorColumn.js`, `customTag` prop) — staging by
@@ -395,6 +434,15 @@ takes `frame="modal"` and owns the `Modal` itself, because the dirty (staged
 edit) state lives inside it — closing has to go through the same
 `useDirtyGuard` that already guards Apply/Cancel, so an unsaved edit prompts
 before the modal closes.
+
+The modal is **modeless** (`DESIGN-SYSTEM.md` §8) — no backdrop, the desk
+underneath stays clickable, and the header drags the panel aside. So are its
+own dialogs: Message, Teleport, Inflict a wound, and the reason prompts for
+Kill, Revive, Restore turn, Spend turn and Transfer ⬢. Two things stay
+blocking, because both are asking a question that needs an answer: every
+`useConfirm()`, and the typed-name **Delete character** dialog. The
+`useDirtyGuard` close path is untouched — an unsaved staged edit still prompts
+before the modal closes, whichever way it is dismissed. ‡
 
 The data assembly is shared, not duplicated: `web/lib/devPanelData.js`
 exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the DTO bundle
@@ -447,9 +495,9 @@ character panel. It is the fourth page in the `(desk)` family (`DESIGN-
 SYSTEM.md` §6): a two-column settings workspace, `OpsNav.js` picking one
 section down the left over a validated `?s=` param (`turn` when absent or
 unrecognised), one settings surface on the right. Each section fetches only
-its own data — `listGuildMembers()` and the whole tag catalog only load for
-`?s=antagonists`, instead of on every visit regardless of which section a GM
-actually opens.
+its own data — `listGuildMembers()` and the role/seat maths only load for the
+two Threats sections, instead of on every visit regardless of which section a
+GM actually opens.
 
 The split across two route groups is deliberate. `page.js` and `OpsNav.js`
 live in `(desk)/gm/dev/`, because the `(app)` layout's fixed `TurnChip` would
@@ -460,11 +508,12 @@ superadmin gate lives in `page.js` itself rather than the layout, because
 `(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
 share that layout and are meant to stay GM-open.
 
-Six sections: **Turn** and **Configuration** under "Game"; **Bulk move**,
-**System reports** and **Antagonist roster** under "Operations"; **Restart
-game** on its own under "Danger". The last three are the ones that arrived
-with the zone rework, and this is the only doc that lists them. `LAUNCH.md`
-covers Restart Game itself.
+Eight sections: **Turn**, **Configuration** and **The Depot** under "Game";
+**Bulk move** and **System reports** under "Operations"; **Assignments** and
+**Antagonists** under "Threats"; **Restart game** on its own under "Danger".
+The two Threats sections replaced the old Antagonist Roster popup and have
+their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game itself, and the
+Depot section is this doc's appendix.
 
 **Game Config knobs documented nowhere else**, all reset by a wipe:
 
@@ -474,6 +523,7 @@ covers Restart Game itself.
 | `desiresEnabled` | Let players set a NEW Desire, in any slot, on `/character`. Off greys that form with "Temporarily disabled." An already-ACTIVE Desire in any slot can still be fulfilled or cancelled, and GMs are unaffected — `setDesireGm`/`endDesireGm` on this panel bypass every catalog gate regardless (`DESIRES.md` §6, `REQUESTS.md` §5) |
 | `desireSlots` | How many Desires a character may hold ACTIVE at once, one per slot (default 2). Each slot sets/cancels/fulfils independently (`DESIRES.md` §1) |
 | `maxDrawbackTags` | Character-creation cap on the COUNT of drawback tags a player may point-buy (default 5) — not their combined point value. A GM grant bypasses it, same as every other creation gate (`TAGS.md` §4a) |
+| `maxDrawbackPoints` | The other half of the same ceiling: how many points those drawbacks may claim back in total, as a positive magnitude (default 12). A build stops at whichever cap it reaches first (`TAGS.md` §4a) |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
 `DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A
@@ -505,13 +555,30 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
+| The one quantity control, shared with every player-facing dialog | `web/app/components/QuantityField.js` |
 | The shared tag form body (both custom-tag doors) | `web/app/components/TagFieldset.js` |
 | `expiresInto`'s shape + rules, shared with `db:sync-tags` | `db/lib/tagShapes.js` |
 | Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
-| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel` in `globals.css` |
+| Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
 | The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |
+
+## The Depot section
+
+`/gm/dev?s=depot`. The Merchant's station, split into live state you can
+override (account, debt, fuel, the face the turret spares, the two switches)
+and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
+clock and cooldown, credit cap). There is no ⬢-per-obol field: an obol is one
+⬢ and the rate is gone (`DEPOT.md` §0).
+
+The turret's severity table is edited as JSON, one weighted column per armour
+tier. **The save is refused if any column does not sum to 1** — a broken die is
+a typo, not a preference, and normalising it silently would hide the mistake
+behind subtly wrong odds for a month. `updateDepot` returns the error and the
+form says which column is wrong.
+
+See `docs/systemdocs/DEPOT.md` §0f for the shipped table.

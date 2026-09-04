@@ -19,9 +19,9 @@ system.
 
 | Channel | Tupper | Summary |
 |---|---|---|
-| A zone's `#summary` | yes | yes — adjudication results and Default Move summaries post here |
+| A zone's `#summary` | yes | yes — adjudication results and staged public declarations post here |
 | A Location channel (surface or cave level) | yes | no |
-| `#watch`, `#intercom`, `#mindlink` | yes | no — none is tied to a place, so there is no adjudication result to post there |
+| `#cerberon` | yes | no — it is tied to no place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -31,8 +31,11 @@ Keep them in sync if the rule changes.
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
 locationId, locationName, channelKind }`, so the proxy can stamp an archive
 row with where a message was said without a DB round trip per message.
-`channelKind` is one of `summary | location | watch | intercom | mindlink`
-(`ARCHIVE.md`). A Room thread or a Conversation reports its parent Location
+`channelKind` is one of `summary | location | watch | intercom` (a plain
+string field, not a Prisma enum — see `ARCHIVE.md`). `intercom` no longer means
+the channel of that name, which is gone: it is now what a PA broadcast is
+filed as in the archive (§7a). A Room thread or a
+Conversation reports its parent Location
 channel's context and keeps its own name as the scene.
 
 ## 2. Zone and Location channel layout
@@ -44,17 +47,17 @@ by `db/lib/zoneChannelSpec.js#zoneChannelSpec` (the zone's category and
 create payloads — and both first-time provisioning and the every-run reconcile
 build from them, so the two can never disagree.
 
-**A zone** (Town, Fortress, Windlands, Caves) is a category and, for a
+**A zone** (Town, Fortress, Forest, Black Hills, Marshes, Underground) is a category and, for a
 `SURFACE` zone only, a `#summary` channel:
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
-| `#summary` | text | Abstracted, big-picture play. Adjudication results and Default Move summaries land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
+| `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn. |
 
-The `CAVE_GROUP` row (Caves) owns the shared category and nothing else — no
-`#summary`, no role. Each `CAVE_LEVEL` (Caverns, Railroad, Aberrant Pits) has
-no channels of its own either; its Locations' channels parent straight onto
-the Caves category, interleaved across levels in
+The `CAVE_GROUP` row (Underground) owns the shared category and nothing else —
+no `#summary`, no role. Each `CAVE_LEVEL` (Caves, Depths) has no channels of
+its own either; its Locations' channels parent straight onto the Underground
+category, interleaved across levels in
 `level.sortOrder * 10 + location.sortOrder` order, so the three levels' rooms
 sit together the way `docs/zones.yaml` lists them rather than clumped by
 level.
@@ -64,7 +67,7 @@ named after its slug, parented to its zone's category (or the Caves category
 for a cave-level Location). Its topic is the Location's `description`
 (truncated to Discord's 1024-character cap). Top-level messages in it are the
 Location's open street; its Rooms (§4) are threads under it that only the bot
-may create. It carries its own access role, `Location: {Name}` (§3).
+may create. It is opened by a per-member overwrite, not a role (§3).
 
 **Creation is one-time; a lot is reconciled every run.** The sync only creates
 a channel/category/role whose id column is null, and channel *names* are
@@ -85,16 +88,39 @@ repair path for a zone or Location whose channels drifted.
 
 ## 3. Visibility: two access roles, zone and Location
 
-Every channel is hidden from `@everyone` and opened by one of **two** roles
-the sync creates: a **zone role**, `Zone: {Name}` (e.g. `Zone: Town`), held by
-every living character standing anywhere in that zone, and a **Location
-role**, `Location: {Name}` (e.g. `Location: Square`), held by exactly the
-living characters standing in that one Location. The zone role opens
-`#summary`, `#turns` (§3a) and the narrowcast channels (§7); the Location role
-opens that Location's own channel — and therefore its Rooms, which inherit
-channel visibility the way any thread does. A character always holds exactly
-one of each while alive. Travel swaps both roles as needed (§ below); nothing
+Every channel is hidden from `@everyone` and opened by one of **two**
+different mechanisms, and the difference matters.
+
+A **zone role**, `Zone: {Name}` (e.g. `Zone: Town`), is a real Discord role,
+created by the sync and held by every living character standing anywhere in
+that zone. It opens `#summary`, `#turns` (§3a) and the narrowcast channels
+(§7).
+
+A **Location** opens its own channel with a **per-member permission
+overwrite** instead — one `ViewChannel` grant per character standing there,
+written directly onto the channel. There is no `Location: {Name}` role any
+more, and nothing creates one.
+
+> **Why the asymmetry.** There are 5 presence zones with locations in them but
+> **56 Locations**, and Discord caps a guild at **250 roles** while capping a
+> channel at **1000 permission overwrites**. A role per Location would have
+> spent a quarter of the guild's role budget on geography, on top of one
+> personal name-token role per living character, and broken outright somewhere
+> past a hundred players. Overwrites have no ceiling this game can reach. The
+> cost is that an overwrite is invisible in the member list and has no
+> equivalent of `db:prune-orphan-roles`, which is why the doctor's occupancy
+> check (§6) exists.
+
+Either way a Location's Rooms inherit channel visibility the way any thread
+does, and a character always has exactly one zone role and exactly one
+Location overwrite while alive. Travel swaps both as needed (§ below); nothing
 else grants access to either.
+
+> **`managedOverwriteIds()` must never learn to delete a member target.**
+> `db/lib/syncZones.js` reconciles each channel's overwrites against a spec,
+> and that function is the allowlist of targets it is permitted to DELETE. It
+> contains only role ids. A wildcard there — or a member id finding its way
+> into it — would evict every player from every Location on the next sync.
 
 > **A channel does not reliably inherit its category.** Discord "syncs" a
 > channel to its category by *copying* the overwrites at creation; the two
@@ -116,10 +142,13 @@ The overwrites every target carries (`baseOverwrites`):
 - **The ghost seat** (`db/lib/cursedAccess.js`) — see §5.
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
-`AddReactions` on `#summary`. The Location role gets `ViewChannel` +
-`SendMessages` + `SendMessagesInThreads` + `AddReactions` on its own channel —
-top-level talk is allowed (the open street), and thread talk covers both a
-public and a private Room.
+`AddReactions` on `#summary`. Each character standing in a Location gets
+`ViewChannel` + `SendMessages` + `SendMessagesInThreads` + `AddReactions` on
+that channel, as a member overwrite (`LOCATION_MEMBER_ALLOW` in
+`db/lib/zoneChannelSpec.js`) — top-level talk is allowed (the open street),
+and thread talk covers both a public and a private Room. Note that this grant
+is **not** part of `locationChannelSpec`: the spec is the channel's standing
+shape, and who is standing there changes every turn.
 
 **Room and Conversation creation is denied to `@everyone` on every Location
 channel.** `CREATE_PUBLIC_THREADS` and `CREATE_PRIVATE_THREADS` are both
@@ -160,7 +189,6 @@ in `db/lib/turnsChannelAccess.js#syncTurnsChannelAccess`:
   character holds exactly one zone role from the moment `createCharacter` runs,
   and travel only swaps it — so "has a character" and "holds some zone role"
   are the same set, and the channel appears the instant a character exists.
-  Same trick `#intercom` uses (`roleViewZones`, §7).
 - the GM role, the spectator seat and the ghost seat, each via the helper that
   already exists for it.
 
@@ -225,8 +253,10 @@ database half only (validation, the cooldown or the Move it files, dragging;
 same function for the Discord half:
 
 `db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)` — grants
-the new Location role before revoking the old one, and (only if the zone
-changed too) swaps the zone role and reconciles narrowcast access; then
+the member overwrite on the destination channel before deleting the one on the
+origin, announces the crossing if the edge is a gate (`MAP.md` §2a), and (only
+if the zone changed too) swaps the zone role and reconciles narrowcast access;
+then
 resyncs private-Room membership for wherever the character now stands
 (`db/lib/roomAccess.js#syncCharacterRoomAccess`) and replays any standing
 Conversation invites there (`db/lib/threadInvites.js#applyPendingInvites`).
@@ -241,22 +271,29 @@ swap leaves the player seeing two Locations for a moment (harmless,
 self-healing) rather than none (a lockout a player can't diagnose).
 
 Any new writer of `Character.locationId` must call
-`applyLocationMoveSideEffects`. A raw Prisma write alone leaves the old roles
-held and the new ones missing, and the player either sees the wrong place or
-none.
+`applyLocationMoveSideEffects`. A raw Prisma write alone leaves the old
+overwrite standing and the new one missing, and the player either sees the
+wrong place or none.
 
 ### Death and departure
 
-`db/lib/accessSweep.js#revokeAllCharacterAccess` strips every zone **and**
-Location role (a removal of a role the member doesn't hold is a no-op, so this
-costs less than working out which ones they held from possibly-stale state)
-and sweeps their member overwrites off every zone channel, Location channel
-and special channel. Its callers are `killCharacter`, `guildMemberRemove` and
+`db/lib/accessSweep.js#revokeAllCharacterAccess` strips every zone role (a
+removal of a role the member doesn't hold is a no-op, so this costs less than
+working out which ones they held from possibly-stale state) and sweeps their
+member overwrites off every Location channel, zone channel and special
+channel. Its callers are `killCharacter`, `guildMemberRemove` and
 `wipeGameData`; any new path that ends a character must call it too.
 
+**That overwrite sweep is load-bearing now, not tidy-up.** A Location grants
+sight by overwrite, and an overwrite has no equivalent of the role strip
+`db:prune-orphan-roles` performs — so this is the only thing that stops a
+corpse from going on reading the room it died in. `allAccessChannelIds()`
+already enumerates every Location channel, which is why the shape did not have
+to change when the roles went away.
+
 `revokeAccessForCharacters` in the same file is the bulk form for Restart Game:
-one paginated member-list read, then one removal per (member × zone/Location
-role actually held), plus a channel-major overwrite sweep — read each channel once,
+one paginated member-list read, then one removal per (member × zone role
+actually held), plus a channel-major overwrite sweep — read each channel once,
 delete only what's actually on it. That's what keeps a full-roster wipe at
 hundreds of calls instead of tens of thousands. Both return counts and failure
 lists rather than nothing, because a revoke that silently fails leaves a
@@ -298,8 +335,12 @@ auto-archive after 10080 minutes (a week) idle, and the sync re-asserts
 `archived: false` on every run — so a Room that idled into the archive comes
 back at the next `db:sync-zones`, not seven days of dead air.
 
-Each Room's first message is its body (name + description), reconciled by
-content hash on `Room.postHash`; a changed body is rewritten **in place**
+Each Room's first message is its body (name + description) plus a button,
+**Storage** (`db/lib/roomStarterRow.js`, `room:storage:{id}`), which prints
+what is lying in the room's stash — every Room holds unlimited ⬢ and tags,
+moved through the web's Transfer and surviving the Dawn wipe since they live
+in the database (`CARRY.md` §5). The message is reconciled by content hash on
+`Room.postHash` (body + button row); a changed body is rewritten **in place**
 (clear every reply but the starter, edit it, re-post overflow). Because a
 thread's starter has its own message id, distinct from the thread id itself —
 unlike a forum post, where they're the same — `Room.starterMessageId` is
@@ -309,8 +350,8 @@ than the thread id.
 **Private-room membership is pull-based, not pushed from a tag writer.**
 `db/lib/roomAccess.js#syncCharacterRoomAccess(prisma, character)` recomputes,
 for every PRIVATE room, whether the character should be a thread member: any
-of `Room.accessTagSlugs` held **and** standing in that Room's Location adds
-them; anything else removes them. It's called from both travel side-effect
+of `Room.accessTagSlugs` held — **or** a `RoomGuest` row (§4a) — **and**
+standing in that Room's Location adds them; anything else removes them. It's called from both travel side-effect
 paths (§3) and from every existing call site that already calls
 `syncCharacterNarrowcastAccess` when tags, location or life status change —
 `/heal`, a character joining the guild, and the ~15 web request/GM-action
@@ -320,14 +361,57 @@ to catch and repair. Hold the Baron's Key and you're admitted to The Charon
 the moment you next arrive or the key changes hands — there is no separate
 "open the door" action.
 
+### 4a. Room guests: `/add` in a private Room
+
+A key is not the only way in. Somebody already inside a private Room can
+`/add` a character standing in the same Location, which writes a **`RoomGuest`**
+row and lets them in at once — the Baron waving a visitor into his office.
+
+- **Who may work the door:** anyone already in the room, or a GM. Membership
+  is pulled from standing there with a key or a guest row, so "in the room" is
+  already exactly the set the fiction wants; there is no separate owner.
+- **The target must be standing in the Location.** The grant is spent on
+  leaving (below), so inviting somebody across the map would hand them a row
+  that dies before they ever saw the door.
+- **The grant is spent when they leave.** `syncCharacterRoomAccess` deletes
+  every `RoomGuest` row whose Room is not where the character now stands, and
+  every mover already calls it with the destination — so walking out of the
+  Keep is what shuts the door behind you. A guest who comes back needs a fresh
+  `/add`. This is the one way room access differs from a key, which readmits
+  you forever.
+- **`/remove` refuses a key-holder**, and says so: *"Their key admits them.
+  Take the key."* Removing them would undo itself on their next arrival or tag
+  change, so the honest answer is that the key is the thing to take.
+- **A guest gets full reach**, not just the thread: the stash, the Transfer
+  dialog, the Storage button, workshop and surgical equipment standing in the
+  room, and corpse handling. That falls out of `accessibleRooms()` being the
+  one predicate behind all of them (below) — being in the room is being in the
+  room.
+- **The target is DM'd** where they were let in, plus a link. Discord's own
+  "added to a thread" notice is easy to miss and says nothing about where. The
+  Conversation `/add` sends the same DM, so the two feel alike.
+- Death and departure spend every grant
+  (`accessSweep.js#revokeAllCharacterAccess`).
+
+> **`accessibleRooms(rooms, heldSlugs, guestRoomIds)` is the one door.** It
+> answers for the Storage button, the Transfer dialog, `/character`'s room
+> list, **Secret rooms?**, the Converse picker, corpse placement, equipment
+> reach and the doctor's `room-membership` check. Any new reader loads both
+> halves with `roomAccessKeys(prisma, characterId)` — passing keys but not
+> guests is how a guest ends up standing in a room the Transfer dialog says
+> they cannot touch.
+
 ### Conversations
 
 A **Conversation** is the one thread a player can open: a private thread
 linked to a Room, created from the anchor's **Converse** button and tracked as
 a `PlayerThread` row (`locationId`, optional `roomId` — the room the
-whispering is heard in, §below). `/add` and `/remove` still work exactly as
-before, and a standing `PlayerThreadInvite` is replayed the moment its target
-next arrives at the Conversation's `locationId`
+whispering is heard in, §below). `/add` and `/remove` work here too, and the
+handler tells the two apart by the channel: a `PlayerThread` row means a
+Conversation, a `Room` row means §4a. A Conversation's `/add` is the looser of
+the two — it takes a character wherever they stand, and a standing
+`PlayerThreadInvite` is replayed the moment its target next arrives at the
+Conversation's `locationId`
 (`db/lib/threadInvites.js#applyPendingInvites`) — Discord refuses to add a
 member who can't see the parent channel, so the invite waits for them to be
 able to.
@@ -344,6 +428,11 @@ and an old woman are whispering…" — built from `ArchiveEntry` rows in the la
 15 minutes (up to 5 named, then "and others"), aliased the same way a
 concealed message is, so the Room never learns who's actually inside.
 
+**Who's here?** names the characters standing in the Location: the concealed
+ones only as what a stranger could tell at a glance, and anyone wearing a
+forced identity (`Tag.forcedName`, `PROXYING.md` §5) under that name with no
+Role.
+
 ### What's gone
 
 Persistence, the three forum tags, `/persistent`, quest posts
@@ -357,11 +446,12 @@ ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 The Cursed role — a dead player, not yet buried or engraved — gets
 `ViewChannel` plus `AddReactions` and a deny on everything else, including
 `ManageThreads`. Reactions are allowed where the spectator seat denies them,
-because the 🌬️ whisper (`COMMANDS.md` §6) is a ghost's only voice.
+so a ghost can still ⭐ a message onto their own `/notes` page. That grant
+predates the removal of the 🌬️ whisper (`COMMANDS.md` §6) and outlived it.
 
 **Ghosts now see every zone**, cave levels included — the Depths blackout and
-its `DEPTHS_SLUGS` exclusion list are gone. They read `#watch` and `#intercom`
-too (each special-channel entry declares `ghostsMaySee`). Private threads stay
+its `DEPTHS_SLUGS` exclusion list are gone. They read `#cerberon` too
+(each special-channel entry declares `ghostsMaySee`). Private threads stay
 invisible to them the way they are to any non-member; no overwrite is needed to
 keep that so.
 
@@ -380,23 +470,36 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 
 Two scopes:
 
-- **cheap** — role membership (zone roles vs `Character.zoneId`, **Location
-  roles vs `Character.locationId`**, turn-ping vs `turnPingOptIn`, cursed vs
-  the dead-and-not-yet-rerolled set), character roles existing/orphaned, and
-  the structural checks: zone **and Location** channels and roles exist, a
-  **`character-place` check** that `Character.zoneId` agrees with
-  `location.zoneId` (repaired from the location, the authority), the **bot's
-  own highest role sits above every zone and Location role** (or the swaps
-  403 — report-only, moving roles is a human decision), cursed colour 0, and
-  no seat-scoped `zoneId` pointing at a cave level. One member-list read plus
-  a handful of requests.
+- **cheap** — role membership (zone roles vs `Character.zoneId`, turn-ping vs
+  `turnPingOptIn`, cursed vs the dead-and-not-yet-rerolled set), character
+  roles existing/orphaned, **`location-occupancy`** (below), a
+  **`connection-slug`** check that every tag and Role a `LocationLink` names
+  actually exists in the catalogs — they cannot be foreign keys, because tags
+  and roles sync *after* zones — and the structural checks: zone channels and
+  roles exist, Location channels exist, a **`character-place` check** that
+  `Character.zoneId` agrees with `location.zoneId` (repaired from the location,
+  the authority), the **bot's own highest role sits above every zone role** (or
+  the swaps 403 — report-only, moving roles is a human decision), cursed colour
+  0, and no seat-scoped `zoneId` pointing at a cave level. One member-list read
+  plus a handful of requests.
+
+  **`location-occupancy` is the successor to the old Location-role membership
+  check, and it matters more than that one did.** The member overwrites on a
+  Location channel must be exactly the living characters standing there;
+  extras are deleted and missing ones added. It is the only sweep that catches
+  a location grant the move pipeline failed to swap, or one a dead character
+  kept — an overwrite has no `db:prune-orphan-roles` to fall off through. It
+  costs no extra requests, because the overwrites arrive on the channel object
+  the structure pass already fetched.
 - **full** — all of the above plus the expensive halves: zone and **Location
-  channel overwrites** vs the spec, leftover per-member overwrites on zone and
-  Location channels, **`room-thread`** (a Room's thread exists and is
+  channel overwrites** vs the spec (the *role* half; occupancy is cheap-scope),
+  leftover per-member overwrites on zone channels, **`room-thread`** (a Room's thread exists and is
   unarchived — recreating a missing one is the sync's job, so this is
   report-only), **`room-membership`** (a private Room's actual thread
-  membership vs who currently holds one of its `accessTagSlugs` and stands in
-  its Location, via `listThreadMembers`), `PlayerThread` rows whose threads
+  membership vs who currently holds one of its `accessTagSlugs` **or a
+  `RoomGuest` row** and stands in its Location, via `listThreadMembers`),
+  **`room-guest`** (rows whose character is dead or has wandered out of the
+  room's Location), `PlayerThread` rows whose threads
   404, dead `PlayerThreadInvite` rows, the special channels' member overwrites
   vs the registry rules, and `#turns`'s own overwrites vs
   `db/lib/turnsChannelAccess.js` (§3a).
@@ -412,10 +515,11 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#watch`, `#intercom`, `#mindlink`)
+## 7. Special channels (`#cerberon`)
 
 Standing channels outside the zone system, under one `radio` category (id on
-`GameConfig.radioCategoryId`). `db/lib/specialChannels.js` is a **registry**:
+`GameConfig.radioCategoryId`). There is one of them left.
+`db/lib/specialChannels.js` is a **registry**:
 one entry fully describes a channel — its `GameConfig` id columns, topic,
 tupper routing, wipe behaviour, ghost visibility, static role grants, an
 optional `slowmode`, and the per-character access rule. Adding a future
@@ -429,29 +533,87 @@ two access twins and the wipe.
 
 | Channel | Who sees it | Who speaks |
 |---|---|---|
-| `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
-| `#intercom` | **every zone role except the Windlands** — five presence zones, a static `roleViewZones` grant; the hurricane winds drown the PA out there | a character holding the **Intercom** tag *and* standing in the **Fortress** zone (per-member overwrite) |
-| `#mindlink` | any **Cultist of Bacchus** (`cultist`) holder (per-member overwrite) | **Mindlink** tag holders only |
+| `#cerberon` | **Radio Bracelet (Cerberon)** or **Radio System (Cerberon)** holders (per-member overwrite) | Radio System (Cerberon) holders only |
 
-Both tags are transferable, so possession is what matters — a bracelet handed
-to a non-Watch character still opens `#watch`.
+The Radio tags are transferable, so possession is what matters — a bracelet
+handed to a character outside the Cerberon still opens `#cerberon`.
 
-`#intercom`'s role-based view is the fix for a real scaling problem: its old
-per-member view overwrite spanned a whole Zone and was drifting toward
-Discord's ~100-overwrite-per-channel ceiling. Five role entries replace ~100
-member entries. The speak half stays per-member, and its gate moved from
-"standing in the Keep" to "standing in the Fortress zone" because the Keep is
-prose now. The Windlands is deliberately off the list — the hurricane winds
-drown the PA out, so a character standing there can't hear `#intercom` at
-all. The sync enforces both halves: it grants the listed zone roles view
-*and* deletes any zone-role grant the registry no longer lists, so dropping a
-zone from `roleViewZones` really silences the channel there on the next run.
+The sync still enforces `roleViewZones` in both directions: it grants the
+listed zone roles view *and* deletes any zone-role grant the registry no longer
+lists. Nothing currently uses the field — `#intercom` was its only client — but
+that deletion half is why dropping the channel really silenced it.
 
-`#mindlink` is Bacchus's own telepathy — every Cultist reads it, but only a
-Cultist holding the **Mindlink** tag can post. It carries a `slowmode` of
-1800 seconds (30 minutes), the first special channel to set one; nothing else
-in the registry does, so `entry.slowmode` is optional and only applied when
-present.
+### `#intercom` is gone; the PA is a button now
+
+There used to be a second entry. `#intercom` was a standing channel every
+above-ground zone role could see, and that a holder of the **Intercom** tag
+could type into while standing in the Fortress.
+
+It is now a button on the Council Room's starter post — which is what
+`docs/zones.yaml` always said was on that table — broadcasting into every
+zone's own `#summary` instead of into a channel of its own (§7a). That removed
+the channel, the registry entry, the `roleViewZones` grant, the per-member
+speak overwrite and the **Intercom tag**, which is deleted from
+`docs/tags.yaml` and off the Baron's starting list.
+`GameConfig.intercomChannelId` stays as an orphan column, the way
+`mindlinkChannelId` did.
+
+The reason is not tidiness. A PA you travel to is not a PA — the announcement
+landed somewhere nobody was standing, and hearing it meant being in a channel
+rather than in a room. Now it arrives where people already are.
+
+### 7a. The intercom
+
+`db/lib/intercom.js`. The **Intercom** button sits on the Council Room's
+starter row (`db/lib/roomStarterRow.js`, keyed on `INTERCOM_ROOM_SLUG =
+"council-room"`, hardcoded for the `roleIds.js` reason). It opens a modal, and
+the modal posts one line into each zone's `#summary`:
+
+```
+@here You hear a voice from the intercom: {text}. ‡
+```
+
+**This is the one world-narration line that is NOT `-#` subtext**, and the
+exception is deliberate. Everything else the world says is scenery and belongs
+under the conversation; a PA is a loudspeaker. Delivering the loudest
+notification Discord has in the quietest text it renders was backwards. Full
+size also means the body may carry newlines safely — there is no per-line
+prefix left to break, which is what `ambientLine` has to handle for everyone
+else.
+
+- **The gate is standing in the Council Room**, and nothing else. Getting into
+  the Keep and up to that table is the whole barrier. Re-checked at *submit*,
+  never at open — an ephemeral modal outlives somebody walking out of the Keep.
+- **The button must not be `ack()`'d.** `showModal` **is** the acknowledgement,
+  and a deferred interaction can no longer open one (`COMMANDS.md`), so the
+  button handler does no database work at all.
+- **The Black Hills do not hear it** (`OUT_OF_RANGE_ZONE_SLUGS`, the slug
+  `hills`). The barony's writ
+  thins out across the river and no speaker was ever strung that far. The cave
+  levels need no exclusion: they have no `#summary`, so the rock swallows the
+  PA for free.
+- **Sequential fan-out, each zone individually caught.** Never `Promise.all`
+  this (`TURN-ENGINE.md`). A run that reached four zones of five says so to the
+  speaker rather than swallowing it.
+- **`allowed_mentions: { parse: ["everyone"] }`** — the one place this game
+  uses a channel-wide ping. It does two jobs: it lets the `@here` through, and
+  it makes every user and role ping a player types into the box inert, the same
+  posture `proxy.js` takes with character speech pointed the other way. The
+  modal caps the body at 1200 characters so the message never chunks, because
+  chunking would ping `@here` once per chunk.
+- **Archived.** One `ArchiveEntry` per broadcast (not per zone — it was one
+  thing said, heard in several places), `channelKind: "intercom"`, naming the
+  speaker even though the channel line names nobody. The old `#intercom` was a
+  tupper channel, so its traffic was proxied and archived; a bot post is not,
+  and without this the PA would be the one kind of public talk missing from
+  `/archive`.
+- Audited as `intercom_broadcast`.
+
+`#mindlink` used to be the Cult of Bacchus's own telepathy channel, and set
+the `slowmode` field — `entry.slowmode` is still optional on a registry
+entry and only applied when present, but nothing currently in the registry
+uses it. `#mindlink` is gone along with the Cult, archived in
+`docs/archive/bacchus.yaml`.
 
 `db/lib/syncSpecialChannels.js` provisions and **reconciles every run** (topic,
 slowmode, `@everyone` deny, GM allow, spectator, ghost, and the
@@ -487,7 +649,7 @@ costs the turn announcement that already went out. Its *access* is managed
 though — see §3a.
 
 The Dawn wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk,
-so it fires identically whether Dawn came from the bot's twice-daily cron or a
+so it fires identically whether Dawn came from the bot's nightly cron or a
 GM's "End Turn" button.
 
 **The Dawn wipe only deletes.** The transcript is recorded at *send* time
@@ -508,7 +670,7 @@ ids: `fetchAllMessages` is handed a synthetic `before` snowflake, and a thread
 newer than the cutoff is skipped whole.
 
 Two things depend on it. The first is that the turn's own adjudication
-survives: the staged public declarations and the Default Move summaries are
+survives: the staged public declarations are
 posted to `#summary` at the top of the same thunk that runs the wipe at the
 bottom, and before the cutoff existed they were deleted seconds after landing —
 `StagedMessage` stamped `sentAt`, so nothing showed it had happened. The second
@@ -526,7 +688,7 @@ Per target, for every zone including cave levels, and per Location in it:
 | a Conversation | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
 | a thread newer than the cutoff | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next Dawn |
 | an untracked thread (no `PlayerThread` row, not a Room) | **adopted**: a `PlayerThread` row is written rather than the thread destroyed, so a GM's hand-made thread gets one full turn and a visible record instead of vanishing |
-| every registry entry with `wipe: "clear"` (`#watch`, `#intercom`) | every message deleted |
+| every registry entry with `wipe: "clear"` (`#cerberon`) | every message deleted |
 
 **Each Location is wiped inside its own `try`**, so one stale channel id costs
 one Location rather than every Location after it plus the special channels.
@@ -566,3 +728,18 @@ category will look visible to you regardless of what is actually set, even with
 zero bugs. To observe the gating, test from a non-owner account, or read the
 raw overwrites over REST. `npm run db:doctor -- --full` is the faster answer:
 it diffs the live overwrites against the spec for you.
+
+## The landing pad
+
+`landing-pad`, a PRIVATE thread under the Depot Location's channel, authored in
+`docs/zones.yaml` with `access: [depot-keycard]`. Membership is exactly "holds
+the keycard", handled by `db/lib/roomAccess.js` and reconciled by the channel
+doctor's room-membership check — the Depot feature adds **no access code of its
+own**.
+
+Its starter description is static and sync-owned like every other room's. The
+shuttle arriving and leaving is announced as ambient lines into the Depot's
+Location channel instead, because a hash-reconciled starter message is the
+wrong place for live state.
+
+See `docs/systemdocs/DEPOT.md` §0d.

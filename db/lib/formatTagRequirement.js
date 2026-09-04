@@ -7,7 +7,10 @@
 // requirement data set, so callers can skip rendering entirely.
 //
 // Callers must fetch requirementTurns, requirementResources,
-// requirementGambit, and requirementSkills (at least { name: true }).
+// requirementGambit, requirementItems, and requirementSkills (at least
+// { name: true }). A caller that forgets requirementItems renders no
+// ingredient line rather than throwing, which is the quiet failure to watch
+// for when adding a new surface.
 function formatTagRequirement(tag) {
   const parts = [];
   // Spelled out, not "1t": the chip face uses a `Nt` badge for turns
@@ -19,6 +22,14 @@ function formatTagRequirement(tag) {
   if (tag.requirementResources) parts.push(`${tag.requirementResources} ⬢`);
   if (tag.requirementSkills?.length) {
     parts.push(tag.requirementSkills.map((t) => t.name).join("/"));
+  }
+  // The ingredient, where a recipe has one that is actually enforced
+  // (Tag.requirementItems — two recipes do). `label` is denormalized into the
+  // stored Json by the sync precisely so this stays pure and synchronous; see
+  // db/lib/tagShapes.js. The chip has no room to add "and you keep it", so the
+  // Craft dialog says that instead.
+  if (tag.requirementItems?.length) {
+    parts.push(`with ${tag.requirementItems.map((i) => i.label).join(" and ")}`);
   }
   // The Move kind is always stated, so "no Gambit needed" reads differently
   // from "no data" — but only once there's something to qualify. A tag with no

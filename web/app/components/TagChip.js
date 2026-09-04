@@ -111,7 +111,9 @@ export default function TagChip({
             it is the recipe to make one, and "Cure" read wrong over every brew
             and blade in the catalog. */}
         {requirement && (
-          <Meta label={tag.craftable ? "Recipe" : "Cure"}>{requirement}</Meta>
+          <Meta label={tag.craftable ? "Recipe" : tag.healable ? "Cure" : "Requirement"}>
+            {requirement}
+          </Meta>
         )}
         {/* Tag.inspectVisibility — whether another player sees this on the 🔍
             inspect embed. Only the affirmative renders; hidden is the default,
@@ -120,6 +122,15 @@ export default function TagChip({
             is the difference between a dagger in a pocket and a drawn one. */}
         {tag.inspectVisibility && tag.inspectVisibility !== "HIDDEN" && (
           <Meta label="Seen by others">{tag.inspectVisibility === "WORN" ? "Only while worn" : "Yes"}</Meta>
+        )}
+        {/* Tag.concealsIdentity / Tag.forcesConceal. Three states, and the
+            difference between the last two is the whole reason this row
+            exists: "Always" means the wearer cannot choose to be seen, which
+            is a very different thing to own than a mask you can take off.
+            Nothing renders for gear that doesn't conceal, same posture as the
+            visibility row above. */}
+        {tag.concealsIdentity && (
+          <Meta label="Conceals you">{tag.forcesConceal ? "Always, while worn" : "Optional, while worn"}</Meta>
         )}
         {/* The prerequisite gate (requiredTag, or the group's) — what marks
             role/faction kit as designed-for-you. Reads straight off the tag

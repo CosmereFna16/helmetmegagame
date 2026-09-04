@@ -1,5 +1,5 @@
 // Provisioning + reconciliation for the SPECIAL CHANNELS registry
-// (db/lib/specialChannels.js) — #watch, #intercom, and whatever joins them.
+// (db/lib/specialChannels.js) — #cerberon, and whatever joins it.
 // Run by db/scripts/sync/sync-narrowcast-channels.js (`npm run
 // db:sync-narrowcast-channels`) and from wipeGameData's Restart Game flow.
 //

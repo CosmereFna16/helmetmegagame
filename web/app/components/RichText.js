@@ -2,12 +2,11 @@
 
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
-import { usePartySizes } from "./PartySizeProvider";
+import { useCarryReference } from "./CarryProvider";
 import { useDocuments } from "./DocumentsProvider";
 import { useCharacterMentions } from "./CharacterMentionsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
-import PartySizeChip from "./PartySizeChip";
 import DocumentChip from "./DocumentChip";
 import CharacterAvatar from "./CharacterAvatar";
 import InfoIcon from "./InfoIcon";
@@ -29,16 +28,6 @@ function ResourceToken({ payload, fallback }) {
   const rate = rates[field]?.[tier];
   if (!rate) return fallback;
   return <ResourceChip value={rate.display} />;
-}
-
-// Payload is the 1-indexed tier of a Cult of Bacchus party goal, e.g.
-// "3" — see db/lib/partySize.js. The API ships each tier pre-formatted as
-// `display`, already scaled by GameConfig.playerCount.
-function PartySizeToken({ payload, fallback }) {
-  const { sizes } = usePartySizes();
-  const size = sizes[payload.trim()];
-  if (!size) return fallback;
-  return <PartySizeChip value={size.display} />;
 }
 
 // Payload is Document.key (docs/documents.yaml's `key:`), e.g.
@@ -78,10 +67,19 @@ function InfoToken({ payload }) {
   return <InfoIcon text={payload.trim()} />;
 }
 
+// Payload is a tag slug carrying Tag.carryBonus ("pack-mule", "cart").
+// Renders the plain sentence "You can carry N more item tags, and M ⬢.",
+// computed from the live GameConfig caps by getCarryReference
+// (lib/referenceData.js) — see docs/systemdocs/CARRY.md.
+function CarryToken({ payload, fallback }) {
+  const { lines } = useCarryReference();
+  return lines[payload.trim()] ?? fallback;
+}
+
 const BUBBLE_KINDS = {
   tag: TagToken,
   resource: ResourceToken,
-  partysize: PartySizeToken,
+  carry: CarryToken,
   document: DocumentToken,
   char: CharToken,
   info: InfoToken,

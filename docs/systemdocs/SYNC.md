@@ -12,16 +12,15 @@ running the sync is the only way these rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread |
-| `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b) |
-| `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members, roles, or a non-zero silo is left in place and reported |
+| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room`, `LocationYield` | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5). A `yield:` kind that leaves the YAML has its `LocationYield` row deleted; `base` is always written, but live drifted `current` is only reset when `base` itself changed (`LABORING.md` §3) |
+| `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
+| `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 
 **Run order matters:** zones → tags → roles → desires → documents. Roles
 resolve a `starting_zone` and an optional `starting_location` by slug, and a
-Faction's zone — plus its optional `silo_zone:` override, which must name a
-**seat** zone (`FACTIONS.md` §3b) — by name, and validate
+Faction's zone by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags,
@@ -29,7 +28,8 @@ roles *and* factions. Running them out of order throws on a reference that
 would have existed.
 
 `db:sync-narrowcast-channels` (§4) belongs right after `db:sync-zones`, because
-`#intercom`'s static view grants name the zone roles the zone sync creates.
+a registry entry's static `roleViewZones` grants name zone roles the zone sync
+creates.
 
 ## 2. Where they differ, in detail
 
@@ -52,38 +52,41 @@ is unchanged.
 `slug` everywhere except `Document`, which uses `key`. **Zones, Locations and
 Rooms share one slug namespace** — a Location named like its own zone would
 make "which thing is `town`?" ambiguous everywhere slugs are read, so the sync
-rejects a duplicate across all three lists. (This is why Town's own Square is
-`town-square`, not `town`.)
+rejects a duplicate across all three lists.
+
+Locations follow one naming rule, split between built places and open country.
+A built place takes a bare slug — `keep`, `factory`, `cathedral`, `depot`.
+Open country takes its zone as a prefix — `forest-river`, `hills-ravine`,
+`marshes-village` — because every zone has a ravine and a river, and the slug
+is also the Discord channel name.
 
 A changed `id` is not a rename: the old entry is pruned and a new one
 provisioned from scratch, losing its Discord objects. Rename by editing `name`.
 
 ### Create-only fields
 
-`Faction.silo` is **computed** — the sum of the faction's role weights,
-scaled by `GameConfig.playerCount` (`db/lib/factionSilo.js`) — and seeded
-**on CREATE only**. An existing faction's silo is live game state and an
-ordinary re-sync must never overwrite it. The one deliberate exception is
-`seedSilos: true` (`db:sync-roles -- --seed-silos`, and the Restart Game
-wipe), which re-seeds every silo at its computed opening balance — without
-it, a wipe would leave every silo at the 0 it was zeroed to, since no
-faction row is ever *created* again after the first sync. Unaffiliated is
-excluded and stays silo-less.
+`Faction.parentFactionId` is create-only. The hierarchy is authored in
+`roles.yaml` (`parent:`), but once a faction row exists its parent is **live
+game state** — a clan can break away mid-game, or be absorbed by another, and
+that is a GM edit on `/gm/dev/factions`. An ordinary re-sync leaves it alone,
+so it can't quietly re-parent a faction under the one it rebelled against —
+so editing `parent:` in the YAML for a *future* game is still the right move,
+it just doesn't reach a game already in progress. A Leader secedes from
+`/faction` too, not just a GM (`FACTIONS.md` §3).
 
-`Faction.siloZoneId` is the opposite case: written on **every** sync, `null`
-included. It is pure authored configuration, not game state, and writing the
-null is what makes a removed `silo_zone:` line put the Silo back on the
-faction's own zone. See `FACTIONS.md` §3b.
+`Faction.siloRoomId` is a **floor** rather than create-only, which is one
+notch weaker. `roles.yaml`'s `silo:` names a Room slug, and the sync writes it
+only while the faction has no silo at all. Re-pointing a silo in play writes a
+non-null id, which the sync never touches — so a Leader's choice is as safe as
+under create-only, and a faction that predates the column still gets the one
+the YAML names for it. Rooms come from `db:sync-zones`, which runs first; an
+unknown slug warns and skips rather than throwing.
 
-`Faction.parentFactionId` is create-only for the same reason. The hierarchy is
-authored in `roles.yaml` (`parent:`), but once a faction row exists its parent
-is **live game state** — a clan can break away mid-game, or be absorbed by
-another, and that is a GM edit on `/gm/dev/factions`. An ordinary re-sync
-leaves it alone, so it can't quietly re-parent a faction under the one it
-rebelled against. `seedSilos: true` (`--seed-silos`, and the Restart Game
-wipe) reasserts the authored hierarchy along with the authored silos — so
-editing `parent:` in the YAML for a *future* game is still the right move, it
-just doesn't reach a game already in progress.
+A room's `stash:` is the same shape of promise. It takes either a flat list of
+slugs (one each) or a map with `resources:` and an `items:` map of slug →
+count. A stack already at or above the authored quantity is left alone, and
+`resources` is written only while the room holds none — so a re-sync can
+neither undo a player carrying the anvil off nor quietly duplicate it.
 
 ### One-time vs every-run
 
@@ -119,23 +122,83 @@ zones:
       polygon: [[50, 30], [95, 30], ...]   # dormant — see MAP.md
       label: { x: 74, y: 50 }
     locations:             # → Location rows → one text channel + role each
-      town-square:          # zones/locations/rooms share ONE slug namespace
+      square:               # zones/locations/rooms share ONE slug namespace
         name: Square
         description: >-     # the anchor's -# subtext and the channel topic
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+                             # → LocationYield rows. Optional, 0–2, omit a kind
+                             #   rather than writing 0. An absent kind CANNOT be
+                             #   worked here at all. See LABORING.md §3.
         rooms:               # → Room rows → threads under the Location channel
           the-charon:
             name: The Charon
             description: >-
             access: [the-barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
     levels:               # groups only; each becomes a standable CAVE_LEVEL zone
-      caverns:
+      caves:
         locations:
           ...
 
-connections:              # the whole travel graph, as zone/location pairs
-  - [town/town-square, fortress/gatehouse]   # crosses zones: costs the Move
-  - [town/town-square, town/cathedral]       # same zone: free, on the cooldown
+connections:              # the whole travel graph. ONE entry per edge — it is
+                          # undirected, and listing it twice is an error.
+  - [town/square, fortress/gatehouse]        # crosses zones: costs the Move
+  - [town/square, town/cathedral]            # same zone: free, on the cooldown
+
+  - pair: [fortress/gatehouse, fortress/road]   # the mapping form, for an
+    announce: true_name                         #   edge that is not a plain
+    modular:                                    #   open road
+      roles: [cerberus]
+      tags: [cerberon]
+      open: true
+  - pair: [fortress/undercroft, forest/forest-cliffs]
+    hidden: elevator-key
+  - pair: [fortress/road, hills/hills-descent]
+    locked: mountaineering
+    on_foot: true
 ```
+
+A `connections` entry is either a **bare pair** — a plain open road, which is
+most of the map — or a **mapping** carrying the edge's type. The keys compose,
+because one real edge is a manned gate *and* a modular one at once:
+
+| Key | Effect |
+|---|---|
+| `announce: true_name` | a **manned gate**: posts the crosser's real name into the destination zone's `#summary`. `/conceal` does not help |
+| `announce: concealed` | an **unmanned gate**: posts only their concealed alias |
+| `locked: <tag-slug>` | crossing needs the tag; the way is still **listed** |
+| `hidden: <tag-slug>` | needs the tag **and** is absent from the travel list |
+| `modular: { roles, tags, open }` | an Open/Close button on both anchors, impassable while shut |
+| `modular.structural: true` | a structure-controlled edge: waives the opener requirement above — a ford or a gateway has nobody who can open it by hand until something is built — and the button appears only once a `COMPLETE`/`DAMAGED` structure claims it and openers are authored (`MAP.md` §2a, `db/lib/locationGraph.js#gateOperable`). Forbidden together with `hidden` — the unbuilt way IS the discovery hook, and `hidden` would swallow it. At most **one** structural edge may touch a Location — a hard sync refusal, since the build-site binding (`openBuildSiteImpl`) has no picker to choose between two |
+| `keyed: true` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — needs a `locked` or `hidden` tag, since an open way has nothing to hold |
+| `on_foot: true` | no horse or cart fits: a **mounted** character is refused at the threshold (`MAP.md` §2c) |
+
+`locked` and `hidden` are the same requirement with different visibility, so an
+entry may carry one or the other, never both. Each entry becomes exactly one
+`LocationLink` row with endpoints in ascending slug order — see `MAP.md` §2a.
+
+**`modular.open` is what a link is BORN with, not something the sync
+re-asserts.** A gate somebody shut in play stays shut across a re-sync;
+otherwise every sync would silently reopen the Gatehouse. `openUntil` is left
+alone for the same reason — a keyed way somebody is holding open keeps standing
+open for its 24 hours.
+
+`modular.open` is now stored as `LocationLink.authoredOpen` and **re-asserted
+on every sync run**, unlike `isOpen` itself, which stays play state the sync
+never touches. That split is what lets a destroyed holding structure revert
+its edge to the born state (`ADJUDICATION.md` §6) without needing to know what
+the YAML currently says. A Restart Game wipe resets `isOpen` back to
+`authoredOpen` and clears `openUntil` on every edge, the same as any other
+play state the wipe returns to its authored default. A structural edge must
+also be **spannable** — at least one endpoint has to accept a build at all
+(not indoors, not a cave level, no `noBuild` attribute) — or the sync refuses
+it: an edge nothing could ever claim would be a crossing shut forever.
+
+**Re-slugging a structural edge orphans the structure holding it.** The sync
+deletes any link absent from the YAML and creates the re-named one fresh, and
+`Structure.linkId` goes `SetNull` with the deletion — so a standing Bridge
+over a renamed ford keeps Examining as a bridge while the crossing reads as
+unbuilt, and nothing can rebind it. The remedy is a GM Destroy + rebuild
+(`/gm/structures`); the real fix is not renaming an edge something stands on.
 
 A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
 belong on its levels), and its own id may never appear in `connections` — it
@@ -149,12 +212,19 @@ there doesn't fail the sync; it just makes a room nobody can ever hold a key
 to, and the channel doctor's `room-membership` check (`CHANNELS.md` §6) is
 where that shows up, not this one.
 
+The Tag and Role slugs a connection names — `locked`, `hidden`, and
+`modular`'s `roles`/`tags` — are unvalidated here for exactly the same reason,
+and the doctor's **`connection-slug`** check is where a typo surfaces. It
+matters more than the room case: a locked way naming a tag that does not exist
+is a way nobody can ever pass, and a *hidden* one is that plus invisible, so
+nobody would even report it missing.
+
 ### Strict vs soft validation
 
 Most references throw rather than half-apply — an unknown `parentTag`,
 `requiredTag`, `starting_zone` or `starting_tags` name aborts the run. A
-`starting_zone` must additionally be a **presence** zone: the Caves group is a
-container, and a character can't start inside a container.
+`starting_zone` must additionally be a **presence** zone: the Underground group
+is a container, and a character can't start inside a container.
 
 The one soft case is `connections` coverage: a Location in no pair at all is
 **warned** about, not thrown on. It's legal in principle (a dead end nobody
@@ -171,6 +241,16 @@ keys next to it are strict and throw on a typo.
 before any write, so a typo fails cleanly instead of half-applying. It also
 throws on `concealsIdentity` without `equippable` — a mask nobody can equip
 could never conceal anything.
+
+The rest of the headgear family throws the same way: `concealsIdentity` with no
+`concealSprite`, a `concealSprite` naming a file that isn't in
+`web/public/assets/helms/`, `forcesConceal` without `concealsIdentity`, an
+`equipSlot` on something not `equippable`, an `equipLayer` outside 1–4 or with
+no slot, a `HEAD`/`BODY` slot with no layer, and a layer on a `SHIELD`. The
+sprite check is the interesting one: it is the only validation here that
+touches the filesystem outside `docs/`, and it deliberately treats a missing
+directory as "cannot check" rather than as a failure, since `web/public` may
+not be laid out the same way inside a Next standalone build.
 
 ### Pass structure
 
@@ -235,7 +315,7 @@ channel doctor.
 
 **This flow has been bitten by foreign-key ordering before.** Anything deleted
 there has to come out in dependency order, and it's the main reason new log-ish
-tables (`ArchiveEntry`, `SiloTransaction`, `AuditLog`, `SystemReport`)
+tables (`ArchiveEntry`, `AuditLog`, `SystemReport`)
 deliberately use plain indexed id columns rather than real relations — see
 `ARCHIVE.md`.
 
@@ -244,13 +324,16 @@ deliberately use plain indexed id columns rather than real relations — see
 `db:sync-tags` never deletes, which is the right default — a tag a character
 holds must not vanish because someone tidied a YAML file — but it means the
 catalog only ever grows. `npm run db:prune-tags` is the separately-invoked
-counterpart, and the only tag operation in this repo that deletes anything.
+counterpart, and the only tag/group operation in this repo that deletes
+anything: it prunes a `Tag` absent from `docs/tags.yaml`, and — once no
+surviving tag sits in it — a `TagGroup` absent from `docs/taggroups.yaml`
+too.
 
 **It is a dry run by default.** Nothing is removed without `-- --apply`, the
 same posture as `db:prune-orphan-roles` and `db:doctor`.
 
 **Retiring a chain may take two applies.** Blockers are computed per run, so
-a parent (`laborer-basic` under a removed `laborer-skilled`, a base tag under
+a parent (`laboring-basic` under a removed `laboring-skilled`, a base tag under
 its removed variants) is reported as still-referenced until the run that
 deleted its children is over — run `-- --apply` again and it goes.
 
@@ -271,7 +354,9 @@ because a prune that skips silently is worse than one that deletes:
   `db:sync-tags` writes the edge symmetrically, but a custom tag's edge isn't
   guaranteed symmetric, so the blocker check reads both `conflictsWith` and
   `conflictedBy`);
-- no `DesireTemplate` gates on it via `requiresAnyTags`/`requiresNotTags`;
+- no **non-retired** `DesireTemplate` gates on it via
+  `requiresAnyTags`/`requiresNotTags` — a gate held only by a retired
+  template (`DESIRES.md` §10) no longer counts as a blocker;
 - no `Role.startingTagSlugs` grants it and no `Document.tagSlugs` is assigned
   by it. Note `Role.startingTagSlugs` is misnamed and holds tag **names**,
   while `Document.tagSlugs` really does hold slugs.
@@ -279,6 +364,18 @@ because a prune that skips silently is worse than one that deletes:
 It is deliberately terminal-only and **not** wired into Restart Game: a wipe
 clears every `CharacterTag` first, so a prune running there would find every
 custom tag unheld and delete the lot.
+
+**A `TagGroup` prunes the same way, once it has no tags left.** After tags
+are pruned, any group absent from `docs/taggroups.yaml` and holding no
+surviving tag is deleted too. The `TagGroup.requiredTagId` blocker above
+also has the mirror exception: a gate held by a group that's itself absent
+from `docs/taggroups.yaml` no longer counts as a blocker on the tag it
+gates, since that group is on its way out in the same run. Tag-to-tag
+references work the same way: a `parentTag`, `requiredTag`, `conflictsWith`,
+cure/craft skill or `consumesInto` reference made by a tag that is itself
+being pruned does not pin its target, so a spell and its expiry marker can go
+together. The prune loops to a fixpoint, so a tag that a character still
+holds keeps everything it references.
 
 ## 4. Ops scripts
 
@@ -290,12 +387,13 @@ pre-launch wipe rebuilds everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). `-- --seed-silos` also re-seeds every faction Silo. |
+| `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
-| `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags. |
-| `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Guards the 250-role guild cap. |
+| `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags, then any TagGroup absent from `docs/taggroups.yaml` once no surviving tag sits in it. |
+| `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |
+| `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more. `db:sync-zones` cannot reach these: it only prunes a Zone/Location row that left `docs/zones.yaml` while the DB still holds its Discord ids, and the doctor never deletes a channel at all. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |
 | `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
-| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch`/`#intercom` channels from the special-channels registry. Run after `db:sync-zones`. |
+| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#cerberon` channel from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
 | `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. `db:sync-zones` re-walls them. |

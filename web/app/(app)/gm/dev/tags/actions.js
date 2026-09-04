@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -84,6 +85,17 @@ function scalarsFrom(input) {
   if (input.concealsIdentity && !equippable) {
     throw new UserError("Only an equippable tag can conceal identity.");
   }
+  // A concealing tag also needs a Tag.concealSprite — the face the room sees
+  // instead of the wearer's — and this form has no editor for one, because the
+  // image has to exist as a real file under web/public/assets/helms (built by
+  // `npm run assets:helms`). A GM can't add one at runtime. Without the sprite
+  // the flag would simply do nothing, which is the quiet failure the throw in
+  // syncTags.js exists to prevent; refusing here says so out loud instead.
+  if (input.concealsIdentity) {
+    throw new UserError(
+      "Concealing gear needs a sprite, so it has to be authored in docs/tags.yaml rather than here. ‡",
+    );
+  }
 
   // Three states, not a checkbox (Tag.inspectVisibility). A missing or unknown
   // value reads as HIDDEN, which is the safe direction for a vision gate.
@@ -123,6 +135,8 @@ function scalarsFrom(input) {
     consumable: Boolean(input.consumable),
     removable: Boolean(input.removable),
     tradeable: Boolean(input.tradeable),
+    healable: Boolean(input.healable),
+    teachable: Boolean(input.teachable),
     purchasable: Boolean(input.purchasable),
     purchasableAfterStart: Boolean(input.purchasableAfterStart),
     sellable,
@@ -327,22 +341,13 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/players", "layout");
 
-  // A live grant may change narrowcast access (#watch, #intercom) and
+  // A live grant may change narrowcast access (#cerberon) and
   // private-room membership, same as bulkTagCharacters. Sequential and after
   // the writes, per ARCHITECTURE.md §5 — never a fan-out of REST calls at
   // Discord's rate limiter. A staged grant hasn't touched anyone's holdings
   // yet, so it's skipped here.
   if (applied.length && !result.staged) {
-    after(async () => {
-      const rows = await prisma.character.findMany({
-        where: { id: { in: applied } },
-        select: { id: true, discordUserId: true, locationId: true, status: true },
-      });
-      for (const row of rows) {
-        await syncCharacterNarrowcastAccess(row.id).catch(() => {});
-        await syncCharacterRoomAccess(prisma, row).catch(() => {});
-      }
-    });
+    after(() => afterInventoryChange(applied));
   }
 
   return result;

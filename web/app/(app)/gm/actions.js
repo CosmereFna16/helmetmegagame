@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { prisma } from "@lifeweb/db";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
@@ -112,21 +113,12 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
       },
     });
 
-    // A granted or revoked tag may change narrowcast access (#watch,
-    // #intercom) and private-room membership — a key tag gained opens a door,
+    // A granted or revoked tag may change narrowcast access (#cerberon) and
+    // private-room membership — a key tag gained opens a door,
     // a key tag lost shuts it. Sequential and after the writes, per
     // ARCHITECTURE.md §5 — never a fan-out of REST calls at Discord's rate
     // limiter.
-    after(async () => {
-      const rows = await prisma.character.findMany({
-        where: { id: { in: ids } },
-        select: { id: true, discordUserId: true, locationId: true, status: true },
-      });
-      for (const row of rows) {
-        await syncCharacterNarrowcastAccess(row.id).catch(() => {});
-        await syncCharacterRoomAccess(prisma, row).catch(() => {});
-      }
-    });
+    after(() => afterInventoryChange(ids));
 
     revalidatePath("/gm/players", "layout");
     revalidatePath("/character");

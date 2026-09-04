@@ -11,6 +11,7 @@
 // Restore-turn button and the Moves panel's Reject share one definition.
 // Two copies would drift the first time Action.appliedEffects grows a key.
 import { revertMoveEffects } from "@lifeweb/db";
+import { cancelOffersForAction } from "@lifeweb/db/lib/lessons";
 
 // A cooperative lock, not a status — see the comment on MOVE_LOCK_TTL_MS in
 // gm/turns/actions.js. Exported so anything that mutates a Move can honour a
@@ -47,7 +48,13 @@ export async function findOpenTurnAction(prisma, characterId) {
 //
 // Takes a transaction client: both callers do this alongside an audit write
 // that must not commit separately.
+//
+// A lesson's Moves go in pairs (db/lib/lessons.js): rejecting one cancels the
+// lesson, and rejecting the teacher's takes the learners' Gambits with it.
+// Returns the DMs that owes, for the caller to send after commit.
 export async function deleteActionRestoringTurn(tx, action) {
+  const dms = await cancelOffersForAction(tx, action.id);
   if (action.appliedEffects) await revertMoveEffects(tx, action);
-  await tx.action.delete({ where: { id: action.id } });
+  await tx.action.deleteMany({ where: { id: action.id } });
+  return dms;
 }

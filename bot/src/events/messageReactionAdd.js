@@ -1,18 +1,15 @@
 const { EmbedBuilder } = require("discord.js");
-const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft, concealedLine } = require("@lifeweb/db");
-const { getSiloAccess } = require("@lifeweb/db/lib/factionPermissions");
-const { inspectVision, isInscrutable } = require("@lifeweb/db/lib/inspectVision");
-const {
-  HEALTH_CATEGORY,
-  buildSkillAncestry,
-  satisfiedSkillIds,
-  seenByBystander,
-  medicallyVisibleTags,
-} = require("@lifeweb/db/lib/medicalVision");
+const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
+const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
+// The 🔍 readout is shared with the Look at button on /character — see
+// db/lib/examine.js for why it is one module and not two embeds.
+const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("@lifeweb/db/lib/examine");
+const { buildSkillAncestry, satisfiedSkillIds } = require("@lifeweb/db/lib/medicalVision");
+const { BLIND_SLUG } = require("@lifeweb/db/lib/examineVision");
 const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
-const { GHOST_LINE, claimGhostWhisper } = require("@lifeweb/db/lib/ghostWhisper");
+const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 
 // Discord embed limits: a breach rejects the whole embed silently. Trim with
 // fitField/fitDescription below before adding a field.
@@ -36,7 +33,6 @@ const EDIT_EMOJIS = ["✏️", "📝"];
 const INSPECT_EMOJIS = ["🔍", "🔎"];
 const STAR_EMOJI = "⭐";
 const FOG_EMOJI = "🌫️";
-const WIND_EMOJI = "🌬️"; // ghost whisper: works on any message, Cursed only
 const DOSSIER_EMOJI = "⚜️"; // GM only
 
 // Saves the message to the reactor's personal Notes list. `proxy` is the
@@ -53,10 +49,11 @@ async function handleStarReaction(reaction, proxy, user) {
     const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
     if (!character) return;
     characterId = character.id;
-    // A concealed message is filed under the alias it was posted as. The
-    // note is already private to the starrer, but recording the real name
-    // would quietly hand them the answer the concealment was hiding.
-    characterName = proxy.concealed ? (proxy.alias ?? "Unknown") : character.name;
+    // A concealed or forced message is filed under the alias it was posted
+    // as (a hood or a forcesName tag alike). The note is already private to
+    // the starrer, but recording the real name would quietly hand them the
+    // answer the concealment was hiding.
+    characterName = proxy.alias ?? character.name;
     zoneId = character.zoneId ?? null;
   } else {
     const archived = await prisma.archiveEntry.findUnique({ where: { discordMessageId: message.id } });
@@ -124,6 +121,8 @@ async function handleDossierReaction(reaction, proxy, user) {
     }),
   ]);
 
+  // GM eyes: the real name and face, with the mask noted rather than worn.
+  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
   const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
   const embed = new EmbedBuilder()
     .setTitle(character.name)
@@ -139,6 +138,9 @@ async function handleDossierReaction(reaction, proxy, user) {
         .filter(Boolean)
         .join(" · "),
     });
+  if (identity.forced) {
+    embed.addFields({ name: "Presents as ‡", value: identity.name, inline: true });
+  }
 
   // Mind Discord's 1024-char embed field cap — a long-lived character can
   // carry a lot of tags, so the list is trimmed rather than rejected whole.
@@ -209,42 +211,6 @@ async function handleFogReaction(reaction, user) {
   await message.channel.send(payload).catch(() => {});
 }
 
-// The wind emoji arrives with or without its U+FE0F variation selector
-// depending on client, so a bare === misses half of them.
-function isWindEmoji(name) {
-  return typeof name === "string" && name.replace(/️/g, "") === WIND_EMOJI.replace(/️/g, "");
-}
-
-// Cursed-only: a ghost breathes one line into the channel as the bot itself,
-// at most once every 12 real hours per ghost (db/lib/ghostWhisper.js).
-// Silence is the failure mode — a non-ghost or a blocked ghost gets nothing
-// visible, so pressing it never outs who's watching. Only the cooldown DMs.
-async function handleWindReaction(reaction, user) {
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  if (!cursedRoleId) return;
-
-  const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
-  if (!member?.roles.cache.has(cursedRoleId)) return;
-
-  // Public ground only: a zone's #summary, a Location's channel, or a Room
-  // under it (a thread reports its parent's kind). A private Room or a
-  // Conversation needs no rule here — a ghost is never a member, so it can't
-  // react there in the first place.
-  const { channelKind } = resolveChannelContext(reaction.message.channel);
-  if (channelKind !== "summary" && channelKind !== "location") return;
-
-  const claim = await claimGhostWhisper(prisma, user.id);
-  if (!claim.ok) {
-    const readyAt = Math.floor(claim.readyAt.getTime() / 1000);
-    await sendDm(user, {
-      content: `The wind won't answer yet. You can blow through again <t:${readyAt}:R>.`,
-    }).catch(() => {});
-    return;
-  }
-
-  await reaction.message.channel.send(GHOST_LINE).catch(() => {});
-}
-
 module.exports = {
   name: "messageReactionAdd",
   async execute(reaction, user) {
@@ -257,14 +223,9 @@ module.exports = {
     // guildId, not guild: a partial message has the former, not always the
     // latter. Nothing is reaction-driven in a DM.
     if (!reaction.message.guildId) return;
-    // 🌬️ and ⭐ work on any guild message; every other reaction needs a
-    // tracked proxy.
-    if (
-      emojiName !== FOG_EMOJI &&
-      !isWindEmoji(emojiName) &&
-      emojiName !== STAR_EMOJI &&
-      !recentProxies.has(reaction.message.id)
-    ) {
+    // ⭐ works on any guild message; every other reaction needs a tracked
+    // proxy.
+    if (emojiName !== FOG_EMOJI && emojiName !== STAR_EMOJI && !recentProxies.has(reaction.message.id)) {
       return;
     }
 
@@ -275,12 +236,6 @@ module.exports = {
     if (reaction.emoji.name === FOG_EMOJI) {
       await handleFogReaction(reaction, user).catch(() => {});
       recentProxies.delete(reaction.message.id);
-      return;
-    }
-
-    if (isWindEmoji(reaction.emoji.name)) {
-      await handleWindReaction(reaction, user).catch((err) => console.error("Wind reaction failed:", err));
-      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
 
@@ -351,147 +306,93 @@ module.exports = {
           where: { discordUserId: user.id, status: "ALIVE" },
           select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
         });
-        const { canSeeDesire, ragingBlind } = inspectVision(viewer?.tags ?? []);
-        if (ragingBlind) {
-          try {
-            await sendDm(user, "No time, no time!", { source: "system_notice" });
-          } catch (err) {
-            console.error("Inspect reaction DM failed (raging):", err);
-          }
+
+        // The one thing that closes this door. Everything else about 🔍 is
+        // deliberately open — it needs the subject to have just spoken beside
+        // you, which is close enough to see whatever your eyes are — but a
+        // blind viewer sees nothing at all, here as on /character
+        // (db/lib/examineVision.js).
+        if (viewer?.tags?.some((t) => t.tag?.slug === BLIND_SLUG)) {
+          await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+            console.error(`Couldn't tell ${user.id} they're blind:`, err),
+          );
           return;
         }
 
-        // Seductive/Demoness reads off the reactor, not the subject. A
-        // concealed message gets a hardcoded, impoverished embed instead of
-        // the normal field logic below, so nothing leaks through it.
-        if (proxy.concealed) {
-          const concealedChar = await prisma.character.findUnique({
-            where: { id: proxy.characterId },
-            select: {
-              tags: {
-                select: {
-                  equipped: true,
-                  tag: {
-                    select: {
-                      name: true,
-                      inspectVisibility: true,
-                      category: true,
-                    },
-                  },
-                },
-              },
-            },
-          });
-          if (!concealedChar) return;
+        // A concealed message is read off the PROXY, not the live row: the
+        // hood the room saw when this was posted is the hood this answers for,
+        // even if they have since taken it off. Faked onto the subject shape
+        // so one readout serves both — see db/lib/examine.js.
+        const subject = await prisma.character.findUnique({
+          where: { id: proxy.characterId },
+          select: EXAMINE_SUBJECT_SELECT,
+        });
+        if (!subject) return;
 
-          const seen = concealedChar.tags.filter((ct) => seenByBystander(ct.tag, ct));
-          // Tag.category stores the display name, not the YAML slug.
-          const ailments = seen
-            .filter((ct) => ct.tag.category === HEALTH_CATEGORY)
-            .map((ct) => ct.tag.name);
-          const worn = seen.filter((ct) => ct.tag.category !== HEALTH_CATEGORY).map((ct) => ct.tag.name);
-
-          const hidden = new EmbedBuilder().setDescription(concealedLine(proxy.alias));
-          if (ailments.length > 0) hidden.addFields({ name: "Ailments", value: fitField(ailments.join(", ")) });
-          if (worn.length > 0) hidden.addFields({ name: "Equipment", value: fitField(worn.join(", ")) });
-          if (process.env.WEB_BASE_URL) {
-            hidden.setThumbnail(`${process.env.WEB_BASE_URL}/assets/unknown.png`);
-          }
-
-          try {
-            await sendDm(user, { embeds: [hidden] });
-          } catch (err) {
-            console.error("Inspect reaction DM failed (concealed):", err);
-          }
-          return;
-        }
-
-        const [character, openTurn, skillCatalog] = await Promise.all([
-          prisma.character.findUnique({
-            where: { id: proxy.characterId },
-            include: {
-              tags: { include: { tag: { include: { requirementSkills: { select: { id: true, name: true } } } } } },
-              faction: { select: { name: true } },
-            },
-          }),
+        const [openTurn, skillCatalog] = await Promise.all([
           prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
           // Tier chain: holding Medical (Expert) must satisfy a requirement
           // written against Medical (Basic).
           prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
         ]);
-        if (!character) return;
 
-        // The doctor's eye: an affliction treatable as ROUTINE is one you can
-        // recognise on sight; anything needing a Gambit stays hidden.
-        const satisfied = satisfiedSkillIds(
-          (viewer?.tags ?? []).map((ct) => ct.tagId),
-          buildSkillAncestry(skillCatalog),
-        );
+        const hooded = Boolean(proxy.concealed);
+        const officer =
+          !hooded && subject.factionId
+            ? (await getMyFactionRole(prisma, user.id, subject.factionId)).isOfficer
+            : false;
+        const lastDesire =
+          !hooded && canSeeDesire(viewer?.tags ?? [])
+            ? await prisma.desire.findFirst({
+                where: { characterId: subject.id, status: "FULFILLED" },
+                orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+                select: { text: true, points: true },
+              })
+            : null;
 
-        // Treat cost shows for a Health tag only — a bystander has no
-        // business learning what forging a worn sword takes.
-        const visibleTags = medicallyVisibleTags(character.tags, satisfied).map(({ characterTag: ct, viaSkill }) => {
-          const bits = [
-            ct.tag.category === HEALTH_CATEGORY ? formatTagRequirement(ct.tag) : null,
-            formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
-            viaSkill ? "your diagnosis" : null,
-          ].filter(Boolean);
-          return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
+        const readout = examineReadout({
+          subject: hooded ? { ...subject, concealed: true } : subject,
+          viewerTags: viewer?.tags ?? [],
+          satisfied: satisfiedSkillIds(
+            (viewer?.tags ?? []).map((ct) => ct.tagId),
+            buildSkillAncestry(skillCatalog),
+          ),
+          openTurnNumber: openTurn?.number,
+          lastDesire,
+          viewerFactionId: viewer?.factionId ?? null,
+          viewerIsOfficer: officer,
         });
 
-        const embed = new EmbedBuilder()
-          .setTitle(character.name)
-          .setDescription(fitDescription(character.appearance || "No visible appearance."));
-        if (visibleTags.length > 0) {
-          embed.addFields({ name: "Tags", value: fitField(visibleTags.join(", ")) });
+        const embed = new EmbedBuilder();
+        if (readout.concealed) {
+          embed.setDescription(readout.line);
+        } else {
+          embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
         }
-
-        // An unseen field is absent, never a "hidden" placeholder — nothing
-        // tells the subject they were read either. Once the viewer holds the
-        // sight, an empty result gets an explicit "nothing there" line so it
-        // reads the same as Inscrutable's block (db/lib/inspectVision.js).
-        if (canSeeDesire) {
-          const desires = isInscrutable(character.tags)
-            ? []
-            : await prisma.desire.findMany({
-                where: { characterId: character.id, status: "FULFILLED" },
-                orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
-                take: 1,
-                select: { text: true, points: true },
-              });
+        if (readout.ailments.length > 0) {
+          embed.addFields({ name: "Ailments", value: fitField(readout.ailments.join(", ")) });
+        }
+        if (readout.equipment.length > 0) {
+          embed.addFields({ name: "Equipment", value: fitField(readout.equipment.join(", ")) });
+        }
+        if (readout.tags.length > 0) {
+          const value = readout.tags.map((t) => (t.detail ? `${t.name} (${t.detail})` : t.name)).join(", ");
+          embed.addFields({ name: "Tags", value: fitField(value) });
+        }
+        if (readout.desire) {
           embed.addFields({
             name: "Last Desire",
-            value:
-              desires.length > 0
-                ? fitField(desires.map((d) => `» ${d.text} (+${d.points})`).join("\n"))
-                : "Nothing you can read.",
+            value: readout.desire.text
+              ? fitField(`» ${readout.desire.text} (+${readout.desire.points})`)
+              : "Nothing you can read.",
           });
         }
-
-        // Role is same-faction knowledge, not Silo authority — no ancestor
-        // walk, unlike getSiloAccess below.
-        if (
-          character.factionId &&
-          character.faction?.name !== "Unaffiliated" &&
-          viewer?.factionId === character.factionId &&
-          character.roleTitle
-        ) {
-          embed.addFields({ name: "Role", value: character.roleTitle, inline: true });
+        if (readout.roleTitle) embed.addFields({ name: "Role", value: readout.roleTitle, inline: true });
+        if (readout.resources != null) {
+          embed.addFields({ name: "Resources", value: `${readout.resources} ⬢`, inline: true });
         }
-
-        // Silo authority (Leader/Treasurer, or an ancestor faction's) gates
-        // Resources visibility, same as /faction's roster column.
-        if (character.factionId && character.faction?.name !== "Unaffiliated") {
-          const access = await getSiloAccess(prisma, user.id, character.factionId);
-          if (access.canManageSilo) {
-            embed.addFields({ name: "Resources", value: `${character.resources} ⬢`, inline: true });
-          }
-        }
-
         if (process.env.WEB_BASE_URL) {
-          embed.setThumbnail(
-            `${process.env.WEB_BASE_URL}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`,
-          );
+          embed.setThumbnail(`${process.env.WEB_BASE_URL}${readout.avatarPath}`);
         }
 
         try {

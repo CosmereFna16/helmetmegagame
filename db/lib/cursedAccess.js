@@ -1,9 +1,11 @@
 // The Cursed role's ghost seat — read-only visibility for the dead. A player
 // who dies keeps it until buried or engraved (docs/documents.yaml,
 // Respawning); while cursed they see every zone (cave levels included) plus
-// #watch/#intercom, but private threads stay invisible as to any non-member.
-// Mirrors db/lib/spectatorAccess.js except ADD_REACTIONS is allowed (the
-// wind whisper, 🌬️, is a ghost's only voice) and MANAGE_THREADS is denied
+// #cerberon, but private threads stay invisible as to any non-member.
+// Mirrors db/lib/spectatorAccess.js except ADD_REACTIONS is allowed (so a
+// ghost can still ⭐ a message onto their own /notes page; it used to carry
+// the 🌬️ wind whisper too, which is gone — a body reports itself now, from
+// bot/src/lib/deathSmell.js) and MANAGE_THREADS is denied
 // by name. The role's COLOR is pinned to 0 by ensureCursedRoleAppearance —
 // a colored role would out who is dead in the member list. The role id is
 // an env var (DISCORD_CURSED_ROLE_ID); every helper here no-ops when unset.

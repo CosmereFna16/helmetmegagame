@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { prisma, isDynastyHead, deleteCharacterRow } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -29,6 +30,7 @@ import {
   applyTagOpsInTx,
   planDiscordEffects,
 } from "@/lib/characterWrite";
+import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
@@ -102,7 +104,10 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   const [openTurn, config, held] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } }),
-    prisma.characterTag.findMany({ where: { characterId }, select: { tagId: true } }),
+    prisma.characterTag.findMany({
+      where: { characterId },
+      select: { tagId: true, quantity: true },
+    }),
   ]);
 
   const ops = Array.isArray(tags) ? tags : [];
@@ -111,6 +116,9 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     : [];
   const tagsById = new Map(tagRows.map((t) => [t.id, t]));
   const heldIds = new Set(held.map((h) => h.tagId));
+  // What each stack held going in, so the DM below can say "×7 → ×3" rather
+  // than reporting a count change as nothing at all.
+  const heldBefore = new Map(held.map((h) => [h.tagId, h.quantity]));
 
   // Validate everything BEFORE opening the transaction, so a rejected payload
   // leaves nothing half-written and the GM sees the first real problem rather
@@ -165,7 +173,13 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
-        actionType: "gm_character_applied",
+        // Tag changes fire one gesture at a time from the Tags tab now, so
+        // most rows this writes carry an empty core. Naming those differently
+        // keeps /gm/audit readable — "applied" ought to mean a column moved.
+        actionType:
+          Object.keys(diff).length || leader !== null
+            ? "gm_character_applied"
+            : "gm_character_tag_applied",
         targetCharacterId: characterId,
         reason: reason?.trim() || null,
         details: { core: diff, leader, tags: appliedTags },
@@ -218,11 +232,20 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   const tagLosses = appliedTags.filter((t) => t.op === "remove").map((t) => t.name ?? t.tagId);
   if (tagGains.length) changeLines.push(`+ ${tagGains.join(", ")}`);
   if (tagLosses.length) changeLines.push(`- ${tagLosses.join(", ")}`);
+  // A count change is a patch, not an add or a remove, so it used to produce
+  // no line at all — a GM taking someone's meals from 7 to 3 told them
+  // nothing. `heldBefore` is read before the transaction for exactly this.
+  for (const t of appliedTags) {
+    if (t.op !== "patch" || t.quantity == null) continue;
+    const was = heldBefore.get(t.tagId);
+    if (was === t.quantity) continue;
+    changeLines.push(`${t.name ?? t.tagId}: ×${was ?? "?"} → ×${t.quantity}`);
+  }
   if (diff.resources) changeLines.push(`Resources: ${diff.resources.from} → ${diff.resources.to} ⬢`);
   if (diff.locationId) changeLines.push(`Moved.`);
   if (diff.name || diff.lastName) changeLines.push(`Name updated.`);
   if (changeLines.length) {
-    notifyCharacter(session, existing, `Your sheet was edited:\n${changeLines.join("\n")}`);
+    notifyCharacter(session, existing, `Your sheet was edited: ‡\n${changeLines.join("\n")}`);
   }
 
   repaint(characterId);
@@ -273,6 +296,17 @@ async function reviveCharacterImpl({ characterId }) {
     data: { status: "ALIVE", buriedAt: null },
   });
 
+  // And the body goes too (docs/systemdocs/CORPSES.md). The Tag row cascades
+  // from Character, but nothing deletes a Character here — so without this a
+  // walking, living person leaves a corpse behind that anyone could pick up,
+  // and corpseFollow would keep dragging their sheet to wherever somebody
+  // carried it. deleteCorpseFor clears the holdings first, which it has to:
+  // CharacterTag.tagId is RESTRICT, so deleting a corpse someone is carrying
+  // throws instead.
+  await deleteCorpseFor(prisma, characterId).catch((err) =>
+    console.error(`Revive: failed to clear the corpse for ${characterId}:`, err),
+  );
+
   await audit(session, "gm_character_revived", characterId, { name: character.name });
   notifyCharacter(session, character, `${character.name} has been revived.`);
 
@@ -310,8 +344,11 @@ async function restoreTurnImpl({ characterId, reason }) {
     throw new UserError("Another GM is adjudicating that Move right now.");
   }
 
+  // A lesson's partner Moves may go with this one (db/lib/lessons.js); the
+  // learners it strands are told after commit.
+  let lessonDms = [];
   await prisma.$transaction(async (tx) => {
-    await deleteActionRestoringTurn(tx, action);
+    lessonDms = await deleteActionRestoringTurn(tx, action);
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
@@ -326,6 +363,9 @@ async function restoreTurnImpl({ characterId, reason }) {
         },
       },
     });
+  for (const dm of lessonDms) {
+    after(() => sendDm(dm.discordUserId, dm.content).catch((err) => console.error("Lesson cancel DM failed:", err)));
+  }
   });
 
   // Always DM'd — a freed turn they don't know about is a wasted day.
@@ -376,26 +416,14 @@ async function spendTurnImpl({ characterId, description }) {
   return { actionId: created.id };
 }
 
-// Generic party-to-party transfer; gmTransferResources/resolveParty reject a
+// Character-to-character transfer; gmTransferResources/resolveParty reject a
 // malformed or unknown key. Same balance check as a player transfer, minus
 // the player-side reach gate.
-async function transferResourcesImpl({ fromKey, toKey, amount, reason, quiet, coverActorName, coverToName, coverNote }) {
-  const result = await gmTransferResources({
-    fromKey,
-    toKey,
-    amount,
-    reason,
-    quiet,
-    coverActorName,
-    coverToName,
-    coverNote,
-  });
+async function transferResourcesImpl({ fromKey, toKey, amount, reason }) {
+  const result = await gmTransferResources({ fromKey, toKey, amount, reason });
   for (const key of [fromKey, toKey]) {
     const [kind, id] = (key ?? "").split(":");
     if (kind === "character" && id) repaint(id);
-  }
-  if (fromKey?.startsWith("faction:") || toKey?.startsWith("faction:")) {
-    revalidatePath("/faction");
   }
   return result;
 }
@@ -442,8 +470,7 @@ async function resyncDiscordImpl({ characterId }) {
         fromLocationId: null,
         toLocationId: character.locationId,
       });
-      await syncCharacterNarrowcastAccess(characterId);
-      await syncCharacterRoomAccess(prisma, character);
+      await afterInventoryChange(characterId);
     } catch (err) {
       console.error("Dev Panel resync failed:", err);
     }
@@ -500,8 +527,7 @@ async function teleportCharacterImpl({ characterId, locationId }) {
           toLocationId: updated.locationId,
         });
       } else {
-        await syncCharacterNarrowcastAccess(characterId);
-        await syncCharacterRoomAccess(prisma, updated);
+        await afterInventoryChange(characterId);
       }
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);

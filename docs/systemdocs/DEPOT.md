@@ -1,7 +1,11 @@
 # The Depot
 
-Everything the Merchant buys and sells, with its real price. Price a new ware
-off these tables, not by feel. If you change a number here, change the tag's
+The Merchant's station: a hangar door in the roof of the caves, a shuttle that
+comes through it, a generator that has to be fed, a turret in the ceiling, and
+a bank. This file is the source of truth for all of it.
+
+Everything the Depot buys and sells has a real price. Price a new ware off the
+tables below, not by feel. If you change a number here, change the tag's
 `depotPrice` or `sellablePrice` in `docs/tags.yaml` in the same commit — this
 file and that one are the same numbers written twice, and nothing checks that
 they agree.
@@ -18,6 +22,325 @@ not adjudicate a purchase. The price is then snapshotted into `Request.effect`,
 so re-tuning a number here never changes what an Undo of an older trade
 reverses.
 
+## 0. The rework, and what it changed
+
+The Depot used to be a shop: two panels, a table, and ⬢ moving on and off the
+Merchant's own sheet. It worked and nobody wanted to open it twice. The rework
+turned it into a machine somebody operates, and five things are now true that
+were not before.
+
+- **The money is obols (¢), and one obol is one ⬢.** Nothing converts and
+  nothing rounds. **The catalog still prices in ⬢** — `depotPrice` and
+  `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
+  same number whether the Merchant is buying it or a player is haggling over
+  it — so every authored price is already a whole number of obols too.
+  An obol does not compress value, it makes value **physical**: a weightless
+  stackable tag holding the same amount as the number on a sheet, but one you
+  can carry, hand over, stash and have stolen.
+
+  It used to be worth 5 ⬢, and that broke the bottom of the price table. A 3 ⬢
+  cup of tea cost a whole coin to buy and paid nothing at all to sell, because
+  the station took the ceiling one way and the floor the other. Thirty-two
+  wares sold for under a coin and were therefore worth zero at the counter. The
+  rate, the two rounding helpers and the ⬢/¢ display toggle are all gone.
+- **The money belongs to the station, not the Merchant.** It lives on
+  `Depot.accountObols`. The licence is tradeable, so handing it over hands over
+  the balance too, and that is what makes the card worth stealing.
+- **Goods arrive physically.** An order is paid for now and delivered later, as
+  crates on a landing pad that anyone with a keycard can walk into.
+- **The lights can go out.** A generator burns fuel every turn and takes the
+  whole Depot down with it when the tank empties.
+- **The room can kill you.** A turret, off by default, that reads faces.
+
+Everything below describes the reworked system. `Character.depotDebt` is gone;
+the line lives on `Depot.debtObols`.
+
+## 0a. The moving parts
+
+| Piece | Where it lives | Notes |
+|---|---|---|
+| Station state and tuning | `Depot` singleton, `id = 1` | `db/lib/depotState.js` — every mover is a locked clamp, per `lifeweb.js#bumpBlood` |
+| The turret | `db/lib/depotTurret.js` | Weighted severity table, one column per armour tier |
+| Crates | `db/lib/depotCrates.js` | Runtime `Tag` rows with `custom: true` |
+| Per-turn upkeep | `db/lib/depotPass.js` | Fuel burn, shuttle clock, turret sweep |
+| The console | `web/app/(app)/depot/`, `web/app/components/Depot*.js` | Cockpit strip + six tabs |
+| GM tuning | `/gm/dev?s=depot` | `updateDepot` in `web/app/(app)/gm/dev/actions.js` |
+
+## 0b. Who may do what
+
+Three doors, deliberately different:
+
+| Holder | Can |
+|---|---|
+| **Merchant's Licence** | Everything: order, call and send the shuttle, the ATM, the credit line, the generator, the turret. Must be standing at the Depot, and (except for the power switch) the generator must be running. |
+| **Depot Keycard** | Read the console. Enter the landing pad. Open crates, including sealed ones. Operates nothing. |
+| **Superadmin** | Read the console. |
+| Anyone else | Bounced off `/depot`. |
+
+The licence is checked, never the Merchant **role** — the licence is tradeable
+and a role check would quietly break that.
+
+## 0c. The generator
+
+`Depot.generatorFuel` burns `fuelBurnPerTurn` every turn it runs and switches
+itself off at zero. With it off, **nothing at the Depot works** — no ordering,
+no shuttle, no ATM, no turret. The one exception is the power switch itself,
+for the obvious reason.
+
+Coal is the proper fuel (`coalFuel`, 50 by default); saltpeter is the fallback
+and deliberately worse (`saltpeterFuel`, 15). At the shipped defaults a full
+tank is five turns and one coal is two and a half, so the Merchant refuels
+roughly every five turns and has to stay profitable to afford it. Overfilling
+wastes the surplus rather than banking it.
+
+`depotPowered(depot)` is the single predicate for "on". Fuel at zero is off
+even if the switch says otherwise.
+
+## 0d. The shuttle and the landing pad
+
+The landing pad is a **real room** — a PRIVATE thread under the Depot's channel
+gated on `depot-keycard`, authored in `docs/zones.yaml`. Membership is handled
+entirely by `db/lib/roomAccess.js` and reconciled by the channel doctor; the
+feature adds no access code of its own.
+
+The cycle:
+
+1. **Order** into a manifest. Obols leave the account now; the goods do not
+   exist yet. That gap is the risk of the business.
+2. **Call it down.** The manifest becomes crates in the landing pad's stash,
+   and the shuttle is `DOCKED`. An empty manifest still brings it — he needs it
+   down to load anything going up.
+3. **Load and send it back.** The goods on the pad go up and come back as
+   obols at their `sellablePrice`, converted once and floored. An **unopened
+   crate is worth what is inside it**, priced off the live catalog — otherwise
+   returning a shipment would silently annihilate it. Loose ⬢ in the stash
+   stay where they are: the ⬢ Counter (§0g) is marginless and always open, and
+   two rates for the same thing was a bug waiting to happen.
+4. Or **it leaves on its own** after `shuttleMaxTurns` (6). A timed departure
+   takes nothing with it — the crates stay on the pad. Selling is a deliberate
+   act and an unattended shuttle should not empty the room.
+
+`shuttleCooldown` is the gap between landing and being able to send it back —
+a *departure* gate, not an arrival one. (`ShuttleState.INBOUND` is declared and
+never written; calling it down lands it immediately.)
+
+`shuttleTurn` is **never null**. It used to be set from `getOpenTurn()`, which
+is legitimately null between advances, and a null clock made both timers read
+"landed this turn" forever: send-up stayed inside its cooldown, the automatic
+departure never fired, and re-calling was refused because the state was not
+`AWAY`. Only SQL could free it. It floors to 0 instead.
+
+## 0e. Crates
+
+A shipment does not arrive as a tidy pile of tags. It arrives packed, in a
+random number of crates, and somebody has to open them. That makes unloading a
+job worth paying a Docker for, puts a delay between buying a pistol and holding
+one, and means a crate left on the pad can be stolen.
+
+**A crate is a `Tag` row created at runtime** with `custom: true`, so
+`db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
+carry weight (15 lb), transfers, room stashes and theft for free. The row is
+deleted once nothing references it.
+
+The manifest is printed on the crate, in exactly this format:
+
+```
+[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23
+```
+
+Unless something in it ships sealed, in which case the whole crate reads:
+
+```
+[SHIPMENT ID RV-4471-K]: SEALED
+```
+
+...and only a Depot Keycard opens it. **One sealed line item seals the crate it
+lands in**, so nobody knows *which* crate the dangerous thing is in — only that
+one of them is worse news than the others.
+
+**A non-stackable ware can only be ordered one at a time.** `CharacterTag` is
+unique on character+tag, so a crate reading `ML-23 x 2` could only ever hand
+over one pistol; the order is refused rather than silently clamped. Opening a
+crate also records what actually landed, not what the crate claimed — a
+non-stackable ware you already hold is reported as skipped rather than granted.
+
+A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
+sync refuses it on a tag with no `depotPrice`, since the station cannot ship
+what it does not stock. Currently sealed: the two firearms, the flamethrower,
+Light Infantry Armour, Soporific, Phrygian Tears, the Amoeba Vial, the
+Homunculus and the Illusion Crystal.
+
+## 0f. The turret
+
+The first automated harm mechanic in Bascinet. Nothing else in this codebase
+rolls damage — injuries have always been GM-adjudicated (`HARM_CHARACTER`) or a
+narrative Gambit outcome — so there was no armour model to extend. What it
+borrows instead is the *shape* of `db/lib/cavingLoot.js`: a weighted draw whose
+columns must sum to 1.
+
+**There are two turrets now.** This one, and the gun on the rotor in the
+Gatehouse yard (`db/lib/gatehouseTurret.js`, §0g below). They share everything
+except where they stand, what turns them on and who they spare, so the sweep,
+the arrival roll and what a bullet does to a sheet live once in
+`db/lib/turretPass.js`. The ballistics — the severity ladder, the armour
+columns, the weighted draw — stay in `db/lib/depotTurret.js`, which is the file
+both of them roll against.
+
+**It reads faces, not papers.** The turret spares exactly one thing: a
+character whose **presented** name matches `Depot.merchantFace`. Not the
+licence, not the keycard, not the role. So:
+
+- A concealed Merchant is shot by his own gun.
+- A Docker who steals the card is still shot.
+- Anyone who comes back wearing the Merchant's name walks past it.
+- With no face on file it fires on **everyone**, so **arming it is refused
+  until there is one**. That was a one-click suicide with a GM-only cure:
+  disarming needs you standing in the Depot, and walking in rolls the gun on
+  you first.
+
+**The face is written when the Merchant is created.** Creating a character on
+the `merchant` role calls `setMerchantFace` with that character's own name
+(`web/app/(app)/character/createActions.js`, in the best-effort side-effect
+block; the writer is in `db/lib/depotState.js`). It used to be a GM-only field,
+which meant a new Merchant met a gun he was forbidden to arm and had to go and
+ask somebody to type his name into a form. `/gm/dev` is still the override.
+
+It is set **once and never resynced**, because a face does not change when the
+papers do. Two consequences worth knowing, both deliberate:
+
+- Concealing himself later still gets the Merchant shot — he presents an alias,
+  which is not the face on file. That is the trap working, not a bug.
+- A **dead Merchant's face stays on file.** The gun goes on sparing a name
+  nobody is wearing until the next Merchant is created, which overwrites it, or
+  a GM edits it. Nothing clears it on death.
+
+It fires **on entry** (`db/lib/locationMove.js`, before the Discord guard —
+being shot is a database fact) and **again at the end of every turn**
+(`db/lib/depotPass.js`), the way Caving rolls do. It only fires when the
+generator is running.
+
+**Armour picks a column, not a step.** A vest does not downgrade one wound by
+one rung; it moves the whole distribution. Best-equipped-armour-first, and only
+`equipped` armour counts.
+
+| Tier | graze | minor | deep | grievous | dying | dead |
+|---|---|---|---|---|---|---|
+| No armour | 10% | 25% | 30% | 20% | 10% | 5% |
+| Padded | 25% | 30% | 25% | 13% | 5% | 2% |
+| Mail | 30% | 30% | 23% | 11% | 4% | 2% |
+| Plate | 38% | 30% | 19% | 9% | 3% | 1% |
+| Salvage Plate | 45% | 29% | 16% | 7% | 2% | 1% |
+| Light Infantry | 55% | 28% | 12% | 4% | 1% | 0% |
+| Energy Shield | 85% | 10% | 4% | 1% | 0% | 0% |
+
+Light Infantry Armour being the best column is the catalog's own claim about
+it — "nothing forged in Ravenheart stops a bullet". The turret is where that
+line finally means something mechanical.
+
+A GM retunes any column from `/gm/dev?s=depot`. **The save is refused** if a
+column does not sum to 1 — a broken die is a typo, not a preference, and
+silently normalising it would hide the mistake behind subtly wrong odds for a
+month. A column that somehow reaches the database invalid (a hand-edited row, a
+restored backup) is ignored at roll time in favour of the shipped one.
+
+A `dead` result goes through `db/lib/characterDeath.js#applyDeathToRow`, so it
+gets a corpse, an archive line and the Discord role owed back like any other
+death.
+
+## 0g. The other turret, in the Gatehouse
+
+The triple-barrelled gun on the rotor in the fortress yard, which the Baron's
+charter has described as "off" since before anything could switch it on.
+`db/lib/gatehouseTurret.js`.
+
+It is this turret's opposite in the one way that matters: **it spares nobody.**
+No face, no keycard, no rank. Armed, it fires on whoever is standing in the
+Gatehouse — the Cerberon, the Baron, the person who armed it. Armour still picks
+a column, which is the point of the Cerberon's mail: the gun is survivable if
+you are dressed for it, and not otherwise.
+
+It carries no tunable table and no Dev Panel section. `rollTurret(tags, source)`
+reads only `source.turretTable`, so passing `null` gets the shipped table for
+free — that is the whole reason a second gun needed no new config.
+
+Its entire state is `GameConfig.gatehouseTurretArmed`, off by default.
+
+**The switch is a physical thing in a room.** A red *Toggle Turret* button on
+the Censor's Office starter post (`db/lib/roomStarterRow.js`), answered by
+`handleTurretOpen` / `handleTurretSubmit` in the bot. It is the only red button
+in the game, on purpose. Two guards, and neither is a permission check:
+
+- You have to be **standing in the Censor's Office**, re-checked at *submit*,
+  never at open — an ephemeral modal outlives somebody walking out of the
+  Garrison. Reaching the wall is the safeguard.
+- You have to **type `ARM` or `DISARM`** into the modal. Discord has no confirm
+  dialog and a misclick on a red button should not be able to shoot the Keep.
+  Case and stray spaces are forgiven; it is a speed bump, not a password. The
+  state is re-read at submit, so two people in the office at once cannot both
+  flip it the same way.
+
+Flipping it speaks one `-#` line into the Gatehouse through
+`db/lib/ambientLine.js` — the machine spinning up is the only warning anybody in
+the yard gets — and writes one `gatehouse_turret_toggled` audit row naming the
+character who pressed it.
+
+It fires on the same two triggers as the Merchant's: on entry
+(`db/lib/locationMove.js`, which now asks both guns; each checks the destination
+slug first and costs one indexed read to say no) and at the end of every turn,
+as its own `gatehouseTurret` pass. Separate from `depot` in `TURN_PASSES` so a
+failed Depot pass cannot swallow it and a resume re-runs only the one that did
+not finish.
+
+## 0g. The bank
+
+The Merchant is the only faucet of currency in the game.
+
+- **The ATM** moves obols between `Depot.accountObols` and physical `obol`
+  tags. It is the only door coins enter and leave the world through, which is
+  what makes lending something only he can do.
+- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 15)
+  is drawn and repaid in obols. Drawing puts money in the account. The cap is
+  **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
+  code punishes a standing balance — the Company is not code.
+- **The ⬢ Counter** moves his own Resources to obols and back, one for one and
+  **with no spread**. He does not charge himself a margin to use his own till.
+  What it really changes is the *form* of a value rather than the amount: a
+  number on his sheet becomes coins, and back again. This replaced an earlier
+  rule that ⬢ could only become obols by riding the shuttle up — one counter,
+  one place.
+
+Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
+(`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
+10, Esculap 10, Baroness / Heir / Meister 5 each — 80 ¢ across the whole cast.
+His float is deliberately thin, and thinner than the rest of the cast's scaled
+with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
+is where most of his first order has to come from. It has to be paid back.
+
+## 0h. The console
+
+`/depot`. A cockpit strip that never scrolls away — greeting, balance,
+generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
+**Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
+
+There is no ⬢/¢ toggle any more, and no need for one: an obol is one ⬢, so
+every price column reads the same number in either unit. Prices print in ¢
+throughout, whole, with no decimals anywhere — the row figure, the cart total,
+the Hold payout, the account and the credit line are all the same kind of
+number now.
+
+The strip is pinned because all four of those facts matter whichever job you
+are doing; hiding the generator behind a tab is how you order three hundred
+obols of coal onto a dead one.
+
+The **Ledger** reads existing `Request` rows of the eight `DEPOT_*` types
+rather than a ledger table of its own — those rows already snapshot what moved,
+already appear on the GM desk, and already undo.
+
+`DEPOT_SHIP` and `DEPOT_CRATE_OPEN` have **no undo handler**, deliberately.
+A shuttle that went up cannot be recalled and its cargo no longer exists; an
+opened crate has scattered its contents into an inventory that has moved on.
+The rows stay visible and a GM corrects by hand.
+
 ## 1. What it is
 
 A shuttle parked at Customs, in the Caves, tethered to an orbital station the
@@ -32,7 +355,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | | |
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) |
-| Zone | `caverns` — Customs. Reading the list works anywhere; trading needs him standing there. |
+| Location | `depot` — its own room in the Caves since the Bascinet 2 map, where it used to be a paragraph inside the Customs description and the gate was the whole Caverns zone. Reading the list works anywhere; trading needs him standing in that one room. |
 | Gate | the `merchants-license` tag, **not** the Merchant role |
 | Requests | `DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT` — auto-applied, GM-reviewed, undoable |
 | Constants | `db/lib/depot.js` |
@@ -61,6 +384,12 @@ What the station charges him, per unit. Almost every ware is
 `purchasable: false` — **for those, the Merchant is the only source in the
 game**, which is the whole point of the seat.
 
+**Paper undercuts everything at 1 ⬢**, on purpose. It has to be something a
+scribe buys by the ream without thinking about it, or nobody writes and the
+whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
+with no sell-back price at all: a resale market in blank paper is not a thing
+anybody needs, and 1 ⬢ leaves no room under it anyway.
+
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
 `poison-snooper` (9) and `neoclassic-rw10` (14). All six are
@@ -72,10 +401,12 @@ buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
+| `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
 | `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
 | `firecracker` | 4 | 1 | |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
+| `rat-mask` | 15 | 6 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
 | `sweets` | 5 | 2 | Consumes into `ate-meal` |
 | `honey` | 5 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 5 | 2 | |
@@ -98,13 +429,20 @@ buying one mid-game is still a real decision.
 | `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
 | `amoeba-vial` | 64 | 28 | |
 | `illusion-crystal` | 73 | 32 | |
+| `bb-pistol` | 75 | 33 | Equippable |
+| `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
+| `silver-sword` | 150 | 66 | |
+| `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
 | `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
 | `ml-23` | 182 | 80 | A 9mm pistol |
 | `motorcycle` | 209 | 92 | Caving loot he also imports |
+| `adamantium-sword` | 230 | 101 | |
 | `flamethrower` | 237 | 104 | Caving loot he also imports |
+| `ctt43-rifle` | 260 | 114 | A .308 semi-automatic |
+| `kpfw-6-avtomat` | 540 | 237 | The dearest thing on the counter |
 
 Three of these need code, not just catalog data:
 
@@ -134,6 +472,13 @@ make it, importing it would be pointless. The three exceptions are all brews —
 Merchant who would rather not wait on a brewer. Each is priced well above what
 brewing one costs, and that gap is the market a brewer sells into (§4).
 
+### Laboring tools
+
+Two of the tools in `LABORING.md` §5 are Merchant stock rather than smith work:
+`fishing-rod` at 12 and `trapping-gear` at 26. Both are craftable too, so the
+depot price is the impatience premium, not a monopoly. The Plow is deliberately
+**not** stocked — it is smith work, and the horse it needs is the real cost.
+
 ## 4. Selling
 
 What the station pays him, per unit. This is the other half of the loop —
@@ -145,10 +490,28 @@ Four bands, about 106 tags in total:
 
 | Band | Priced at | Examples |
 |---|---|---|
-| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `ambrosia` 40, `bliss` 3 |
+| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
-| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3 |
-| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1 |
+| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
+| Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
+| Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **48** |
+
+**Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
+off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**
+when the Godard Factory opened: the 10 read the Skinless as a slightly harder
+Graga, which they are not — they are the only ingredient in the catalog that has
+to be talked out of being a person first — but at 40 a single organ stood level
+with a whole day of industry, and read as a shortcut past it. 25 keeps it well
+clear of a Graga Sac without competing with a wagon.
+`dreamers-draught` went 16 → **60**, staying
+above its own ingredient, because the point of that recipe is that the brain is
+the cheap part. `painting` went 60 → **48**, a flat 20% nerf; over its 4 turns
+that is 12 ⬢/turn, still the best rate a craftable pays.
+
+**`human-flesh` is deliberately not sellable at all.** Butchering is free and
+every death mints a corpse, so a price on it would be a code-enforced ⬢ faucet
+hanging off a free action. It stays `tradeable`, so the market for it is other
+players.
 
 **Smithed gear's markup is `resourceCost + round(rate(skill) × turnsCost^1.3)`, per item —
 not a flat multiplier of the tier.** A flat "+1/3 of the tier" markup used to make
@@ -234,36 +597,14 @@ and the larger change.
 
 ## 5. The credit line
 
-The Company advances the Merchant up to **60 ⬢** against the business, tracked
-on `Character.depotDebt` and drawn or repaid from the Credit panel.
+**Superseded by §0g.** The line is now denominated in obols and lives on
+`Depot.debtObols`, capped by `Depot.creditCapObols`. `Character.depotDebt` was
+dropped in the rework — the licence is tradeable, so the debt travels with the
+station rather than with whoever is holding the card.
 
-There is no interest, no schedule, and no penalty. If he takes out 60 he owes
-60. Drawing past the ceiling is refused; everything else is allowed, including
-sitting on the whole balance for the length of the game.
-
-The cap is enforced by a conditional `updateMany` — the write is the check,
-the same pattern and the same reason as `moveResources`. Both the apply and
-the Undo move the tab by a **delta**, never by an absolute value, so they
-compose in any order; an absolute write here silently lost one of two
-concurrent draws, and left the tab negative when a repaid draw was later
-undone. `creditAvailable()` clamps at both ends for the same reason: a
-negative debt must never read as headroom above the ceiling.
-
-**Nothing in code punishes a standing debt.** That is deliberate. The line is an
-asset for doing the job, not a trap, and the enforcement is social: every draw
-and every repayment files a `DEPOT_CREDIT` request, so GMs can see what he took
-and judge what he did with it. Spend it on the town and nobody minds. Spend it
-on yourself and the licence is a thing that can be taken away — by a GM, in
-fiction, which is the only place that rule lives.
-
-Two things this is **not**:
-
-- It is not a loan system. The loans that matter are the ones *he* writes to
-  other players, and those are a conversation plus an ordinary
-  `TRANSFER_RESOURCES`. Usury is his best business and it is entirely
-  unmechanised, which is what makes it interesting.
-- It is not the Company's Silo. `Faction.silo` is the faction's money and is
-  untouched by any of this; the line is advanced to him personally.
+Everything else about it is unchanged: draw puts money in the account, repay
+takes it back out, the cap is refused rather than clamped, and nothing in code
+punishes a standing balance. It is visible to GMs, and that is the enforcement.
 
 ## 6. Retail
 

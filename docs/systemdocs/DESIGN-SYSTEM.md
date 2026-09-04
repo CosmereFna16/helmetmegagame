@@ -64,7 +64,8 @@ Three things about the token set are load-bearing and easy to undo by accident:
   attribute. `--accent` as text measures **2.96** on dusk's `--surface`: under
   not just AA's 4.5 but the 3.0 large-text floor.
 - **The zone code is fills only.** `--zone-fortress` / `--zone-town` /
-  `--zone-windlands` / `--zone-caves` are colour-picked from the Plate map and
+  `--zone-forest` / `--zone-hills` / `--zone-marshes` / `--zone-caves` /
+  `--zone-depths` are colour-picked from the map and
   declared **inside each `[data-theme]` block**, not on `:root`, so the audit
   script sees them. They are the rule down the side of a `.zone-chip` and
   **never a text colour** — gated at **3.0** against `--surface`, the
@@ -313,6 +314,54 @@ before focus jumped to the Dev-panel button in the header and popped its
 tooltip. Initial focus also deliberately skips `.modal-header`: `actions` is a
 jump link, and `Tooltip` wraps its content in a `tabIndex={0}` span that would
 otherwise be the first focusable in the dialog.
+
+### Modeless dialogs — `modeless`
+
+A dialog on a GM desk is a problem the rest of the app doesn't have. The desks
+are three live columns, and the right-hand one (`InspectorColumn.js`) exists to
+be *browsed* — Sheet, Tags, Moves, Archive, DMs for whoever was last clicked.
+A backdrop over it means a GM cannot look someone up while writing about them,
+which is most of what staging a message is. ‡
+
+`Modal`'s `modeless` prop drops the modal half and keeps the dialog: ‡
+
+- transparent, click-through overlay (`data-modeless="true"`), so the page
+  behind stays live;
+- no Tab focus trap and no `aria-modal` — walking out into the inspector is
+  the point;
+- no backdrop dismissal, because there is no backdrop to click;
+- **Escape only when focus is inside the panel.** A GM who has clicked out into
+  the inspector and pressed Escape meant it for what they're looking at;
+- focus is returned to whatever opened the dialog only if the dialog still had
+  it, tracked live through a `focusin` listener (by the time a passive effect's
+  cleanup runs the panel is detached and `document.activeElement` is already
+  `<body>`, which is why the blocking path's restore is unconditional);
+- the header is a **drag handle** (`useDragPanel.js`), so a panel can be shoved
+  aside. It pins `position: fixed` with inline `top`/`left`, never a
+  `transform` — a transformed ancestor becomes the containing block for
+  `position: fixed` descendants, and `HoverCard` pins itself that way from
+  inside dialogs. The rect (width included) is frozen on the first
+  `pointerdown`, not at mount, so the panel does not jump; the position is
+  per-mount and not persisted.
+
+**It is desktop-only.** Under 1024px the desk collapses to one column and a
+floating panel over live content with no dim is worse than a modal, so
+`modeless` degrades to an ordinary blocking dialog. The gate is read in JS with
+`useSyncExternalStore` over `matchMedia`, so the CSS and the focus/Escape
+behaviour cannot disagree about which mode a dialog is in.
+
+Every desk keyboard guard asks `dialogHoldsKeyboard()` (exported from
+`Modal.js`) rather than `document.querySelector(".modal-overlay")`: a floating
+dialog does not swallow a keystroke aimed at the page behind it unless it
+actually holds focus. `useGatedRefreshPoll` deliberately still counts every
+overlay — a floating composer's unsaved text has to hold off a
+`router.refresh()` just the same.
+
+**What stays blocking.** Anything asking a question that needs an answer:
+every `useConfirm()`, and the Dev Panel's typed-name Delete. So does every
+player-facing dialog. The opted-in surfaces are the `/gm/turns` composers
+(message, declaration, effect, transfer, push preview), the Dev Panel and its
+own dialogs, the shared custom-tag door and the archive-context popup. ‡
 
 ### Confirm first, transition second — always
 

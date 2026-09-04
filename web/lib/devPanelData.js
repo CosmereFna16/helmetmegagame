@@ -4,7 +4,7 @@ import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember, isCursed } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
-import { DEFAULT_MAX_DRAWBACK_TAGS } from "@/lib/characterCreation";
+import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 
@@ -28,8 +28,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   if (!character) return null;
 
   const [
-    factions,
     locations,
+    factions,
     roles,
     allTags,
     heldTags,
@@ -37,15 +37,11 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     openTurn,
     desires,
     openTurnAction,
-    defaultEffort,
     desireTemplates,
     member,
     pendingStaged,
     transferRoster,
   ] = await Promise.all([
-    // silo rides along for the ActionBar's Transfer dialog — showing the
-    // Silo's current balance beside its name in the party picker.
-    prisma.faction.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, silo: true } }),
     // The place picker's options. A character stands in a Location, never on
     // a zone row, so this is the whole Location table grouped by zone.
     // Authoring order both ways, so the list reads like docs/zones.yaml
@@ -54,13 +50,20 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
       select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
     }),
+    // The Identity tab's faction picker (IdentityTab.js) — the faction
+    // rework added the prop to DevPanel without adding the load here, which
+    // crashed BOTH Dev Panel mounts on every character.
+    prisma.faction.findMany({
+      orderBy: [{ sortOrder: "asc" }],
+      select: { id: true, name: true },
+    }),
     prisma.role.findMany({
       orderBy: [{ sortOrder: "asc" }],
       select: { id: true, name: true, slug: true, faction: { select: { name: true } } },
     }),
     // The whole catalog, gates and all: a GM grant deliberately ignores
     // requiredTag and the TagGroup gate (TAGS.md), so unlike getVisibleTags (lib/referenceData.js) this
-    // withholds nothing — including the hidden Demoness and Bacchus groups.
+    // withholds nothing — including the hidden Demoness group.
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       // An explicit select, not an include: this is the whole catalog, and
@@ -79,10 +82,18 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         equippable: true,
         consumable: true,
         removable: true,
+        healable: true,
+        teachable: true,
         custom: true,
         defaultDurationTurns: true,
         parentTagId: true,
         requiredTagId: true,
+        // The treated-wound aftermath (TAGS.md §5c). The Dev Panel's Holds
+        // row needs it to warn before an IMMEDIATE removal: removing a Broken
+        // Bone leaves Splinted behind, and re-adding the Broken Bone does not
+        // clear it, so that one gesture is the one that can't be undone by
+        // repeating its inverse.
+        removesInto: true,
         requirementTurns: true,
         requirementResources: true,
         requirementGambit: true,
@@ -115,7 +126,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         gmNotes: true,
       },
     }),
-    prisma.defaultEffort.findFirst({ where: { characterId } }),
     // The full catalog for the GM's picker — retired rows included AND
     // marked (a GM grant bypasses gates entirely, see awardDesireGmImpl), so
     // this is a separate, wider select than the player-facing one in
@@ -152,9 +162,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       where: { targetCharacterId: characterId, appliedAt: null },
       select: { payload: true },
     }),
-    // The "Characters" side of the Transfer dialog's party picker — every
-    // other ALIVE character, so a GM can move ⬢ between any two parties, not
-    // just this one and a Silo. Same ALIVE filter resolveParty applies.
+    // The Transfer dialog's party picker — every other ALIVE character, so a
+    // GM can move ⬢ between any two characters, not just this one. Same
+    // ALIVE filter resolveParty applies.
     prisma.character.findMany({
       where: { status: "ALIVE" },
       orderBy: { name: "asc" },
@@ -281,7 +291,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // which propagates to all three of his family.
     lastNameLocked: isDynastyMember(character.role?.slug),
     canDelete: isSuperadmin(actingDiscordUserId),
-    factions,
     transferRoster,
     locations: locations.map((l) => ({
       id: l.id,
@@ -289,6 +298,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       zoneId: l.zoneId,
       zoneName: l.zone?.name ?? null,
     })),
+    factions: factions.map((f) => ({ id: f.id, name: f.name })),
     roles: roles.map((r) => ({ id: r.id, name: r.name, factionName: r.faction?.name ?? null })),
     tags: allTags.map((t) => ({
       id: t.id,
@@ -301,10 +311,13 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       equippable: t.equippable,
       consumable: t.consumable,
       removable: t.removable,
+      teachable: t.teachable,
       custom: t.custom,
       defaultDurationTurns: t.defaultDurationTurns,
       parentTagId: t.parentTagId,
       requiredTagId: t.requiredTagId,
+      // Slugs, resolved to names client-side against this same list.
+      removesInto: t.removesInto,
       group: t.group,
       // Precomputed server-side so the Heal-all and Inflict-wound
       // staging buttons and the server action agree on what an
@@ -329,6 +342,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     cursed: isCursed(member),
     equipSlots: config?.equipSlots ?? 6,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
+    maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
     gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak }),
@@ -344,9 +358,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
           diceModifier: openTurnAction.diceModifier,
           gmNotes: openTurnAction.gmNotes,
         }
-      : null,
-    defaultEffort: defaultEffort
-      ? { description: defaultEffort.description, labor: defaultEffort.labor }
       : null,
     desires: desires.map((d) => ({
       id: d.id,

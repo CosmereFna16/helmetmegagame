@@ -1,0 +1,111 @@
+# ARCHIVE — the Diplomat, retired from the live game on 2026-09-04.
+#
+# Nothing reads this file. No sync, no script, no route. It is a verbatim dump
+# of every entry the Diplomat owned in the YAML masters, each block copied
+# exactly as it sat there (comments included), so putting it back is a paste:
+# each top-level key below names the master section it came from (`roles` ->
+# docs/roles.yaml under `the-court`, `tags` -> docs/tags.yaml, `documents` ->
+# docs/documents.yaml, `desires` -> docs/desires.yaml).
+#
+# The Diplomat was the Culture's undercover contact in the Keep — a
+# post-scarcity interstellar civilisation quietly deciding Ravenheart was not
+# ready. The whole seat was one secret document plus one gadget, and neither
+# had grown a mechanic in two games. The Court seat it occupied is now the
+# Arbiter, who is the opposite idea: an outsider whose loyalties everyone
+# already knows.
+#
+# The Drone came with it. It was the Diplomat's only starting gadget and no
+# other role ever granted it, so it leaves with the seat. Note it was
+# `tradeable: false` on purpose — killing the holder never handed you the
+# leash, the Drone just went back to the Minds.
+#
+# Three of the Diplomat's Desires are here because they were Culture fiction
+# and nothing else could reach them. Three others STAYED live, re-gated rather
+# than retired, because the seat was the only thing wrong with them:
+#   - `defuse-a-situation` and `stop-a-battle` now require the `arbiter`.
+#   - `cup-of-tea` was `[incarn, diplomat]`, now `[incarn, arbiter]`.
+#   - `discover-a-ruin` was `[diplomat, scholastic]`, now `[scholastic]`.
+#
+# No code went with it. The seat carried no special-casing anywhere in db/,
+# web/ or bot/ — only its slug in db/lib/roleCapacity.js
+# PERMANENT_SEAT_ROLE_SLUGS, and its name as the worked example in the
+# `anyRoles` explanation at the top of docs/desires.yaml and in
+# docs/systemdocs/DESIRES.md §, both re-pointed at a live role.
+
+roles:
+  # docs/roles.yaml -> zones[Fortress].factions[the-court].roles
+  diplomat:
+    name: Diplomat
+    intro: >-
+      Recover ancient artifacts and study Ravenheartian culture.
+    description:
+      - >-
+        Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join your interstellar federation.
+    difficulty: easy
+    multiple: true
+    weight: 1
+    starting_resources: 1
+    starting_zone: fortress
+    starting_tags:
+      - Ravenhearter
+      - Literate
+      - Drone
+    doc_elements:
+      - courtier
+      - diplomat
+      - courtstructure
+      - fortressstarting
+
+tags:
+  drone:
+    name: Drone
+    category: assets
+    group: assets-companions
+    description: "Normally, it fits in the palm of your hand, but lately it's taken the disguise of a bird and spends most of its time in the forest. Neither of you like each other—it seems to wish it was back with the other Minds. It is relatively human, but its intelligence and abilities are completely beyond you. It doesn't seem to have any combat abilities. You could assign it to collect information or similar, but it might not always listen."
+    pointCost: 0
+    # Its own creature, and it doesn't much like you as it is. Killing the
+    # holder doesn't hand you the leash — the Drone just goes back to the Minds.
+    tradeable: false
+    purchasable: false
+    visible: false
+    removable: true
+
+documents:
+  diplomat:
+    name: Diplomat
+    public: false
+    secret: true
+    tags: []
+    description: |-
+      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart — and that would mean convincing the Baron to join the Culture — but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Silver Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here…
+
+      They would appreciate it if you collected any interesting gear, took some photos with your drone, and sent logs to the mothership. The caves supposedly have a lot of interesting things going on, but it's probably dangerous.
+
+      Also, you probably had a good reason to come here (boredom?) and your friends thought you were cr*aaa*zy! Coming here? Where you could die?! Back home, almost no one dies, ever. Everything is just very safe.
+
+      You have one (!) gadget — an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
+
+      If anything goes wrong, the General Contact Vessel *Helpless Is The Face Of Your Beauty* will teleport you on board. It'll take your message three minutes to reach them.
+
+desires:
+  convince-the-baron:
+    name: Convince the Baron to join the Culture
+    tier: 7
+    families: [faction-success]
+    requires:
+      anyRoles: [diplomat]
+
+  saved-by-your-drone:
+    name: Be saved by your {tag:drone} in the last moment
+    tier: 4
+    families: [adventure]
+    requires:
+      anyRoles: [diplomat]
+
+  mingle-locally:
+    name: Romantically mingle with the local populace
+    tier: 2
+    families: [romance]
+    requires:
+      anyRoles: [diplomat]
+    cooldownTurns: 4

@@ -9,9 +9,15 @@
 // The @everyone VIEW_CHANNEL deny is the entire mechanism that makes a
 // channel private; every other overwrite here is an allow layered on top of
 // it. Since Bascinet 2 a zone carries only its category and #summary (opened
-// by the "Zone: X" role); every Location has its own text channel opened by
-// its own "Location: X" role, and its Rooms are threads under it that the
-// bot alone may create.
+// by the "Zone: X" role); every Location has its own text channel, and its
+// Rooms are threads under it that the bot alone may create.
+//
+// A Location channel is opened by a PER-MEMBER overwrite, not by a
+// "Location: X" role. 56 locations would have cost 56 of the guild's 250
+// roles, on top of one personal role per living character; Discord allows
+// 1000 overwrites per channel instead, which this game cannot reach.
+// LOCATION_MEMBER_ALLOW below is the bit set that used to sit on the role,
+// now handed to one member at a time by applyLocationMoveSideEffects.
 const { spectatorOverwrite } = require("./spectatorAccess");
 const { cursedOverwrite } = require("./cursedAccess");
 
@@ -34,7 +40,7 @@ const PERM_SEND_MESSAGES_IN_THREADS = 274877906944n;
 const SUMMARY_SLOWMODE_SECONDS = 300;
 
 const SUMMARY_TOPIC =
-  "What did people in your zone see your character do over the last 12 hours? Abstracted, big-picture play.";
+  "What did people in your zone see your character do over the last day? Abstracted, big-picture play. ‡";
 
 // Discord caps a channel topic at 1024 characters.
 const TOPIC_MAX = 1024;
@@ -118,10 +124,19 @@ function zoneChannelSpec(zone) {
   };
 }
 
-// The text channel for one Location. Its role may talk at top level (the
-// location's open street) and inside its Room threads, but may create no
-// thread of either kind — the bot spawns every Room and every Conversation,
-// which is what keeps PlayerThread a complete record.
+// What one standing character is granted on the Location channel they are
+// in: talk at top level (the location's open street) and inside its Room
+// threads, but create no thread of either kind — the bot spawns every Room
+// and every Conversation, which is what keeps PlayerThread a complete
+// record.
+const LOCATION_MEMBER_ALLOW =
+  PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
+
+// The text channel for one Location. It names no location role: the spec is
+// the channel's STANDING shape, and who is standing here changes every turn.
+// Occupant overwrites are written by the move pipeline and reconciled by the
+// channel doctor's occupancy check — never by this spec, which is exactly
+// why managedOverwriteIds() must never learn to delete a member target.
 function locationChannelSpec(location) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
@@ -134,10 +149,6 @@ function locationChannelSpec(location) {
     topic,
     permission_overwrites: [
       ...roleAllow(gmRoleId, GM_LOCATION_PERMS),
-      ...roleAllow(
-        location.discordRoleId ?? null,
-        PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS,
-      ),
       {
         id: guildId,
         type: 0,
@@ -153,13 +164,20 @@ function zoneRoleName(zone) {
   return `Zone: ${zone.name}`;
 }
 
+// Retired: no Location wears a role any more. Kept only so the retirement
+// script and the doctor's orphan sweep can still RECOGNISE the roles an
+// older sync created, and delete them. Nothing creates one.
 function locationRoleName(location) {
   return `Location: ${location.name}`;
 }
+
+const LOCATION_ROLE_PREFIX = "Location: ";
 
 module.exports = {
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,
   locationRoleName,
+  LOCATION_ROLE_PREFIX,
+  LOCATION_MEMBER_ALLOW,
 };

@@ -1,15 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
+import { after } from "next/server";
 import { prisma, rollDie, Prisma } from "@lifeweb/db";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
+import { refreshLocationAnchor } from "@lifeweb/db/lib/syncZones";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { REQUEST_EFFECTS } from "@/lib/requestEffects";
 import { requireReason } from "@/lib/requests";
-import { normalizeQuiet } from "@/lib/siloCover";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -352,19 +354,15 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   return { count: created.length, batchId };
 }
 
-// A staged party-to-party transfer (character or faction Silo on either end).
-// Separate from createStagedEffectsImpl because the balance check runs
-// against live balances at stage time, not a mint/burn delta.
+// A staged character-to-character transfer. Separate from
+// createStagedEffectsImpl because the balance check runs against live
+// balances at stage time, not a mint/burn delta.
 async function createStagedTransferImpl({
   fromKey,
   toKey,
   amount: rawAmount,
   moveId,
   cavingRollId,
-  quiet,
-  coverActorName,
-  coverToName,
-  coverNote,
 }) {
   const session = await requireGm();
   const amount = Number.parseInt(rawAmount, 10);
@@ -382,14 +380,11 @@ async function createStagedTransferImpl({
   const openTurn = await requireOpenTurn();
   const targetCharacterId = to.kind === "character" ? to.id : from.kind === "character" ? from.id : null;
   // Snapshotted into the payload, never re-derived at push time.
-  const { hidden, cover } = normalizeQuiet({ quiet, coverActorName, coverToName, coverNote });
   const payload = {
     transfer: {
       from: { kind: from.kind, id: from.id, name: from.name },
       to: { kind: to.kind, id: to.id, name: to.name },
       amount,
-      hidden,
-      cover,
     },
   };
 
@@ -586,7 +581,7 @@ async function releaseMoveLockImpl({ actionId }) {
 function normalizeEdits(action, edits, characterTags, hungerStreak) {
   const data = {};
 
-  const kind = edits.moveKind === "GAMBIT" || edits.moveKind === "ROUTINE" ? edits.moveKind : action.moveKind;
+  const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
   if (kind !== action.moveKind) {
     data.moveKind = kind;
     if (kind === "ROUTINE") {
@@ -731,8 +726,11 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
 
+  // A lesson's partner Moves may go with this one (db/lib/lessons.js); the
+  // learners it strands are told after commit.
+  let lessonDms = [];
   await prisma.$transaction(async (tx) => {
-    await deleteActionRestoringTurn(tx, action);
+    lessonDms = await deleteActionRestoringTurn(tx, action);
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
@@ -747,6 +745,9 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
         },
       },
     });
+  for (const dm of lessonDms) {
+    after(() => sendDm(dm.discordUserId, dm.content).catch((err) => console.error("Lesson cancel DM failed:", err)));
+  }
   });
 
   // Sent directly, not deferred to the push — a freed turn the player
@@ -772,6 +773,12 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
   if (!["confirm", "undo"].includes(mode)) throw new UserError("Unknown mode.");
 
   const result = await prisma.$transaction(async (tx) => {
+    // One lock order for both modes: the Request row first, then whatever
+    // the handler touches. Confirm used to lock effect rows first and the
+    // Request last while Undo claimed the Request first — a Confirm and an
+    // Undo landing on the same request at the same instant could deadlock.
+    // Locking here also makes both branches' status reads race-free.
+    await tx.$queryRaw`SELECT "id" FROM "Request" WHERE "id" = ${requestId ?? ""} FOR UPDATE`;
     const request = await tx.request.findUnique({ where: { id: requestId } });
     if (!request) throw new UserError("Request not found.");
 
@@ -791,12 +798,23 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
     let changed = false;
 
     if (mode === "undo") {
-      // Idempotent: undoing an already-undone request must not re-apply it.
-      if (request.status === "UNDONE") {
+      // Idempotent, and safe against two GMs clicking Undo at once: the
+      // status flip is a conditional claim, not a read-then-write. The loser
+      // blocks on the row lock, re-evaluates, matches nothing, and never runs
+      // the handler — so a refunding undo can only ever refund once.
+      const claim = await tx.request.updateMany({
+        where: { id: requestId, status: { not: "UNDONE" } },
+        data: { status: "UNDONE" },
+      });
+      if (claim.count === 0) {
+        // A claim that matched nothing proves the row already reads UNDONE
+        // (it exists — findUnique just returned it), so the final write
+        // below must say UNDONE too, never the status read above.
+        status = "UNDONE";
         note = "Already undone — no changes made.";
       } else {
-        note = (await handler.undo(tx, request, ctx)) ?? "Undone.";
         status = "UNDONE";
+        note = (await handler.undo(tx, request, ctx)) ?? "Undone.";
       }
     } else {
       if (request.status === "UNDONE") throw new UserError("That request was already undone.");
@@ -833,13 +851,45 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
       },
     });
 
-    return { status: updated.status, note, changed };
+    // Every character the effect could have touched, for the carry settle
+    // below. Read off the effect generically so adding a request type still
+    // costs one REQUEST_EFFECTS entry and nothing here (REQUESTS.md §2).
+    const e = request.effect ?? {};
+    const touched = [
+      request.characterId,
+      e.targetCharacterId,
+      e.fromCharacterId,
+      e.toCharacterId,
+      ...[e.from, e.to, e.payer].filter((p) => p?.kind === "character").map((p) => p.id),
+    ].filter(Boolean);
+
+    // An effect naming a flipped edge (BUILD_STRUCTURE's linkEndpointIds)
+    // means an undo may have moved gate state; both endpoints' anchors get
+    // reposted after the commit, same generic-off-the-effect posture as
+    // `touched`. Harmless when the restore was skipped — the repost is
+    // hash-gated and no-ops on an unchanged anchor.
+    const anchorLocationIds =
+      mode === "undo" && Array.isArray(e.linkEndpointIds) ? e.linkEndpointIds.filter(Boolean) : [];
+
+    return { status: updated.status, note, changed, touched, anchorLocationIds };
+  });
+
+  // An undo moves tags or ⬢ back onto somebody; their carry caps and room
+  // access follow (CARRY.md). Off the critical path, after the commit.
+  const { touched, anchorLocationIds, ...outcome } = result;
+  after(async () => {
+    await afterInventoryChange(touched);
+    for (const locationId of anchorLocationIds) {
+      await refreshLocationAnchor(prisma, locationId).catch((err) =>
+        console.error(`Undo anchor refresh failed for ${locationId}:`, err?.message ?? err),
+      );
+    }
   });
 
   revalidatePath("/gm/audit");
   revalidatePath("/character");
   revalidatePath("/faction");
-  return result;
+  return outcome;
 }
 
 // Fallback kill path for a request naming a kill not yet claimed (REQUESTS.md
@@ -896,6 +946,7 @@ async function getCharacterInspectorImpl({ characterId }) {
     include: {
       faction: { select: { id: true, name: true } },
       zone: { select: { name: true } },
+      location: { select: { name: true } },
       tags: {
         select: { tagId: true, quantity: true, expiresTurn: true, equipped: true, tag: { select: TAG_CHIP_FIELDS } },
       },
@@ -917,7 +968,12 @@ async function getCharacterInspectorImpl({ characterId }) {
     factionId: character.faction?.id ?? null,
     factionName: character.faction?.name ?? null,
     isLeader: character.isLeader,
-    locationLabel: character.zone?.name || "Unassigned",
+    // Zone · Location, because Character.locationId is where a ruling
+    // actually happens — a placed structure, a stash, a fight are all
+    // Location-grain facts (MAP.md §1). Same shape moveRows.js now carries.
+    locationLabel: character.location?.name
+      ? `${character.zone?.name ?? "?"} · ${character.location.name}`
+      : character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
     gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak }),
@@ -1088,6 +1144,9 @@ async function getMoveHistoryImpl({ turnId }) {
   const now = new Date();
 
   return {
+    // structuresByLocationId is deliberately not passed: this lens shows a
+    // PAST turn, and today's ground under a months-old Move would lie. The
+    // history desk renders no Standing-here line, so nothing is missing it.
     moves: actions.map((a) => moveRow(a, { usernameById, now })),
     cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
     effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn })),

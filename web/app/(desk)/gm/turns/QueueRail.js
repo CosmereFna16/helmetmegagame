@@ -13,6 +13,7 @@ import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused, hasModifier } from "@/lib/deskKeyGuard";
 import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
 import { REQUEST_TYPE_LABELS, REQUEST_STATUS_LABELS } from "@/lib/requestLabels";
+import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -585,7 +586,7 @@ export default function QueueRail({
       const isLensKey = key === "m" || key === "r" || key === "c" || key === "h";
       if (!isNav && !isLensKey) return;
       if (hasModifier(e)) return;
-      if (document.querySelector(".modal-overlay")) return;
+      if (dialogHoldsKeyboard()) return;
       if (isFieldFocused(document.activeElement)) return;
 
       if (isLensKey) {

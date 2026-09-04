@@ -2,8 +2,7 @@
 // /depot and the three DEPOT_* request kinds. See docs/systemdocs/DEPOT.md.
 //
 // This lives in db/lib rather than web/lib because the numbers are game
-// balance, not page logic — the same reason production.js and partySize.js
-// are here. Nothing in it touches Prisma or the network, so it is safe on the
+// balance, not page logic — the same reason production.js is here. Nothing in it touches Prisma or the network, so it is safe on the
 // barrel and safe to import from either face.
 
 // The tag that opens the counter. Holding it is the whole permission model:
@@ -12,34 +11,31 @@
 // Merchant handing it away really does hand away the Depot.
 const MERCHANT_LICENSE_SLUG = "merchants-license";
 
+// The Merchant's ROLE, which is a different thing from the licence above: the
+// licence is a tradeable tag and this is the seat somebody rolled. Only one
+// thing reads it — creating a character on this role tells the Depot's turret
+// whose face to spare, so the Merchant is not left with a gun he cannot arm.
+// A slug predicate rather than a schema flag, the same shape as
+// db/lib/dynasty.js, because it is one role and not a property of roles.
+const MERCHANT_ROLE_SLUG = "merchant";
+
+function isMerchantRole(slug) {
+  return slug === MERCHANT_ROLE_SLUG;
+}
+
 // Where the shuttle is parked. Buying and selling both require standing here,
 // the same way the Lifeweb requires the Fortress — you cannot trade with a
-// craft you are not next to. A zone slug from docs/zones.yaml.
-const DEPOT_ZONE_SLUG = "caverns";
-
-// The ceiling on ⬢ outstanding against the Company's credit line at any one
-// moment (Character.depotDebt). Not a per-game lever and not GM-tunable: it
-// is a flat, knowable number the Merchant can plan around, and the fiction is
-// that the Company set it, not Ravenheart. Draw refuses past it; repaying
-// frees the room up again immediately.
-const DEPOT_CREDIT_CAP = 60;
+// craft you are not next to.
+//
+// A LOCATION slug from docs/zones.yaml, not a zone one. The Depot used to be
+// a paragraph inside the Customs description and the gate was the whole
+// Caverns zone, which meant trading from anywhere underground. Bascinet 2
+// draws it as its own place, so standing there is now literal.
+const DEPOT_LOCATION_SLUG = "depot";
 
 // One sanity bound on a single line item, so a fat-fingered quantity cannot
 // file a request for ten thousand vials. Well above any real purchase.
 const DEPOT_MAX_QUANTITY = 99;
-
-// How much room is left to draw.
-//
-// Clamped at BOTH ends, and the upper clamp is the load-bearing one. A debt
-// over the cap (a GM correction on the Dev Panel) has to read as "nothing
-// available" rather than a negative number in the meter — but a debt BELOW
-// zero is the dangerous direction: 60 − (−30) is 90, and without the
-// Math.min that is 90 ⬢ of headroom against a 60 ⬢ ceiling. Undo decrements
-// the tab, so a reversal landing after the debt has already been repaid can
-// take it negative; this function must not turn that into free credit.
-function creditAvailable(depotDebt) {
-  return Math.min(DEPOT_CREDIT_CAP, Math.max(0, DEPOT_CREDIT_CAP - (depotDebt ?? 0)));
-}
 
 // Coerce a client-supplied quantity to a whole number inside the allowed
 // range. Returns null for anything that is not a usable count, so callers can
@@ -52,9 +48,9 @@ function normalizeQuantity(raw) {
 
 module.exports = {
   MERCHANT_LICENSE_SLUG,
-  DEPOT_ZONE_SLUG,
-  DEPOT_CREDIT_CAP,
+  MERCHANT_ROLE_SLUG,
+  isMerchantRole,
+  DEPOT_LOCATION_SLUG,
   DEPOT_MAX_QUANTITY,
-  creditAvailable,
   normalizeQuantity,
 };

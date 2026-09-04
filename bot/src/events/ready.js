@@ -12,6 +12,7 @@ const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { runWhisperPoll } = require("../lib/whisperPoll");
+const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 
 module.exports = {
@@ -138,15 +139,22 @@ module.exports = {
         )
         .catch((err) => console.error("Failed to advance turn:", err));
     };
-    // Noon and midnight Chicago time — the staged-arbitration push rides the
-    // turn advance, and these are the hours with the best player overlap.
+    // Midnight Chicago time, once a day — one turn per real day. The
+    // staged-arbitration push rides the turn advance, and midnight is the hour
+    // fewest players are mid-scene when the Dawn wipe runs. There used to be a
+    // second job at noon; a turn was half a day then. db/lib/turnClock.js
+    // derives every deadline from this same boundary, so the two must agree.
     cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
-    cron.schedule("0 12 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
 
     // Every Room hears who has been whispering in the Conversations linked to
     // it, aliased, on a stateless 15-minute lookback
     // (bot/src/lib/whisperPoll.js). Runs on the bot rather than the web app
     // because it is a plain cron with no request behind it.
+    // A rotten body nags the Location it is in, on a randomized 4-10 hour
+    // timer rather than a cron — the unpredictability is the feature. Self-
+    // rescheduling; see bot/src/lib/deathSmell.js.
+    startDeathSmell(prisma);
+
     cron.schedule("*/15 * * * *", () => {
       runWhisperPoll(prisma)
         .then((posted) => {

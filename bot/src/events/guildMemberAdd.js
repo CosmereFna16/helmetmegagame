@@ -57,8 +57,9 @@ module.exports = {
       .catch((err) => console.error(`Failed to re-grant Player to ${member.id}:`, err.message));
     // The leave stripped everything, so this is a pure re-grant with nothing
     // to move away from, the same shape Revive uses (CHARACTERS.md §5b): the
-    // Location role that opens their one channel, the Zone role that opens
-    // #summary, then narrowcast overwrites and private-room membership.
+    // member overwrite that opens their one Location channel, the Zone role
+    // that opens #summary, then narrowcast overwrites and private-room
+    // membership.
     // Turn-ping and the like are left to the channel doctor's next cheap pass.
     await restoreStandingRoles(member, character).catch((err) =>
       console.error(`Failed to restore ${character.name}'s standing roles on rejoin:`, err.message),

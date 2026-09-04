@@ -1,4 +1,11 @@
-const { prisma, concealedAlias } = require("@lifeweb/db");
+const { MessageType } = require("discord.js");
+const { prisma } = require("@lifeweb/db");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} = require("@lifeweb/db/lib/presentedIdentity");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
@@ -18,6 +25,25 @@ const MAX_MENTION_RELAYS = 10;
 module.exports = {
   name: "messageCreate",
   async execute(message) {
+    // Discord narrates the bot's own housekeeping into the channels players
+    // read: a "pinned a message" line for every Location anchor (57 of them on
+    // a fresh provision, plus one per Room thread) and a "started a thread"
+    // line wherever a thread is made from a message. Neither is for anybody.
+    //
+    // Scoped to notices the BOT itself caused, so a human pinning something in
+    // #general still leaves the usual trace. And placed ABOVE the bot guard on
+    // purpose: these are bot-authored by definition, so the guard below would
+    // return before ever seeing them.
+    if (
+      (message.type === MessageType.ChannelPinnedMessage || message.type === MessageType.ThreadCreated) &&
+      message.author?.id === message.client.user.id
+    ) {
+      await message.delete().catch((err) =>
+        console.error(`Failed to clear a system notice in ${message.channelId}:`, err.message),
+      );
+      return;
+    }
+
     if (message.author.bot || message.webhookId) return;
 
     if (!message.inGuild()) {
@@ -71,15 +97,29 @@ module.exports = {
 
     const character = await prisma.character.findFirst({
       where: { discordUserId: message.author.id, status: "ALIVE" },
+      // The identity tags ride along on the busiest query the bot runs, rather
+      // than costing a second round trip per message. Two kinds: the one that
+      // dictates a name, and the equipped gear that hides one.
+      include: {
+        tags: {
+          where: {
+            OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+          },
+          select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+        },
+      },
     });
     if (!character) return;
 
-    // Concealment is a standing state now (Character.concealed, toggled by
-    // /conceal or the switch on /character) rather than a per-message prefix.
-    // A player who has decided to go unnamed should not have to remember it
-    // on every line — forgetting once is exactly the failure the feature
-    // exists to prevent. Open to everyone, nothing equipped, no tag required.
-    const conceal = character.concealed ? { alias: concealedAlias(character) } : null;
+    // Which name and face this post goes out under. Precedence is forced >
+    // concealed > own (db/lib/presentedIdentity.js): a held forcesName tag
+    // overrides concealment, which itself needs something concealing actually
+    // EQUIPPED — either forcing it, or letting the standing Character.concealed
+    // toggle (/conceal, or the switch on /character) take effect.
+    const identity = presentedIdentity(character, {
+      forcedName: forcedNameFrom(character.tags),
+      concealment: concealmentFrom(character.tags),
+    });
 
     // Captured BEFORE proxying: sendAsCharacter deletes the original message,
     // and the mention list goes with it.
@@ -92,17 +132,18 @@ module.exports = {
     // it refused, and there is no proxied message left to relay mentions for.
     let proxied;
     try {
-      proxied = await sendAsCharacter(channel, character, message, { conceal });
+      proxied = await sendAsCharacter(channel, character, message, { identity });
     } catch (err) {
       console.error("Failed to proxy message:", err);
       return;
     }
     if (!proxied) return;
 
-    // A concealed message deliberately relays nothing: the whole point is that
-    // the room doesn't know who spoke, and a DM naming the location would hand
-    // the target a thread to pull on.
-    if (conceal || mentionedRoleIds.length === 0) return;
+    // A concealed (or forced) message deliberately relays nothing: the whole
+    // point is that the room doesn't know who spoke, and a DM naming the
+    // location would hand the target a thread to pull on. A forced identity
+    // is never concealed, so this only ever fires for a real hood.
+    if (identity.concealed || mentionedRoleIds.length === 0) return;
 
     await handleMentions({ message, channel, proxied, mentionedRoleIds }).catch((err) =>
       console.error("Failed to handle mentions:", err),

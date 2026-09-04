@@ -76,15 +76,18 @@ the check — a conditional `updateMany` matching only while the balance still
 covers the amount. The friendly `amount > from.balance` checks in the request
 actions stay for their better wording, but they are a separate statement from
 the write and two tabs firing at once both passed them: ten sent twice left
-the sender at −10 and the recipient up 20, and it worked on faction Silos too.
+the sender at −10 and the recipient up 20.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The nineteen types
+## 3. The types
 
-Fifteen live in `web/app/(app)/character/requestActions.js`, the two
-Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
-in `web/app/(app)/store/actions.js`, and `CAVING_LOOT` is filed by the turn
+Deliberately uncounted — a stale number outlived three counts here already;
+the table below and the `RequestType` enum are the record. Most live in
+`web/app/(app)/character/requestActions.js`, the two Lifeweb types in
+`web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
+in `web/app/(app)/store/actions.js`, the Depot family in
+`web/app/(app)/depot/`, and `CAVING_LOOT` is filed by the turn
 engine rather than by anybody. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
@@ -93,29 +96,47 @@ reason.
 
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
-| `TRANSFER_RESOURCES` | Moves ⬢ between any two parties in reach. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
-| `ADD_TAG` | Makes a Craftable tag, optionally paying ⬢. Craftable is the whole gate — the point-priced half of the menu is gone, and lives in `/store`. Stackable tags take a quantity and stay on the menu once held | cost; remove what this request added | Drops what it added, refunds the cost |
+| `TRANSFER_RESOURCES` | Moves ⬢ from you or a Room stash at your Location to a person at your Location or a Room stash there (`CARRY.md`). Nothing is ever pulled off a living person — Loot is the only way to take from someone. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
+| `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` 0 is Dead Simple (no Move, rationed per turn); 1 is this turn's Routine; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
-| `REMOVE_TAG` | Drops one of their own `removable` tags, optionally paying ⬢, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c) | cost | Restores the tag and its count, takes back the aftermath it granted, refunds the cost |
+| `REMOVE_TAG` | Destroy: drops one of their own `removable` tags, no ⬢ field and nothing refunded, in a quantity if it stacks. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Health tags are no longer `removable` — a wound is healed, not thrown away. Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
-| `TRANSFER_TAG` | Hands an Item or Asset to another player in the same zone, in a quantity if it stacks. `direction: "LOOT"` lifts one off a corpse in the same zone | — | Moves that many back |
+| `TRANSFER_TAG` | Hands an Item or Asset from you or a Room stash to a person at your Location or a Room stash there, in a quantity if it stacks. Nothing is ever taken from another person this way. The merged Transfer dialog files one of these per tag line (`CARRY.md` §6). `direction: "LOOT"` lifts one off a corpse at your Location | — | Moves that many back to where they came from |
 | `FULFILL_DESIRE` | Claims one active, slotted Desire (`desireId`, not "the" active one — a character can hold several at once, one per slot) | Tag Points awarded | Revokes the points and reopens the *row*. Because a GM Fulfil/Cancel operates on a specific `desireId` rather than "whatever's in the slot now," an Undo is safe even after a new Desire has since been set in that same slot — it only ever touches the row it snapshotted, never the slot's current occupant |
 | `DONATE_BLOOD` | Mortus bleeds someone into the Lifeweb | blood added; clear Drained | Draws the blood back, clears Drained |
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
-| `HEAL_CHARACTER` | Treats an affliction on anyone standing in their zone, on whoever's tab they choose. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
+| `HEAL_CHARACTER` | Treats a `healable` affliction on anyone at their Location who isn't concealed, on whoever's tab they choose, billed to a payer — yourself, a Room stash here, or a person here. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
 | `MOVE_CHARACTER` | Marches a faction member they lead, anyone helpless (Bound/Dying/Paralyzed/Catatonic), or a body, into a neighbouring zone. Does **not** spend the target's turn | — | Restores the previous zone in the DB only |
-| `BIND_CHARACTER` | Ties up anyone standing in their zone | — | Cuts them loose |
+| `BIND_CHARACTER` | Ties up anyone at their Location who isn't concealed. A conscious, unhelpless target must accept an Offer first (`LESSONS.md` §3b); a target who is dead or already holds an incapacitating tag is bound on the spot | — | Cuts them loose |
 | `FREE_CHARACTER` | Cuts someone in their zone loose | — | Puts Bound back with its original expiry |
 | `HARM_CHARACTER` | Inflicts a Health affliction on someone already helpless, **kills** them, or both — see §5b | — | Heals what was inflicted; never revives |
-| `BURY_CHARACTER` | Puts a body lying in their zone into the ground, lifting the **Cursed** role off the dead player's Discord account. Target is **typed**, first name only | — | Raises the body; does **not** re-curse |
-| `FAST_TRAVEL` | Rides one zone over on a horse (or the Merchant's Steam Automobile) without spending the Move. Once a day | — | Sends them back and returns the ride |
+| `BURY_CHARACTER` | Puts a body into the ground, lifting the **Cursed** role off the dead player's Discord account. Needs their **actual corpse tag**, held or reachable in a room here, and spends the filer's Move | — | Raises the body and puts the corpse back where it came from; does **not** re-curse, and the Move stays spent |
+| `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
+| `BUTCHER_CORPSE` | Cuts a corpse up for what is in it — an organ from a monster, Human Flesh from a person. Free, and it destroys the body. Gated on `butcher` | — | Takes the yield back and returns the corpse to the party it came from |
+| `FAST_TRAVEL` | **Retired.** A mount now adds a free zone move instead (CARRY.md §2a). Old rows stay undoable | — | Sends them back and returns the ride |
+| `EXTRACT_GODFLESH` | Cuts Godflesh out of a marsh tile. Spends the Routine, needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the Move stays spent |
+| `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
+| `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
+
+(`DAMAGE_STRUCTURE` is also in the enum, declared ahead of use because
+Postgres cannot drop enum values — nothing files one; GM structure rulings
+are AuditLog microactions on `/gm/structures`, not Requests.)
+
+**Two buttons on that grid file no `Request` at all**, and both are reads
+rather than acts: **Read** (`ReadDialog.js`, a purely local decode of a
+ciphered letter) and **Look at** (`examineActions.js`, examining somebody
+standing where you stand — `PROXYING.md` §4a). Neither moves anything, costs
+anything or spends a Move, so there is nothing for a GM to review and nothing
+to undo. Both skip `RequestDialog` — `NO_REQUEST_MODES` in
+`RequestActionsProvider.js` — and get their own plain modal, because the
+universal "what is your reason?" popup has nothing to ask them.
 
 The per-type behaviour lives in `web/lib/requestEffects.js` as one
 `REQUEST_EFFECTS` entry each. **Adding a type means adding one entry
@@ -153,31 +174,24 @@ what you can't, not to pretend the handler is a full inverse.
 
 Three notes on deliberate choices:
 
-- **Transfer Resources has a source, and the source can be anyone in reach.**
-  The dropdown lists every faction Silo and every living player, on both ends.
-  A player really can pull ⬢ out of another player's pocket and explain
-  themselves afterwards. This is the Requests bet taken to its logical end,
-  and it was chosen over the safer factions-only reading.
-
-  What it is *not* is action at a distance. Every party has to be somewhere the
-  filer can stand: a person in the same zone, a Silo in its own seat zone — a
-  besieged Silo is only reachable by physically holding its seat zone
-  (`web/lib/transferReach.js`, `FACTIONS.md` §3b).
-  Picking a pocket is now a mugging rather than a wire transfer. The dropdowns
-  stay unfiltered on purpose — filtering them to who's in range would make the
-  dialog a free scouting tool for who is standing in your zone. Correctness
-  lives entirely in the server-side gate: a transfer to/from someone out of
-  reach is rejected with a clear error, not hidden from the picker.
+- **Transfer never takes from another person.** From is you or a Room stash at
+  your Location; To is a person at your Location (who isn't concealed) or a
+  Room stash there. Pulling ⬢ or an item out of someone else's pocket is no
+  longer a Transfer at all — Loot is the only way to take from somebody, and
+  only from the helpless or dead. This replaced an earlier design where the
+  source could be anyone in reach; that let a player pick another player's
+  pocket with nothing but a written reason, which was more of the fiction's
+  "action at a distance" than Bascinet wanted once the menus went
+  Location-scoped (see §6).
 - **Transfer Tag is send-only for the living, plus a LOOT direction for
   corpses.** There is no "request a tag from a live someone", because
   browsing another player's inventory to pick something is the abuse the
   one-way flow prevents. But a dead character is a lootable pile: filing a
-  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse in the same zone as
-  the counterparty and pulls the item OFF it. Being in the same place is folded
-  into the same `WHERE` clause in both directions — the same co-presence rule
-  `canReachCharacter` enforces elsewhere, just inlined into the query.
-  `TRANSFER_RESOURCES` mirrors this: a `LOOT` request pulls ⬢ off a corpse and
-  can only credit the initiator. See `CHARACTERS.md` §5.
+  `TRANSFER_TAG` with `direction: "LOOT"` names a corpse at the same Location
+  as the counterparty and pulls the item OFF it. Being in the same place is
+  folded into the same `WHERE` clause in both directions. `TRANSFER_RESOURCES`
+  mirrors this: a `LOOT` request pulls ⬢ off a corpse and can only credit the
+  initiator. See `CHARACTERS.md` §5.
 - **Every request whose subject is a different character notifies that
   character.** `TRANSFER_TAG`, `TRANSFER_RESOURCES`, `HEAL_CHARACTER`,
   `LOOT_CHARACTER`, `MOVE_CHARACTER`, `BIND_CHARACTER`, `FREE_CHARACTER`,
@@ -212,22 +226,24 @@ Three notes on deliberate choices:
   Butcher, Horse, Stealth, Literate, Ranged (Basic), Workshop, Game Master.
   The help text asking them not to was the tell that the option should never
   have been on the menu. The two economies are now split at the door —
-  `/store` spends points against catalog prices, Add Tag spends turns and ⬢
-  against a recipe.
-- **What survives is the hidden-category group gate, and nothing else.**
+  `/store` spends points against catalog prices, Add Tag (Craft) spends turns
+  and ⬢ against a recipe.
+- **The recipe's `requirement.skills` is enforced now, not honor-system.**
   A Longbow's `requiredTag: ranged-basic` says who can *shoot* it; its
   `requirement.skills: [crafting]` says who can *make* it. Creation and
-  `/store` enforce the former; Add Tag enforces neither — it's honor-system
-  (`addRequirementSatisfied()` in `web/lib/tagRequests.js`, `TAGS.md` §3b),
-  with the recipe shown as the picker's "To make: …" hint and the GM review
-  as the backstop. A smith with no combat skill can forge weapons to sell; a
-  fighter can pull one from the clan armoury the fiction gives them. The
-  group gate stays unconditional, so a Bacchus craftable is still invisible
-  outside the cult.
+  `/store` always enforced the former. Craft used to leave the latter to the
+  picker's "To make: …" hint and the GM review as the backstop
+  (`TAGS.md` §3b); it now checks server-side that the crafter holds every
+  listed skill or a higher tier, the same walk Heal uses
+  (`CRAFTING.md` §2). A smith with no combat skill can still forge weapons to
+  sell; a fighter still pulls one from an armoury the fiction gives them, but
+  only by actually holding the skill. The hidden-category group gate stays
+  unconditional on top of that, so a craftable in a hidden category is still
+  invisible outside it.
 - **Undo never re-syncs Discord.** `resolveRequest` (`gm/turns/actions.js`)
   runs a request's `undo()` entirely inside one transaction, and no network
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
-  `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#watch`/`#intercom` access
+  `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#cerberon` access
   stale until the next Move reconciles it, and undoing `CHANGE_NAME` leaves
   the personal Discord role/nickname stale until the player's next Bio save
   (`ensureCharacterRole` always re-PATCHes off the live DB name, so that save
@@ -235,6 +251,19 @@ Three notes on deliberate choices:
   for the Discord call outside the transaction, and a bespoke undo path for
   each type would be the `killRequestTarget` treatment for something this
   minor.
+
+  **`BUILD_STRUCTURE` is the deliberate exception, on the after-commit side.**
+  The in-transaction half of the rule stands exactly as written above — its
+  own `undo()` still makes no network call inside the `$transaction`. But
+  `resolveRequestImpl`'s existing after-commit block already reads
+  `effect.linkEndpointIds` generically, for any request type, and reposts
+  both Location anchors it names — because an anchor that lies about a gate
+  is worse than the stale side effects this rule otherwise tolerates: the
+  button itself would be the lie. The restore underneath it is conditional to
+  begin with — `BUILD_STRUCTURE`'s `undo()` only writes `LocationLink.isOpen`
+  back when no `COMPLETE`/`DAMAGED` structure still holds that edge
+  (`HOLDS_EDGE`), so an edge some other structure has since claimed is left
+  exactly as that structure needs it.
 
 ## 4. Hunger and the Gambit modifier
 
@@ -290,15 +319,18 @@ writer of all three, called from `resolveNeeds()` at the close of every turn:
    than the 1 ⬢ it saves. Eating *settles* the turn's upkeep; the streak it
    took several starved turns to climb takes that many fed turns to climb back
    down.
-3. **Check first, then pay**: at `resources === 0` you go Hungry, owe nothing,
-   and the streak **increments**; at 1+ ⬢ you pay 1, stay fed, and the streak
-   drops by **one tick**.
+3. **Check first, then pay**: short of the turn's cost you go Hungry, owe
+   nothing, and the streak **increments**; able to cover it, you pay, stay
+   fed, and the streak drops by **one tick**. The cost is 1 ⬢ for everyone
+   except a holder of `fast-metabolism`, who owes **2** — and at 1 ⬢ that
+   holder keeps their coin and starves rather than half-eating.
 
-So 1 ⬢ always buys a fed turn, and `Character.resources` can never go
+So the upkeep always buys a fed turn, and `Character.resources` can never go
 negative — the clamp is structural, not a `Math.max`, and it lives on step 3,
 the only branch that still pays. Structural means the check and the payment
-are the *same statement*: the decrement carries `resources: { gte: 1 }` in its
-own `where`. Read the balance in one query and decrement in another and a
+are the *same statement*: the decrement carries `resources: { gte: n }` in its
+own `where`, which is why the 1 ⬢ and 2 ⬢ payers are charged in two separate
+batches. Read the balance in one query and decrement in another and a
 player who spends in between goes to −1, which is what used to happen, and
 turn rollover is exactly when players are most active.
 
@@ -518,18 +550,24 @@ long time nothing in the game **granted** Bound. A GM had to place it by hand,
 which is the day of real time §1 exists to save, so `BIND_CHARACTER` and its
 counterpart `FREE_CHARACTER` close the loop.
 
-**Neither one is gated beyond co-presence.** Tying somebody up is an act with
-consequences, not a permission. Anyone standing there can do it, and anyone
-standing there can cut them loose again — a captor who wants their prisoner
-kept has to keep other people out of the room, which is a fiction problem
-rather than a permissions one. The reason field and the GM's review are the
-anti-abuse mechanism, exactly as everywhere else.
+**Neither one is gated beyond co-presence — but Bind now needs consent unless
+the target is already helpless.** A conscious target who holds no
+`INCAPACITATING_SLUGS` tag gets an Offer (kind `BIND`), not an instant bind: a
+DM asking "Accept?", answered from the same handshake Learn/Teach uses
+(`LESSONS.md` §3b). A dead or already-incapacitated target is bound on the
+spot, as before. Free is unchanged — anyone standing there can cut somebody
+loose again, no consent asked — so a captor who wants their prisoner kept has
+to keep other people out of the room, which is a fiction problem rather than a
+permissions one. Co-presence for all four of these is now **Location**-grain,
+not zone-grain (`db/lib/presence.js` / `web/lib/peopleHere.js`): the target
+has to be standing in the same Location and not concealed. The reason field
+and the GM's review are the anti-abuse mechanism, exactly as everywhere else.
 
-**Binding someone also cancels their standing Default Move.** All four
+**Binding someone also costs them their day's labor.** All four
 `INCAPACITATING_SLUGS` are read on the *afflicted* character's own side too:
-`db/lib/defaultMovePass.js#runDefaultMovePass` silently skips filing a Default
-Move for anyone holding one, so a bound target loses their next turn, not just
-their ability to defend themselves (TURN-ENGINE.md §6).
+`db/lib/autoLaborPass.js#runAutoLaborPass` silently skips filing a Labor for
+anyone holding one, so a bound target loses their next turn, not just their
+ability to defend themselves (TURN-ENGINE.md §6).
 
 **Harm is Wound and Finish in one request**, because they are one act: you
 stand over someone who can't stop you and decide how far to take it. Either
@@ -569,7 +607,7 @@ groups are things one person does to another — `health-wounds` and
 `web/lib/healRequests.js`, 33 rows, read by both the picker and the server
 action for the same reason `isHealable` is. **Paralyzed is deliberately not on
 it**: it is in `INCAPACITATING_SLUGS`, so inflicting it would let one player
-lock another out of their Default Move indefinitely, at will.
+lock another out of their day's labor indefinitely, at will.
 
 The lethal half is also the only place besides billing someone else for a cure
 where the dialog asks twice.
@@ -582,11 +620,15 @@ over it, so the leader gate is skipped and no Discord role is swapped — and
 neither does anyone helpless, so a Catatonic, Dying or Paralyzed character can
 be carried as well as robbed.
 
-**The target menus are deliberately unfiltered.** Every one of these lists
-names people a player might not be allowed to act on, and the server rejects
-the rest with its own wording. Narrowing the menu to who you *may* move would
-turn it into a readout of who is tied up. See §6 on why the buttons don't grey
-out either.
+**The target menus list who is at your Location and not concealed — a corpse
+still shows for Loot and Move.** That's a change from the earlier design,
+where every one of these listed every living player so nobody learned who was
+nearby just by opening a menu; the game now filters by co-presence
+(`web/lib/peopleHere.js`, `db/lib/presence.js`), so a menu can show a name a
+player isn't actually allowed to act on (Bound already, out of reach by the
+time of submit) and the server rejects the rest with its own wording. See §6
+on why the buttons themselves don't grey out for who's near you — that rule is
+unrelated and still holds.
 
 ## 5c. Healing
 
@@ -596,9 +638,13 @@ owns rather than the player.
 
 **Three gates, all re-checked server-side.** The button only renders for a
 character holding `medical-basic`; the patient must share the healer's
-`zoneId`; and the affliction's own `requirementSkills` must be satisfied —
+Location and not be concealed; and the affliction's own `requirementSkills`
+must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
-sees it in the menu, greyed, reading "needs Medical (Skilled)". The menu is
+sees it in the menu labelled "— Gambit ‡" and may still attempt it — it files a
+GAMBIT Move rather than curing anything, and the GM resolves the roll
+(TAGS.md §5c). Routine cures are additionally rationed 2/3/4 a turn by the
+medic's tier, and a 0-turn cure never counts against that. The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
 from the database before it writes anything.
 
@@ -613,13 +659,18 @@ used to sit) because the bot asks the same question: the doctor's eye on 🔍
 inspect shows a medic the hidden afflictions they are qualified for, and the
 two faces must not drift on who counts as qualified. See `TAGS.md` §5c.
 
-**What counts as treatable** is data, not a slug list: a held tag in the
-`Health` category that carries *any* requirement field. A Health tag with no
-requirement block is tier 0 of the cure ladder — Vomiting, a Migraine, a
-Concussion: realistically untreatable, quick, harmless, and deliberately not
-something a doctor bills for. Adding a `requirement:` block to a Health tag in
-`docs/tags.yaml` is the whole of "make this curable", and `TAGS.md` §5c has the
-eight rungs to copy rather than invent.
+**What counts as treatable** is data, not a heuristic: `Tag.healable`, a flag
+in `docs/tags.yaml` (`CRAFTING.md` §1), re-checked by
+`web/lib/healRequests.js#isHealable`. This replaced the old rule — a held tag
+in the `Health` category that carried *any* requirement field — which
+conflated "curable" with "has a cure cost" closely enough that it worked, but
+the flag is the thing actually read now, not the inference. A Health tag with
+`healable: false` and no requirement block is tier 0 of the cure ladder —
+Vomiting, a Migraine, a Concussion: realistically untreatable, quick,
+harmless, and deliberately not something a doctor bills for. Setting
+`healable: true` (with a `requirement:` block) on a Health tag in
+`docs/tags.yaml` is the whole of "make this curable", and `TAGS.md` §5c has
+the eight rungs to copy rather than invent.
 
 **The cost is `Tag.requirementResources`, and a payer is demanded even at
 zero.** `schema.prisma` documents the requirement block as covering whichever
@@ -631,19 +682,17 @@ as reference and enforced by nobody — which is what makes "you may always
 attempt something above your tier, as a Gambit" a rule a GM adjudicates rather
 than one the button blocks.
 
-**Who pays is anyone in reach.** Every co-located living player including the
-healer, plus every faction Silo in reach regardless of Silo authority — the
-same reach `TRANSFER_RESOURCES` has, for the same reason (see "the source can
-be anyone in reach" in §3). The Silo half used to be "from anywhere", which
-became a laundering hole the moment transfers grew a reach gate: billing a
-distant Silo for a cure moves ⬢ across the map with nobody carrying it. Billing someone other than yourself asks twice: the reason dialog,
-then a `useConfirm()` naming the payer and the amount. Treating another
-character does not, which is the opposite of the Lifeweb rule below and
-deliberate — a cure is not a harm, and being charged for one is.
+**Who pays is yourself, a Room stash at your Location, or a person there** —
+the same payer choice Craft offers (`CRAFTING.md` §2), and a person picked
+this way is DM'd what they were charged. Billing someone other than yourself
+asks twice: the reason dialog, then a `useConfirm()` naming the payer and the
+amount. Treating another character does not, which is the opposite of the
+Lifeweb rule below and deliberate — a cure is not a harm, and being charged
+for one is.
 
-The shared zone is re-validated inside the target's `WHERE` clause rather than
-by a second read, so a patient who walked out between page load and submit fails
-closed with "They aren't here" and nothing is written.
+The shared Location is re-validated inside the target's `WHERE` clause rather
+than by a second read, so a patient who walked out between page load and
+submit fails closed with "They aren't here" and nothing is written.
 
 It is also the one type whose subject is a different character from the one
 who filed it: `request.characterId` is the medic, `effect.targetCharacterId`
@@ -652,22 +701,43 @@ GM can re-price the cure or tick "put the affliction back but keep the
 payment" — the treatment that didn't take, the one partial outcome a full
 Undo can't express.
 
-## 5d. Bury and Fast Travel
+## 5d. Bodies
 
-Two requests that each break one rule the other sixteen keep.
+Four requests that each break one rule the others keep. Three of them are about
+corpses; the full design is [`CORPSES.md`](CORPSES.md), and this section covers
+only what is peculiar to them *as requests*.
 
-**Bury's target is typed, not picked — and typed as a first name.** Every other
-target menu in the app is a dropdown built from the zone roster. A dropdown
-here would be a list of the dead, readable by anyone who opened the dialog, and
-the whole reason `/character`'s panels never render a status pill on a corpse is
-that who died is not supposed to be free information. So the dialog holds one
-text field, `firstName` is matched case-insensitively against `Character.firstName`
-inside a `WHERE` already scoped to the filer's zone and to `buriedAt: null`, and
-two dead people sharing a first name in one room is a plain error rather than a
-guess. A miss says "Nobody here by that name is dead" and writes nothing. That
-does leak a little — a wrong guess tells you that person is not a corpse *in
-your zone* — and it is accepted, because the corpses in your zone are already
-named in the Loot and Move menus.
+**Bury needs the body, not a name.** It used to match a typed first name against
+the dead in the filer's zone. It now takes a corpse **tag** the filer is holding
+or can reach in a room at their Location — strictly tighter, since you have to
+have actually found it — and consumes that tag. It also **spends the filer's
+Move** now, filed automatically as a passed Routine by `fileAutoRoutine`. A
+monster corpse is refused: there is no soul in a Nekker.
+
+**Engrave is the one that kept the typed name**, and it kept it for the reason
+Bury originally had it. Every other target menu in the app is a dropdown built
+from the roster; a dropdown here would be a list of the dead, readable by anyone
+who opened the dialog, and the whole reason `/character`'s panels never render a
+status pill on a corpse is that who died is not supposed to be free information.
+So the dialog holds one text field and `firstName` is matched
+case-insensitively against `Character.firstName` inside a `WHERE` scoped to
+`status: DEAD` and `buriedAt: null`.
+
+**And Engrave's search is game-wide** — no zone clause at all, because the whole
+point is a body nobody can find. Two consequences follow, and both are accepted
+deliberately. The leak is bigger than Bury's was: a hit tells you that person is
+dead *somewhere*, where before it only told you they were not a corpse in your
+zone. And **the `>1 match` refusal now does real work.** Two dead people sharing
+a first name anywhere in Ravenheart is a plain error — "More than one dead
+person answers to that name. A GM will have to do it." — rather than a guess,
+because it is the only thing standing between a mourner and freeing the wrong
+soul. Do not soften it into picking the first match.
+
+**Butchering destroys a body without freeing the soul.** This reads as an
+oversight and is not: cutting someone up is not a burial, so their player stays
+Cursed, and Engrave is the way out of that. It is also the only one of the three
+that is entirely free — no ⬢, no Move — because the cost of butchering is
+supposed to be what other people think of you.
 
 **No gate beyond co-presence**, same as Bind and Free (§5b). The Mortii's job
 in the fiction (`docs/roles.yaml`) is not a permission in the code.
@@ -686,85 +756,31 @@ refuse a buried one — the `LOOT` direction of `TRANSFER_RESOURCES` and
 `character/page.js` that feeds all five target menus. A GM Revive clears it, so
 a revived character is never a live person marked buried.
 
-**Fast Travel is the only request that changes a zone and files no `Action`.**
-That is exactly what the `horse` and `wild-horse` tags have always
-promised in the catalog — "Once per day, you may enter an adjacent zone without
-spending a turn, but you'll be easily visible" — and nothing read either slug
-until this. No Action means no Move spent *and* no block from having already
-acted: riding is not acting.
+**Fast Travel is retired as a Request, and its mechanic has moved.** There is
+no `fastTravelRequestImpl` any more, no `FAST_TRAVEL` row is ever written, and
+`Character.fastTravelTurnId` is gone from the schema. What the `horse` and
+`steam-automobile` tags promise is now part of ordinary travel: an **equipped**
+mount adds one to the free-zone-move allowance every character gets each turn,
+and it refreshes each turn rather than once a day. See [`CARRY.md`](CARRY.md)
+§2a for the allowance and [`MAP.md`](MAP.md) for the crossing itself.
 
-**The caves have one mouth for a horse.** Fast travel INTO a cave level is
-allowed — the way in is right off the road — and riding back OUT is allowed
-from the **Caverns** only, since that top level opens onto the surface. A
-rider anywhere deeper, or one trying to ride between levels, is refused: no
-horse fits the tunnels. So `caverns → town` rides, `caverns → railroad` does
-not, and neither does anything starting in the Railroad or the Aberrant Pits.
-Origin and destination both decide, checked in `fastTravelRequestImpl` before
-the adjacency check so the refusal is the specific one.
+`db/lib/mounts.js#fastTravelCapacity` survives with **no live caller** — it
+was the retired request's seat count, and ordinary travel gates dragging on
+`canDrag` (corpse, helpless, or your own faction) rather than on seats. It is
+kept because the catalog text still promises a horse carries two and a cart
+six, and whatever enforces that later should use this rather than re-derive it.
+It now reads the mount only while equipped.
 
-**Fast Travel can carry passengers, and any co-present character qualifies.**
-`web/lib/tagRequests.js#fastTravelCapacity` reads the rider's held tags for a
-seat count (rider included): a horse or Wild Horse alone seats 2; `cart`
-upgrades that pair to 6 (it does nothing without a horse — it upgrades one,
-it isn't one); `steam-automobile` is inherently a 6-seat vehicle by itself and
-does not stack further with Cart. There is deliberately **no authority check**
-on who can be brought along — not the Bound/Led/corpse gate
-`MOVE_CHARACTER` enforces, just presence in the rider's zone at submit time.
-That is a design choice, not an oversight: it is the same bet the rest of the
-Requests system already makes (a player can pull ⬢ out of someone else's
-pocket with `TRANSFER_RESOURCES` on nothing but a reason), and a GM reviews
-and can Undo it after. A passenger who has wandered off between the rider
-opening the dialog and submitting fails the **whole** request rather than
-being silently dropped, so the rider re-picks instead of finding out later
-that a friend didn't come along. Passengers move inside the same transaction
-as the rider — one `updateMany`, since every passenger shares the rider's
-`fromZoneId`/`toZoneId` — and get the same post-commit Discord fan-out
-(zone role, narrowcast access, pending invites, the Caving arrival roll), plus
-a DM telling them they were brought along, since they didn't ask for the
-ride. They do **not** claim their own `fastTravelTurnId`: being carried today
-doesn't stop a passenger from riding under their own power again later the
-same day. Undo restores every passenger's zone alongside the rider's.
+Old `FAST_TRAVEL` rows stay undoable; nothing files a new one.
 
-**The once-a-day limit is a claim, not a count.** `Character.fastTravelTurnId`
-is written by a conditional `updateMany` whose `WHERE` is the check, as the
-first statement in the transaction, so a loser aborts before anyone has moved.
-Counting the rider's existing `FAST_TRAVEL` rows would be two statements and two
-tabs would both pass — which is precisely the bug `db/lib/travel.js` documents
-above its `Action` create, where a player ended up two hops away on one Move.
-Undo restores the previous value rather than nulling it, so an undone hop hands
-the ride back without minting a second one for someone who had already ridden
-earlier that day.
-
-Despite the name, the column holds the in-game **day** number
-(`describeTurn(openTurn).day`), not the open turn's id — Bascinet runs two
-turns a day (Dawn/Dusk), and keying the claim on `openTurn.id` let a rider
-claim a free hop in both turns of the same day, twice what "once per day"
-promises. Fixed in `fastTravelRequestImpl`.
-
-It re-derives `performTravel`'s adjacency rules instead of calling it, the same
-way `MOVE_CHARACTER` does and for the same reason: `performTravel` runs its own
-transaction and always files the Move, while `createRequest` has to sit inside
-the same transaction as its effect (§2). The four side effects after the commit
-— zone role, narrowcast access, pending thread invites, and the Caving Die's
-on-arrival roll — are the same four `map/travelActions.js#travelTo` defers, for
-the same reason it defers them.
-
-One thing it does *not* share with an ordinary hop: "easily visible" is the
-price the tag charges for the free hop, and it is collected twice. The
-departure zone's `#summary` gets a bot-posted line the room sees live —
-"*[rider] is seen leaving the area on horseback, carrying [passengers].*",
-with "on a horse-drawn cart" when the rider also holds Cart (otherwise a
-six-seat ride reads as five people piled onto one horse) and "in a steam
-automobile" when the rider holds no horse — skipped only
-where there is no summary channel to post to (a cave level). And the `TRAVEL`
-archive entry is written **unconditionally**, ignoring
-`GameConfig.archiveTravelEvents`, as the transcript half of the same
-visibility.
-
-**Bury's button carries no gate; Fast Travel's does.** Both follow §6's rule
-rather than bending it. Owning a horse is a fact about your own sheet, so the
-icon may grey out. Whether a body lies where you stand is a fact about who is
-near you, so that icon is always lit and you find out by typing a name.
+**The gates on these four all follow §6's rule rather than bending it.** Owning
+a horse is a fact about your own sheet, so Fast Travel's icon may grey out. So
+is knowing how to butcher, so Butcher greys on holding the `butcher` tag — but
+**never** on whether a body is nearby, which is a fact about the world; you find
+that out by opening the dialog. Bury and Engrave carry no gate at all for the
+same reason: whether a corpse lies where you stand, or whether the name you have
+in mind belongs to someone dead, is exactly what you are not supposed to learn
+from a greyed-out icon.
 
 ## 6. The player-facing surface
 
@@ -785,6 +801,16 @@ a whole "Bodies here" panel for looting corpses. It is a grid rather than a
 vertical strip because eleven icons in one column would run far past the
 four `<dl>` rows next to them and drag the panel's height with them.
 
+`actionRegistry.js` now lays the grid out as three captioned rows rather than
+one undifferentiated block, grouped by who the action touches: **You** (Craft,
+Destroy, Consume, Transfer, Learn Skill, Teach Skill), **People here** (Heal,
+Loot, Bind, Free, Harm, Move Player, Bury Person), **Letters** (Send Bird,
+Read). The caption is presentation only — every button still greys or opens
+its dialog by the same per-action rule as before; grouping them by subject
+just makes the "acts on you" / "acts on someone else" split legible at a
+glance, which matters more now that co-presence actually filters who shows up
+in the dialog (§5b).
+
 **The state had to move up to make that work.** `TagRequestButtons.js` used to
 own both the buttons and the dialogs, and handed its opener up to `TagsPanel`
 through an `onReady` callback so a chip click could open Consume. The buttons
@@ -800,8 +826,9 @@ who is standing near you. A greyed-out Loot icon would announce "nobody here
 is helpless" to anyone who glanced at their own sheet, and a live one would
 announce the opposite: free scouting, on every page load, without anyone
 choosing to look. So the co-presence actions are always lit and you learn who
-is here only by opening the dialog. Same reasoning as the unfiltered transfer
-dropdowns in §3.
+is here only by opening the dialog. §3 covers the corresponding rule for the
+target *menus* themselves — Location-filtered now, not unfiltered — which is
+a separate concern from button greying and doesn't change it.
 
 The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
 `PointBuy.js`, so the in-play menu and the creation menu find the same tags
@@ -822,9 +849,6 @@ header (`.table-scroll`) over 50 rows a page — the same shell every other
 list in the app uses, though `/gm/audit` is the one that pages server-side,
 over the URL, so a filtered view stays linkable.
 
-Faction Silos additionally get a `SiloTransaction` row on **both** directions
-of a transfer. Deposits into a Silo previously left no ledger entry at all.
-
 ## 8. Where the code lives
 
 | Concern | File |
@@ -839,10 +863,13 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | The Actions icon grid | `web/app/components/ActionGrid.js`, `IconButton.js`, `icons.js` |
 | Which held tags each menu offers | `web/lib/tagRequests.js` |
 | Who is standing in your zone (one roster, five menus) | `web/app/(app)/character/page.js` |
+| Co-presence at Location-grain (web / db) | `web/lib/peopleHere.js`, `db/lib/presence.js` |
+| Bind, both doors (instant vs. consent Offer) | `db/lib/bind.js` (`LESSONS.md` §3b) |
+| Action-grid rows and per-action entries | `web/app/components/actionRegistry.js` |
 | Who counts as helpless, and who can be finished off | `db/lib/incapacitation.js` |
-| Heal gate, tier chain, treatable-tag filter | `web/lib/healRequests.js` |
-| One end of a resource movement (Silo or player) | `web/app/components/PartySelect.js` |
-| Reach gate — same zone / same Silo seat zone | `web/lib/transferReach.js` |
+| Heal gate, tier chain, `healable` filter | `web/lib/healRequests.js` |
+| One end of a resource movement | `web/app/components/PartySelect.js` |
+| Reach gate — same zone | `web/lib/transferReach.js` |
 | Tags panel + click-a-chip-to-consume | `web/app/components/TagsPanel.js`, `TagChip.js` |
 | Desires — panel shell, catalog picker, GM surface, gate evaluator | `web/app/components/GoalsPanel.js`, `DesirePanel.js`, `DesireCatalog.js`; `gm/dev/characters/[characterId]/GoalsTab.js`; `db/lib/desireGates.js`. Full file map: `DESIRES.md` §11 |
 | Lifeweb blood tiers + cap, shared bot/web | `db/lib/lifeweb.js` |
@@ -853,3 +880,23 @@ of a transfer. Deposits into a Silo previously left no ledger entry at all.
 | GM review rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
 | Expiry sweep | `db/index.js#resolveNeeds` |
+
+## The Depot's request kinds
+
+Eight `DEPOT_*` types, all obol-denominated, all moving `Depot.accountObols`
+rather than anyone's `Character.resources`: the three original
+(`DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT`) plus `DEPOT_ORDER`, `DEPOT_SHIP`,
+`DEPOT_ATM`, `DEPOT_CRATE_OPEN` and `DEPOT_REFUEL`.
+
+**Two have no undo handler, deliberately.** `DEPOT_SHIP` and
+`DEPOT_CRATE_OPEN` are irreversible the way a sent Bird letter is: a shuttle
+that went up cannot be recalled and its cargo no longer exists to hand back,
+and an opened crate has scattered its contents into an inventory that has moved
+on. With no `REQUEST_EFFECTS` entry the rows stay visible on the desk and in
+the Depot's own Ledger — they simply cannot be undone, which is honest. A GM
+corrects one by hand.
+
+The rest follow the ordinary rule: `effect` snapshots what actually moved and
+undo reads only that. `DEPOT_ORDER` restores the manifest to the snapshot taken
+before it rather than subtracting its own lines, so a second order filed since
+is not silently thrown away.

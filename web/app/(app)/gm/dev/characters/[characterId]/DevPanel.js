@@ -1,7 +1,7 @@
 "use client";
 
 import { CHARACTER_STATUS } from "@/app/components/StatusPill";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRefresh } from "@/app/components/useRefresh";
 import { PageHeader } from "@/app/components/PageShell";
@@ -19,9 +19,6 @@ import { applyCharacterEdits } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
-// The staged-op merge algebra, shared with the adjudication workspace's
-// effect composer — see web/lib/tagOpAlgebra.js for the rules.
-import { mergeTagOp } from "@/lib/tagOpAlgebra";
 
 const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
 
@@ -31,10 +28,17 @@ const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
 // Two kinds of interaction live here, and they are deliberately kept on
 // DISJOINT fields so they can never race each other (docs/systemdocs/DEV-PANEL.md):
 //
-//   - Staged   — every editable value, plus every tag change. Held right here
-//                until Apply sends them as one payload, one audit row.
-//   - Immediate — the verbs in the action bar. Own confirm, own server action,
-//                straight away.
+//   - Staged   — the editable COLUMNS. Held right here until Apply sends them
+//                as one payload, one audit row.
+//   - Immediate — the verbs in the action bar, and every TAG change. Own
+//                server action, straight away.
+//
+// Tags used to be staged too, which made the commonest gesture on the panel
+// the slowest: adjusting one stack cost a stage, a scroll and an Apply, and
+// Cancel then discarded every unrelated edit along with it. They now commit on
+// the gesture, one call each. The two halves still touch disjoint fields, so
+// they still cannot race — and a tags-only write never bumps
+// Character.updatedAt, so it cannot invalidate a core edit staged beside it.
 //
 // `status` is the field that would have straddled both, so it isn't in the
 // form at all: Kill and Revive are microactions, and Apply reads status from
@@ -55,12 +59,12 @@ export default function DevPanel({
   cursed,
   equipSlots,
   maxDrawbackTags,
+  maxDrawbackPoints,
   startingTagPoints,
   openTurn,
   gambitModifier,
   stagedForPush,
   openTurnAction,
-  defaultEffort,
   desires,
   desireSlots,
   desireSlotStates,
@@ -137,9 +141,6 @@ export default function DevPanel({
   // keys actually touched are sent, so an untouched field can never be
   // overwritten by a stale value read at page load.
   const [edits, setEdits] = useState({});
-  // Staged tag ops, keyed by tagId — never characterTagId, which can vanish
-  // under us when the expiry sweep runs at a turn close.
-  const [tagOps, setTagOps] = useState(new Map());
 
   // An empty text input and a null column are the same thing to the server
   // (every string field goes through trimmedOrNull), so they have to compare
@@ -162,31 +163,23 @@ export default function DevPanel({
     markDirty();
   }
 
-  const tagById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
-
-  function stageTagOps(ops) {
-    setTagOps((prev) => {
-      const next = new Map(prev);
-      for (const op of ops) {
-        if (op == null) continue;
-        if (op.op === "clear") {
-          next.delete(op.tagId);
-          continue;
-        }
-        // mergeTagOp needs the catalog flag: two "Add one" clicks accumulate
-        // on a stackable tag and pin back to 1 on anything else.
-        const stackable = !!tagById.get(op.tagId)?.stackable;
-        next.set(op.tagId, mergeTagOp(next.get(op.tagId), op, { stackable }));
-      }
-      // A merge can cancel out entirely (add then remove) — drop those.
-      for (const [tagId, op] of next) if (op == null) next.delete(tagId);
-      return next;
-    });
-    markDirty();
+  // A tag gesture, committed straight away. Keyed by tagId, never
+  // characterTagId — the latter can vanish under us when the expiry sweep runs
+  // at a turn close, while @@unique([characterId, tagId]) makes tagId stable.
+  //
+  // `core: {}` means applyCharacterEditsImpl skips its character.update
+  // entirely, so this never touches Character.updatedAt and never invalidates
+  // whatever core edits are staged in the Apply bar at the same time. That is
+  // also why expectedUpdatedAt is deliberately not sent.
+  async function applyTagOps(ops) {
+    const res = await applyCharacterEdits({ characterId: character.id, core: {}, tags: ops });
+    if (res?.ok) refresh();
+    return res;
   }
 
-  const ops = useMemo(() => [...tagOps.values()], [tagOps]);
-  const pendingCount = Object.keys(edits).length + ops.length;
+  // Tag changes are already committed by the time they get here, so the Apply
+  // bar counts core edits alone.
+  const pendingCount = Object.keys(edits).length;
 
   async function onCancel() {
     if (!pendingCount) return;
@@ -198,7 +191,6 @@ export default function DevPanel({
     });
     if (!ok) return;
     setEdits({});
-    setTagOps(new Map());
     setError(null);
     markClean();
   }
@@ -210,14 +202,12 @@ export default function DevPanel({
         characterId: character.id,
         expectedUpdatedAt: character.updatedAt,
         core: edits,
-        tags: ops,
       });
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");
         return;
       }
       setEdits({});
-      setTagOps(new Map());
       markClean();
       refresh();
     });
@@ -242,6 +232,7 @@ export default function DevPanel({
         held={held}
         equipSlots={equipSlots}
         maxDrawbackTags={maxDrawbackTags}
+        maxDrawbackPoints={maxDrawbackPoints}
         gambitModifier={gambitModifier}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
@@ -262,7 +253,7 @@ export default function DevPanel({
         cursed={cursed}
         pendingCount={pendingCount}
         startingTagPoints={startingTagPoints}
-        onStageTags={stageTagOps}
+        onApplyTags={applyTagOps}
         onStageField={setField}
         refresh={refresh}
         onDeleted={onDeleted}
@@ -280,7 +271,6 @@ export default function DevPanel({
             onClick={() => openTab(t)}
           >
             {t}
-            {t === "Tags" && ops.length > 0 && <> ({ops.length})</>}
           </button>
         ))}
       </div>
@@ -303,10 +293,9 @@ export default function DevPanel({
           characterName={character.name}
           tags={tags}
           held={held}
-          ops={tagOps}
           openTurn={openTurn}
           equipSlots={equipSlots}
-          onStage={stageTagOps}
+          onApplyOps={applyTagOps}
         />
       )}
 
@@ -315,7 +304,6 @@ export default function DevPanel({
           character={character}
           openTurn={openTurn}
           action={openTurnAction}
-          defaultEffort={defaultEffort}
         />
       )}
 
@@ -376,6 +364,7 @@ export default function DevPanel({
   if (frame === "modal") {
     return (
       <Modal
+        modeless
         title={titleWithAvatar}
         onClose={closeModal}
         panelClassName="modal-panel dev-modal-panel"
@@ -415,21 +404,25 @@ function StateStrip({
   held,
   equipSlots,
   maxDrawbackTags,
+  maxDrawbackPoints,
   gambitModifier,
   openTurn,
   hasActed,
   stagedForPush,
 }) {
   const equipped = held.filter((h) => h.equipped).length;
-  // Point-bought drawbacks only, matching the cap PointBuy enforces — a
-  // GM-inflicted wound is not one of the player's tags. Shown as a fact,
-  // not a limit: a GM grant deliberately ignores every gate, this one
-  // included. Counted as tags, not summed as points — see negativeTagCount.
-  const drawbackCount = held.reduce((count, h) => {
-    if (h.source !== "POINT_BUY") return count;
-    return (h.pointCost ?? 0) < 0 ? count + 1 : count;
-  }, 0);
-  const overDrawbackCap = drawbackCount > maxDrawbackTags;
+  // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
+  // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
+  // a limit: a GM grant deliberately ignores every gate, these included.
+  // Both halves, because either one alone tells a GM half the rule.
+  const drawbacks = held.reduce(
+    (acc, h) => {
+      if (h.source !== "POINT_BUY" || (h.pointCost ?? 0) >= 0) return acc;
+      return { count: acc.count + 1, points: acc.points - h.pointCost };
+    },
+    { count: 0, points: 0 },
+  );
+  const overDrawbackCap = drawbacks.count > maxDrawbackTags || drawbacks.points > maxDrawbackPoints;
   // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
   // GM's eye lands on the right group instead of scanning the whole strip.
   // Purely presentational — every value below is unchanged from before.
@@ -456,7 +449,7 @@ function StateStrip({
         [
           "Drawbacks",
           <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>
-            {drawbackCount} / {maxDrawbackTags}
+            {drawbacks.count} / {maxDrawbackTags} · {drawbacks.points} / {maxDrawbackPoints} pts
           </span>,
         ],
         ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],

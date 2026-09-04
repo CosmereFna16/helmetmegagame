@@ -1,6 +1,7 @@
-import { bumpBlood } from "@lifeweb/db";
-import { addToStack, dropCharacterTag, grantTagSlugs } from "@lifeweb/db/lib/tagWrites";
-import { moveParty, writeSiloRows, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { bumpBlood, bumpAccount, OBOL_SLUG } from "@lifeweb/db";
+import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
+import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { HOLDS_EDGE } from "@lifeweb/db/lib/structures";
 import { UserError } from "@/lib/actionResult";
 
 // Per-type behaviour of a Request: how a GM's Undo reverses it, and which
@@ -13,46 +14,26 @@ import { UserError } from "@/lib/actionResult";
 // negative — the write IS the check, a conditional update that only matches
 // while the balance still covers the amount, safe under concurrent requests.
 export async function moveResources(tx, party, delta) {
-  const character = party?.kind === "character";
   try {
     await moveParty(tx, party, delta);
   } catch (err) {
     if (!(err instanceof InsufficientResourcesError)) throw err;
-    throw new UserError(
-      character
-        ? `${party.name ?? "That character"} no longer has ${err.amount} ⬢.`
-        : `The ${party?.name ?? "faction"} Silo no longer has ${err.amount} ⬢.`,
-    );
+    if (party?.kind === "room") throw new UserError(`${party.name ?? "That room"} no longer holds ${err.amount} ⬢. ‡`);
+    throw new UserError(`${party?.name ?? "That character"} no longer has ${err.amount} ⬢.`);
   }
 }
 
-function ledgerFrom(ctx) {
-  return {
-    actorDiscordUserId: ctx.actorDiscordUserId,
-    actorCharacterId: ctx.actorCharacterId ?? null,
-    actorName: ctx.actorName,
-    note: ctx.note ?? null,
-    turnNumber: ctx.turnNumber ?? null,
-    turnPhase: ctx.turnPhase ?? null,
-    hidden: ctx.hidden ?? false,
-    cover: ctx.cover ?? null,
-  };
-}
-
-export async function creditResources(tx, party, amount, ctx) {
+// `ctx` used to feed the Silo ledger; it is accepted and ignored so the
+// call sites read the same. A party of a kind moveParty doesn't know (an old
+// row naming a faction Silo) is a silent no-op.
+export async function creditResources(tx, party, amount) {
   if (!party || !amount) return;
   await moveResources(tx, party, amount);
-  if (party.kind === "faction") {
-    await writeSiloRows(tx, { factionId: party.id, amount, ledger: ledgerFrom(ctx) });
-  }
 }
 
-export async function debitResources(tx, party, amount, ctx) {
+export async function debitResources(tx, party, amount) {
   if (!party || !amount) return;
   await moveResources(tx, party, -amount);
-  if (party.kind === "faction") {
-    await writeSiloRows(tx, { factionId: party.id, amount: -amount, ledger: ledgerFrom(ctx) });
-  }
 }
 
 async function moveBlood(tx, delta) {
@@ -97,6 +78,42 @@ export async function restoreCharacterTag(tx, characterId, snapshot) {
 
 export { dropCharacterTag };
 export { grantTagSlugs };
+export { addToRoomStack, dropRoomTag };
+
+// --- party-shaped tag moves ------------------------------------------
+// A TRANSFER_TAG end is a character or a Room stash (CARRY.md); these two
+// branch on `party.kind` so the undo never has to.
+
+// Takes `quantity` of a tag off a party. A room's decrement is the check
+// (two players can pull the same stack in the same tick); a character's
+// holding was snapshotted when the request was filed.
+export async function takeTagFrom(tx, party, tagId, quantity) {
+  if (!party?.id || !tagId) return;
+  if (party.kind === "room") {
+    const ok = await dropRoomTag(tx, party.id, tagId, quantity);
+    if (!ok) throw new UserError(`${party.name ?? "That room"} no longer holds that. ‡`);
+    return;
+  }
+  await dropCharacterTag(tx, party.id, tagId, quantity);
+}
+
+// Puts a snapshot { tagId, quantity, expiresTurn, source } back on a party.
+// Both branches INCREMENT and re-assert the snapshot's clock, so a stash-
+// then-undo can't launder an expiry.
+export async function giveTagTo(tx, party, snapshot) {
+  if (!party?.id || !snapshot?.tagId) return;
+  if (party.kind === "room") {
+    // The Spillway. Nothing is written, so nothing can be fished back out —
+    // which is also why the TRANSFER_TAG undo below skips its `takeTagFrom`
+    // on a destroyed line rather than throwing "no longer holds that".
+    if (party.destroysContents) return;
+    await addToRoomStack(tx, party.id, snapshot.tagId, snapshot.quantity ?? 1, {
+      expiresTurn: snapshot.expiresTurn ?? null,
+    });
+    return;
+  }
+  await restoreCharacterTag(tx, party.id, snapshot);
+}
 
 // --- per-type handlers ------------------------------------------------
 
@@ -150,7 +167,7 @@ export const REQUEST_EFFECTS = {
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
       const delta = nextSpend - (effect.resourcesSpent ?? 0);
       if (delta !== 0) {
-        await moveResources(tx, { kind: "character", id: request.characterId }, -delta);
+        await moveResources(tx, effect.payer ?? { kind: "character", id: request.characterId }, -delta);
         notes.push(`Resource cost ${effect.resourcesSpent ?? 0} -> ${nextSpend}.`);
         effect.resourcesSpent = nextSpend;
       }
@@ -174,8 +191,8 @@ export const REQUEST_EFFECTS = {
 
       return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
-    async undo(tx, request, ctx) {
-      const { tagId, tagName, resourcesSpent, quantity, replaced = [] } = request.effect;
+    async undo(tx, request) {
+      const { tagId, tagName, resourcesSpent, quantity, replaced = [], payer = null, projectId = null } = request.effect;
       if (tagId && !request.effect.tagRemovedByGm) {
         await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
       }
@@ -184,17 +201,20 @@ export const REQUEST_EFFECTS = {
           await restoreCharacterTag(tx, request.characterId, snapshot);
         }
       }
+      // A Craft row names who paid (docs/systemdocs/CRAFTING.md); an older
+      // Add Tag row charged the character themselves.
       if (resourcesSpent) {
-        await tx.character.update({
-          where: { id: request.characterId },
-          data: { resources: { increment: resourcesSpent } },
-        });
+        await moveResources(tx, payer ?? { kind: "character", id: request.characterId }, resourcesSpent);
+      }
+      if (projectId) {
+        await tx.craftProject.updateMany({ where: { id: projectId }, data: { status: "CANCELLED" } });
       }
       const restoredNote =
         !request.effect.replacedRestored && replaced.length
           ? `, restored ${replaced.map((r) => r.tagName ?? "a replaced tier").join(", ")},`
           : "";
-      return `Removed ${formatStack(tagName, quantity)}${restoredNote} and refunded ${resourcesSpent ?? 0} ⬢.`;
+      const refundNote = resourcesSpent ? ` and refunded ${resourcesSpent} ⬢ to ${payer?.name ?? "them"}` : "";
+      return `Removed ${formatStack(tagName, quantity)}${restoredNote}${refundNote}.`;
     },
   },
 
@@ -227,7 +247,9 @@ export const REQUEST_EFFECTS = {
   },
 
   REMOVE_TAG: {
-    editableFields: ["resourcesSpent"],
+    // Destroy charges nothing; the edit path stays for rows filed when Remove
+    // Tag still took a ⬢ spend.
+    editableFields: [],
     async applyEdit(tx, request, edits) {
       const effect = { ...request.effect };
       const nextSpend = clampNonNegative(edits.resourcesSpent, effect.resourcesSpent);
@@ -284,24 +306,38 @@ export const REQUEST_EFFECTS = {
   TRANSFER_RESOURCES: {
     editableFields: [],
     async undo(tx, request, ctx) {
-      const { from, to, amount } = request.effect;
+      const { from, to, amount, destroyed } = request.effect;
       const noteCtx = { ...ctx, note: `Undo of transfer request ${request.id}` };
-      await debitResources(tx, to, amount, noteCtx);
+      // Poured into the Spillway: the room's balance never moved, so debiting
+      // it would fail the conditional write and wedge the Undo. Only the
+      // sender's end is real, and only the sender's end is reversed.
+      if (!destroyed) await debitResources(tx, to, amount, noteCtx);
       await creditResources(tx, from, amount, noteCtx);
-      return `Reversed ${amount} ⬢ from ${to?.name ?? "recipient"} back to ${from?.name ?? "source"}.`;
+      return destroyed
+        ? `Returned ${amount} ⬢ to ${from?.name ?? "source"}.`
+        : `Reversed ${amount} ⬢ from ${to?.name ?? "recipient"} back to ${from?.name ?? "source"}.`;
     },
   },
 
+  // Either end may be a character or a Room stash. Rows filed before rooms
+  // existed carry only the character ids, so `from`/`to` are synthesized
+  // from those and nothing needs backfilling.
   TRANSFER_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { tagId, tagName, fromCharacterId, toCharacterId, restore, quantity } = request.effect;
-      const n = quantity ?? 1;
-      if (toCharacterId && tagId) await dropCharacterTag(tx, toCharacterId, tagId, n);
-      if (fromCharacterId && tagId) {
-        await restoreCharacterTag(tx, fromCharacterId, { tagId, ...(restore ?? {}), quantity: n });
-      }
-      return `Moved ${formatStack(tagName, quantity)} back to its original holder.`;
+      const e = request.effect;
+      const n = e.quantity ?? 1;
+      const from = e.from ?? (e.fromCharacterId ? { kind: "character", id: e.fromCharacterId, name: e.fromName } : null);
+      const to = e.to ?? (e.toCharacterId ? { kind: "character", id: e.toCharacterId, name: e.toName } : null);
+      // A line that went into a destroying room (the Spillway) was never
+      // written anywhere, so there is nothing to take back off the `to` end
+      // and the ordinary path would throw "no longer holds that" and wedge
+      // the whole Undo. Giving it back to the sender is the honest inverse.
+      if (to && e.tagId && !e.destroyed) await takeTagFrom(tx, to, e.tagId, n);
+      if (from && e.tagId) await giveTagTo(tx, from, { tagId: e.tagId, ...(e.restore ?? {}), quantity: n });
+      return e.destroyed
+        ? `Fished ${formatStack(e.tagName, e.quantity)} back out for ${from?.name ?? "its original holder"}.`
+        : `Moved ${formatStack(e.tagName, e.quantity)} back to ${from?.name ?? "its original holder"}.`;
     },
   },
 
@@ -379,7 +415,10 @@ export const REQUEST_EFFECTS = {
         effect.resourcesSpent = next;
       }
 
-      if (edits.restoreHealedTag && effect.restore?.tagId && !effect.tagRestoredByGm) {
+      // A PENDING gambit heal never took the affliction off — it filed a Move
+      // and left the patient exactly as they were — so there is nothing to put
+      // back, and putting it back would hand them a second copy.
+      if (edits.restoreHealedTag && effect.restore?.tagId && !effect.pending && !effect.tagRestoredByGm) {
         for (const g of effect.granted ?? []) {
           if (g.tagId && g.added > 0) await dropCharacterTag(tx, effect.targetCharacterId, g.tagId, g.added);
         }
@@ -391,18 +430,32 @@ export const REQUEST_EFFECTS = {
       return { effect, note: notes.join(" ") || "No changes.", changed: notes.length > 0 };
     },
     async undo(tx, request, ctx) {
-      const { resourcesSpent, payer, restore, targetCharacterId, targetName, tagName, tagRestoredByGm, granted = [] } =
-        request.effect;
+      const {
+        resourcesSpent,
+        payer,
+        restore,
+        targetCharacterId,
+        targetName,
+        tagName,
+        tagRestoredByGm,
+        pending,
+        granted = [],
+      } = request.effect;
       if (resourcesSpent) {
         await creditResources(tx, payer, resourcesSpent, { ...ctx, note: `Undo of heal request ${request.id}` });
       }
-      if (restore?.tagId && targetCharacterId && !tagRestoredByGm) {
+      // A pending gambit attempt took nothing off, so there is nothing to put
+      // back; only the fee is returned. The Move it filed stays — a GM who
+      // wants that back uses Reject, the same rule Craft's auto-Actions follow.
+      if (restore?.tagId && targetCharacterId && !pending && !tagRestoredByGm) {
         for (const g of granted) {
           if (g.tagId && g.added > 0) await dropCharacterTag(tx, targetCharacterId, g.tagId, g.added);
         }
         await restoreCharacterTag(tx, targetCharacterId, restore);
       }
-      return `Put ${tagName ?? "the affliction"} back on ${targetName ?? "the patient"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`;
+      return pending
+        ? `Called off the attempt on ${targetName ?? "the patient"}'s ${tagName ?? "affliction"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`
+        : `Put ${tagName ?? "the affliction"} back on ${targetName ?? "the patient"} and refunded ${resourcesSpent ?? 0} ⬢ to ${payer?.name ?? "the payer"}.`;
     },
   },
 
@@ -479,21 +532,114 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // The Depot's money moved off the Merchant's sheet and onto the station's
+  // own row in the rework, so every undo below moves Depot.accountObols rather
+  // than Character.resources. All five read only `effect` — never live state —
+  // which is what lets them compose in any order (REQUESTS.md §2).
   DEPOT_CREDIT: {
     editableFields: [],
     async undo(tx, request) {
       const { direction, amount } = request.effect;
       const draw = direction === "DRAW";
-      await moveResources(tx, { kind: "character", id: request.characterId }, draw ? -amount : amount);
-      await tx.character.update({
-        where: { id: request.characterId },
-        data: { depotDebt: { [draw ? "decrement" : "increment"]: amount } },
+      await bumpAccount(tx, draw ? -amount : amount);
+      await tx.depot.update({
+        where: { id: 1 },
+        data: { debtObols: { [draw ? "decrement" : "increment"]: amount } },
       });
       return draw
-        ? `Called back the ${amount} ⬢ draw and cleared it off the tab.`
-        : `Re-advanced the ${amount} ⬢ repayment and put it back on the tab.`;
+        ? `Called back the ${amount} ¢ draw and cleared it off the tab.`
+        : `Re-advanced the ${amount} ¢ repayment and put it back on the tab.`;
     },
   },
+
+  DEPOT_ORDER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { total, lines = [] } = request.effect;
+
+      // Refuse once the shuttle has flown the manifest down. The goods
+      // physically exist as crates on the landing pad by then, so a refund
+      // would hand back the obols AND leave the crates — and restoring the
+      // pre-order manifest snapshot would re-queue any OTHER order that was
+      // waiting alongside this one, delivering it a second time. Same posture
+      // as DEPOT_BUY, which refuses when the goods are gone.
+      const depot = await tx.depot.findUnique({ where: { id: 1 }, select: { manifest: true } });
+      const current = Array.isArray(depot?.manifest) ? depot.manifest : [];
+
+      // Subtract this order's own lines from whatever is on the manifest now,
+      // rather than restoring a snapshot — an order filed since must survive.
+      const remaining = [...current];
+      for (const line of lines) {
+        const at = remaining.findIndex(
+          (l) => l.tagId === line.tagId && l.quantity === line.quantity,
+        );
+        if (at === -1) {
+          throw new UserError(
+            "That order has already flown down — the crates are on the landing pad. Undo it by hand.",
+          );
+        }
+        remaining.splice(at, 1);
+      }
+
+      await tx.depot.update({ where: { id: 1 }, data: { manifest: remaining } });
+      await bumpAccount(tx, total);
+      return `Cancelled the order and refunded ${total} ¢.`;
+    },
+  },
+
+  DEPOT_ATM: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { direction, amount } = request.effect;
+      const withdrew = direction === "WITHDRAW";
+      const obol = await tx.tag.findUnique({ where: { slug: OBOL_SLUG } });
+      if (!obol) throw new UserError("The obol is not in the catalog, so this cannot be reversed.");
+      // Take the coins back FIRST on a withdrawal: if they have been spent
+      // this throws and rolls the whole undo back, rather than crediting the
+      // account for money that is still in somebody's pocket.
+      if (withdrew) await dropCharacterTag(tx, request.characterId, obol.id, amount);
+      else await addToStack(tx, request.characterId, obol.id, amount, { source: "EVENT", stackable: true });
+      await bumpAccount(tx, withdrew ? amount : -amount);
+      return withdrew
+        ? `Put ${amount} ¢ back in the account.`
+        : `Handed ${amount} ¢ back out of the account.`;
+    },
+  },
+
+  DEPOT_REFUEL: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { slug, tagName, quantity, fuelBefore, fuelAfter } = request.effect;
+      const fuelTag = await tx.tag.findUnique({ where: { slug } });
+      if (fuelTag) {
+        await addToStack(tx, request.characterId, fuelTag.id, quantity, {
+          source: "EVENT",
+          stackable: true,
+        });
+      }
+      // Subtract what actually went in, do not restore the snapshot. The burn
+      // pass eats fuel every turn, so writing fuelBefore back would MINT every
+      // unit burned since — undoing a three-turn-old refuel would refill the
+      // tank. Floored at zero, so an undo after the generator already ran dry
+      // takes it to empty rather than negative.
+      const moved = fuelAfter - fuelBefore;
+      const now = await tx.depot.findUnique({ where: { id: 1 }, select: { generatorFuel: true } });
+      await tx.depot.update({
+        where: { id: 1 },
+        data: { generatorFuel: Math.max(0, (now?.generatorFuel ?? 0) - moved) },
+      });
+      return `Pulled ${formatStack(tagName, quantity)} back out of the generator.`;
+    },
+  },
+
+  // Deliberately absent: DEPOT_SHIP and DEPOT_CRATE_OPEN.
+  //
+  // Both are irreversible in the way a sent DM is (BIRD.md). A shuttle that
+  // went up cannot be recalled, and its cargo no longer exists to hand back;
+  // a crate that was opened has had its contents scattered into an inventory
+  // that has moved on since. With no REQUEST_EFFECTS entry the rows are still
+  // visible in the Ledger and on the desk — they just cannot be undone, which
+  // is honest. A GM correcting one does it by hand.
 
   // `request.characterId` is the looter; `effect.targetCharacterId` the
   // person looted.
@@ -543,11 +689,134 @@ export const REQUEST_EFFECTS = {
   BURY_CHARACTER: {
     editableFields: [],
     async undo(tx, request) {
-      const { targetCharacterId, targetName } = request.effect;
+      const { targetCharacterId, targetName, corpseTagId, corpseTagName, source } = request.effect;
       if (targetCharacterId) {
         await tx.character.update({ where: { id: targetCharacterId }, data: { buriedAt: null } });
       }
-      return `${targetName ?? "The body"} is out of the ground and lootable again. The Cursed role is NOT restored — re-add it in Discord if you want the curse back.`;
+      // Burying consumes the corpse tag now, so an Undo has to put the body
+      // back where it was taken FROM (CORPSES.md). Guarded on corpseTagId:
+      // rows filed before corpses existed carry neither field and still undo
+      // cleanly. The auto-filed Routine is deliberately left spent, which is
+      // what ADD_TAG's undo already does for a craft.
+      if (corpseTagId && source) {
+        await giveTagTo(tx, source, { tagId: corpseTagId, quantity: 1, source: "EVENT", expiresTurn: null });
+      }
+      const body = corpseTagName ? ` ${corpseTagName} is back in ${source?.name ?? "their hands"}.` : "";
+      return `${targetName ?? "The body"} is out of the ground and lootable again.${body} The Cursed role is NOT restored — re-add it in Discord if you want the curse back. Their Move stays spent.`;
+    },
+  },
+
+  // Butchering destroys a body and makes an organ out of it, so the inverse is
+  // a true inverse: the yield comes off the sheet and the corpse goes back to
+  // whichever party it was taken from. Nothing to edit — a partial edit would
+  // leave a half-cut body.
+  BUTCHER_CORPSE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { corpseTagId, corpseTagName, source, yieldTagId, yieldTagName, yieldExpiresTurn } =
+        request.effect;
+      if (yieldTagId) await dropCharacterTag(tx, request.characterId, yieldTagId, 1);
+      if (corpseTagId && source) {
+        await giveTagTo(tx, source, {
+          tagId: corpseTagId,
+          quantity: 1,
+          source: "EVENT",
+          expiresTurn: yieldExpiresTurn ?? null,
+        });
+      }
+      return `Took ${yieldTagName ?? "the yield"} back, and ${corpseTagName ?? "the body"} is in ${source?.name ?? "their hands"} again.`;
+    },
+  },
+
+  // The Godard Factory's two. Both are ordinary inside-the-database moves, so
+  // both invert exactly. Neither is editable: the die was rolled and the crate
+  // was nailed shut, and nudging a number afterwards would leave the sheet
+  // saying something the roll never said.
+  EXTRACT_GODFLESH: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, quantity, injuryTagId, injuryTagName } = request.effect;
+      if (tagId) await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
+      // The wound goes too. A GM undoing the extraction is saying it never
+      // happened, and leaving the hand off would be half an answer.
+      if (injuryTagId) await dropCharacterTag(tx, request.characterId, injuryTagId, 1);
+      return `Took back ${formatStack(tagName ?? "Godflesh", quantity)}${
+        injuryTagName ? `, and healed ${injuryTagName}` : ""
+      }. The Move stays spent.`;
+    },
+  },
+
+  // Undo unpacks the crate by hand rather than by consuming it: the crate Tag
+  // row itself is deleted, which is the only way the runtime row does not
+  // linger in the catalog forever. CharacterTag.tagId is RESTRICT, so the
+  // holding has to come off first (CARRY.md §6).
+  PACKAGE_ITEMS: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { crateTagId, contents = [], label } = request.effect;
+      const named = label ? ` ("${label}")` : "";
+
+      // The crate has to still exist, unopened, before anything is handed
+      // back. It is an ordinary consumable, so the player may already have
+      // opened it themselves — and the Tag row survives that. Restoring the
+      // contents anyway would MINT a second copy of everything, which for a
+      // 150 lb crate is a lot of free goods.
+      if (!crateTagId) return `Nothing to prise open${named}.`;
+      const holdings = await tx.characterTag.findMany({
+        where: { tagId: crateTagId },
+        select: { characterId: true },
+      });
+      const roomHoldings = await tx.roomTag.findMany({
+        where: { tagId: crateTagId },
+        select: { roomId: true },
+      });
+      if (holdings.length === 0 && roomHoldings.length === 0) {
+        return `That crate${named} was already opened, so there was nothing to take back. The contents stay where they landed.`;
+      }
+
+      // Give the contents back to WHOEVER IS HOLDING THE CRATE, not to the
+      // packer. A crate is cargo: it gets handed over, carted and stolen, and
+      // an Undo that teleported its contents back to whoever nailed it shut
+      // would be a way to rob the person you sold it to.
+      const holder = holdings[0]?.characterId ?? null;
+      const intoRoom = holder ? null : roomHoldings[0]?.roomId ?? null;
+      for (const c of contents) {
+        const snapshot = { tagId: c.tagId, quantity: c.quantity ?? 1, source: "EVENT", expiresTurn: null };
+        if (holder) await restoreCharacterTag(tx, holder, snapshot);
+        else if (intoRoom) await addToRoomStack(tx, intoRoom, c.tagId, snapshot.quantity);
+      }
+
+      await tx.characterTag.deleteMany({ where: { tagId: crateTagId } });
+      await tx.roomTag.deleteMany({ where: { tagId: crateTagId } });
+      // The runtime Tag row goes too, or the catalog fills with dead crates.
+      // CharacterTag.tagId is RESTRICT, so the holdings had to come off first.
+      await tx.tag.delete({ where: { id: crateTagId } }).catch(() => {});
+      return `Prised the crate open${named} and gave back what was in it${
+        holder && holder !== request.characterId ? ", to whoever was carrying it" : ""
+      }.`;
+    },
+  },
+
+  // Engraving is reversible in everything except the part that left the
+  // database: the ⬢ come back, the stone comes off the sheet, the grave is
+  // reopened — but the Cursed role was lifted by a REST call outside the
+  // transaction and cannot be re-granted from in here. Same honesty
+  // BIRD_MESSAGE's undo practises, and for the same reason.
+  ENGRAVE_HEADSTONE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { targetCharacterId, targetName, resourcesSpent, headstoneTagId, headstoneTagName } =
+        request.effect;
+      if (targetCharacterId) {
+        await tx.character.update({ where: { id: targetCharacterId }, data: { buriedAt: null } });
+      }
+      if (headstoneTagId) await dropCharacterTag(tx, request.characterId, headstoneTagId, 1);
+      if (resourcesSpent) {
+        await creditResources(tx, { kind: "character", id: request.characterId }, resourcesSpent);
+      }
+      return `${headstoneTagName ?? "The headstone"} is gone and ${resourcesSpent ?? 0} ⬢ are back. ${
+        targetName ?? "They"
+      } count as unburied again — but the Cursed role is NOT restored; re-add it in Discord if you want the curse back. Their Move stays spent.`;
     },
   },
 
@@ -556,7 +825,8 @@ export const REQUEST_EFFECTS = {
   BIRD_MESSAGE: {
     editableFields: [],
     async undo(tx, request) {
-      const { previousBirdTurnId, recipientName, birdMessageId, delivered } = request.effect;
+      const { previousBirdTurnId, recipientName, recipientId, birdMessageId, delivered, tagId, tagName } =
+        request.effect;
       await tx.character.update({
         where: { id: request.characterId },
         data: { birdTurnId: previousBirdTurnId ?? null },
@@ -566,11 +836,62 @@ export const REQUEST_EFFECTS = {
           .update({ where: { id: birdMessageId }, data: { replyDeadlineTurn: null } })
           .catch(() => {});
       }
+      // The bird carries an object, so undoing a DELIVERED send has to carry
+      // it back. Only a delivered one moved anything: a wrong guess left the
+      // letter in the sender's hands to begin with.
+      //
+      // Taken off the recipient BEFORE it is given back, and conditionally —
+      // they may have handed it on, eaten it or been looted of it in the
+      // meantime, and an undo that mints a second copy of a unique letter is
+      // worse than one that quietly fails to recover it. `delivered` is what
+      // says whether it was read, and that part genuinely cannot be undone.
+      let recovered = false;
+      if (delivered && tagId && recipientId) {
+        const stillHas = await tx.characterTag.findUnique({
+          where: { characterId_tagId: { characterId: recipientId, tagId } },
+          select: { id: true },
+        });
+        if (stillHas) {
+          await dropCharacterTag(tx, recipientId, tagId, 1);
+          await addToStack(tx, request.characterId, tagId, 1, {});
+          recovered = true;
+        }
+      }
       return `The bird is theirs again.${
         delivered
-          ? ` ${recipientName ?? "They"} already read it — a sent message can't be taken back, and any reply is now closed.`
+          ? ` ${recipientName ?? "They"} already had it — a sent letter can't be unread, and any reply is now closed.${
+              recovered
+                ? ` ${tagName ?? "The letter"} is back in the sender's hands.`
+                : ` ${tagName ?? "The letter"} has moved on and could not be recovered.`
+            }`
           : ""
       }`;
+    },
+  },
+
+  // Re-wax a letter somebody opened. The only Request in the game that can be
+  // undone EXACTLY, because nothing was destroyed: the paper row was renamed
+  // in place, so putting the name and the mark back is the whole of it, and
+  // the spent envelope is taken off the sheet again.
+  //
+  // What it cannot undo is that they read it. Nothing can.
+  BREAK_SEAL: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, sealMark, envelopeTagId } = request.effect;
+      if (tagId) {
+        await tx.tag
+          .update({ where: { id: tagId }, data: { paperKind: "SEALED", sealMark, name: tagName, consumable: true } })
+          .catch(() => {});
+      }
+      if (envelopeTagId) {
+        await dropCharacterTag(tx, request.characterId, envelopeTagId, 1);
+        // The envelope exists for exactly one letter and nothing else can
+        // reference it, so the row goes with the holding rather than lingering
+        // as an orphan until the next Restart Game.
+        await tx.tag.delete({ where: { id: envelopeTagId } }).catch(() => {});
+      }
+      return `${tagName ?? "The letter"} is sealed again. They still read it.`;
     },
   },
 
@@ -599,6 +920,60 @@ export const REQUEST_EFFECTS = {
       if (tagId) parts.push(`Healed ${formatStack(tagName, 1)} on ${targetName ?? "them"}.`);
       if (killed) parts.push("They stay dead — Undo does not revive.");
       return parts.length ? parts.join(" ") : `Nothing to reverse on ${targetName ?? "them"}.`;
+    },
+  },
+
+  // The one Request a finished build files (db/lib/structures.js). Undo
+  // DELETES the row rather than winding it back to UNDER_CONSTRUCTION: this
+  // request records the completion, but a GM reversing a build is unwinding
+  // the whole thing, not handing back a half-raised site nobody asked for.
+  // The crew's auto-filed Routines stay spent, deliberately — those Moves
+  // were really worked, the ADD_TAG precedent, and nothing here or on the
+  // desk hands one back.
+  //
+  // An effect carrying `linkId` records the edge this build flipped at
+  // completion; the restore is CONDITIONAL — only when nothing else still
+  // holds the edge after the row delete, or undoing a long-dead build would
+  // swing a newer palisade's gate out from under it. In-transaction writes
+  // only; the anchor reposts ride resolveRequestImpl's after-commit block,
+  // read off the same effect fields.
+  BUILD_STRUCTURE: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { structureId, typeName, locationName, resourcesSpent, payer, linkId, linkWasOpen } =
+        request.effect;
+      // deleteMany, not delete: the row may already be gone (a demolition, a
+      // wipe), and an undo must not throw over something already true.
+      // StructureWork cascades off it.
+      if (structureId) await tx.structure.deleteMany({ where: { id: structureId } });
+      if (linkId && linkWasOpen != null) {
+        // Lock the edge BEFORE counting holders — a new site completing on
+        // this same edge flips it under its own link lock, and this count
+        // must wait for that commit rather than run against a snapshot
+        // from before it (or the restore below would land last and swing
+        // the new holder's gate to the old state).
+        await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${linkId} FOR UPDATE`;
+        const holders = await tx.structure.count({
+          where: { linkId, status: { in: HOLDS_EDGE } },
+        });
+        // updateMany: the sync may have deleted the edge since (SetNull on
+        // the row), and an undo must not throw over something already gone.
+        if (holders === 0) {
+          await tx.locationLink.updateMany({ where: { id: linkId }, data: { isOpen: linkWasOpen } });
+        }
+      }
+      if (resourcesSpent) {
+        await moveResources(
+          tx,
+          payer?.id ? payer : { kind: "character", id: request.characterId },
+          resourcesSpent,
+        );
+      }
+      const where = locationName ? ` at ${locationName}` : "";
+      const refund = resourcesSpent
+        ? ` and refunded ${resourcesSpent} ⬢ to ${payer?.name ?? "them"}`
+        : "";
+      return `Tore the ${typeName ?? "structure"}${where} back down${refund}. ‡`;
     },
   },
 };

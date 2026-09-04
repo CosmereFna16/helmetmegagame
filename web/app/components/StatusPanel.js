@@ -5,6 +5,7 @@ import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
 import ExpandableText from "./ExpandableText";
+import StandingHerePanel from "./StandingHerePanel";
 
 // A labelled row, so Zone / Resources / Gambit line up on one grid instead
 // of each being its own ad-hoc flex line. `stacked` swaps the value cell to a
@@ -51,12 +52,27 @@ function MoveCutoff({ window: moveWindow }) {
 // bot's DM confirms, just left standing where they can check it later
 // instead of scrolling Discord. Player-facing wording, not the GM workflow
 // enums (moveReviewStatus's "Passed"/"Open" mean nothing to a player).
-function ThisTurn({ currentAction, openTurn }) {
+function ThisTurn({ currentAction, openTurn, pendingOffers = [] }) {
   if (!openTurn) return <span className="text-muted">No turn is open.</span>;
   const cutoff = <MoveCutoff window={openTurn.moveWindow} />;
+  // A handshake still waiting on the other side (docs/systemdocs/LESSONS.md).
+  // Shown above the Move line either way: an offer you made is why your Move
+  // isn't filed yet, and one made to you is waiting in your DMs.
+  const waiting = pendingOffers.map((o) => (
+    <span key={o.id} className="text-muted">
+      {o.mine
+        ? o.kind === "BIND"
+          ? `Waiting for ${o.otherName} to agree to be bound. ‡`
+          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}. ‡`
+        : o.kind === "BIND"
+          ? `${o.otherName} wants to bind you — answer in your DMs. ‡`
+          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""} — answer in your DMs. ‡`}
+    </span>
+  ));
   if (!currentAction)
     return (
       <>
+        {waiting}
         <span className="text-muted">Not filed yet.</span>
         {cutoff}
       </>
@@ -76,10 +92,11 @@ function ThisTurn({ currentAction, openTurn }) {
     // a Routine has never had a die either, and this is the same branch.
     const roll = rollLabel(currentAction);
     // The range, not just the number. A bare "+7 ⬢" is unreadable: the roll's
-    // floor moves with GameConfig.productionCoefficient and with the Butcher
-    // +2 folded into it (PRODUCTION.md), so a player who knows their tier's
-    // written rate can't tell a low roll from a missing bonus — which is
-    // exactly how "Butcher isn't applying" got reported. The stored expression
+    // floor moves with GameConfig.productionCoefficient, with the Location's
+    // own yield coefficient, and with whatever tools folded into it
+    // (LABORING.md), so a player who knows their tier's written rate can't
+    // tell a low roll from a missing bonus — which is exactly how "Butcher
+    // isn't applying" got reported. The stored expression
     // is already a plain "min-max" string; en-dash it here rather than import
     // formatRangeExpression, which would drag @lifeweb/db into this bundle.
     const range = /^\d+-\d+$/.test(resourceRollExpression ?? "")
@@ -102,6 +119,7 @@ function ThisTurn({ currentAction, openTurn }) {
 
   return (
     <>
+      {waiting}
       <span className="field-label">{moveKindLabel(currentAction.moveKind, currentAction.gmNotes)}</span>
       <ExpandableText text={currentAction.description} lines={3} />
       {stateLine}
@@ -110,7 +128,32 @@ function ThisTurn({ currentAction, openTurn }) {
   );
 }
 
-export default function StatusPanel({ character, isSelf, currentAction, openTurn }) {
+// What holds a carry cap up, as one hover string. Assets are absent on
+// purpose: they raise the cap without ever weighing on it (CARRY.md §1).
+function carryCapTitle(carry) {
+  const lines = [`Base ${carry.baseWeightCap} lb`];
+  // Signed, because a body can now push the cap down as well as up: a Cart
+  // reads "+4", Frail reads "−0.1" (CARRY.md §1).
+  for (const m of carry.breakdown ?? []) {
+    lines.push(`${m.name} ${m.bonus > 0 ? "+" : "−"}${Math.abs(m.bonus)}`);
+  }
+  lines.push(`= ${carry.weightCap} lb, and ${carry.weightHardCap} lb is the most you could ever hold.`);
+  return lines.join("\n");
+}
+
+export default function StatusPanel({
+  character,
+  isSelf,
+  currentAction,
+  openTurn,
+  carry = null,
+  zoneMoves = null,
+  zoneMovesReason = null,
+  pendingOffers = [],
+  // What stands at this Location (db/lib/structures.js), built in
+  // character/page.js. Empty on someone else's sheet.
+  sitesHere = [],
+}) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
   // exactly what gets applied.
@@ -137,6 +180,7 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
   const missesLeft = DISAPPOINTMENT_THRESHOLD - missedMeals;
 
   return (
+    <>
     <section className="panel p-4">
       <h2 className="panel-header">Status</h2>
 
@@ -184,7 +228,53 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
 
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
-          <Row label="Resources">{character.resources} ⬢</Row>
+          {/* Free zone crossings left this turn (CARRY.md §2). Past these a
+              crossing spends the Move; at zero — which is what Overburdened
+              does — the first one already does. */}
+          {zoneMoves != null && (
+            <Row label="Zone moves ‡">
+              {/* The reason rides in the hover for the same reason the carry
+                  cap's breakdown does: a bare 0 leaves a lamed or overloaded
+                  player with nothing to act on. */}
+              <span
+                className="mono"
+                title={zoneMovesReason ?? undefined}
+                style={zoneMoves === 0 ? { color: "var(--accent-text)" } : undefined}
+              >
+                {zoneMoves} free ‡
+              </span>
+            </Row>
+          )}
+
+          {/* Load against the carry caps (CARRY.md). `carry` is computed
+              server-side by character/page.js for the owner's own sheet
+              only; another player's sheet shows the bare balance. Over a
+              cap reads in accent — the Overburdened tag says the rest. */}
+          <Row label="Resources">
+            {carry ? (
+              <span className="mono" style={carry.resources > carry.resourcesCap ? { color: "var(--accent-text)" } : undefined}>
+                {carry.resources} / {carry.resourcesCap} ⬢
+              </span>
+            ) : (
+              <>{character.resources} ⬢</>
+            )}
+          </Row>
+
+          {carry && (
+            <Row label="Carrying ‡">
+              {/* The cap carries a title= breakdown so a player can see what is
+                  holding it up — the base, then one line per active
+                  multiplier. Native tooltip on purpose: it needs no state, no
+                  portal, and it works on the desk and the phone alike. */}
+              <span
+                className="mono"
+                title={carryCapTitle(carry)}
+                style={carry.weightUsed > carry.weightCap ? { color: "var(--accent-text)" } : undefined}
+              >
+                {carry.weightUsed} / {carry.weightCap} lb ‡
+              </span>
+            </Row>
+          )}
 
           <Row label="Gambit">
             {total ? (
@@ -199,12 +289,18 @@ export default function StatusPanel({ character, isSelf, currentAction, openTurn
           </Row>
 
           <Row label="This turn" stacked>
-            <ThisTurn currentAction={currentAction} openTurn={openTurn} />
+            <ThisTurn currentAction={currentAction} openTurn={openTurn} pendingOffers={pendingOffers} />
           </Row>
         </dl>
 
         {isSelf && <ActionGrid />}
       </div>
     </section>
+
+    {/* Its own panel rather than a row in the <dl> above: what stands on the
+        ground is a fact about the place, not about the person, and it is a
+        list rather than a value. Renders nothing when the ground is bare. */}
+    <StandingHerePanel sites={sitesHere} />
+    </>
   );
 }

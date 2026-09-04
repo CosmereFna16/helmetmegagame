@@ -3,7 +3,7 @@
 // actions, which pass plain objects.
 // Order (first match wins): hidden, locked, spent, cooldown, available. A
 // hidden state must be withheld entirely; a locked reason must never name a
-// hidden tag (leaks Demoness/Bacchus).
+// hidden tag (leaks Demoness).
 function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, history, openTurnNumber, desireSlots = 2 }) {
   const heldTagIds = new Set((heldTags || []).map((t) => t.id));
   const hidden_ = hiddenTagIds instanceof Set ? hiddenTagIds : new Set(hiddenTagIds || []);
@@ -243,7 +243,8 @@ function unlockedBy(template, { heldTagIds, roleSlug }) {
 
 // Per-slot lock: claiming a Desire shuts that slot until
 // maxEnded + lockTurns + 1 (`lockTurns` is GameConfig.desireSlotLockTurns).
-// A turn is 12 hours (DAWN then DUSK). `lastEnded` is the slot's most recent
+// A turn is one real day; the phases still alternate, so an in-game day is two
+// of them. `lastEnded` is the slot's most recent
 // FULFILLED row; a row with null endedTurnNumber counts toward neither.
 function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
   const hist = history || [];

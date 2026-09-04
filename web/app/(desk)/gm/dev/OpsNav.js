@@ -10,6 +10,7 @@ const SECTIONS = [
     items: [
       { key: "turn", label: "Turn" },
       { key: "config", label: "Configuration" },
+      { key: "depot", label: "The Depot" },
     ],
   },
   {
@@ -17,7 +18,13 @@ const SECTIONS = [
     items: [
       { key: "move", label: "Bulk move" },
       { key: "reports", label: "System reports" },
-      { key: "antagonists", label: "Antagonist roster" },
+    ],
+  },
+  {
+    title: "Threats",
+    items: [
+      { key: "assignments", label: "Assignments" },
+      { key: "antagonists", label: "Antagonists" },
     ],
   },
 ];

@@ -1,6 +1,6 @@
 // Who can see #turns — the rolling console (turn announcement, weather
 // banner, Travel/Move/Speak buttons) every player needs. The gate is the
-// zone role, the same trick #intercom uses (db/lib/specialChannels.js,
+// zone role, the same trick the retired #intercom used (db/lib/specialChannels.js,
 // `roleViewZones`): every living character holds exactly one "Zone: X" role,
 // so @everyone is denied the view and every zone role is allowed it.
 // SendMessages stays denied to @everyone — the buttons are components, not

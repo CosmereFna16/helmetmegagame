@@ -13,6 +13,7 @@ import {
   effectiveTotalCost,
   effectiveCost,
   negativeTagCount,
+  negativeTagPoints,
 } from "@/lib/characterCreation";
 import PageShell, { PageHeader } from "@/app/components/PageShell";
 import InfoIcon from "@/app/components/InfoIcon";
@@ -28,7 +29,7 @@ import {
   GENDER_LABELS,
 } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
-import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
+import { ANTAGONISTS, antagonistNames } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
 // role you took and the tags you hold (db/lib/titles.js), so there is nothing
@@ -67,7 +68,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // against a raw null would coerce to 0 and read every uncapped role as
   // full, so the null check must stay explicit. Uncapped is never full.
   const full = cap !== null && taken >= cap;
-  return (
+  const card = (
     <button
       type="button"
       disabled={disabled}
@@ -76,10 +77,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
-        <strong>
-          {role.name}
-          {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
-        </strong>
+        <strong>{role.name}</strong>
         <span className="text-sm" style={{ color: full ? "var(--accent-text)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}
         </span>
@@ -102,6 +100,21 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       </span>
     </button>
   );
+
+  // A disabled card is just grey, which reads as a bug. Playtest locks say so
+  // with a chip inside the card; the whitelist can't, because a disabled
+  // button swallows pointer events for its descendants and the tooltip would
+  // never fire. So the hover goes on a wrapper OUTSIDE the button. `block` is
+  // load-bearing: HoverCard's trigger is an inline span, and an inline grid
+  // child would collapse the card's width.
+  if (role.whitelistBlocked) {
+    return (
+      <Tooltip text="Whitelist only ‡" className="block">
+        {card}
+      </Tooltip>
+    );
+  }
+  return card;
 }
 
 export default function CreateCharacterWizard({
@@ -109,6 +122,7 @@ export default function CreateCharacterWizard({
   tags,
   startingTagPoints,
   maxDrawbackTags,
+  maxDrawbackPoints,
   playerCount,
   cursed,
   // The living Baron's surname, or null if nobody holds the seat yet. Only
@@ -166,7 +180,9 @@ export default function CreateCharacterWizard({
   // Only what's bought here counts against the cap — a role's free drawback
   // (the Meister's Frail, the Headman's Old) lands as GM_GRANT and sits in
   // grantedTags, which this deliberately doesn't look at.
+  // Two ceilings, and the build has to clear both — TAGS.md §4a.
   const drawbackCount = negativeTagCount(selectedTags);
+  const drawbackPoints = negativeTagPoints(selectedTags);
 
   // Four seats fix their holder's gender rather than letting them choose:
   // Baron and Heir are men, Baroness and Successor are women. Same four roles
@@ -278,7 +294,10 @@ export default function CreateCharacterWizard({
   const oneWord = (s) => s.trim().length > 0 && !/\s/.test(s.trim());
   const canAdvance =
     (step === 0 && role !== null) ||
-    (step === 1 && remaining >= 0 && drawbackCount <= maxDrawbackTags) ||
+    (step === 1 &&
+      remaining >= 0 &&
+      drawbackCount <= maxDrawbackTags &&
+      drawbackPoints <= maxDrawbackPoints) ||
     // Gender is required and has no default, so it gates alongside the name.
     // A locked seat supplies it, so those players only have the name to fill.
     (step === 2 &&
@@ -401,6 +420,8 @@ export default function CreateCharacterWizard({
             selectedIds={selectedIds}
             onChange={setSelectedIds}
             negativeCap={maxDrawbackTags}
+            negativePointCap={maxDrawbackPoints}
+            roleSlug={role.slug}
           />
         </div>
       )}

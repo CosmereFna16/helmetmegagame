@@ -27,7 +27,7 @@ async function safely(label, fn) {
 }
 
 // The open turn, so a row can be stamped with when it happened in the fiction.
-// Callers that already hold the turn (advanceTurn, the Default Move pass) pass
+// Callers that already hold the turn (advanceTurn, the auto-labor pass) pass
 // it in to skip the lookup.
 async function resolveTurn(prisma, turn) {
   if (turn) return turn;

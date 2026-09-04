@@ -174,8 +174,8 @@ async function listSpeakTargets(guild, member) {
         description: (where ? `${where} — the main room` : "The main room").slice(0, 100),
       });
     } else {
-      // Anything tupper-and-speakable that is not tied to a place: #watch,
-      // #intercom, and whatever comes next.
+      // Anything tupper-and-speakable that is not tied to a place: #cerberon,
+      // and whatever comes next.
       buckets.broadcast.push({
         value: channel.id,
         label: `#${channel.name}`.slice(0, 100),

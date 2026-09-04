@@ -32,7 +32,7 @@ const PERM_SEND_MESSAGES = 2048;
 // Tupper/summary status is channel-ID-based (getLocationChannelIds below).
 // Since Bascinet 2 the tupper set is every Location channel plus each zone's
 // #summary; #summary is also the channel a zone's summaries post to.
-// #watch/#intercom/#mindlink are tupper-only (no zone to summarize into).
+// #cerberon is tupper-only (no zone to summarize into).
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
   return locationChannelIds?.tupperSummary?.has(channel.id) ?? false;
@@ -367,7 +367,13 @@ export async function ensureCharacterRole(character) {
     if (!character.discordRoleId) {
       const role = await discordRequest(`/guilds/${guildId}/roles`, {
         method: "POST",
-        body: { name, color, hoist: false, mentionable: true },
+        // permissions: "0" is NOT the API default — Discord's create-role
+        // endpoint copies @everyone's permissions when the field is omitted.
+        // Leaving it out gave every character role @everyone's bits, which
+        // granted nothing extra (nobody holds these roles) but did make each
+        // one look like a real access role to db:prune-orphan-roles, whose
+        // "carries permissions" gate then refused to ever delete one.
+        body: { name, color, hoist: false, mentionable: true, permissions: "0" },
       });
 
       // Assigned to NOBODY on purpose: it's a mentionable name token with no
@@ -400,7 +406,7 @@ export async function deleteCharacterRole(discordRoleId) {
   });
 }
 
-// Reconciles per-member overwrites on #watch/#intercom against current tags
+// Reconciles per-member overwrites on #cerberon against current tags
 // and Zone (see db/lib/specialChannels.js). Every location change goes through
 // db/lib/locationMove.js#applyLocationMoveSideEffects instead, which does this
 // and the two role swaps in one place; this stays for the tag-change callers.

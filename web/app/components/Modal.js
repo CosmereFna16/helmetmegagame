@@ -1,15 +1,52 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useSyncExternalStore } from "react";
+
+import useDragPanel from "./useDragPanel";
 
 // The one modal shell every dialog in the app uses — backdrop, Escape,
 // focus trap and focus restore all live here once. `panelClassName` lets a
 // caller (the documents sheet) widen the panel without losing those.
 // `onClose` fires for the backdrop, Escape and the close button alike; a
 // caller that must not close mid-flight passes a no-op or guards inside it.
+// `modeless` opts a dialog out of being modal at all — no backdrop, no focus
+// trap, clicks pass through to the page, and the header drags. That is for the
+// GM desks, where the right-hand inspector exists to be browsed while a
+// composer is open. A dialog that asks a question needing an answer (every
+// useConfirm, Delete character) stays blocking.
 // Mount order is nesting order; DOM order is NOT — a module-level stack of
 // mount tokens is the only reliable way to know which open Modal is topmost.
 const openModals = [];
+
+// Modeless is desktop-only. Below this the desk collapses to one column and a
+// floating panel over live content with no dim is worse than a modal, so the
+// dialog degrades back to blocking. Read through useSyncExternalStore rather
+// than an effect — `react-hooks/set-state-in-effect` is an error here.
+const WIDE = "(min-width: 1024px)";
+const subscribeWide = (cb) => {
+  const mq = window.matchMedia(WIDE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+const readWide = () => window.matchMedia(WIDE).matches;
+// The server can't know the viewport. Answering "not wide" means a dialog
+// rendered on the server is a plain modal until hydration, which is the safe
+// way round: it can only ever get less blocking, never more.
+const readWideServer = () => false;
+
+// Shared by every Escape / keyboard-shortcut guard on the desks, which used to
+// ask `document.querySelector(".modal-overlay")` and bail. A modeless dialog
+// must NOT swallow a keystroke aimed at the page behind it — that page is
+// still live, which is the whole point — unless focus is actually inside the
+// panel, in which case its own handler has already run.
+//
+// Deliberately NOT used by useGatedRefreshPoll: a floating composer holding
+// unsaved text still has to hold off a router.refresh(), modeless or not.
+export function dialogHoldsKeyboard() {
+  if (typeof document === "undefined") return false;
+  if (document.querySelector('.modal-overlay:not([data-modeless="true"])')) return true;
+  return Boolean(document.activeElement?.closest?.(".modal-overlay"));
+}
 
 export default function Modal({
   open = true,
@@ -19,6 +56,7 @@ export default function Modal({
   labelledBy,
   actions,
   panelClassName = "modal-panel",
+  modeless = false,
   children,
 }) {
   const panelRef = useRef(null);
@@ -31,8 +69,29 @@ export default function Modal({
   // the press must have started on the backdrop too before it counts as a
   // dismissal.
   const pressedBackdrop = useRef(false);
+  // Whether focus has since walked OUT of a floating panel. Checking
+  // `document.activeElement` in the cleanup can't answer this: by the time a
+  // passive effect's destroy runs the panel is already detached and the
+  // document has fallen back to <body>, which is exactly why the restore
+  // below is unconditional in the first place. So track it live.
+  const focusLeft = useRef(false);
   const autoId = useId();
   const headingId = labelledBy ?? `modal-title-${autoId}`;
+
+  const wide = useSyncExternalStore(subscribeWide, readWide, readWideServer);
+  const floating = modeless && wide;
+  // Read through a ref for the same reason `onClose` is: the keydown effect
+  // below must not re-run (and yank focus) when the viewport crosses 1024px
+  // mid-edit.
+  const floatingRef = useRef(floating);
+  useEffect(() => {
+    floatingRef.current = floating;
+  });
+
+  const { style: dragStyle, handleProps } = useDragPanel({
+    enabled: floating,
+    panelRef,
+  });
 
   // `onClose` is read through a ref so it can stay OUT of the effect below.
   // This is not a micro-optimisation, it is the whole correctness of the
@@ -42,7 +101,7 @@ export default function Modal({
   // effect — cleanup restored focus out of the input, the body then focused
   // the first focusable in the panel — and a GM could type exactly one
   // character into the adjudication panel before focus jumped to the header.
-  // If a lint rule ever asks you to add `onClose` back to line 92, don't.
+  // If a lint rule ever asks you to add `onClose` back to that effect, don't.
   const onCloseRef = useRef(onClose);
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -55,10 +114,10 @@ export default function Modal({
     // dialog opened from a table row dumps focus at the top of the document.
     restoreTo.current = document.activeElement;
 
-    const token = {};
+    const panel = panelRef.current;
+    const token = { panel };
     openModals.push(token);
 
-    const panel = panelRef.current;
     const FOCUSABLE =
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -79,15 +138,34 @@ export default function Modal({
 
     const onKey = (e) => {
       if (e.key === "Escape") {
-        // Only the topmost modal (by mount order, not DOM order) reacts —
-        // otherwise one Escape closes a confirm dialog AND the panel it's
-        // confirming over.
-        if (openModals[openModals.length - 1] !== token) return;
+        // Exactly one open dialog reacts, and which one is decided by focus
+        // first, mount order second.
+        //
+        // Focus first, because a modeless dialog does not own the keyboard: a
+        // GM who has clicked out into the inspector and pressed Escape meant
+        // it for what they are looking at, not for the composer they were
+        // still filling in. Among the dialogs that DO contain focus the
+        // innermost wins — Modal renders in-tree, so a dialog opened from
+        // inside another is a DOM descendant of it and both would otherwise
+        // close on one keypress.
+        //
+        // With focus in none of them, only a blocking dialog claims the key,
+        // topmost by mount order (NOT DOM order — a confirm mounts at the app
+        // root while the panel it is confirming over sits deep in a desk).
+        const focused = openModals.filter((t) => t.panel?.contains(document.activeElement));
+        if (focused.length) {
+          if (focused[focused.length - 1] !== token) return;
+        } else {
+          if (floatingRef.current) return;
+          if (openModals[openModals.length - 1] !== token) return;
+        }
         e.stopPropagation();
         onCloseRef.current?.();
         return;
       }
-      if (e.key !== "Tab" || !panel) return;
+      // No Tab trap while floating: walking out of the panel into the page
+      // behind it is the whole point.
+      if (e.key !== "Tab" || !panel || floatingRef.current) return;
 
       // Trap: Tab off either end wraps to the other, so focus cannot walk out
       // of the dialog into the page it is covering.
@@ -106,12 +184,23 @@ export default function Modal({
       }
     };
 
+    const onFocusIn = (e) => {
+      focusLeft.current = !panel?.contains(e.target);
+    };
+
     window.addEventListener("keydown", onKey);
+    window.addEventListener("focusin", onFocusIn);
     return () => {
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("focusin", onFocusIn);
       const i = openModals.indexOf(token);
       if (i !== -1) openModals.splice(i, 1);
-      restoreTo.current?.focus?.();
+      // Only take focus back if the dialog still had it. A floating panel is
+      // routinely closed after the GM has clicked away, and dragging focus
+      // back out of the inspector then would be the jarring half of a fix
+      // meant to keep the inspector usable. A blocking dialog always restores,
+      // unchanged — its focus can't have left.
+      if (!(floatingRef.current && focusLeft.current)) restoreTo.current?.focus?.();
     };
   }, [open]);
 
@@ -120,8 +209,12 @@ export default function Modal({
   return (
     <div
       className="modal-overlay"
+      data-modeless={floating ? "true" : undefined}
       onMouseDown={(e) => {
-        pressedBackdrop.current = e.target === e.currentTarget;
+        // There is no backdrop to press while floating — the overlay is
+        // transparent and click-through, so anything landing on it went to
+        // the page underneath instead.
+        pressedBackdrop.current = !floating && e.target === e.currentTarget;
       }}
       onClick={(e) => {
         if (e.target !== e.currentTarget || !pressedBackdrop.current) return;
@@ -133,14 +226,15 @@ export default function Modal({
         ref={panelRef}
         className={panelClassName}
         data-width={width}
+        style={dragStyle}
         role="dialog"
-        aria-modal="true"
+        aria-modal={floating ? undefined : "true"}
         aria-labelledby={title ? headingId : undefined}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className={`modal-header${actions ? " flex items-center justify-between gap-3" : ""}`}>
+          <div className="modal-header" {...(handleProps ?? {})}>
             {/* .section-title, not .panel-header: the heading sits beside
                 something else here, so panel-header's border-bottom would
                 underline just the text rather than span the panel. Four
@@ -148,7 +242,26 @@ export default function Modal({
             <h2 className="section-title" id={headingId}>
               {title}
             </h2>
-            {actions}
+            <div className="modal-header-actions">
+              {actions}
+              {/* The only exit a phone has. Escape needs a keyboard and the
+                  backdrop is down to a 16px gutter once a `widest` panel is on
+                  a 390px screen, so before this the Add Tag and Spend Tag
+                  Points dialogs were genuinely inescapable there. `onClose`
+                  is called straight, not through the ref: callers that must
+                  not close mid-flight already guard inside their own handler
+                  (`() => !pending && close()`). */}
+              {onClose && (
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => onClose()}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         )}
         {children}

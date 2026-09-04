@@ -40,6 +40,11 @@ export function mergeTagOp(existing, incoming, { stackable = true } = {}) {
   // non-stackable tag clamp() below pins the total back to 1 — the accumulate
   // is the whole reason the clamp lives here rather than at the call sites.
   if (existing.op === incoming.op) {
+    // A patch quantity is ABSOLUTE — db/lib/tagOps.js writes it straight onto
+    // the row — so two of them are last-wins, never a sum. Accumulating is
+    // right only for add/remove, whose quantities are deltas. Setting a stack
+    // to 3 and then to 5 must mean 5, not 8.
+    if (existing.op === "patch") return clamp({ ...existing, ...incoming });
     const both = existing.quantity != null && incoming.quantity != null;
     return clamp({
       ...existing,

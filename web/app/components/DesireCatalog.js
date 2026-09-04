@@ -245,7 +245,7 @@ export default function DesireCatalog({
         {/* Mobile target bar: the slots pane stacks below the catalog on
             small screens, so which slot the pick lands in stays in view. */}
         <div
-          className="panel sticky top-0 z-10 flex items-center justify-between gap-3 p-3 text-sm md:hidden"
+          className="panel modal-substick flex items-center justify-between gap-3 p-3 text-sm md:hidden"
           aria-hidden="true"
         >
           <span className="text-muted">Claiming into</span>

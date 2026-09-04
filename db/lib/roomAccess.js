@@ -5,17 +5,32 @@
 // its Location who hold one of Room.accessTagSlugs — a key tag gained opens
 // the door, a key tag lost closes it.
 //
+// Plus GUESTS. /add in a private Room writes a RoomGuest row, which admits
+// somebody who holds no key at all. The row is spent when they leave: this
+// file deletes every guest row whose Room is not where the character now
+// stands, and every mover already calls in here with the destination, so
+// walking out is what shuts the door behind you.
+//
 // Pure REST (thread-member calls have no gateway-only form), so both faces
 // and the staged push call this one function. Takes `prisma` as a parameter
 // — the db/lib/dm.js convention — and is deliberately not on the @lifeweb/db
 // barrel; require it by path.
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 
-// The rooms in `locationId` a holder of `heldSlugs` may enter. Shared with
-// the channel doctor and the Secret rooms? button so all three agree.
-function accessibleRooms(rooms, heldSlugs) {
+// The rooms in `locationId` this character may enter. Shared with the channel
+// doctor, the Secret rooms? button, the Storage button, the Transfer dialog,
+// corpse placement and equipment reach, so all of them agree about one door.
+//
+// `guestRoomIds` defaults empty: a caller that genuinely only cares about keys
+// (the sync, which has no character in hand) can leave it off, but anything
+// deciding what a PERSON can reach must pass it, or a guest sees the thread
+// and is then told the stash isn't theirs.
+function accessibleRooms(rooms, heldSlugs, guestRoomIds = new Set()) {
   return rooms.filter(
-    (room) => room.kind !== "PRIVATE" || room.accessTagSlugs.some((slug) => heldSlugs.has(slug)),
+    (room) =>
+      room.kind !== "PRIVATE" ||
+      guestRoomIds.has(room.id) ||
+      room.accessTagSlugs.some((slug) => heldSlugs.has(slug)),
   );
 }
 
@@ -27,6 +42,26 @@ async function heldTagSlugs(prisma, characterId) {
   return new Set(tags.map((t) => t.tag.slug));
 }
 
+// The rooms this character has been let into by hand.
+async function guestRoomIds(prisma, characterId) {
+  const rows = await prisma.roomGuest.findMany({
+    where: { characterId },
+    select: { roomId: true },
+  });
+  return new Set(rows.map((r) => r.roomId));
+}
+
+// Both halves of the door in one round trip. Every caller that asks "what can
+// this character reach" wants both, and loading them separately is how the two
+// answers drift apart.
+async function roomAccessKeys(prisma, characterId) {
+  const [heldSlugs, guests] = await Promise.all([
+    heldTagSlugs(prisma, characterId),
+    guestRoomIds(prisma, characterId),
+  ]);
+  return { heldSlugs, guestRoomIds: guests };
+}
+
 // `character` needs { id, discordUserId, locationId, status }; `tagSlugs` may
 // be passed by a caller that already holds them. Returns { added, removed }.
 // Every private room in the character's location gets exactly one idempotent
@@ -35,18 +70,41 @@ async function heldTagSlugs(prisma, characterId) {
 async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = {}) {
   const result = { added: 0, removed: 0 };
   if (!character?.discordUserId) return result;
-  if (!process.env.DISCORD_TOKEN) return result;
 
   const rooms = await prisma.room.findMany({
     where: { kind: "PRIVATE", discordThreadId: { not: null } },
     select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, discordThreadId: true },
   });
-  if (rooms.length === 0) return result;
 
+  // Spend every guest grant that is no longer where the character is standing.
+  // Before the membership recompute below, so the recompute reads the rows this
+  // just settled, and before the DISCORD_TOKEN bail-out, so a caller that got
+  // this far still gets the row right even when it cannot reach Discord.
+  //
+  // That is not a promise the whole game keeps, though: the mover
+  // (locationMove.js#applyLocationMoveSideEffects) has its OWN token guard
+  // ahead of its call into here, so a tokenless move never reaches this line.
+  // Nothing else about such a move works either — no overwrite swap, no role
+  // swap — and the doctor's room-guest check is the backstop.
   const alive = character.status === "ALIVE";
+  await prisma.roomGuest
+    .deleteMany({
+      where: {
+        characterId: character.id,
+        ...(alive && character.locationId ? { room: { locationId: { not: character.locationId } } } : {}),
+      },
+    })
+    .catch((err) => console.error(`Room guest sweep failed for ${character.id}:`, err.message ?? err));
+
+  if (rooms.length === 0) return result;
+  if (!process.env.DISCORD_TOKEN) return result;
+
   const held = alive && character.locationId ? tagSlugs ?? (await heldTagSlugs(prisma, character.id)) : new Set();
+  const guests = alive && character.locationId ? await guestRoomIds(prisma, character.id) : new Set();
   const here = alive && character.locationId
-    ? new Set(accessibleRooms(rooms.filter((r) => r.locationId === character.locationId), held).map((r) => r.id))
+    ? new Set(
+        accessibleRooms(rooms.filter((r) => r.locationId === character.locationId), held, guests).map((r) => r.id),
+      )
     : new Set();
 
   for (const room of rooms) {
@@ -65,4 +123,10 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   return result;
 }
 
-module.exports = { syncCharacterRoomAccess, accessibleRooms, heldTagSlugs };
+module.exports = {
+  syncCharacterRoomAccess,
+  accessibleRooms,
+  heldTagSlugs,
+  guestRoomIds,
+  roomAccessKeys,
+};

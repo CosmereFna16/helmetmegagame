@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo } from "react";
 
 // Deliberately NOT mounted in the root layout, unlike TagsProvider and its
-// three siblings (ProductionRatesProvider, PartySizeProvider,
+// two siblings (ProductionRatesProvider,
 // DocumentsProvider). There is no app-wide character roster to ship — the
 // only page that renders a {char:…} token is /notes, and it hands down
 // exactly the characters its own reader is allowed to mention (see

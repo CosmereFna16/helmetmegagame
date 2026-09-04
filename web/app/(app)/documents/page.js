@@ -7,6 +7,7 @@ import DocumentsBoard from "./DocumentsBoard";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { assignedTo, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { getHandbookBody, HANDBOOK_KEY } from "@/lib/handbook";
+import { catalogTags } from "@/lib/tagCatalog";
 
 export const metadata = { title: "Documents" };
 
@@ -22,7 +23,7 @@ export default async function DocumentsPage() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
-  const [documents, characterRow] = await Promise.all([
+  const [documents, characterRow, tagRows] = await Promise.all([
     prisma.document.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -30,6 +31,27 @@ export default async function DocumentsPage() {
         role: true,
         faction: true,
         tags: { include: { tag: { select: { slug: true, name: true } } } },
+      },
+    }),
+    // Per-character corpse rows are junk on a catalog page; the YAML monster
+    // corpses (nekker-corpse, etc.) are on the secret list below anyway.
+    prisma.tag.findMany({
+      where: { corpseOfCharacterId: null },
+      orderBy: { name: "asc" },
+      include: {
+        group: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            slug: true,
+            requiredTagId: true,
+            // Drives TagChip's "Requires" line, same as TAG_CHIP_FIELDS.
+            requiredTag: { select: { name: true } },
+          },
+        },
+        requiredTag: { select: { name: true } },
+        requirementSkills: { select: { id: true, slug: true, name: true } },
       },
     }),
   ]);
@@ -154,6 +176,66 @@ export default async function DocumentsPage() {
 
   const assigned = roleCharter ? [roleCharter, ...assignedDocs] : assignedDocs;
 
+  // Tag Catalog tab: field shape mirrors /gm/dev/tags minus GM-only extras
+  // (held counts, `custom`). Filtered server-side through catalogTags so a
+  // withheld tag never reaches the browser — same posture as the document
+  // tabs above.
+  const mappedTags = tagRows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    category: t.category,
+    description: t.description,
+    pointCost: t.pointCost,
+    groupId: t.groupId,
+    groupName: t.group?.name ?? null,
+    groupColor: t.group?.color ?? null,
+    // Full group shape (not just the gate fields): TagChip reads
+    // group.name/color for its chip and group.requiredTag.name for the
+    // "Requires" line, alongside catalogTags' gate on requiredTagId.
+    group: t.group
+      ? {
+        slug: t.group.slug,
+        name: t.group.name,
+        color: t.group.color,
+        requiredTagId: t.group.requiredTagId,
+        requiredTag: t.group.requiredTag,
+      }
+      : null,
+    requiredTag: t.requiredTag,
+    inspectVisibility: t.inspectVisibility,
+    stackable: t.stackable,
+    equippable: t.equippable,
+    concealsIdentity: t.concealsIdentity,
+    forcedName: t.forcedName,
+    consumable: t.consumable,
+    removable: t.removable,
+    tradeable: t.tradeable,
+    craftable: t.craftable,
+    healable: t.healable,
+    teachable: t.teachable,
+    purchasable: t.purchasable,
+    purchasableAfterStart: t.purchasableAfterStart,
+    catalogVisibility: t.catalogVisibility,
+    depotPrice: t.depotPrice,
+    defaultDurationTurns: t.defaultDurationTurns,
+    sellable: t.sellable,
+    sellablePrice: t.sellablePrice,
+    parentTagId: t.parentTagId,
+    requiredTagId: t.requiredTagId,
+    consumesInto: t.consumesInto,
+    expiresInto: t.expiresInto,
+    removesInto: t.removesInto,
+    requirementTurns: t.requirementTurns,
+    requirementResources: t.requirementResources,
+    requirementGambit: t.requirementGambit,
+    requirementSkills: t.requirementSkills,
+  }));
+
+  const heldTagIds = (characterRow?.tags ?? []).map((ct) => ct.tagId);
+  const startingTagSlugs = characterRow?.role?.startingTagSlugs ?? [];
+  const tagCatalogList = catalogTags(mappedTags, { isGm, heldTagIds, startingTagSlugs });
+
   return (
     <PageShell width="wide">
       <PageHeader
@@ -166,6 +248,7 @@ export default async function DocumentsPage() {
         gmDocs={gmDocs}
         secretDocs={secretDocs}
         allDocs={allDocs}
+        tagCatalog={tagCatalogList}
         hasCharacter={!!character}
       />
     </PageShell>

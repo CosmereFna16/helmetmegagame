@@ -313,6 +313,19 @@ export function TrashIcon(props) {
   );
 }
 
+// Craft. A hammer over an anvil-line: the recipe door on the action grid
+// (actionRegistry.js).
+export function HammerIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M13.5 6.5l4 4" strokeLinecap="round" />
+      <path d="M9.5 5.5l5-1.5 4.5 4.5-1.5 5-3-3" strokeLinejoin="round" />
+      <path d="M12.5 10.5L5 18a1.6 1.6 0 0 0 2.3 2.3l7.5-7.5" strokeLinejoin="round" />
+      <path d="M4 21.5h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
@@ -402,6 +415,30 @@ export function KeyIcon(props) {
 }
 
 
+// Butcher — a cleaver: a broad rectangular blade with a short handle off its
+// heel. Squared-off and blade-heavy so it doesn't read as the hammer or the
+// sword at 16px.
+export function CleaverIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 4.5h11v9.5H4z" strokeLinejoin="round" />
+      <path d="M15 6.5h3.5M18.5 6.5V19" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Engrave — the same headstone as Bury, but standing free of the ground and
+// carrying lettering. The two sit side by side in the action grid, so what
+// separates them has to be visible at 16px: no ground line, three rules.
+export function HeadstoneIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M6.5 21V8.5a5.5 5.5 0 0 1 11 0V21" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.5 11h5M9.5 14h5M9.5 17h3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // Bury — a headstone in the ground. The rounded top and the ground line read
 // as a grave at 16px, where a cross alone would read as a plus sign.
 export function GraveIcon(props) {
@@ -475,6 +512,55 @@ export function SendIcon(props) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
       <path d="M4 12l16-7-5 7 5 7-16-7z" strokeLinejoin="round" />
       <path d="M4 12h11" />
+    </svg>
+  );
+}
+
+// Extract — a blade going into something that is pushing back. The three short
+// strokes are the thing closing on the hand, which is the half of the action
+// worth reading at 16px; a plain axe would have been indistinguishable from
+// the Hammer used by Craft.
+export function ExtractIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M14 3.5l6.5 6.5-3 3-6.5-6.5z" strokeLinejoin="round" />
+      <path d="M11 6.5L3.5 14v6.5H10L17.5 13" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M6 10.5l1.5 1.5M9 8l1.5 1.5M3.5 13l1.5 1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Package — a crate with its lid banded shut. Deliberately not a plain box:
+// the two bands are what distinguish it from every other rectangle in the set
+// at the size the action grid renders.
+// A quill on a sheet — the Write action. See docs/systemdocs/PAPERWORK.md.
+export function QuillIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M5 20.5h6" strokeLinecap="round" />
+      <path d="M4.5 18.5c0-6 4-11 12-13.5-1 8.5-5 12.5-9.5 13.5z" strokeLinejoin="round" />
+      <path d="M8 17c2-4 4.5-6.5 7-8.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// A folded letter closed with a blob of wax — the Seal action.
+export function SealIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 6.5h17v12h-17z" strokeLinejoin="round" />
+      <path d="M3.5 6.5L12 13l8.5-6.5" strokeLinejoin="round" />
+      <circle cx="12" cy="15.5" r="2.75" />
+    </svg>
+  );
+}
+
+export function CrateIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 7.5h17v13h-17z" strokeLinejoin="round" />
+      <path d="M3.5 7.5L6 3.5h12l2.5 4" strokeLinejoin="round" />
+      <path d="M9 11.5v5M15 11.5v5M3.5 12h17" strokeLinecap="round" />
     </svg>
   );
 }

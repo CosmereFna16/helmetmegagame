@@ -33,3 +33,11 @@ export const JOURNAL_TITLE_MAX_LENGTH = 120;
 export const JOURNAL_BODY_MAX_LENGTH = 8000;
 export const JOURNAL_LABEL_MAX_LENGTH = 24;
 export const JOURNAL_MAX_LABELS = 8;
+
+// What carving a headstone costs (docs/systemdocs/CORPSES.md). MIRRORS
+// db/lib/constants.js#ENGRAVE_RESOURCE_COST rather than importing it — the
+// Engrave dialog is a client component, and the house rule here is that a
+// "use client" module never reaches into @lifeweb/db for a value. The server
+// action charges the db/ copy; this one only puts the number in the sentence.
+// Change both together.
+export const ENGRAVE_RESOURCE_COST = 4;

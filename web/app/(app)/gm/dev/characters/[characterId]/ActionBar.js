@@ -38,7 +38,6 @@ import {
   deleteCharacter,
   transferResources,
 } from "./actions";
-import QuietSiloFields, { EMPTY_QUIET } from "@/app/components/QuietSiloFields";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The microaction row. Verbs, not values.
@@ -51,17 +50,21 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 //     form deliberately does NOT carry (status, the Action row, Discord), so
 //     they can be used mid-edit without racing anything.
 //
-//   STAGING — inflict wound, heal all, feed, refund points. These make no
-//     server call at all: they push ops into the same pending diff the Tags
-//     tab uses, so they show in the pending count, go through the one tag
-//     write path, and are undone by Cancel like any other edit.
+//   STAGING — refund points, and only that. It writes the tagPoints COLUMN,
+//     which is still a staged value, so it pushes into the pending diff and is
+//     undone by Cancel like any other edit.
+//
+// Inflict wound, heal all and feed used to sit in that second family and were
+// the awkward part of it — three buttons in a row of verbs that looked like
+// they fired and didn't. They all push TAG ops, and tag changes now commit on
+// the gesture, so they are simply verbs too. What is left is a clean split:
+// columns stage, verbs and tags fire.
 export default function ActionBar({
   character,
   canDelete,
   hasActed,
   openTurn,
   locations,
-  factions,
   transferRoster,
   tags,
   held,
@@ -69,7 +72,7 @@ export default function ActionBar({
   cursed,
   pendingCount,
   startingTagPoints,
-  onStageTags,
+  onApplyTags,
   onStageField,
   refresh,
   onDeleted,
@@ -81,13 +84,13 @@ export default function ActionBar({
   const doDeleted = onDeleted ?? (() => router.push("/gm/players"));
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
-  // What the last staging button put in the pending diff. These four buttons
-  // sit in a row of verbs that fire immediately, so without a line saying so
-  // they read as having silently done nothing.
+  // What the last of these buttons just did. An unlabelled icon that changes
+  // something out of view reads as a dead button, which is exactly how it was
+  // first reported — so each one says so in a line beneath the row.
+  const [done, setDone] = useState(null);
   const [staged, setStaged] = useState(null);
   const [dialog, setDialog] = useState(null); // "kill" | "restore" | "spend" | "message" | "delete" | "wound" | "transfer"
   const [draft, setDraft] = useState("");
-  const [transferQuiet, setTransferQuiet] = useState(EMPTY_QUIET);
   const [transferFromKey, setTransferFromKey] = useState("");
   const [transferToKey, setTransferToKey] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
@@ -96,18 +99,13 @@ export default function ActionBar({
   const heldIds = new Set(held.map((h) => h.tagId));
 
   // The Transfer dialog's party picker: this character plus every other
-  // ALIVE character, and every faction's Silo (Unaffiliated excluded — it
-  // isn't a real counterparty, same as resolveParty's own filter). Any
-  // party can be either end now — this panel just preselects the "To" side
-  // as this character.
+  // ALIVE character. This panel just preselects the "To" side as this
+  // character.
   const transferParties = useMemo(
     () => ({
       characters: (transferRoster ?? []).map((c) => ({ key: `character:${c.id}`, label: c.name })),
-      silos: (factions ?? [])
-        .filter((f) => f.name !== "Unaffiliated")
-        .map((f) => ({ key: `faction:${f.id}`, label: `${f.name} Silo · ${f.silo} ⬢` })),
     }),
-    [transferRoster, factions],
+    [transferRoster],
   );
 
   function transferPartyOptions() {
@@ -116,13 +114,6 @@ export default function ActionBar({
         <option value="">— Select… —</option>
         <optgroup label="Characters">
           {transferParties.characters.map((p) => (
-            <option key={p.key} value={p.key}>
-              {p.label}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Silos">
-          {transferParties.silos.map((p) => (
             <option key={p.key} value={p.key}>
               {p.label}
             </option>
@@ -161,6 +152,21 @@ export default function ActionBar({
     });
   }
 
+  // A tag gesture: fires now, reports what it did. DevPanel's applyTagOps
+  // refreshes on success, so there is nothing to do here but surface the
+  // outcome.
+  function runTags(ops, said) {
+    setError(null);
+    startTransition(async () => {
+      const res = await onApplyTags(ops);
+      if (!res?.ok) {
+        setError(res?.error ?? "Something went wrong. ‡");
+        return;
+      }
+      setDone(said);
+    });
+  }
+
   // Confirm FIRST, transition SECOND. Never the other way round.
   //
   // useConfirm() resolves on a click, so the setState that mounts the dialog
@@ -185,12 +191,14 @@ export default function ActionBar({
       setError(`${character.name} has nothing to heal.`);
       return;
     }
-    onStageTags(wounds.map((t) => ({ tagId: t.id, op: "remove", quantity: null })));
     setError(null);
-    setStaged(
-      wounds.length === 1
-        ? `removing ${wounds[0].name}`
-        : `removing ${wounds.length} afflictions`,
+    setStaged(null);
+    // One gesture, one call, one audit row, one DM — applyTagOpsInTx applies
+    // the whole batch in order, so a ward's worth of removals is still one
+    // thing that happened to the player rather than a burst of them.
+    runTags(
+      wounds.map((t) => ({ tagId: t.id, op: "remove", quantity: null })),
+      wounds.length === 1 ? `Healed ${wounds[0].name}` : `Healed ${wounds.length} afflictions`,
     );
   }
 
@@ -205,9 +213,9 @@ export default function ActionBar({
       setError(`${character.name} is already fed.`);
       return;
     }
-    onStageTags(ops);
     setError(null);
-    setStaged("a meal");
+    setStaged(null);
+    runTags(ops, "Fed them");
   }
 
   // Recompute what they should have left: the creation budget, minus what
@@ -220,6 +228,7 @@ export default function ActionBar({
       .reduce((sum, t) => sum + (t.pointCost ?? 0), 0);
     onStageField("tagPoints", budget - spent);
     setError(null);
+    setDone(null);
     setStaged(`tag points at ${budget - spent}`);
   }
 
@@ -282,38 +291,43 @@ export default function ActionBar({
           <IconButton
             icon={ResourcesIcon}
             label="Transfer ⬢"
-            disabled={pending || (!transferRoster?.length && !factions?.length)}
+            disabled={pending || !transferRoster?.length}
             onClick={openTransferDialog}
           />
         </div>
 
         <span className="dev-bar-sep" aria-hidden="true" />
 
-        {/* These four don't fire — they push into the pending diff so Cancel
-            can undo them and every tag change goes through one write path.
-            Captioned `stages` because they sit beside verbs that DO fire, and
-            an unlabelled icon that silently stages reads as a dead button. */}
+        {/* Three tag verbs that fire, and one staging button that doesn't.
+            Refund points writes the tagPoints COLUMN, which is still staged,
+            so it keeps the caption — an unlabelled icon that silently stages
+            reads as a dead button, which is how it was first reported. */}
+        <div className="flex items-center gap-2">
+          <IconButton
+            icon={WoundIcon}
+            label="Inflict a wound"
+            disabled={pending}
+            onClick={() => setDialog("wound")}
+          />
+          <IconButton
+            icon={BandageIcon}
+            label="Heal every affliction"
+            disabled={pending}
+            onClick={healAll}
+          />
+          <IconButton
+            icon={MealIcon}
+            label="Feed them"
+            disabled={pending}
+            onClick={feedThem}
+          />
+        </div>
+
+        <span className="dev-bar-sep" aria-hidden="true" />
+
         <div className="dev-bar-group">
           <span className="dev-bar-caption">stages</span>
           <div className="flex items-center gap-2">
-            <IconButton
-              icon={WoundIcon}
-              label="Inflict a wound"
-              disabled={pending}
-              onClick={() => setDialog("wound")}
-            />
-            <IconButton
-              icon={BandageIcon}
-              label="Heal every affliction"
-              disabled={pending}
-              onClick={healAll}
-            />
-            <IconButton
-              icon={MealIcon}
-              label="Feed them"
-              disabled={pending}
-              onClick={feedThem}
-            />
             <IconButton
               icon={PointsIcon}
               label="Recompute their unspent tag points"
@@ -346,7 +360,8 @@ export default function ActionBar({
         </div>
 
         <FormError>{error}</FormError>
-        {!error && staged && pendingCount > 0 && (
+        {!error && done && <p className="w-full text-sm text-accent">{done}. ‡</p>}
+        {!error && !done && staged && pendingCount > 0 && (
           <p className="w-full text-sm text-accent">
             Staged {staged} — press <strong>Apply</strong> below to commit it.
           </p>
@@ -356,6 +371,7 @@ export default function ActionBar({
       {/* Restoring a turn DMs the player, so it asks for a reason to send
           with it — a freed turn they don't know about is a wasted day. */}
       <RequestDialog
+        modeless
         open={dialog === "restore"}
         title="Give their turn back"
         submitLabel="Restore turn"
@@ -371,6 +387,7 @@ export default function ActionBar({
       {/* Kill and Spend-turn DM the player too now, so both ask for a reason
           to send along with the notice. */}
       <RequestDialog
+        modeless
         open={dialog === "kill"}
         title={`Kill ${character.name}?`}
         submitLabel="Kill them"
@@ -386,6 +403,7 @@ export default function ActionBar({
       </RequestDialog>
 
       <RequestDialog
+        modeless
         open={dialog === "spend"}
         title="Spend their turn?"
         submitLabel="Spend it"
@@ -402,7 +420,7 @@ export default function ActionBar({
       </RequestDialog>
 
       {dialog === "message" && (
-        <Modal title={`Message ${character.name}`} onClose={() => setDialog(null)}>
+        <Modal modeless title={`Message ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <label className="field">
               <span className="field-label">
@@ -438,7 +456,7 @@ export default function ActionBar({
       {/* Raw relocation, same as Bulk Move — no Move cost, no Action row, no
           adjacency check. Immediate, not staged: it fires on click. */}
       {dialog === "teleport" && (
-        <Modal title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
+        <Modal modeless title={`Teleport ${character.name}`} onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               Moves them there instantly. They&apos;ll be DM&apos;d that they were moved.
@@ -473,10 +491,11 @@ export default function ActionBar({
 
       {/* Immediate, not staged — the counterparty usually isn't this
           character's own pending diff, so half of it Cancel-ing with the
-          sheet edit would be incoherent. See web/lib/gmTransfer.js. Any
-          party can sit on either end (character or Silo); this panel just
-          preselects "To" as this character. */}
+          sheet edit would be incoherent. See web/lib/gmTransfer.js. Either
+          end is a character; this panel just preselects "To" as this
+          character. */}
       <RequestDialog
+        modeless
         open={dialog === "transfer"}
         title={`Transfer ⬢ for ${character.name}`}
         submitLabel="Transfer"
@@ -496,7 +515,6 @@ export default function ActionBar({
               toKey: transferToKey,
               amount: transferAmount,
               reason,
-              ...transferQuiet,
             }),
           )
         }
@@ -531,13 +549,10 @@ export default function ActionBar({
             placeholder="0"
           />
         </label>
-        {(transferFromKey.startsWith("faction:") || transferToKey.startsWith("faction:")) && (
-          <QuietSiloFields value={transferQuiet} onChange={setTransferQuiet} disabled={pending} />
-        )}
       </RequestDialog>
 
       {dialog === "wound" && (
-        <Modal title="Inflict a wound" onClose={() => setDialog(null)}>
+        <Modal modeless title="Inflict a wound" onClose={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <p className="text-sm text-muted">
               Afflictions can be cured.
@@ -550,10 +565,9 @@ export default function ActionBar({
                     className="btn-quiet w-full text-left"
                     disabled={heldIds.has(t.id)}
                     onClick={() => {
-                      onStageTags([{ tagId: t.id, op: "add", quantity: 1 }]);
-                      setError(null);
-                      setStaged(t.name);
+                      setStaged(null);
                       setDialog(null);
+                      runTags([{ tagId: t.id, op: "add", quantity: 1 }], `Inflicted ${t.name}`);
                     }}
                   >
                     {t.name}

@@ -9,7 +9,7 @@ import Link from "next/link";
 // on a Kind switch. A second editor here would be a second copy of all of it
 // and would have to take the same lock anyway. The two verbs a GM wants from
 // this panel — give the turn back, burn the turn — are in the action bar.
-export default function TurnTab({ character, openTurn, action, defaultEffort }) {
+export default function TurnTab({ character, openTurn, action }) {
   return (
     <>
       <section className="panel flex flex-col gap-3 p-4">
@@ -58,20 +58,6 @@ export default function TurnTab({ character, openTurn, action, defaultEffort }) 
         )}
       </section>
 
-      <section className="panel flex flex-col gap-2 p-4">
-        <h2 className="panel-header">Default Move</h2>
-        {defaultEffort ? (
-          <>
-            <p className="text-sm">» {defaultEffort.description}</p>
-            {defaultEffort.labor && <p className="text-sm text-muted">Labor is ticked.</p>}
-            <p className="text-sm text-muted">
-              Filed automatically at the close of any turn they don&apos;t act on, as a Routine.
-            </p>
-          </>
-        ) : (
-          <p className="text-sm text-muted">None set.</p>
-        )}
-      </section>
     </>
   );
 }

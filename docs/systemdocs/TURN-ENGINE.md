@@ -4,10 +4,14 @@ How a turn closes and the next one opens. One function owns it —
 `advanceTurn()` in `db/index.js` — and everything else on this page is either a
 pass it calls or a side effect it hands back.
 
-Turns advance **twice a day, 12:00 and 00:00 America/Chicago**, strictly
-alternating: a DAWN turn opens at midnight and runs to noon, a DUSK turn opens
-at noon and runs to midnight. The schedule lives in `bot/src/events/ready.js`'s
-cron. The advance is also **the push**: everything the GMs staged during the
+Turns advance **once a day, 00:00 America/Chicago**, strictly alternating: a
+DAWN turn opens at midnight and runs to the next midnight, then a DUSK turn
+does the same. So a turn is one real day and an **in-game day is two of them**
+— `Math.ceil(turn.number / 2)` still gives the day, it just takes twice as long
+to get there. The schedule lives in `bot/src/events/ready.js`'s cron, and
+`db/lib/turnClock.js`'s `TURN_BOUNDARY_HOURS` must agree with it. It was two
+turns a day until 2026-09-03, boundaries at 00:00 and 12:00; everything counted
+in turns therefore takes twice as long in real time as it used to. The advance is also **the push**: everything the GMs staged during the
 closing turn — mechanical effects, private messages, public declarations, and
 every Move's own declared payout — applies and delivers here, and nowhere
 else. See `ADJUDICATION.md`.
@@ -36,19 +40,30 @@ each arrived at by getting them wrong first.
    GM clicks just as the cron fires, exactly one caller wins and the loser
    returns `advanced: false` having done nothing. A half-resolved turn is a
    cheaper failure than a losing racer double-charging everyone's upkeep.
-2. **Default Move pass** (`db/lib/defaultMovePass.js`) — files a Move for
-   anyone who didn't act. **First**, because a default can *earn* resources and
-   the Hunger pass below spends them; the other order makes a player whose
-   default buys them a meal go hungry anyway.
+2. **Auto-labor pass** (`db/lib/autoLaborPass.js`) — files a Labor for anyone
+   who didn't act and can work. **First**, because a day's labor *earns*
+   resources and the Hunger pass below spends them; the other order makes a
+   player whose work buys them a meal go hungry anyway. See `LABORING.md` §8.
+2b. **Lessons pass** (`db/lib/lessonPass.js`, `"lessons"` in `TURN_PASSES`) —
+   the game's first code-adjudicated Gambit. For every ACCEPTED lesson `Offer`
+   on the closing turn it rolls the modified die (threshold 5 for a normal
+   lesson, 4 for a fighting skill under a Drill Instructor teacher), grants
+   the skill on success with `TagSource.LESSON`, and DMs both sides the die
+   and the result in one line — so step 3 below skips its own 🎲 result DM
+   for a Gambit whose `gmNotes` reads `auto:lesson`, since this pass already
+   sent one. Every still-PENDING lesson offer on the turn expires here too,
+   with a DM to the initiator. Its slot is load-bearing: **after** the
+   auto-labor pass, and **before** the staged push, so the push's silent-close and
+   payout logic sees the lesson's Action already resolved. See `LESSONS.md`.
 3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
    the GMs queued this turn, then every confirmed Move's own declared numbers
    (nothing pays at confirm any more — a Routine, a Labor payout and a
    GM-solved Gambit all sit with `appliedEffects` null until here), and
    silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`).
-   Silent for a Gambit's *adjudication*, but every Routine gets a close DM
-   shaped like the Default Move's — description, `**Applied:**`, resource
-   roll — because this push is the only place a hand-filed Routine's payout is
-   ever reported. It carries a "no adjudication notes" tail unless a private
+   Silent for a Gambit's *adjudication*, but every Routine and every
+   hand-filed Labor gets a close DM shaped like the auto-labor one —
+   description, `**Applied:**`, resource roll — because this push is the only
+   place a hand-filed Routine or Labor payout is ever reported. It carries a "no adjudication notes" tail unless a private
    staged message on that Move already went to that player or a staged effect
    on it targets them, in which case the summary stands alone. The only Routine
    skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
@@ -60,7 +75,7 @@ each arrived at by getting them wrong first.
    (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
    number with no outcome attached; it now strips the die unconditionally
    (`web/app/(app)/character/page.js`).
-   Its slot is load-bearing three ways: **after** the Default Move pass
+   Its slot is load-bearing three ways: **after** the auto-labor pass
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the
    progression, and a staged fresh grant carries `expiresTurn > N` so the
@@ -152,6 +167,12 @@ each arrived at by getting them wrong first.
    number, so the sweep clears it a moment before a fresh one may be granted.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
+8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
+   final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
+   happen earlier in the close and none of them may settle in place.
+   `settleCarry` for every ALIVE character holding a tradeable tag,
+   Overburdened, or more ⬢ than the base cap — one transaction each — and the
+   overflow drops ride back for the thunk (`CARRY.md` §3).
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and roll its weather (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
@@ -182,7 +203,7 @@ Two things follow from that, and both are load-bearing:
 
 - A pass with **nothing to do returns an object, not `null`**. `null` is
   reserved for "this pass did not run, retry it" — the value `resolveNeeds`'s
-  own catch returns. `defaultMovePass` and `tagExpiryPass` used to return
+  own catch returns. `autoLaborPass` and `tagExpiryPass` used to return
   `null` for both, so a game with no default efforts (or, far more often, a
   turn with nothing expiring) never recorded the pass at all.
 - The **resume path claims `Turn.needsResumeClaimedAt`** before it does
@@ -205,9 +226,9 @@ web app until a hard refresh.
 
 The thunk performs, in narrative order:
 
-1. Default Move summary posts (via `postAsCharacter`, the REST twin of the
+1. Public staged posts (via `postAsCharacter`, the REST twin of the
    bot's webhook proxy), each archived only once Discord accepts it.
-2. Default Move DMs.
+2. Auto-labor DMs.
 3. Tag progression DMs — one per player whose condition worsened, listing each
    step (`» Festering → Feverish and Necrosis`). Before the Hunger DMs purely
    so the two arrive in severity order.
@@ -246,12 +267,12 @@ The thunk performs, in narrative order:
 Everything is sequential and individually `.catch()`'d, so a Discord failure
 never blocks the turn. The Dawn wipe additionally guards **per zone**, so
 one channel a GM deleted by hand costs that room rather than every room after
-it plus `#watch` and `#intercom`. **Never `Promise.all` a fan-out here** — sequential
+it plus `#cerberon`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 
 All three passes follow the same discipline: `runHungerPass` returns
-`starvedDiscordUserIds`, `runDefaultMovePass` returns `posts`/`dms`, and
+`starvedDiscordUserIds`, `runAutoLaborPass` returns `dms`, and
 `runTagExpiryPass` returns `dms`, rather than any of them sending anything
 themselves — so none makes a network call and none can hold a turn advance
 open. Each also writes exactly **one** summary `AuditLog` row
@@ -338,13 +359,19 @@ Per character, at the close of every turn:
 | State | Outcome |
 |---|---|
 | Holds `hungerless` | Skipped entirely; streak resets to 0 (immunity, not eating — a full reset). |
+| Holds `fast-metabolism` | Owes **2 ⬢** instead of 1. Everything else below reads against that cost. |
 | Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing**, streak drops by **one tick** — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
-| Has 0 ⬢ | Goes Hungry, owes nothing, streak **+1**. |
-| Has 1+ ⬢ | Pays 1 ⬢, stays fed, streak drops by **one tick**. |
+| Short of the cost | Goes Hungry, owes **nothing**, streak **+1**. A fast metabolism holding 1 ⬢ keeps it rather than half-eating. |
+| Can cover the cost | Pays it, stays fed, streak drops by **one tick**. |
 
-So **1 ⬢ always buys a fed turn**, and `Character.resources` can never go
-negative without a `Math.max` — the clamp is a `resources: { gte: 1 }` on the
-decrement's own `where`, so the check and the payment are one statement. They
+So **the upkeep always buys a fed turn** — 1 ⬢, or 2 with Fast Metabolism —
+and `Character.resources` can never go
+negative without a `Math.max` — the clamp is a `resources: { gte: n }` on the
+decrement's own `where`, so the check and the payment are one statement. That
+pairing is why the two costs are two separate `updateMany` batches (`toPay1` /
+`toPay2`) rather than one: an `updateMany` carries a single decrement, and a
+guard that didn't match its own decrement would be the hole the clamp exists
+to close. They
 used to be two, with the whole pass between them, and anyone who spent their
 last ⬢ in that window went to −1.
 
@@ -397,66 +424,72 @@ where it is. The player-facing tracker is the **Dinner row** on the sheet's
 Status panel (`web/app/components/StatusPanel.js`), which counts missed days
 against the threshold and flips to a Condition row once the tag lands.
 
-## 6. Default Moves
+## 6. Auto-labor
 
-The "Default Move" panel on `/character` (`DefaultEffortPanel.js` →
-`setDefaultEffort`, one `DefaultEffort` row per character) is the fallback for
-a turn a player never files anything on.
-`db/lib/defaultMovePass.js#runDefaultMovePass` finds every `ALIVE` character
-holding one with **no `Action` at all** on the closing turn — an auto-resolved
-zone change counts as acting — and files one, unless they hold one of
-`db/lib/incapacitation.js`'s `INCAPACITATING_SLUGS` (`dying`, `catatonic-afk`,
-`paralyzed`, `bound`), in which case nothing is filed for them that turn.
+There is no Default Move any more. `DefaultEffort` and its `/character` panel
+are deleted: filing nothing IS the standing order, and what it buys you is a
+day's work.
 
-What it files is always a **Routine**: `CONFIRMED`/`PASSED`, resources pushed
-via `applyMoveEffects` and snapshotted onto `appliedEffects`. This pass runs
-*at* the push, so applying immediately here lands at the same moment a
-hand-locked Routine's deferred payout does — and the stamped snapshot is what
-tells the staged push pass, one step later, to skip these rows. **Never a
-Gambit** — a Gambit is a deliberate risk and nobody's there to take it. Marked
-`gmNotes: "auto:default_move"`.
+`db/lib/autoLaborPass.js#runAutoLaborPass` walks every `ALIVE` character with
+**no `Action` at all** on the closing turn — an auto-resolved zone change
+counts as acting, since crossing zones spends the day — and files a `LABOR`
+Move: `CONFIRMED`/`PASSED`, resources pushed via `applyMoveEffects` and
+snapshotted onto `appliedEffects`. That snapshot is what tells the staged push
+pass, one step later, to skip these rows. **Never a Gambit** — a Gambit is a
+deliberate risk and nobody's there to take it. Marked `gmNotes: "auto:labor"`.
 
-Four details:
+Four kinds of character are skipped, and all four are skipped **silently** — no
+Action, no Resources, no DM:
 
-- Laboring is the `DefaultEffort.labor` column, not text: the description is
-  stored and filed verbatim, and the rate resolves **at resolution time**
-  (`db/lib/laborAccess.js`) — against the zone the character stands in that
-  night, at the coefficient in force that night — so a standing default keeps
-  paying correctly as both change.
-- Labor rates resolve from bulk reads, not per character. A gated Default
-  Move (asleep in a cave) still files (they did spend the day trying) but
-  pays nothing, and carries a `gateNote` into the player's DM.
-- The summary posts to the character's **current** zone's `#summary`, not the
-  `summaryChannelId` snapshotted when they saved the panel — so travelling
-  moves where their default gets narrated. A cave level has no `#summary`, so a
-  Default Move down there simply isn't narrated (the stored id is the fallback,
-  and it's normally null).
-- The incapacitation skip is **silent**: no Move is filed, no Resources move,
-  no DM, no summary post. Unlike the labor gate above, this isn't "tried and
-  failed" — a character who's Bound, Dying, Paralyzed or Catatonic didn't get
-  a turn to try. The tag itself is the explanation; there is nothing to tell
-  them that the tag doesn't already say. This is why binding someone actually
-  costs them their next turn, not just their ability to defend themselves
-  (REQUESTS.md §5b).
+- **Incapacitated** (`db/lib/incapacitation.js`'s `INCAPACITATING_SLUGS`:
+  `dying`, `catatonic-afk`, `paralyzed`, `bound`). They didn't get a turn to
+  try. The tag itself is the explanation, and this is why binding someone
+  actually costs them their next turn rather than just their ability to defend
+  themselves (`REQUESTS.md` §5b).
+- **No Laboring tag at all.** Labor is a skill now, not a floor — a character
+  without one who does nothing has simply done nothing.
+- **Exhausted.** They worked last turn; one labor per turn, which is one a day.
+- **Standing where none of their skills reach** — no `LocationYield` row of any
+  kind they hold. Filing an empty Move to say so would only clutter the desk.
 
-One summary `default_moves_resolved` audit row per turn. It reports
-`shareable` rather than `shared`, since the posts haven't been attempted when
-it's written and claiming a success count would be a lie.
+The rate resolves **at pass time** (`db/lib/laborAccess.js`), against the
+Location the character is standing in that night, that location's live yield
+coefficients, and the `productionCoefficient` in force — all from bulk reads,
+never per character.
+
+One summary `auto_labor_resolved` audit row per turn, reporting `filed` and
+`skipped`.
+
+The old summary-post half (`shareInSummary` / `summaryMessage`) died with
+`DefaultEffort`; the pass returns `dms` only.
+
+## 6b. Labor yield drift
+
+`"laborYield"` in `TURN_PASSES` (`db/lib/laborYield.js#runLaborYieldPass`)
+walks every `LocationYield` row one turn forward — a mean-reverting random walk
+plus rare jump events. Its slot is late and load-bearing: **after** the
+auto-labor pass, so a day is paid at the coefficients that were live during it,
+and what it writes is what the next turn is worth.
+
+It is random and therefore **not idempotent**. That is exactly why it is a
+named pass rather than inline work: `markDone` is what stops a resumed turn
+advance from drifting the whole map twice. The full parameter table is in
+`LABORING.md` §7.
 
 ## 6a. The Move cutoff
 
 Moves close **three hours before the turn ends** (`MOVE_LOCK_HOURS` in
-`db/lib/turnClock.js`) — 9:00 AM and 9:00 PM America/Chicago on a normal turn —
-so a GM has a window to adjudicate what was filed before the push runs.
+`db/lib/turnClock.js`) — 9:00 PM America/Chicago on a normal turn — so a GM has
+a window to adjudicate what was filed before the push runs.
 
 Nothing stores a turn's end time, so it is derived: `turnEndsAt(turn)` is the
-first 00:00 / 12:00 Chicago boundary strictly after `turn.startedAt` — whichever
-comes first, regardless of phase, because the cron fires at both (a DUSK turn a GM
-opened by hand at 13:00 really does end at midnight) — and
-`moveCutoffAt(turn)` is that minus three hours. Deriving from `startedAt`
-rather than from *now* is what makes a manually advanced turn come out right —
-and it fixes a live bug in the announcement, which the bot rebuilds on restart
-and which used to say "ends at noon" six hours after noon.
+first `TURN_BOUNDARY_HOURS` Chicago boundary strictly after `turn.startedAt` —
+now just 00:00, regardless of phase (a turn a GM opened by hand at 13:00 really
+does end at the coming midnight, eleven hours later, rather than running a full
+24) — and `moveCutoffAt(turn)` is that minus three hours. Deriving from
+`startedAt` rather than from *now* is what makes a manually advanced turn come
+out right — and it fixes a live bug in the announcement, which the bot rebuilds
+on restart and which used to say "ends at noon" six hours after noon.
 
 `moveWindow(turn, { now, autoTurnAdvanceDisabled })` returns
 `{ endsAt, cutoffAt, locked, hasLock }`. There is **no lock at all**
@@ -470,7 +503,7 @@ missed cron) reopens rather than staying shut forever.
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an
 ephemeral refusal naming both times. **Travel, Speak, requests, GM edits and
-the Default Move pass are not affected**: the cutoff is about the Move queue a
+the auto-labor pass are not affected**: the cutoff is about the Move queue a
 GM has to read, and a standing default files itself at the push.
 
 Surfaced to players on the `#turns` announcement (`Moves must be sent by
@@ -485,7 +518,8 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `db/weather.js` | The Markov tables and `rollWeather` |
 | `db/lib/turnClock.js` | Turn end / Move cutoff derivation (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
-| `db/lib/defaultMovePass.js` | The Default Move pass |
+| `db/lib/autoLaborPass.js` | The auto-labor pass |
+| `db/lib/laborYield.js` | Location yield drift, and the quality words |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
@@ -501,3 +535,31 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
 | `bot/src/lib/moveConfirm.js` | Resolving a filed Move |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
+
+## The Depot pass
+
+`db/lib/depotPass.js`, registered in `TURN_PASSES` as `"depot"` and run **last**
+— after `lifewebDecay` — so the turret fires on the sheet every other pass left
+behind, in particular the armour the carry pass may have made somebody drop.
+
+It does three things:
+
+- **Generator burn.** `Depot.fuelBurnPerTurn` off `Depot.generatorFuel` while it
+  is running. Reaching zero switches `generatorOn` off, so the Merchant has to
+  deliberately restart it after refuelling rather than having it come back on
+  its own.
+- **Shuttle clock.** A `DOCKED` shuttle leaves on its own after
+  `Depot.shuttleMaxTurns`. A timed departure takes **nothing** with it — the
+  crates stay on the pad. Selling is a deliberate act.
+- **Turret sweep.** Everyone standing in the Depot whose presented name is not
+  `Depot.merchantFace` takes a roll. Only when the generator is running and the
+  turret is armed.
+
+Like every other pass it returns its side effects — `lines` (ambient lines the
+caller speaks into the Depot channel) and `dms` — rather than making a network
+call. The turret's **other** trigger is on arrival, in
+`db/lib/locationMove.js`, deliberately before that function's `DISCORD_TOKEN`
+guard: being shot is a database fact and must not depend on there being a token
+to announce it with.
+
+See `docs/systemdocs/DEPOT.md` §0c, §0d and §0f.

@@ -8,11 +8,18 @@
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
+const { isUnaffiliated } = require("./factionConstants");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
-const { isMounted } = require("./mounts");
-const { turnDay } = require("./turnFormat");
+const { OVERBURDENED_SLUG } = require("./constants");
+const { isMounted, isBoated, boatCrossing, equippedSlugs } = require("./mounts");
+const { linkBetween, crossingCheck } = require("./locationGraph");
+
+// Legs too badly hurt to walk a whole zone for free. A Peg Leg is absent on
+// purpose — Bascinet's call, a wooden leg still walks. An equipped mount
+// cancels every one of these, because the horse is doing the walking.
+const LAMED_SLUGS = new Set(["crippled-leg", "missing-leg", "sprained-ankle"]);
 
 const CHARACTER_SELECT = {
   id: true,
@@ -24,8 +31,69 @@ const CHARACTER_SELECT = {
   factionId: true,
   isLeader: true,
   buriedAt: true,
-  tags: { select: { tag: { select: { slug: true } } } },
+  zoneMovesTurnId: true,
+  zoneMovesUsed: true,
+  // `name` rides along for stowedMounts(), which puts it in a sentence.
+  tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
+
+// How many zone crossings this character gets for free this turn, before a
+// crossing starts spending their Move (docs/systemdocs/CARRY.md §2).
+//
+// Everyone gets GameConfig.freeZoneMovesPerTurn. An EQUIPPED mount adds one,
+// and it now refreshes every turn rather than once a day — a horse carries you
+// at Dawn and again at Dusk. Being Overburdened takes the lot: that is the
+// cost that replaced the old flat refusal, so an overloaded character can
+// still cross, they just pay their Move to do it. A ruined leg takes it too,
+// unless a horse is doing the walking.
+// How many are LEFT right now, for the surfaces that have to say so before a
+// player commits: the Travel confirm and the character sheet.
+function freeMovesLeft(character, config, openTurn) {
+  const allowance = freeZoneMoves(character, config);
+  if (!openTurn) return allowance;
+  const spent = character?.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
+  return Math.max(0, allowance - spent);
+}
+
+// `crossing` is optional: `{ fromZoneSlug, toZoneSlug }` when the caller knows
+// where this character is actually going. Only the boat needs it — its extra
+// move is earned per crossing rather than banked per turn — so every caller
+// that is merely displaying an allowance passes nothing and is unaffected.
+function freeZoneMoves(character, config, crossing = null) {
+  const held = character.tags ?? [];
+  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return 0;
+  const base = config?.freeZoneMovesPerTurn ?? 1;
+  const active = equippedSlugs(held);
+  // A horse carries you whatever your legs are, so it is checked FIRST and
+  // cancels lameness outright rather than adding one to a zero.
+  if (isMounted(active)) return base + 1;
+  // A boat does the same, but only where the water goes. It does NOT cancel
+  // lameness: you still have to get down to the bank.
+  const onWater = isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug);
+  if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return 0;
+  return onWater ? base + 1 : base;
+}
+
+// One sentence explaining the sheet's crossing count, for its hover. Usually
+// that means why the number is 0 — a bare 0 leaves a lamed or overloaded player
+// with nothing to act on. It also covers the opposite case: a boat's extra
+// crossing is earned per crossing, not banked, so the number UNDERSTATES what a
+// boatman gets on the water and has to say so.
+function freeZoneMovesReason(character) {
+  const held = character.tags ?? [];
+  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
+    return "Overburdened: put something down and your free crossing comes back. ‡";
+  }
+  if (isMounted(equippedSlugs(held))) return null;
+  const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
+  if (lamed) return `${lamed.tag.name}: you cannot walk a zone for free. Ride, and you can. ‡`;
+  // Not a refusal — the number above is right for most crossings, and the
+  // boat quietly adds one to the three that touch water.
+  if (isBoated(equippedSlugs(held))) {
+    return "Your boat adds a free crossing between the Forest, the Black Hills and the Marshes. It does nothing anywhere else. ‡";
+  }
+  return null;
+}
 
 // Who `mover` may bring along: anyone in the same ZONE who is a corpse, is
 // helpless (INCAPACITATING_SLUGS), or is in the mover's faction if the mover
@@ -38,6 +106,10 @@ function canDrag(mover, target) {
   if (target.status === "DEAD") return true;
   if (target.status !== "ALIVE") return false;
   if (target.tags?.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) return true;
+  // Unaffiliated is not a faction (FACTIONS.md §1a), so a Leader of it — which
+  // no role grants, but a GM could create — must not be able to drag every
+  // unaffiliated character in the zone around.
+  if (isUnaffiliated(mover.faction)) return false;
   return Boolean(mover.isLeader && target.factionId && target.factionId === mover.factionId);
 }
 
@@ -80,11 +152,24 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     }
     currentLocation = await prisma.location.findUnique({
       where: { id: character.locationId },
-      include: { zone: true, connectsTo: { where: { id: targetLocation.id }, select: { id: true } } },
+      include: { zone: true },
     });
-    if (!currentLocation || currentLocation.connectsTo.length === 0) {
+    if (!currentLocation) {
       return { ok: false, reason: "You can't get there directly from here." };
     }
+
+    // The edge, and what it lets this character do. A missing edge, a hidden
+    // one they hold no key to, a locked one and a shut modular gate all
+    // refuse here — the picker filters the same verdict, but a client can
+    // post any location id it likes, so this is the check that counts.
+    const link = await linkBetween(prisma, currentLocation.id, targetLocation.id);
+    const gate = crossingCheck(link, {
+      tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+      // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
+      // for exactly this kind of question.
+      mounted: isMounted(equippedSlugs(character.tags ?? [])),
+    });
+    if (!gate.passable) return { ok: false, reason: gate.refusal };
   }
 
   // A first placement (no current location) is free — it isn't travel, it's
@@ -101,12 +186,16 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   }
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
-    select: { locationMoveCooldownSeconds: true, archiveTravelEvents: true },
+    select: {
+      locationMoveCooldownSeconds: true,
+      archiveTravelEvents: true,
+      freeZoneMovesPerTurn: true,
+    },
   });
   const cooldownMs = Math.max(0, config?.locationMoveCooldownSeconds ?? 60) * 1000;
 
   const now = new Date();
-  const outcome = { spentTurn: false, usedHorse: false, draggedRows: [] };
+  const outcome = { spentTurn: false, usedFreeMove: false, freeMovesLeft: null, draggedRows: [] };
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -129,29 +218,54 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
       }
 
       if (crossedZone) {
-        // Acting and crossing zones are mutually exclusive within a turn, in
-        // either order. @@unique([characterId, turnId]) is the enforcement;
-        // the read here is for the message — and for the mount, which buys
-        // ONE extra crossing a day, claimed by a conditional updateMany whose
-        // WHERE is the check (two tabs cannot both pass).
-        const existing = await tx.action.findFirst({
-          where: { characterId: character.id, turnId: openTurn.id },
-          select: { id: true },
+        // A crossing spends a FREE ZONE MOVE first, and only when those run
+        // out does it spend the Move (docs/systemdocs/CARRY.md §2). So a
+        // peasant walks town -> forest for nothing, then pays their Move to
+        // reach the fortress, and the way back waits for the next turn.
+        //
+        // The allowance is claimed by a conditional updateMany whose WHERE is
+        // the check, so two tabs cannot both spend the last one. A turn id
+        // that differs from the stored one resets the counter in the same
+        // statement, which is why nothing ever has to sweep this field.
+        const allowance = freeZoneMoves(character, config, {
+          fromZoneSlug: currentLocation.zone?.slug,
+          toZoneSlug: targetLocation.zone?.slug,
         });
-        if (existing) {
-          const heldSlugs = new Set((character.tags ?? []).map((ct) => ct.tag.slug));
-          if (!isMounted(heldSlugs)) throw new MoveRefused("You've already acted this turn.");
-          const dayKey = String(turnDay(openTurn));
+        const spentFree = character.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
+
+        if (spentFree < allowance) {
           const claimed = await tx.character.updateMany({
-            where: {
-              id: character.id,
-              OR: [{ fastTravelTurnId: null }, { fastTravelTurnId: { not: dayKey } }],
-            },
-            data: { fastTravelTurnId: dayKey },
+            where:
+              character.zoneMovesTurnId === openTurn.id
+                ? { id: character.id, zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree }
+                : {
+                    id: character.id,
+                    // `{ not: x }` never matches NULL in SQL, so the null case
+                    // has to be spelled out or a character who has not moved
+                    // this turn could never claim their first free move.
+                    OR: [{ zoneMovesTurnId: null }, { zoneMovesTurnId: { not: openTurn.id } }],
+                  },
+            data: { zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree + 1 },
           });
-          if (claimed.count === 0) throw new MoveRefused("Your mount has already carried you today.");
-          outcome.usedHorse = true;
+          if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment. ‡");
+          outcome.usedFreeMove = true;
+          outcome.freeMovesLeft = allowance - (spentFree + 1);
         } else {
+          // Out of free moves, so this costs the Move. Acting and crossing are
+          // mutually exclusive within a turn, in either order;
+          // @@unique([characterId, turnId]) is the real enforcement and the
+          // read here is for the message.
+          const existing = await tx.action.findFirst({
+            where: { characterId: character.id, turnId: openTurn.id },
+            select: { id: true },
+          });
+          if (existing) {
+            throw new MoveRefused(
+              allowance === 0
+                ? "You're overburdened, so you have no free moves left, and you've already acted this turn. ‡"
+                : "You're out of free moves this turn, and you've already acted. ‡",
+            );
+          }
           await tx.action.create({
             data: {
               characterId: character.id,
@@ -169,6 +283,7 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
           });
           outcome.spentTurn = true;
         }
+        outcome.freeMovesLeft ??= 0;
         await tx.character.update({
           where: { id: character.id },
           data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
@@ -262,9 +377,18 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
     targetZone: targetLocation.zone,
     crossedZone,
     spentTurn: outcome.spentTurn,
-    usedHorse: outcome.usedHorse,
+    usedFreeMove: outcome.usedFreeMove,
+    freeMovesLeft: outcome.freeMovesLeft,
     moved,
   };
 }
 
-module.exports = { performLocationMove, dragCandidates, canDrag, CHARACTER_SELECT };
+module.exports = {
+  performLocationMove,
+  dragCandidates,
+  canDrag,
+  freeZoneMoves,
+  freeMovesLeft,
+  freeZoneMovesReason,
+  CHARACTER_SELECT,
+};

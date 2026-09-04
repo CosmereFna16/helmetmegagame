@@ -3,6 +3,7 @@
 // convention as web/lib/discordGuild.js.
 
 const { DISCORD_MESSAGE_LIMIT, chunkMessage } = require("./chunkText");
+const { presentedIdentity } = require("./presentedIdentity");
 
 const DISCORD_API = "https://discord.com/api/v10";
 
@@ -340,10 +341,18 @@ async function createDmChannel(discordUserId) {
   return channel;
 }
 
-async function postMessage(channelId, content, components = undefined) {
+// `allowedMentions` is opt-in, and omitting it lets Discord parse everything
+// in `content` — which is right for bot-composed text and wrong for anything
+// a player typed. Pass one whenever the content carries user text; the proxy
+// (bot/src/lib/proxy.js) and the intercom (db/lib/intercom.js) both do.
+async function postMessage(channelId, content, components = undefined, allowedMentions = undefined) {
   return discordRequest(`/channels/${channelId}/messages`, {
     method: "POST",
-    body: { content, ...(components ? { components } : {}) },
+    body: {
+      content,
+      ...(components ? { components } : {}),
+      ...(allowedMentions ? { allowed_mentions: allowedMentions } : {}),
+    },
   });
 }
 
@@ -705,38 +714,55 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl }) {
 // REST equivalent of a tupper proxy for text composed by the game itself.
 // Chunked since the biggest caller posts player-authored text that can
 // exceed 2000 chars. Returns the FIRST message, what the archive anchors to.
-async function postAsCharacter(channelId, character, content) {
+// `forcedName` (Tag.forcedName) and `concealment` (loadConcealment) are both
+// resolved by the CALLER, which has a prisma handle — this module deliberately
+// has none. See db/lib/presentedIdentity.js.
+//
+// An auto-filed summary still ignores /conceal: choosing to go unnamed in
+// conversation says nothing about the paperwork, and it never has. What it
+// does NOT ignore is FORCED concealment, because that is not a choice — a
+// character with a sack tied over their head filing a report under their own
+// name and face would hand back exactly the identity the sack took away.
+async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null } = {}) {
+  const forced = concealment?.forced ? concealment : null;
   const chunks = chunkMessage(String(content ?? ""));
-  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content);
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, forced);
 
   let first = null;
   for (const chunk of chunks) {
-    const sent = await postAsCharacterChunk(channelId, character, chunk);
+    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, forced);
     if (!first) first = sent;
   }
   return first;
 }
 
-async function postAsCharacterChunk(channelId, character, content) {
+async function postAsCharacterChunk(channelId, character, content, forcedName, forced) {
   try {
-    return await postAsCharacterOnce(channelId, content, character);
+    return await postAsCharacterOnce(channelId, content, character, forcedName, forced);
   } catch (err) {
     // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
-      return postAsCharacterOnce(channelId, content, character);
+      return postAsCharacterOnce(channelId, content, character, forcedName, forced);
     }
     throw err;
   }
 }
 
-async function postAsCharacterOnce(channelId, content, character) {
+async function postAsCharacterOnce(channelId, content, character, forcedName, forced = null) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
+  // `concealed` is overridden rather than read: the column is the player's
+  // /conceal choice, which this path ignores, so only a forced piece of gear
+  // gets a vote here.
+  const identity = presentedIdentity(
+    { ...character, concealed: Boolean(forced) },
+    { forcedName, concealment: forced },
+  );
   return executeWebhook(webhook, {
     content,
-    username: character.name,
-    avatarUrl: base ? `${base}/api/avatar/${character.id}?v=${character.updatedAt?.getTime?.() ?? ""}` : undefined,
+    username: identity.name,
+    avatarUrl: base ? `${base}${identity.avatarPath}` : undefined,
   });
 }
 

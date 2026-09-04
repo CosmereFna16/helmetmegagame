@@ -8,12 +8,12 @@ documents:
     name: Courtier
     public: false
     tags: []
-    description: As a member of the Baron’s retinue, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+    description: As a member of the Baron’s retinue, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don’t steal. If you’d like to steal, arrange it with a GM). ‡
   church:
     name: Church
     public: false
     tags: []
-    description: As a member of the Church, you may take food from the faction Silo whenever you please — within reason (Treasurer and Leader roles can see their Silo’s transaction history, so don’t steal. If you’d like to steal, arrange it with a GM).
+    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don’t steal. If you’d like to steal, arrange it with a GM). ‡
   independent:
     name: Independent
     public: false
@@ -30,21 +30,12 @@ documents:
 
       So, the Fortress survives off of the town's taxes, and provides protection in turn.
       The Church survives off of the town's taxes, and provides religious services in turn.
-  diplomat:
-    name: Diplomat
+  godking:
+    name: The God-King
     public: false
-    secret: true
     tags: []
     description: |-
-      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart — and that would mean convincing the Baron to join the Culture — but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Silver Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here…
-
-      They would appreciate it if you collected any interesting gear, took some photos with your drone, and sent logs to the mothership. The caves supposedly have a lot of interesting things going on, but it's probably dangerous.
-
-      Also, you probably had a good reason to come here (boredom?) and your friends thought you were cr*aaa*zy! Coming here? Where you could die?! Back home, almost no one dies, ever. Everything is just very safe.
-
-      You have one (!) gadget — an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
-
-      If anything goes wrong, the General Contact Vessel *Helpless Is The Face Of Your Beauty* will teleport you on board. It'll take your message three minutes to reach them.
+      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however—and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
   treasurer:
     name: Treasurer
     public: true
@@ -52,13 +43,11 @@ documents:
       - Treasurer
       - Leader
     description: |-
-      As Treasurer or Leader, you can control your faction's Silo.
-
-      You can see every deposit and withdrawal, in addition to each member's Resources.
+      As Treasurer or Leader, you can see each faction member's Resources.
 
       **Transferring Resources**
 
-      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends. For a Silo, stand in that faction's Zone. For a player, stand in the same Zone as them. Being a Treasurer or Leader does not extend that reach — if you lose your Zone, the Silo is frozen.
+      You can transfer Resources from any source to any recipient, but you have to be able to reach both ends — stand in the same Zone as them. ‡
   medical:
     name: Medical
     public: true
@@ -68,11 +57,23 @@ documents:
       - Medical (Expert)
     description: |-
       Health and injuries are tags. The price to treat them is measured in
-      Resources, the doctor's turns, and a skill. Anyone can attempt a cure above
-      their skill, but it'll take a Gambit.
+      Resources, your turns, and a skill.
 
-      Surgery needs advanced equipment. Be in the Sanctuary or hold
-      {tag:surgical-equipment}.
+      **What you can do in a day.** Treating a case within your skill is
+      routine. You get 2 of them a turn with {tag:medical-basic}, 3 with
+      {tag:medical-skilled}, 4 with {tag:medical-expert}. First aid — anything
+      the table below lists at 0 turns — costs you nothing at all and never
+      counts against that, so bandage as many people as you like.
+
+      **Reaching past your skill.** You can attempt any cure, including ones
+      well above your training. That's a Gambit: it spends your Move for the
+      turn, a die is rolled, and you'll both find out at the end of it. A bad
+      roll can leave the patient worse than you found them. The top of the
+      table is a Gambit even for an Esculap.
+
+      **Surgery needs instruments.** Hold {tag:surgical-equipment}, or stand
+      somewhere a set is already laid out — the Sanctuary's operating theatre
+      has one. Either way it's +1 on every medical Gambit you roll. ‡
 
       {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
 
@@ -131,7 +132,7 @@ documents:
     name: Sanctuary
     public: true
     description: |-
-      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. As such, all medical procedures in the Sanctuary automatically fulfill the {tag:surgical-equipment} requisites.
+      The Sanctuary is perhaps the only part of Ravenheart that hasn't succumbed to feudalism. It's stocked with advanced (roughly modern-day) medical equipment, an absolute treasure of ancient times. There is a set of {tag:surgical-equipment} laid out in the operating theatre, and anyone working in that room has the use of it — though it is a real object, and a determined thief could carry it off. ‡
 
       The Sanctuary operates independently from the Baron. Although he could try to gain control over it, it would be unprecedented and pretty pointless. So the Esculap does whatever he wants within his walls.
 
@@ -140,27 +141,36 @@ documents:
     name: Teaching Skills
     public: true
     tags: []
-    description: "You can teach almost any skill. The person learning has to make a Gambit, but must be in the same Zone as someone who has that skill and is willing to teach them. The tutor doesn't have to use a Move. If the student rolls a six, they gain the skill."
+    description: "Skills can be taught. Find someone standing where you are who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is the teacher's Routine for the turn; learning is your Gambit. Roll a 5 or a 6 and the skill is yours when the turn ends. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill. ‡"
   production:
     name: Producing Resources
     public: true
     tags:
-      - Laborer (Basic)
-      - Laborer (Skilled)
-      - Laborer (Farming)
+      - Laboring (Basic)
+      - Laboring (Skilled)
+      - Laboring (Hunting)
+      - Laboring (Farming)
+      - Laboring (Fishing)
     description: |-
-      Everyone can use Routine Moves to produce Resources, but only people with the {tag:laborer-basic} set of tags will produce an actually good amount.
+      Labor is how Resources are produced, and you need a skill to do it at all. Without one of the tags below, a day of work produces nothing. ‡
 
-      To produce, simply enable **Labor** on your Move. Your skills are automatically applied. Laboring can be flavored in any way, from herding to hunting and foraging.
+      Pick **Labor** as the kind of your Move — it isn't adjudicated and it doesn't roll, it simply pays. Choosing it means choosing not to do anything else that turn. Submit no Move at all and you'll Labor automatically. ‡
 
       | Skill | Per turn | Where |
       |---|---|---|
-      | None | {resource:labor:base} | Anywhere but the Depths |
-      | {tag:laborer-basic} | {resource:labor:basic} | Anywhere but the Depths |
-      | {tag:laborer-skilled} | {resource:labor:skilled} | Anywhere but the Depths |
-      | {tag:laborer-farming} | {resource:labor:farming} | Town only — elsewhere you work at Skilled rates |
+      | {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
+      | {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
+      | {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
+      | {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
+      | {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
 
-      Nothing can be produced in the Depths.
+      The bottom three need {tag:laboring-skilled} behind them and are side-grades rather than upgrades. Hold as many as you like — laboring always pays the best result you're entitled to where you stand, so there is nothing to switch and nothing to forget. ‡
+
+      Those three numbers are what an ordinary spot pays. Real ground is better or worse, and what a place is worth **changes over the course of the game**. Press **Labor?** in any location's channel to see what it yields right now. Hunting swings hardest; farmland is steady until it isn't. ‡
+
+      Tools raise a yield while you carry them — bows and guns for hunting, a Hatchet or a Plow for farming, a Rod for fishing. Each says so in its own description. ‡
+
+      If the Lifeweb fails, laboring very nearly stops. ‡
   combat:
     name: Combat
     public: true
@@ -193,7 +203,7 @@ documents:
     public: false
     tags: []
     description: |-
-      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to have the Silo drained.
+      The Headman received a raven saying he didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to be squeezed for it. ‡
 
       Last week, Thomas Ciobanu — a respectable tradesman — was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry — when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
   fortressstarting:
@@ -202,46 +212,6 @@ documents:
     tags: []
     description: |-
       The last tithe didn't arrive.
-  campstarting:
-    name: Camp Starting Packet
-    public: false
-    tags: []
-    description: |-
-      The word for wind in the Windlands is the same word as train, because that's how hard it blows.
-
-      While most of humanity today lives underground — or in those rare fertile oases like Ravenheart — your people refused to cower in the darkness like animals. You lived among brambles, lizards, and oxen. To protect yourself, you wore wind goggles, masks, and gloves. Often being unable to hear your comrades, you were taught sign language as a child and learned to recognize people by their gait.
-
-      The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food? What will life be without wind? What will it be like to see your friend's face, and not just their mask?
-
-      The Bastard has united the clans. The Windriders and the Broken Spears are the two that survived the long march to Ravenheart. You are ready to fight. However, there was an incident: a man from the Broken Spears killed one of the Windriders during an argument on whether to raid the town. Additionally, food stores are running low.
-
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
-  brokenspear:
-    name: Broken Spear Clan
-    public: false
-    tags: []
-    description: |-
-      You are lightning on the plains — a hundred horses galloping! Behold the people of Ravenheart, like sheep ready for the rending. After you take it, Ravenheart will become a place of strength and honor.
-
-      The Bastard showed strength when he defeated your Lieutenant, but not honor: he spared his life, humiliating him even further. You will follow him gladly.
-
-      However, the fire in his eyes has died. The man ponders and calculates like an old toothless woman. Ravenheart knows you are here — every day wasted is a day they grow stronger. The birds watch you as if you were a corpse ready for the picking.
-
-      In the meantime, you have a threat close at hand: the scheming, snakelike Windriders. During an argument about whether or not to raid the village for food, one of your men killed one of theirs. They are not happy. Perhaps they are scared of your strength.
-
-      Celebrations of life are as common as honor killings in the Broken Spears clan. Drug use — or "riding the horse" — is common and approved. Coca is a favorite. Addiction, however, is weakness; what, did you fall off the horse?
-  windrider:
-    name: Windrider Clan
-    public: false
-    tags: []
-    description: |-
-      The Windrider Clan was the last to bend the knee to the Bastard. An impenetrable sense of family, centuries of prestige: Ereglas the Conqueror, Oliver Horserider, The Ranger Chief, all were Windriders.
-
-      Fate has already decided your course. You were forged upon the face of a dead planet. You are the ideal human, intelligent, capable, and unyielding. They cannot stop you.
-
-      The Bastard understands an all-out attack would be suicide. Support of the people, logistics, careful planning; these are what kept the Windriders alive while clans like the Broken Spears formed and disbanded, year by year. So your fealty was lightly given. You trust his plan will net you a home, but you will not accept a king.
-
-      One of the Broken Spears brats murdered one of your men during an argument. These things happen; but such a childish deed cannot go unpunished, can it? Either the Bastard makes amends — prioritization of Resources, independence after taking Ravenheart, or some other promise — or the Broken Spears get put down like the brushlizards they are.
   lifewebbasic:
     name: The Lifeweb
     public: true
@@ -273,29 +243,31 @@ documents:
 
       To rejoin as any other role, wait until your body is buried or your name is engraved. It is the Church and Mortii's jobs to do so.
 
-      🌬️ Every 12 hours, ghosts can use this reaction to send a message in any channel, reminding people that their body has been left unburied.
+      A ghost has no voice. Your body speaks for you — while it lies unburied it stinks, and the place it is lying in keeps saying so. ‡
   courtstructure:
     name: Court Structure
     public: false
     tags: []
     description: |-
-      The Baron's rule is absolute. He has a small council including the Hand, the Meister, the Captain, and any other courtier he might assign.
+      The Baron's rule is absolute. He has a small council including the Hand, the Meister, the Censor, and any other courtier he might assign.
 
       The Hand's the voice, the organizer, the executor, the Hand. He outranks everyone except the Baron.
-      The Meister collects taxes, keeps an eye on the Silo, and provides medical attention.
-      The Captain commands the Watch.
+      The Meister collects taxes and provides medical attention.
+      The Censor commands the Cerberon. ‡
 
       The rest of the court, the Baron's family included, live their lives.
-  watchman:
-    name: The Watch
+  cerberon:
+    name: Cerberon
     public: false
     tags: []
     description: |-
-      The Watch is Ravenheart's single line of defense along with its few Knights and Sheriffs. It's led by the Captain.
+      The Cerberon, along with the sheriff and the Order of the Silver Cross, is Ravenheart's single line of defense. It's led by the Censor.
 
-      Every member of the Watch has a {tag:disabler} (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory — which has a good supply of Simple weapons and a decent supply of Moderate weapons (see {document:smithing}). The Fortress's yard also has an automated turret, which can't tell the difference between hostiles and friendlies. The switch to enable it is in the Captain's office.
+      Every Cerberus has a {tag:disabler} (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory. The Censor and the Incarn both have a key. The Fortress's yard also has an automated machine-gun turret. It shoots anything that moves. The switch to enable it is in the Censor's office.
 
-      Watchmen also carry a {tag:radio-bracelet-watch}, which connects to the Captain's {tag:radio-system-watch}.
+      All Cerberi are expected to be, at minimum, functioning men. They are all loyal to the Baron. The Censor can freely fire, hire, and equip more Cerberi. Consider buying firearms from the Merchant.
+
+      Cerberi also carry a {tag:radio-bracelet-cerberon}, which connects to the Censor's {tag:radio-system-cerberon}.
 
       **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
   postchristianity:
@@ -394,90 +366,6 @@ documents:
   # The canonical numbers are docs/systemdocs/DEPOT.md §3-4; this is the
   # player-facing half and only carries the bands, never the full table.
 
-  # The Cult of Bacchus's three briefs, replacing the old empty `cult` stub.
-  # Assigned by tag, the same way the Demoness threat's brief is — a GM hands
-  # the seat out and the paper arrives with the powers. The Leader holds
-  # Cultist too, so they get all three.
-  #
-  # The party thresholds are {partysize:N} tokens rather than literals: they
-  # scale with GameConfig.playerCount (4/8/12/16 per 100, floored, minimum 1)
-  # via db/lib/partySize.js, so turning the player-count dial on /gm/dev
-  # retargets every goal without an edit here.
-  cultistleader:
-    name: Cult Leader
-    public: false
-    secret: true
-    tags:
-      - Cult Leader
-    description: |-
-      You are a very old being, a wielder of supreme arcane magics, a true master of pleasure-seeking.
-
-      As a Leader, you must be proactive, coordinated, and active. Your word is final, but you must organize your Cultists if they have a chance to succeed. *You must set the plan.*
-
-      There is a Demoness in the area. She hates you. If you manage to convert her, she'll lose all her powers, but you would gain 10 Tag Points.
-
-      Bacchus has told you about Eternal Bliss. It is not what you expected, but it is, in a strange way, the greatest thing there is. You are very happy with your choice. Unlike other Cultists, you are far too deep in, and you can never lose your faith. They can either imprison you or kill you; they can't break you.
-  cultist:
-    name: Cultist
-    public: false
-    secret: true
-    tags:
-      - Cultist
-    description: |-
-      - After enough time living quietly, your cult leader has made the call: it is time to seek Eternal Bliss.
-      - This will be difficult. You will have to find a strategy, coordinate, and execute. You can start a front — a guild, a charity, a troupe of entertainers — or you can declare war and lose the cover. Either way, listen to your Leader; he has the final word.
-      - To achieve Eternal Bliss, Bacchus has asked you to host parties. When a party is hosted that contains {partysize:2}, and then {partysize:3} people, you will unlock access to new, more powerful Bacchus tags. The Final Party requires {partysize:4} people and blood of someone with the {tag:nobility} tag: the Baron, his family, or the Bastard. Something very fun happens at the Final Party.
-      - Your parties must be well supplied with sources of pleasure. Anyone that participates in your party, whether or not they're a cultist, counts towards the number. You may hide the true nature of your parties. People with the {tag:nobility} tag count as 3 people.
-      - You can leave the Cult at any point, but you must confess everything you've ever done to a preacher, lose 10 Tag Points (yes, you can go into negative), and suffer through life-changing, excruciating withdrawal.
-      - You can either initiate people willingly or forcibly. Either way, you must perform a ritual (1 Move, Routine) that involves (1) one of the following: alcohol or another recreational drug / music / lavish food, and (2) your cult's secret chant. To perform it forcibly, they must be immobilized. Characters with the {tag:pious} tag cannot be converted.
-      - Spells can be cast instantly, while Rites usually have a turn cost.
-  bacchuslore:
-    name: Bacchus
-    public: false
-    secret: true
-    tags:
-      - Cultist
-    description: |-
-      You have no idea what you have gotten into, do you? Ah…
-
-      As a Cultist of Bacchus, you have implicitly gone against ancient wisdom — which declares that Pleasure is Painful — to declare that Pleasure is Pleasurable. Bacchus, Parent of Parents, is the Lustful God, Creator of Illusions, the Eternal One. Bacchus is honest. Bacchus is life. Bacchus is pleasure. Bacchus is a zealot of hedonism. They rejoice over the fulfillment of desires and the euphoric suicide of their followers. Bacchus is often depicted as a stemless apple, two deer enjoined in a circle, or, in some sects, as a gigantic dead sea creature.
-
-      Bacchus doesn't have a specific demand on his followers except that they focus on nothing more than indulging their own particular desires — in other words, being happy and free. Because of their individualistic streak, Bacchus Cultists don't have a unified doctrine and tend to operate in scattered chapters with their own rules and systems. Some cults are violent, forceful, and warlike, while some eke out an existence on the edge of society.
-
-      In exchange for their service, Bacchus rewards his followers with exquisite sensual pleasure and magical powers. Those who truly dedicate themselves to his cause, however, earn something else: Eternal Bliss. How nerve-wracking, how tantalizing!
-
-      **Chant**
-
-      | English | Demonic |
-      | --- | --- |
-      | We are free, so free — | Wy vory oryy, wa oryy — |
-      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
-      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
-
-  conversion:
-    name: Conversion
-    public: false
-    secret: true
-    tags:
-      - Cultist
-    description: |-
-      “Carefully scrawl Bacchus’s sigil on the ground. The initiate should then lose themselves in hedonism through their chosen way — consuming alcohol, eating food, being with a lover, cruelty, fine music, or something else — while standing on the sigil. They should be watched while they indulge, violating their privacy, as a way to demonstrate their commitment to Bacchus. Chant the Verse.
-
-      There must be two people at least: the host and the initiate. The initiate should not be told everything of the Truth, but must be made to understand the nature of their new lifelong commitment and service in Bacchus. Although their desires always come first, it will always be through the Parent — so they are becoming a servant. They are no longer an independent person. However, they become Everlasting, achieving Eternal Bliss.
-
-      Finally, their blood must be drawn and spilled on the sigil.
-
-      The nature of Eternal Bliss should not be discussed, but Eternal Bliss itself should be mentioned. This would be a Routine Move, as it is a party that takes a couple of hours, on both the part of the initiate and the host.
-
-      **Chant**
-
-      | English | Demonic |
-      | --- | --- |
-      | We are free, so free — | Wy vory oryy, wa oryy — |
-      | Behold as I reach new heights | bymadv iw xe ryitm lys rechem |
-      | My progenitor, I am everlasting | mh eraqyluzar, xe vechem |
-
-      For unwilling conversions, do the same, but instead, the one hosting the rite must indulge themselves. The person must be placed on the sigil the whole time, ideally bound. Their blood will still have to be spilled on the sigil. It is recommended to do this privately where no one will hear them, or at the very least, gag them.”
   charon:
     name: The Charon
     public: false
@@ -522,10 +410,9 @@ documents:
       | {tag:bliss} | 0 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | cave fungus |
       | {tag:feces} | 0 | — | feces |
       | {tag:alcohol} | 2 | 1 (yields up to 3 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:miasma} | 2 | 1 | a corpse |
+      | {tag:miasma} | 2 | 1 | a corpse {info:You must be holding one. It is not used up.} |
       | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:molotov-cocktail} | 2 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | alcohol |
-      | {tag:nekker-pheromones} | 2 | 1 | a dead nekker |
       | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:cat} | 3 | 1 | alcohol |
       | {tag:nightshade} | 3 | 1 | a forest herb |
@@ -549,7 +436,7 @@ documents:
       | {tag:phrygian-tears} | 4 | 2 | Gambit |
       | {tag:gunpowder-grenade} | 6 | 1 | saltpeter |
       | {tag:purifier} | 6 | 1 | cave fungus |
-      | {tag:dreamers-draught} | 6 | 1 | a {tag:skinless-brain}, Gambit |
+      | {tag:dreamers-draught} | 6 | 1 | a {tag:skinless-brain} {info:You must be holding one. It is not used up.} |
       | {tag:forgiveness} | 8 | 1 | someone's tears |
       | {tag:flawless-skin} | 8 | 1 | a lock of Nobility hair |
   # GM-only. The `gamemaster` flag is not a property of any Character — the
@@ -567,25 +454,25 @@ documents:
 
       **Nekkers**
 
-      Weak, quadrupedal, ape-like scavengers. They eat corpses and can often be seen on the surface after battles, competing with the vultures. Can be used to make {tag:nekker-pheromones}.
+      Weak, quadrupedal, ape-like scavengers. They eat corpses and can often be seen on the surface after battles, competing with the vultures. Killing one leaves a {tag:nekker-corpse}, which a {tag:butcher} can cut {tag:nekker-pheromones} out of. ‡
 
       **Gragas**
 
       Dangerous, strong, hulking cave dwellers. Extremely slow, in part due to their overburdened leg muscles, which barely support them.
 
-      Can be easily escaped. Killing them drops a {tag:graga-sac}, which can be used to create {tag:graga-sweat} and the {tag:invisibility-potion}. The Merchant can sell Graga Sacs.
+      Can be easily escaped. Killing them leaves a {tag:graga-corpse}, which a {tag:butcher} cuts a {tag:graga-sac} out of; that goes into {tag:graga-sweat} and the {tag:invisibility-potion}. The Merchant can sell Graga Sacs. ‡
 
       **Skinless**
 
       Explorers and citizens of the caves. They travel alone or in packs, eventually returning to their communities in the **Aberrant Pits**. They rarely venture up into the Caverns. They used to be people. They can be talked down.
 
-      Killing them drops a {tag:skinless-brain}, the one ingredient in the {tag:dreamers-draught}. The Merchant can sell them. Note what that means: the Draught has a price, and the price is that somebody chose not to talk one down.
+      Killing them leaves a {tag:skinless-corpse}; a {tag:butcher} cuts the {tag:skinless-brain} out of it, and that brain is the one ingredient in the {tag:dreamers-draught}. The Merchant can sell them. Note what that means: the Draught has a price, and the price is that somebody chose not to talk one down. ‡
 
       **Aberrants**
 
       Horrors. Drop Aberrant Hearts.
 
-  # The Demoness threat's own brief (docs/threats.md). Assigned by the
+  # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.
   demoness:
@@ -600,7 +487,6 @@ documents:
       You don't need to eat. Instead, you live for the thrill of enslaving souls, manipulating people, and causing pain. You will become unhappy if you don't.
 
       You can Break souls — see {tag:demoness}. If you have {tag:slavemaster}, they become {tag:broken-enslaved} instead of merely {tag:broken}.
-
 
       You find normal crosses tacky and boring. Fire scares you somewhat — it definitely hurts. The Silver Cross, on the other hand, terrifies you. If you touch it, your powers are disabled for the rest of the day.
 
@@ -637,9 +523,29 @@ documents:
     public: true
     tags: []
     roles:
-      - captain
+      - censor
       - pusher
     description: |-
       The Pusher sells drugs and runs the town's gambling den and, well, er, informal drug pub. It's his job to keep the peasants satisfied and not rebelling.
 
       He is exempted from the usual capital punishment for drug possession — completely above the law. But he owes the Baron a cut, directly.
+  squeeze:
+    name: Squeeze
+    public: false
+    tags: []
+    roles: [banneret, baron, merchant, hand, meister]
+    description: |-
+      A pink substance with similar but less exotic properties to the {tag:skinless-brain}. These are very valuable across Earth.
+
+      The Baron highly values the Banneret’s work on the Squeeze, as it singlehandedly funds Ravenheart’s warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn’t be able to grow at all. Its production is very dangerous.
+  godardfactory:
+    name: Godard Factory
+    public: false
+    tags: []
+    factions: [the-factory]
+    description: |-
+      Godard’s beauty days are over, but it still functions. The Banneret’s lineage, one of the Baron’s cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it’s so valuable. Unfortunately, due to the working conditions, most refugees don’t stay for long and usually try to make it to the town. They’re easily replaced, so it doesn’t matter.
+
+      Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Extract button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, simply labor while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
+
+      Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility—a good Banneret will pay you much more than the average commoner would make, if only to keep you around.

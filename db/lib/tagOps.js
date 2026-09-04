@@ -8,6 +8,7 @@
 // a stable address. Op shapes: DEV-PANEL.md §5. Every function takes a
 // transaction client (`tx`), so a caller composes them into its own.
 
+const { describeSlotClash, findSlotClash } = require("./equipSlots");
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
 const { expiryForGrant } = require("./grantExpiry");
@@ -150,6 +151,15 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     if (equipped > equipSlots) {
       throw new TagOpError(`That would fill ${equipped} of ${equipSlots} equipment slots.`);
     }
+    // And the other half of the limit: a count of six says nothing about six
+    // helmets. Same helper the player's own toggle uses, so a GM cannot stage
+    // a set the sheet would refuse.
+    const worn = await tx.characterTag.findMany({
+      where: { characterId, equipped: true },
+      select: { tag: { select: { name: true, equipSlot: true, equipLayer: true } } },
+    });
+    const clash = findSlotClash(worn);
+    if (clash) throw new TagOpError(describeSlotClash(clash));
   }
 
   return applied;

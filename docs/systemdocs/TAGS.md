@@ -10,7 +10,7 @@ Locations themselves; nothing like them exists on a Zone.
 Three levels:
 
 - **Category** — a flat string (`Meta`, `General`, `Skills`, `Status`,
-  `Items`, `Assets`, plus the two hidden ones, `Demoness` and `Bacchus`).
+  `Items`, `Assets`, plus the one hidden one, `Demoness`).
   Not its own DB table; `docs/tags.yaml`'s top-level `categories:` list is
   validation-only — `syncTagsFromYaml` rejects any tag/group whose
   `category` isn't in that list. Because a category has no row of its own, a
@@ -32,8 +32,10 @@ Three levels:
   `status-health` (the Health category, §5c, took every tag that used to live
   in it) and `general-restrictions` / `general-interests` (merged into
   `general-personality`, `DESIRES.md` §5). Groups sync upsert-only and are
-  never deleted, so the rows survive; don't reuse those slugs and don't put
-  anything back in them.
+  never deleted by the sync — `db:prune-tags` will prune one once it's
+  absent from `docs/taggroups.yaml` and no surviving tag sits in it, but
+  these three stay listed there, so the rows survive; don't reuse those
+  slugs and don't put anything back in them.
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -42,8 +44,11 @@ Three levels:
 `TagGroup` catalog (split into its own file so group colors can be freeform
 hex rather than a fixed token set). Same posture as `docs/zones.yaml`:
 hand-edited, `slug` is the stable match key across syncs, and syncing is
-**upsert-only** — removing an entry from either YAML never deletes its row,
-it just stops receiving updates. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
+**upsert-only** — removing an entry from either YAML never deletes its row
+by itself, it just stops receiving updates. The separate, opt-in
+`npm run db:prune-tags` (§3b) is what actually deletes: it prunes a tag
+absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group
+absent from `docs/taggroups.yaml`. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
 reads both files and does the sync, run by hand via `npm run db:sync-tags`
 (`db/scripts/sync/sync-tags.js`) or automatically at the end of `wipeGameData`'s
 "Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
@@ -60,7 +65,7 @@ diff check, same style as the zone sync's hash gate).
 ### A slug is its name, slugified
 
 `slug` is the name lowercased with punctuation dropped and spaces/colons
-turned into hyphens: **Death Wish (Cult)** is `death-wish-cult`, **True Form:
+turned into hyphens: **Old Ways (Bacchus)** is `old-ways-bacchus`, **True Form:
 Serpent** is `true-form-serpent`. `syncTags.js` throws when a tag breaks the
 rule, so renaming a tag means renaming its slug in the same pass — and then
 every reference to it, since the slug is what desires, taggroups and code
@@ -68,7 +73,7 @@ match on. (Names themselves are never referenced that way, with two
 exceptions: `roles.yaml`'s `starting_tags` and `documents.yaml`'s `tags` both
 resolve tags **by name**.)
 
-The one carve-out is a hidden category (`demoness`, `bacchus`), where a
+The one carve-out is a hidden category (`demoness`), where a
 generic power name would collide with a general tag: those may lead with the
 category instead, as `demoness-heal` and `demoness-seductive` do.
 
@@ -84,9 +89,8 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   replace it. Example in the catalog: `Ranged (Archer)` requires
   `Ranged (Basic)` but coexists with `Ranged (Skilled)` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
-  gated tag doesn't consume: `Wild Horse` (`wild-horse`) requires
-  `Windlander`, `Manor` requires `Courtier`, `House`/`Shack` require
-  `Ravenhearter`, and
+  gated tag doesn't consume: `Manor` requires `Courtier`, `House`/`Shack`
+  require `Ravenhearter`, and
   `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
   with the tier it builds on.
 
@@ -100,9 +104,16 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the five Addictions
-  (`general-addictions`) — so a character holds at most one belief and at most
-  one Addiction, independently. **Nothing in `general-personality` carries it**:
+  are a single answer rather than a collection, on the five Addictions
+  (`general-addictions`), and on the six courtier wax seals (`items-paper`,
+  `PAPERWORK.md` §5) — so a character holds at most one belief, at most one
+  Addiction and at most one personal seal, independently.
+
+  The seals are the one case where the flag sits in a group that also holds
+  tags **without** it — blank paper, the eight office stamps, and every note
+  anybody writes. That is fine and is what "per tag group" means: the rule only
+  ever compares two tags that BOTH carry the flag, so nothing else in
+  `items-paper` is touched. **Nothing in `general-personality` carries it**:
   the 2026-09-01 merge dropped it from the nine ex-Restrictions on purpose, so
   Pacifist + Craven is now a legal character. That is what makes the merged
   group actually merged — leaving the flag on would have kept "one Restriction
@@ -135,6 +146,21 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   Addiction and Restriction groups themselves enforce (at most one of each)
   is plain `exclusive`, not this field — `conflictsWith` is only for the
   cross-group edges.
+- **`Tag.excludedRoleSlugs`** — the one gate that ignores what a character
+  holds and looks at their **seat** instead. Authored in `docs/tags.yaml` as
+  `excludedRoles: [migrant, mercenary, …]`, a list of role slugs from
+  `docs/roles.yaml` (validated against that file by `db:sync-tags`, so a typo
+  throws rather than quietly opening the gate). Devoted Follower is the first
+  and only user: a Migrant, a Mercenary, a Bum, an Outsider or a Pusher has
+  nobody to be devoted to. Plain slugs rather than a `Role` relation, because
+  `db:sync-roles` rewrites Role rows and the slug is the stable key the rest
+  of the codebase already matches seats on (`CURSED_ROLE_SLUGS`).
+  `roleExcluded(tag, roleSlug)` is the predicate. Because it never depends on
+  the rest of the build, `purchasableTags()` drops the row from the menu
+  outright rather than dimming it — so `PointBuy` takes a `roleSlug` prop from
+  both mount sites (the creation wizard's chosen role, and the store's
+  `storeRoleSlug` threaded down from `/character`). `createCharacter` and the
+  store's `buyTags` re-check it. A GM grant bypasses it, like every gate here.
 
 `web/lib/characterCreation.js` is where the logic lives.
 `holdsRequirement(requiredTagId, …)` answers "is this one id satisfied by
@@ -175,27 +201,33 @@ A fourth field, `Tag.desireLocks` (YAML: `desires: { locks: [...] }`), is
 catalog* shut for whoever holds it. Full writeup, including the clause
 grammar and how several held tags' locks union together: `DESIRES.md` §3.
 
-## 3b. The Add Tag menu asks a different question
+## 3b. The Craft menu asks a different question
 
 `requirementSatisfied()` answers "can you **use** this" — the right question
 for creation and `/store`, where the whole catalog is bought outright. The
-Add Tag menu is the **honor-system** door instead: crafting, and taking gear
-the fiction already puts in a character's hands (a clan armoury, a found
-cache) — situations no skill check can see. So it asks almost nothing, and
-the pushed request's GM review is the real enforcement.
+Craft menu (Add Tag, renamed and reworked — `CRAFTING.md`) asks "can you
+**make** this" instead, and now it actually checks: the recipe's
+`requirement.skills` must be held, or a higher tier of one, the same walk Heal
+uses (`db/lib/medicalVision.js#satisfiedSkillIds`). This replaced an earlier
+honor-system door where the menu asked almost nothing and the pushed request's
+GM review was the only enforcement — that version was a deliberate choice at
+the time (a smith with no combat skill forging weapons to sell, a fighter
+pulling gear from an armoury the fiction gives them, situations no skill check
+could see), but it also meant nothing stopped a player who held no relevant
+skill at all. The recipe check now runs server-side; the picker's "To make: …"
+line still shows the recipe, but it's the gate, not just advice.
 
-The Add Tag picker and `addTagRequest` therefore don't call
+The Craft picker and `craftRequest` therefore don't call
 `requirementSatisfied`. They call
 `addRequirementSatisfied(tag, tagsById, heldTagIds)` in
 `web/lib/tagRequests.js`, which is now **one route onto a tag**:
 
-- **Make it** — `craftable`, and that's the whole test. Neither the recipe's
-  `requirementSkills` nor the item's own `requiredTagId` is checked. The
-  picker's "To make: …" line shows what the recipe formally expects, and the
-  GM reviewing the pushed request holds players to it — the skills are
-  advice on this surface, not a gate. (An enforced version existed briefly
-  and locked non-crafters out of the armoury play entirely; it was removed
-  on purpose.)
+- **Make it** — `craftable`, plus the recipe's `requirement.skills`
+  (`CRAFTING.md` §2). The picker's `knownRecipeIds` shows only recipes whose
+  skills you hold; `craftRequest` re-derives the same check before writing
+  anything. `resourceCost` is charged up front to a payer (yourself, a Room
+  stash here, or a person here); `turnsCost` decides Dead Simple / Routine /
+  multi-turn `CraftProject`.
 
 There used to be a second route — **buy it**, `purchasable &&
 purchasableAfterStart`, gated on the item's own `requiredTagId`. It is gone.
@@ -207,8 +239,8 @@ way. A menu whose own help text has to ask players not to abuse it is a menu
 with the wrong contents. Buying is now `/store`'s job alone.
 
 The **group gate still applies, unconditionally** — same as everywhere else,
-it's the hidden-category mechanism and is never bypassed. A Bacchus craftable
-stays invisible outside the cult.
+it's the hidden-category mechanism and is never bypassed. A Demoness
+craftable stays invisible outside the category.
 
 `requirementSkills` is an **OR** list, not an AND: every multi-skill recipe
 in `docs/tags.yaml` is a Dead Simple item written `[smithing, crafting]`
@@ -222,25 +254,28 @@ just no longer as a gate.
 ## 3a. Hidden categories, and gated groups
 
 **Two tags gate an action rather than an item: `bird` and `literate`.** Holding
-both puts the Bird on the Actions grid; holding `literate` alone puts the Read
-button there (`BIRD.md`). `literate` is also the key to
-`db/lib/gribble.js`, the cipher any future literacy feature should reuse rather
-than reinvent — a written thing an illiterate character cannot read should look
-the same everywhere in the game.
+both puts the Bird on the Actions grid; holding `literate` puts Write and Seal
+there (`BIRD.md`, `PAPERWORK.md`). `literate` is also half of
+`db/lib/reading.js#readBlock`, which is what any future literacy feature should
+call rather than reinvent — the other half is the character's eyes, and a
+written thing they cannot read must look the same everywhere in the game. There
+used to be a cipher here (`db/lib/gribble.js`); paper replaced it.
 
-Two whole categories are secret: **Demoness** (behind the `demoness` tag) and
-**Bacchus** (behind `cultist`, displayed as "Cultist of
-Bacchus"). Each contains exactly one `TagGroup` carrying the `requiredTag`,
-which is where the whole mechanism lives — the tags inside deliberately do
-**not** repeat `requiredTag`, so the gate is written once.
+One whole category is secret: **Demoness** (behind the `demoness` tag). It
+contains exactly one `TagGroup` carrying the `requiredTag`, which is where
+the whole mechanism lives — the tags inside deliberately do **not** repeat
+`requiredTag`, so the gate is written once. (The Cult of Bacchus used to be
+a second hidden category, gated the same way behind `cultist`; it's archived
+in `docs/archive/bacchus.yaml`, and the mechanism below applies to any future
+hidden category the same way it applied to that one.)
 
 The same field also gates a group **inside a visible category**, which is how
-body membership is modelled: `general-watch` ("The Watch", behind `watchman`)
+body membership is modelled: `general-cerberon` ("Cerberon", behind `cerberon`)
 and `general-brigand` ("Brigands", behind `brigand`) sit in `general`, so the
 General tab stays because `general-traits` and `general-social` are ungated —
 only the group vanishes. Same rule about not repeating the gate on the members.
 
-Note where the two keys live: `watchman` and `brigand` are in
+Note where the two keys live: `cerberon` and `brigand` are in
 `general-traits`, **outside** the groups they open. A gated group cannot hold
 its own key — nobody would ever be able to see it. Both are
 `purchasable: false` and arrive from `roles.yaml` `starting_tags`, which is
@@ -270,51 +305,13 @@ Three things make a category actually hidden rather than merely empty:
   (Archer) isn't a secret, and hiding it would break `{tag:ranged-archer}`
   in public documents for everyone who hasn't bought it.
 
-### The Bacchus power ladder
-
-Where the `bacchus` category's own tags live is a further split, since the
-cult's progression isn't one group but three: `bacchus` (gated by
-`cultist`), `bacchus-ripening` (gated by `cult-ripening`) and
-`bacchus-bountiful` (gated by `cult-bountiful`) — one for each rung of the
-`cult-ripening` → `cult-bountiful` chain (`docs/tags.yaml`'s
-`# --- Cult ---` block; a young cult holds no rung at all). Same rule as above: none of the member tags repeat
-`requiredTag` for that gate.
-
-Two further conventions, specific to this category:
-
-- **Spells and Rites carry a `Spell:`/`Rite:` name prefix.** A spell that
-  inflicts a status on someone else would otherwise collide with that status's
-  own name (`Rite: Rage` the caster holds, vs. `Rage` the victim ends up
-  with) — and `docs/documents.yaml` assigns documents by tag **name**, so a
-  collision there is a coin toss, same problem `peerless-beauty`'s comment
-  already documents for Demoness.
-- **A cooldown is a self-referencing `consumesInto`.** A spell with a stated
-  cooldown lists *itself* plus a `<name>-expired` marker:
-  `consumesInto: [spell-nourishment, nourishment-expired]`. This works because
-  `dropCharacterTag` runs before `grantTagSlugs` inside `consumeTagRequestImpl`
-  (`web/app/(app)/character/requestActions.js`) — the caster's stack is
-  decremented and then both slugs are granted back in the same transaction, so
-  the spell survives its own consumption and the marker's `durationTurns`
-  becomes the visible cooldown clock. The marker carries no `description` (an
-  optional field) and sits outside the `Spell:`/`Rite:` naming, since nothing
-  ever renders it as a standalone chip a player picks.
-
-**A status a Bacchus power inflicts on someone else is never gated.** The
-target is usually not a cultist: a gated group renders as literal
-`{tag:slug}` text to its own holder (per the `getVisibleTags` rule above), and
-its `visible` setting would be silently withheld from a bystander's 🔍. So
-`Rage`, `Lunatic`, `Silence` and the rest sit in ordinary `status`/`health`
-groups; only the caster-facing `Spell:`/`Rite:` tag itself is gated. The same
-goes for anything craftable — `Nailgun`, `Armor Robes` — which get traded to
-and worn by non-cultists, so they gate on the `smithing-bacchus` *skill*
-rather than the tag group.
-
 ## 4. The point economy
 
 `pointCost` is the price in the point-buy menu, and it is **signed**:
 positive costs the player points, negative *grants* them (the drawbacks,
-Old at `-2` and Frail at `-3`). Both directions fall out of one subtraction,
-so `remaining >= 0` is the only rule for whether a build is legal.
+Old and Frail at `-5` each). Both directions fall out of one subtraction, so
+`remaining >= 0` is one of the three rules for whether a build is legal — the
+two drawback ceilings in §4a are the others.
 
 **The display inverts it, and both axes agree.** `formatCost`/`costColor`
 (`web/lib/characterCreation.js`) show the effect on the player's *point
@@ -353,11 +350,12 @@ exist at launch and never afterward. **Every negative-cost tag must be
 `purchasableAfterStart: false` — *unless* it is deliberately farmable, in
 which case it must also be non-removable.** A drawback that can be bought
 mid-game and then shed is a point farm, because `REMOVE_TAG` and
-`CONSUME_TAG` refund resources but never Tag Points. The four **Addictions**
-are the one deliberate exception: a Cultist is meant to be able to take one
-mid-game for the points, so they are `purchasableAfterStart: true` and
-`removable: false, consumable: false`. The flag is the whole rule — there is
-no second, hardcoded refusal behind it.
+`CONSUME_TAG` refund resources but never Tag Points. A deliberate exception
+is possible — a negative tag that's `purchasableAfterStart: true` but also
+`removable: false, consumable: false`, so it can be taken for the points but
+never shed — but nothing in the current catalog uses it (the four
+Addictions did, before the Cult of Bacchus was archived). The flag is the
+whole rule — there is no second, hardcoded refusal behind it.
 
 That invariant has three enforcement points. `purchasableTags()` honours it
 via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
@@ -371,14 +369,15 @@ and that belt-and-braces line was what made the Addictions unbuyable despite
 their flag. A negative cart total is credited rather than debited (the write
 guards on `totalPoints !== 0`, not `> 0`). The drawback POINT cap (§4a) is a
 creation rule only — `/store` passes no cap at all. `/store` is therefore the
-**only** menu `purchasableAfterStart` still governs: the **Add Tag request**,
-the other mid-game path, no longer reads the flag at all. `addableTags()` (and
-`addTagRequestImpl` server-side) test `craftable` and nothing else, which is
-why most craftables being deliberately `purchasableAfterStart: false` (43 of
-58 — meals, tonics, explosives) costs them nothing. They are made rather than
-bought, and their `requirement` block is honor-system guidance the GM review
-holds players to, not a code gate (§3b). No drawback is craftable, so no
-drawback can arrive through Add Tag.
+**only** menu `purchasableAfterStart` still governs: the **Craft request**
+(Add Tag, renamed), the other mid-game path, no longer reads the flag at all.
+`addableTags()` test `craftable` and the recipe's `requirement.skills`
+(`craftRequest` server-side re-checks both — §3b), which is why most
+craftables being deliberately `purchasableAfterStart: false` (43 of 58 —
+meals, tonics, explosives) costs them nothing. They are made rather than
+bought, and their `requirement` block is the recipe Craft now enforces, not
+just GM-review guidance (§3b). No drawback is craftable, so no drawback can
+arrive through Craft.
 
 The two mid-game paths deal in different currencies and coexist on purpose:
 the store spends Tag Points against catalog prices with no GM in the loop
@@ -387,13 +386,20 @@ block. They no longer overlap — a tag with a point price is bought, a tag with
 a recipe is made, and nothing is both. Armor and weapons showing up under Add
 Tag is the crafting economy, not a store leak.
 
-**The ten Assets are creation-only.** Horse, Wild Horse (`wild-horse`),
-Bird, Rat, Kitty Cat, Dog, Manor, Workshop, House and Shack are
+**The Assets are creation-only.** Horse, Bird, Rat, Kitty Cat, Dog, Manor,
+House and Shack are
 `purchasableAfterStart: false`, so they leave `/store` as well as Add Tag —
 mid-game a horse or a house comes from a GM grant, another player, or the
-Depot, not a menu. To keep the "another player" half real, the four property
-tags (Manor, Workshop, House, Shack) are now `tradeable: true`; the six
-companions and Cart already were. Note what that costs, because `tradeable` is
+Depot, not a menu. To keep the "another player" half real, the property
+tags (Manor, House, Shack) are `tradeable: true`; the companions and Cart
+already were. The Plow joined them when it moved out of Items, so it stopped
+weighing on a farmer's back (SMITHING.md §3); the Workshop asset was retired
+outright in favour of the Workshop Equipment **item** you have to haul
+(SMITHING.md §2a).
+
+**Assets weigh nothing**, which is the mechanical point of the category:
+a horse carries itself and a house does not move, so neither belongs in
+`carryWeight` (CARRY.md §1). Note what that costs, because `tradeable` is
 one flag covering both directions (§5): a house deed can now be lifted off a
 corpse. That is the accepted price of being able to hand one over.
 
@@ -427,45 +433,89 @@ reason to price one at 5.
 | −11 | Removes a whole sense or capability, with no realistic cure. |
 
 14 is the ceiling and −11 the floor; nothing should be priced outside them
-without a deliberate decision recorded here. **Pilgrim is the one deliberate
+without a deliberate decision recorded here. **Pilgrim is the first deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
+**Instrument is the second, also at 1** — Bascinet's call: it buys no
+advantage whatsoever, only the `/play` line, and the Minstrel gets it free
+with the role, so pricing it at a full band would have made an object nobody
+but a Minstrel would ever own. **Pack
+Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
+the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
+at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of
+deliberate outlier as Pack Mule; don't read a pattern into it. **Fast
+Metabolism is a fourth, at −6** — between the −5 and −7 bands, Bascinet's
+call; it is the only tag that changes the *size* of the per-turn upkeep rather
+than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper is a
+fifth, at −1** — below the −2 band, and the reason is arithmetic rather than
+taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at −2 the
+pair would have *paid* a player to take a free hood. Teaching and
+Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
+(`LESSONS.md` §1).
 
-**At character creation, a character may buy at most
-`GameConfig.maxDrawbackTags` drawback TAGS — 5 by default, live on
-`/gm/dev`.** The cap belongs to the wizard and stops existing once play
-starts: `/store` passes no cap and shows no drawback readout, since the one
-drawback it can sell (an Addiction) is meant to be sellable. This is a cap on
-the **count** of drawback tags held, not on their combined point value: a
-character with one −8 drawback and one with eight −1 drawbacks now spend a
-different slice of the cap (the field replaced the old `maxNegativeTags`,
-which — despite its name — summed points; `maxDrawbackTags` does what the
-old name always claimed to, for real; the `drawback_tag_cap` migration,
-Desires rework). Only what was bought through the point-buy menu counts
-(`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the
-Meister's Frail, the Headman's Old) arrives as `GM_GRANT`, and so does
-anything a GM or a turn effect inflicts, so neither eats into a player's
-count. A GM grant can still push someone past the cap, deliberately — the
-same bypass every other gate has (§3). `0` is a real setting: no drawbacks
+**At character creation a build faces TWO ceilings on drawbacks, and it stops
+at whichever it reaches first:**
+
+- **`GameConfig.maxDrawbackTags`** — how many drawback tags may be bought.
+  **5** by default.
+- **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
+  claim back in total, stored as a **positive magnitude**. **12** by default,
+  matching `startingTagPoints` on purpose, so the rule says itself: *you can
+  never claim back more than you started with.*
+
+Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.
 
-The cap has three surfaces. `PointBuy.js` sums it live in the build pane
-(`negativeCap` / `negativeHeld`), shown in red once the count is over the
-cap (`{used} / {cap} drawbacks taken`), dims a drawback that would push the
-count past the limit the same way it dims an unaffordable tag, and — like
-the budget — lets the click through so the pane can say why the build isn't
-legal. `CreateCharacterWizard` folds it into `canAdvance` beside
-`remaining >= 0`. `createCharacter` re-checks it server-side, because a
-server action is a public endpoint. `/store` shows the same line as a
-**readout only**: every drawback is `purchasableAfterStart: false`, so the
-shelf never offers one and the total can't move there. `negativeTagCount()`
-in `web/lib/characterCreation.js` is the shared predicate, counting tags
-with a negative `pointCost` rather than summing `effectiveCost` — a drawback
-never sits in a tier chain, so there is nothing to discount.
+**Neither ceiling works alone, which is the whole reason there are two.** A
+count cap by itself spends the same slot on a −1 and on a −11, so five
+drawbacks are worth −5 to one player and −43 to another — the cap reads as an
+instruction to stack the heaviest tags in the catalog, and the player taking
+five small human flaws is simply playing it wrong. A point cap by itself is
+the mirror problem: one Appendicitis finishes you, while ten −1s are never
+stopped by anything. The game shipped each in turn — `maxNegativeTags`
+(points, retired 2026-08-31) then `maxDrawbackTags` (count) — before landing
+on both. Together they say the thing that was meant all along: a character
+may have a handful of problems, worth only so much trouble in total.
+
+Only what was bought through the point-buy menu counts against either
+(`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the Meister's
+Frail, the Headman's Old) arrives as `GM_GRANT`, and so does anything a GM or
+a turn effect inflicts, so neither eats into a player's allowance. A GM grant
+can still push someone past both, deliberately — the same bypass every other
+gate has (§3).
+
+**The ceilings belong to the wizard and stop existing once play starts.**
+`/store` passes neither and shows no drawback readout at all: the one kind of
+drawback it can sell (an Addiction) is meant to be sellable, and a limit the
+shelf can neither enforce nor move is noise. That is a decision, not an
+omission — a character can trade suffering for points mid-game. It is not a
+farm, because a drawback the store pays for must be one that can never be
+handed back (§4, and the guard in `buyTags`).
+
+They have three surfaces. `PointBuy.js` tracks both live in the build pane
+(`negativeCap` / `negativeHeld`, `negativePointCap` / `negativePointsHeld`):
+the points half is drawn as a **second budget bar** under the points-remaining
+figure, with the tag count as a line beneath it, each going red on its own so
+a player can see *which* ceiling they hit rather than being told they hit one.
+A drawback that would push the build past either is dimmed exactly as an
+unaffordable tag is — the count half blocks once the count is reached, the
+points half blocks per tag, since a −2 can still fit where a −7 no longer
+does — and, like the budget, the click still goes through so the pane can say
+why the build isn't legal. `CreateCharacterWizard` folds both into
+`canAdvance` beside `remaining >= 0`. `createCharacter` re-checks both
+server-side as separate refusals that each name their own limit, because a
+server action is a public endpoint.
+
+`negativeTagCount()` and `negativeTagPoints()` in
+`web/lib/characterCreation.js` are the shared predicates. Both read the raw
+`pointCost` rather than `effectiveCost`: a drawback never sits in a tier
+chain, so there is nothing to discount, and running them through the discount
+would only give a future negative-cost chain a quiet way past the ceiling.
 
 **0 is a real price, not a missing one**, and it is the most common value in
 the file (142 of 268). Everything unpurchasable — injuries, statuses, meals,
 role grants — is 0, and every tag must carry the field explicitly. A tag with
-no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
+no `pointCost` at all is a bug; `intercom` was the one instance, and that tag
+has since been deleted outright along with the channel it opened.
 
 ### Rules that follow from the scale
 
@@ -510,12 +560,10 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   Duelist, Polearms, Swords, Clubs) and Ranged (Archer, Firearms). Melee
   (Flamboyant) is priced at 7, not the usual 10 — the "without armor"
   condition is a real cost of its own, unlike the other sidegrades'
-  situational-but-free conditions. Melee (Drunken Master) is priced the same
-  way but sits in the `bacchus` category. Three sidegrades sit outside both
+  situational-but-free conditions. Two sidegrades sit outside both
   trees: Grappler (5, standalone — bare hands are not a rung of either tree,
-  so it gates on nothing), Guerrilla (10, standalone and deliberately
-  ungated, since a single `requiredTag` can't say "either tree"), and
-  Cavalry (10, `requiredTag: windlander`).
+  so it gates on nothing), and Guerrilla (10, standalone and deliberately
+  ungated, since a single `requiredTag` can't say "either tree").
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
   from the tier they sit in, not by feel. See
   [`SMITHING.md`](SMITHING.md) for the table.
@@ -543,6 +591,18 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
 ## 5. Other fields
 
+- `catalog` (`Tag.catalogVisibility`) — who may see this tag in the
+  `/documents` Tag Catalog tab. **Required on every tag**, like `pointCost`;
+  `db:sync-tags` throws without it. `secret` is cave/antagonist content,
+  hidden there from everyone — GMs included; `/gm/dev/tags` stays the
+  unfiltered view. `gm` shows to GMs always, and to a player once their
+  character relates to it: they hold it, their role's `starting_tags` grant
+  it, they hold its group's `requiredTag` key, or — for Depot-priced wares —
+  they hold the Merchant's License. `all` is fully public, character or not.
+  Read only by `web/lib/tagCatalog.js`; unrelated to `visible` below, which
+  is about the in-game 🔍 inspect. Rows the sync never touches (GM-authored
+  tags, minted corpses/headstones) default to `GM`, so nothing lands fully
+  public by omission.
 - `visible` (`Tag.inspectVisibility`) — whether another player who 🔍-reacts
   to this character's proxied messages sees the tag
   (`bot/src/events/messageReactionAdd.js`). **Three states**, and the YAML
@@ -592,12 +652,22 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   Note it is a property of the tag being *seen*. The tag that widens what an
   inspect shows is read off the **inspector** instead: Seductive reveals the
   subject's active Desire, resolved by `db/lib/inspectVision.js`, which also
-  accepts the discounted Demoness twin. Like the Silo-gated Resources field,
-  an unseen field is absent rather than placeholdered — a placeholder
+  accepts the discounted Demoness twin. Like the officer-gated Resources
+  field (`FACTIONS.md`), an unseen field is absent rather than placeholdered — a placeholder
   advertises that there is something to go after.
-- `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs and the five Bacchus drawbacks;
+- `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
-- `tradeable` — **live**: whether the tag can change hands at all. One flag
+- `carryBonus` — **live**: what the tag adds to both carry caps while held, as
+  a **signed distance from ×1** (Cart `4`, Pack Mule `0.5`, Giant `0.75`, Frail
+  `-0.1`). They **add**, they do not multiply. `null` for the rest of the
+  catalog, and `0` is rejected — the honest way to say "none" is to leave the
+  key out. A description ending in `{carry:slug}` renders the exact figure from
+  the live config, in either direction. `db:sync-tags` rebases every holder
+  afterwards so an edited bonus never reads as "your Cart just left". See
+  `CARRY.md`.
+- `tradeable` — **live**: whether the tag can change hands at all. It is
+  also what counts against the item carry cap — every unit of every
+  tradeable tag (`CARRY.md` §1). One flag
   covers both directions — handing it to someone standing with you
   (`TRANSFER_TAG`) and lifting it off a corpse or a helpless body
   (`LOOT_CHARACTER`). `web/lib/tagRequests.js#isTradeable` is the single
@@ -606,7 +676,7 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
 
   It used to be a category test — `["Items", "Assets"]` — from back when the
   field was set on almost nothing. That was wrong in both directions at once.
-  It let a corpse be stripped of its **House**, its **Workshop** and its
+  It let a corpse be stripped of its **House**, its **Manor** and its
   **Drone**, none of which are things you carry away from a body; and it
   ignored the sixteen Items that already said `tradeable: false`, including the
   Quickened Nerve Braid, which is *grafted into the holder's neck*. The catalog
@@ -631,6 +701,11 @@ no `pointCost` at all is a bug; `intercom` was the one instance and is fixed.
   One tag outside Items/Assets sets it: `detonation-charge`, a keg of dynamite
   filed under `general`. The old category test blocked it; it is transferable
   now, which is correct.
+- `forcesName` (`Tag.forcedName`) — a name the holder is **forced to wear**.
+  Apex Form sets it to `Beast`. While any held tag carries one, the character
+  proxies under that name with the letter plaque for its initial, Who's here?
+  and 🔍 name them that way, and `/conceal` is refused. See "`forcesName`"
+  under `equippable` / `concealsIdentity` below, and `PROXYING.md` §5.
 - `sellable` / `sellablePrice` — the seller's half of
   `purchasable`/`purchasableAfterStart`: whether the Merchant's Depot will
   buy this tag off him, and for how many ⬢. Added for the Caves Update
@@ -719,20 +794,55 @@ convention as `buildNickname`. Change both copies together; don't collapse them
 (the web copies must stay dependency-free so client components can import
 them).
 - `removable` — whether a player can strip this tag off themselves mid-game
-  without a GM. Live: it is the whole filter behind the Remove Tag menu
-  (`removableTags()`, `web/lib/tagRequests.js`) and is re-checked by
-  `removeTagRequest`.
+  without a GM. Live: it is the whole filter behind the Destroy menu (Remove
+  Tag, renamed — `CRAFTING.md`) (`removableTags()`, `web/lib/tagRequests.js`)
+  and is re-checked by `destroyTagRequest`. Never true on a Health tag any
+  more — a wound is healed, not destroyed; see `healable` below.
 - `craftable` — whether this tag represents something a player can
   craft/make, as opposed to one that only ever arrives via role, GM grant,
-  or automatic game logic. Live too: `addableTags()` offers Purchasable *or*
-  Craftable tags in the Add Tag menu.
+  or automatic game logic. Live: `addableTags()` offers Craftable tags in the
+  Craft menu (Add Tag, renamed), and Craft now enforces the recipe's
+  `requirement.skills` server-side rather than leaving them as GM-review
+  guidance — see §3b and `CRAFTING.md` §2.
+- `healable` — whether the Heal menu offers this tag. Replaced an older
+  heuristic (any Health-category tag with a `requirement:` block); the flag
+  is what `web/lib/healRequests.js#isHealable` reads now, and it's what's set
+  `true` on every health tag with a cure, `false` everywhere else — see §5c.
+- `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
+  offer. Set `true` on every entry in the `skills` category, not derived from
+  the category itself; the one rule is `db/lib/lessons.js#teachableSkills`
+  (`LESSONS.md` §2).
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
   instead of simply being swept away. Live; see §5c.
+- `laborBonus` — what this tag adds to one kind of Laboring, e.g.
+  `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
+  `requiresTag` gates it on holding something else (the Plow needs a horse).
+  Bonuses sum, and `GameConfig.equipSlots` is the real limit. Normalised and
+  validated in `db/lib/tagShapes.js`, which throws on an unknown `kind`, on a
+  bonus that requires equipping a tag that is not `equippable`, and on a
+  `requiresTag` naming a tag that does not exist — a typo'd `kind` would
+  otherwise make a tool silently worthless. Full rules in `LABORING.md` §5.
+- `requirementItems` (YAML: `requirement.items`) — the recipe's
+  **ingredients**, and the first ones this game ever actually enforced. Only
+  two recipes carry one: `miasma` needs a corpse, `dreamers-draught` needs a
+  Skinless Brain. **Holding it is the check — nothing is consumed**, so you
+  keep the corpse you bottled the Miasma over, and a second craft off the same
+  body is allowed. An entry is either a tag slug (`items: [skinless-brain]`) or
+  a whole **group** (`items: [{ group: items-corpse }]`); the group form is not
+  a convenience but a necessity, since a corpse written at death is never in
+  `docs/tags.yaml` for a slug to name. Stored as Json rather than a relation
+  for that reason, with a denormalized display `label` the sync rewrites every
+  run. Validated in `db/lib/tagShapes.js` — which throws on an `items` block on
+  a tag that is not `craftable`, because the Craft path is the only enforcement
+  point and an `items` block anywhere else would look enforced and do nothing.
+  Enforced against the crafter's **own sheet only**, never a room stash. Full
+  writeup in [`CORPSES.md`](CORPSES.md) §8.
 - `requirementTurns` / `requirementResources` / `requirementGambit` /
-  `requirementSkills` (YAML: nested under `requirement:` as `turnsCost` /
-  `resourceCost` / `gambit` / `skills`) — what it costs a character to add
+  `requirementPerTurn` / `requirementSkills` (YAML: nested under
+  `requirement:` as `turnsCost` / `resourceCost` / `gambit` / `perTurn` /
+  `skills`) — what it costs a character to add
   or remove this tag in play (e.g. curing Arthritis needs Medical (Skilled)
   and some turns; forging the revolver tag costs turns, resources, and
   Smithing; the `cart` tag costs turns, resources, and `Builder (Skilled)` —
@@ -788,7 +898,11 @@ about `quantity`; everything else goes through them:
 `stackable` describes the shape of the row rather than who may hold what, and
 a quantity on a holds-it-or-doesn't flag is just a corrupt row. So the
 quantity stepper is rendered **only on a `stackable` tag** — in the Dev Panel
-Tags tab and in the turn desk's effect composer alike (`DEV-PANEL.md` §5) —
+Tags tab and in the turn desk's effect composer alike (`DEV-PANEL.md` §5). On
+the Dev Panel's Holds row that stepper sets the **resulting count** rather than
+a delta, staged as a `patch quantity`, so taking a stack from seven to three is
+one gesture; zero there means the whole holding, converted to a `remove` before
+it is sent. Elsewhere the stepper still reads as "how many" —
 `mergeTagOp` (`web/lib/tagOpAlgebra.js`) pins a non-stackable `add` back to 1
 so repeated clicks can't accumulate either, and `validateTagOps`
 (`db/lib/tagOps.js`) refuses `quantity > 1` outright. This used to be
@@ -963,11 +1077,21 @@ learns it once and can then read any affliction they meet.
 | 7 | Complex surgery | 8 | 1 | Expert | yes |
 
 The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
-puts a Health tag **on** somebody — the same category, offered from the same
-list — so every rung you price is also an injury a player can inflict on
-someone already helpless. Nothing extra is needed on the tag to allow that: any
-non-`custom` Health tag is inflictable, exactly as any Health tag with a
-requirement block is treatable. A rung priced carelessly is now wrong twice.
+puts a Health tag **on** somebody — offered from `isInflictable()`'s curated
+list of `health-wounds` / `health-maiming` plus four of `health-mind` — so
+every rung you price there is also an injury a player can inflict on someone
+already helpless. Treatable is a separate question now: a Health tag is
+offered to Heal when `Tag.healable` is `true`, not by category or by the
+presence of a `requirement:` block (§5, `isHealable`). A rung priced
+carelessly can still be wrong twice, on both surfaces — just remember they're
+two different flags now, not one inference.
+
+**Remove/Destroy no longer cures anything.** Before `healable` existed, the
+old Remove Tag door doubled as a rough cure for some conditions — stripping a
+tag off yourself with no medic involved. `removable` and `healable` are
+disjoint on every Health tag now: something a doctor treats is `healable`,
+never `removable`; nothing in Health can be self-stripped through Destroy any
+more. Healing is the only door.
 
 Four things about it are deliberate.
 
@@ -989,24 +1113,46 @@ rather than of the injury.
 
 **Tier 0 is a rung, not an omission.** Something realistically untreatable,
 quick, and harmless — Vomiting, a Migraine, a Concussion, being Hungover —
-gets **no `requirement:` block at all**. `hasCureCost()`
-(`web/lib/healRequests.js`) keys off exactly that, so a tier-0 tag never
-appears in the Heal picker and the action refuses it. This is a design rule
-before it is a mechanic: charging a player 2 ⬢ and a doctor's afternoon to
-shorten a bout of vomiting is silly, and pretending medicine can do it is
+gets **no `requirement:` block at all**, and `healable` stays `false`.
+`isHealable()` (`web/lib/healRequests.js`) keys off the flag, so a tier-0 tag
+never appears in the Heal picker and the action refuses it. This is a design
+rule before it is a mechanic: charging a player 2 ⬢ and a doctor's afternoon
+to shorten a bout of vomiting is silly, and pretending medicine can do it is
 worse.
 
-**Above your tier is still possible.** Nothing about the skill requirement
-stops a player from *trying* — it is a Gambit, and a failed Gambit can leave
-the patient worse than it found them. The requirement names what a character
-does **as routine**, which is why the three Medical descriptions are phrased
-that way and why the Medical document says so outright. A Serpent
-(Medical (Skilled)) can attempt the tier-6 surgery a punctured lung needs;
-they just roll for it, while Esculap (Medical (Expert)) does not.
+**Above your tier is still possible, and the Heal request now implements it.**
+The requirement names what a character does **as routine**, which is why the
+three Medical descriptions are phrased that way. A Serpent (Medical (Skilled))
+can attempt the tier-6 surgery a punctured lung needs; they just roll for it,
+while Esculap (Medical (Expert)) does not.
 
-Only `requirementResources` and `requirementSkills` are enforced — by the Heal
-request, which charges the ⬢ and checks the tier chain. `requirementTurns` and
-`requirementGambit` stay GM adjudication reference, as everywhere else (§5).
+Reaching above your tier — or treating a tag whose own `requirementGambit` is
+set, which is the whole of what separates tier 7 from tier 6, since they share
+a price — files a **GAMBIT Move** instead of curing anything
+(`isGambitHeal()`, `web/lib/healRequests.js`). It spends the medic's Move, the
+die is rolled at file time, and the **affliction is left on the patient** until
+a GM reads the roll on `/gm/turns`: an attempt that has not been resolved
+cannot have cured anything, and a failed one is supposed to be able to leave
+them worse. The shape is copied from a learner's Lesson Gambit
+(`db/lib/lessons.js`), and `Action @@unique([characterId, turnId])` is what
+makes it one gambit heal a turn without a second check.
+
+**Routine cures are rationed by tier**: 2 a turn on Basic, 3 on Skilled, 4 on
+Expert (`MEDICAL_TIER_CAPS`, `web/lib/requests.js`). A cure costing **0 turns**
+is a free action and never counts — first aid, bandaging, setting a simple
+break are the things you do between patients, and rationing them would make a
+nurse refuse a bandage.
+
+**Surgical Equipment is +1 on a medical Gambit**, satisfied by holding one or
+by standing in a room that has one (`db/lib/equipmentReach.js`). There is a set
+in the Sanctuary's operating theatre, seeded from `docs/zones.yaml`; the old
+"procedures in the Sanctuary automatically qualify" line was prose that no code
+ever read, and it is gone.
+
+So `requirementResources`, `requirementSkills` and `requirementGambit` are all
+enforced now. `requirementTurns` remains reference for the *length* of a
+course of treatment, but its zero/non-zero split does real work: it is what
+decides whether a cure counts against the day's allowance.
 
 ### Six named exceptions
 
@@ -1232,14 +1378,20 @@ of who is qualified; `healRequests.js` re-exports it.
 
 1. Pick the group by what kind of medicine it wants.
 2. Pick a ladder rung by what the work would really take, and copy its block
-   verbatim. Tier 0 means no `requirement:` at all.
+   verbatim. Tier 0 means no `requirement:` at all, and `healable: false`.
+   Any rung above 0 gets `healable: true` — and `removable: false`; Health
+   tags are cured, not destroyed.
 3. Set `visible` by whether a bystander could tell.
 4. If it worsens, give it `durationTurns` and `expiresInto` — **and say so in
    the description**, naming what it becomes. The tooltip's "Becomes" row is
    reinforcement; the sentence is what makes someone act in time.
 5. Negative `pointCost` (a drawback bought at creation) requires
    `purchasableAfterStart: false`, per §4.
-6. `npm run db:sync-tags`.
+6. Set `catalog:` — `secret` if it is cave- or antagonist-related (hidden
+   from everyone on the /documents Tag Catalog, GMs included), `all` if it
+   is public knowledge, `gm` otherwise. The field is required on every tag;
+   the sync throws without it.
+7. `npm run db:sync-tags`.
 
 ## 5d. GM-authored tags
 
@@ -1262,12 +1414,50 @@ would upsert straight over their row — silently converting their homebrew into
 a YAML tag and clobbering every field. The prefix also guarantees a custom slug
 can never appear in the prune script's YAML slug set by accident.
 
+**There is a third author, and it is neither of these: the game itself.**
+`db/lib/corpseMint.js` writes one Tag row per death ("Ada's Corpse") and
+`db/lib/headstone.js` writes one per Engrave. Both set `custom: true` so the
+syncs leave them alone, exactly as a GM's homebrew is protected — what tells
+them apart is `Tag.corpseKind` and `Tag.corpseOfCharacterId`. That distinction
+earns its keep three times: it is the join that walks a dead sheet after its
+corpse, it is how the Butcher yield table tells a person from a Nekker, and its
+`onDelete: Cascade` is the only thing stopping these rows outliving a Restart
+Game. Full writeup in [`CORPSES.md`](CORPSES.md) §9.
+
+A system-authored row is also the one exception to the rule below: a corpse
+carries a decay chain, which no GM may hand-author. It does not go through
+`expiresInto` to get one — it renames itself in place (`CORPSES.md` §3).
+
 What a GM can set is the tag's own behaviour — cost, category, group,
 description, the `stackable`/`equippable`/`consumable`/`removable`/
 `purchasable` flags, the three-state "seen by others on 🔍", plus a duration. What they cannot set is
 catalog *structure*: `parentTag`, `requiredTag`, `requirementSkills` and
 `consumesInto` all wire tags to each other, and that belongs in the YAML where
 it can be reviewed alongside the tags it connects.
+
+## 5e. `ephemeral`: which rows are game state
+
+There are three authors of a `Tag` row — `docs/tags.yaml`, a GM at
+`/gm/dev/tags`, and the game itself (§5d). `custom` separates the first from the
+other two. **`ephemeral` separates the third from the second**, and it has to
+be its own field because the two want opposite things from a Restart Game: a
+GM's homebrew must survive one, and a crate must not.
+
+Set by every runtime minter — `db/lib/depotCrates.js`, the Factory's Package
+button, `db/lib/headstone.js`, and both paper minters in
+`db/lib/paperMint.js`. `wipeGameData` deletes exactly these rows and leaves the
+catalog and the homebrew alone.
+
+Corpses are the exception that needs nothing: `Tag.corpseOfCharacterId`'s
+`onDelete: Cascade` already took them out with the characters, and still does.
+They were also, until this landed, **the only runtime rows a wipe ever
+removed** — crates and headstones simply accumulated.
+
+One more reader: `web/lib/referenceData.js#getVisibleTags` withholds an
+`ephemeral` row from anyone not holding it. That loader ships the whole catalog
+to every browser on every page, and the runtime set has no ceiling — every
+letter anybody writes is a row. Paper is what made that urgent; crates had the
+same problem quietly.
 
 ## 6. Things that used to be tags and aren't anymore
 
@@ -1281,7 +1471,7 @@ mechanism changed, not who can assign what. `Courtier` survived too, and still g
 "Role" category's retirement as an ordinary General tag since it drives real
 logic elsewhere — it gates `/lifeweb` nav visibility. `Hunter` survived
 alongside it for the same reason, but has since been retired: hunting is now
-just a flavor of laboring (`PRODUCTION.md`), and no `hunter` entry remains in
+just a flavor of laboring (`LABORING.md`), and no `hunter` entry remains in
 `docs/tags.yaml`.
 
 ## 7. Where the code lives
@@ -1298,7 +1488,7 @@ hover-tooltip chip that renders group color, and the "Becomes" row from §5c),
 `db/lib/tagExpiryPass.js` (the `expiresInto` progression, §5c), and
 `web/lib/healRequests.js` (what a medic may treat, `REQUESTS.md` §5c).
 
-**Tag descriptions carry `{tag:…}`/`{resource:…}`/`{partysize:…}` tokens
+**Tag descriptions carry `{tag:…}`/`{resource:…}` tokens
 too**, not just documents — that's how a True Form names the {tag} it inflicts. The three
 places a description renders all forbid an *interactive* chip, though: a
 `TagChip` nested in a hover tooltip could never be hovered to reach its own
@@ -1310,12 +1500,9 @@ can point at (documents, a character's appearance). Both share the parser in
 renders `TagChip` and `TagChip` renders `ChipText`, so importing one from
 the other would close an import cycle.
 
-There are four token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
-described above; `{partysize:N}` is the Cult of Bacchus's party thresholds
-(`PARTY-SIZE.md`), a 1-indexed
-tier resolving to a headcount scaled live by `GameConfig.playerCount`; and
-`{document:key}` names another paper by its `Document.key` (`DOCUMENTS.md`),
-rendering as a chip that links to it. The
+There are three token kinds. `{tag:slug|id}` and `{resource:field:tier}` are
+described above; `{document:key}` names another paper by its `Document.key`
+(`DOCUMENTS.md`), rendering as a chip that links to it. The
 parser in `richTokens.js` is kind-agnostic — `{(\w+):([^}]+)}` — so a new kind
 never touches it or `remarkTokens.js`. What a new kind *does* touch is the
 three renderers, which is the whole edit surface: `RichText.js`'s
@@ -1380,12 +1567,56 @@ have moved. It also keeps the loot panel (`CHARACTERS.md` §5) from rendering
 an item as if it's still worn.
 
 `concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
-hood, a closed helm. It is currently **inert**: `/conceal` is open to every
-character with nothing equipped (`PROXYING.md` §5), and the field is kept only
-so that gate can be restored without a migration. It is only meaningful
-alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
-it rather than syncing a tag that could never do anything — the kind of quiet
-failure that is miserable to debug from inside the game.
+hood, a closed helm. It is **the gate on `/conceal`**: without one of these
+equipped, a character cannot go unnamed at all (`PROXYING.md` §5). It is only
+meaningful alongside `equippable`, and `syncTagsFromYaml` **throws** if it is
+set without it rather than syncing a tag that could never do anything — the
+kind of quiet failure that is miserable to debug from inside the game.
+
+`forcesConceal: true` is the stricter form: concealed with no say in it, and
+both `/conceal` toggles refuse in either direction. It requires
+`concealsIdentity` — forcing a concealment the catalog does not grant is a
+contradiction, not a stricter setting — and sync throws otherwise.
+
+`concealSprite:` names the plated 256px avatar the room sees instead of the
+wearer's face, a basename under `web/public/assets/helms/`. It is **required**
+alongside `concealsIdentity`, and sync checks the file really exists: a hood
+nobody can see is not concealment, it is a missing image. Build the files with
+`npm run assets:helms --workspace=web` after adding a source sprite to
+`web/assets/helms/`.
+
+### `equipSlot` / `equipLayer`
+
+`GameConfig.equipSlots` is a flat **count** — six things, whatever they are —
+and for a long time it was the only limit, so a character with free slots could
+wear three helmets and two shields at once.
+
+`equipSlot:` is the other half. `HEAD`, `BODY` and `SHIELD` are the only three,
+because they are the only places where wearing two things at once is nonsense;
+a sword or a lantern has no slot and is limited by the count alone. **Two
+equipped tags may not share a slot.**
+
+`equipLayer:` 1–4 subdivides `HEAD` and `BODY`, 1 against the skin and 4
+outermost, and **two equipped tags may not share a layer** either. So a mail
+coif (`HEAD` 1) goes under a knight's helm (`HEAD` 3), but two helms do not go
+together. `SHIELD` carries no layer — there is only ever one shield — and sync
+throws if one is set on it. Sync also throws on a layer outside 1–4, a layer
+with no slot, a `HEAD`/`BODY` slot with no layer, and a slot on a tag that is
+not `equippable`.
+
+The layer also decides **which face shows**: the outermost equipped concealing
+piece is the one whose `concealSprite` the room sees.
+
+The rule lives in `db/lib/equipSlots.js` because **two** independent paths flip
+`CharacterTag.equipped` — the player's toggle (`equipActions.js`) and the
+GM/staged batch (`db/lib/tagOps.js`) — and a rule in only one of them is a rule
+a GM can walk straight through. Both write first and then ask "is the resulting
+set wearable?", which is the only form that lets a batch stage "unequip A,
+equip B" without rejecting B for a conflict with an A that is already gone.
+
+**Bound blocks equipping in both directions**, along with Craft and Destroy
+(`INCAPACITATING_SLUGS`, `db/lib/incapacitation.js`). A hostage who could take
+the sack off their own head would not be much of a hostage.
 
 `equippable` **does** interact with `visible`, through its third state. A tag
 authored `visible: worn` is shown to a bystander's 🔍 only while
@@ -1396,11 +1627,11 @@ out of sight when you aren't using it.
 - **`worn`** — the sidearms and short blades (Dagger, Silver Knife, Work
   Knife, Knuckle Duster, Sling, Sword Cane, Bomb, and every pistol including
   the Sawn-Off), armor that goes under clothes (Padded Armor, Brigandine), and
-  the small worn signals: Watch Badge, Sheriff's Badge, Hand's Pin, Incarn's
+  the small worn signals: Sheriff's Badge, Hand's Pin, Incarn's
   Key, Bishop's Mitre, Headman's Cap, Esculap's Vest, Jewelry, Spectacles,
   Radio Bracelet, Dark-Eye Lenses. The badges are the interesting half — an
   officer can now go about unmarked, and displaying the thing is a choice,
-  which is what the Watch Badge's own description always claimed.
+  which is what the Sheriff's Badge's own description always claimed.
 - **`true`** — everything you cannot hide by not holding it: swords,
   polearms, bows, shields, plate, banners, the Baron's Scepter, the Power
   Fist, the Flamethrower, and all the garb and robes. Carrying one reads the
@@ -1411,6 +1642,56 @@ predicate, so a hidden cuirass stays hidden even while worn, and a stowed
 dagger stays hidden even from someone standing next to it. What conceal takes
 away is the *identity* — name, appearance, Desire, Resources — not the
 inventory.
+
+## `forcesName`
+
+`forcesName: Beast` is the opposite of a hood: a tag that **fixes** how its
+holder presents instead of hiding it. It exists for transformations — Apex Form
+turns a Demoness into a monster, and a monster does not get to keep posting as
+`Lady Ysolde "the Fair" Marrow` with her portrait.
+
+What it does, all resolved at **read time** by `db/lib/presentedIdentity.js`
+(`PROXYING.md` §5), with the precedence **forced > concealed > own name**:
+
+- Every proxied message — typed, the Speak modal, and the REST twin that posts
+  staged public posts — goes out under the forced name, with the letter
+  plaque for its initial (`/assets/letters/B.webp` for Beast). Never the
+  character's own face, uploaded or built.
+- **Who's here?** lists them under the forced name, with no Role, and never on
+  the concealed line even if `Character.concealed` is still true on the row.
+- The player-facing 🔍 embed titles itself with the forced name and shows the
+  plaque. The GM's ⚜️ dossier keeps the real name and face and adds a
+  `Presents as` line — a GM needs to know who it is.
+- ⭐ files the note under the forced name, and the archive freezes it into
+  `ArchiveEntry.concealedAlias`, so `/archive` reads `Beast (Ysolde Marrow)`
+  exactly as it reads a hood.
+- `/conceal` and the switch on `/character` both refuse. The portrait maker,
+  the upload and Reset to Default are hidden on the sheet, and the server
+  actions behind them re-check the tag, since a hidden button is a hint and
+  not a lock.
+
+What it deliberately does **not** touch: the `Character` row (no rename, so two
+Beasts never collide on `Character.name`, and every GM table still says who it
+is), the personal @-mention role, and the server nickname — both keep the real
+bare name, by decision. The `/add` picker naming the character is intended, not
+a leak.
+
+One consequence of the precedence worth knowing: a character who had their hood
+**up** when the tag landed stops being concealed. Their 🔍 embed goes back to
+the full one — tags, Desire, Resources under whatever gates apply — titled with
+the forced name. A Beast is not hiding, and the row's stale `concealed` flag
+does not get a vote.
+
+Because nothing is written when the tag lands, there is no grant hook and no
+catch-up pass: the first message after any door grants it — the store, the dev
+panel, a Desire — already posts as the forced name, and removing the tag
+reverts every surface on the next message.
+
+`syncTagsFromYaml` **throws** on an empty `forcesName`, on one longer than the
+first-name budget (`NAME_LIMITS.firstName`, 24), and on a tag that sets it
+beside `concealsIdentity` — a tag cannot hide who you are and dictate it. The
+GM's custom-tag form has no editor for it, the same posture as `desireLocks`;
+`/gm/dev/tags` shows it as a `Forces name: …` chip.
 
 ### The equipment panel
 
@@ -1435,3 +1716,32 @@ SELECT id FROM "Character" ... FOR UPDATE
 
 which serializes equips per character. Without it, a burst of 8 concurrent
 equips all land against a cap of 6 (verified).
+
+## Depot tags: obols, crates and sealed shipping
+
+Three things the Depot rework added to the catalog.
+
+**`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,
+`visible: false`. One obol is worth exactly one ⬢ — it is that same value made
+physical, rather than a compression of it — and it is money only at the Depot;
+everywhere else it is a coin nobody has to take. It has no `pointCost` and
+is not purchasable — the only door it enters the world through is the Depot's
+ATM.
+
+**`sealedShipping: true`** — a ware that arrives in a crate printing no
+manifest, openable only with a `depot-keycard`. Authored rather than guessed
+from the category, because "dangerous" is a judgement about the fiction. The
+sync refuses it on a tag with no `depotPrice`: the station cannot ship what it
+does not stock.
+
+**Crates** are not in `docs/tags.yaml` at all. They are `Tag` rows minted at
+runtime by `db/lib/depotCrates.js` with `custom: true` **and `ephemeral: true`**,
+one per crate, carrying their contents in `Tag.crateContents` and their manifest
+in `description`. `db:prune-tags` skips custom rows, so they survive a prune.
+
+This doc used to claim the row was "deleted once nothing references it any
+more". **That was never true** — nothing deleted it, and every crate ever landed
+was a permanent orphan sitting in the catalog across every game. `ephemeral` is
+the fix; see §5e.
+
+See `docs/systemdocs/DEPOT.md` §0e.

@@ -100,13 +100,23 @@ export const SECTIONS = {
     ),
   },
 
+  // Craft (docs/systemdocs/CRAFTING.md). `payer` and `projectId` are on
+  // every row filed since; an older Add Tag row has neither.
   ADD_TAG: {
-    heading: "Add Tag",
+    heading: "Craft ‡",
     render: ({ effect, edits, setEdit, tagsById }) => (
       <>
-        <Line label="Tag added">
+        <Line label="Made ‡">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
+        {effect.payer && effect.payer.id !== effect.characterId && (
+          <Line label="Paid by ‡">{effect.payer.name}</Line>
+        )}
+        {effect.turnsNeeded > 1 && (
+          <Line label="Work ‡">
+            {effect.turnsNeeded} turns of Moves ‡
+          </Line>
+        )}
         <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <CheckField
           checked={Boolean(edits.removeTag)}
@@ -139,15 +149,42 @@ export const SECTIONS = {
   },
 
   REMOVE_TAG: {
-    heading: "Remove Tag",
-    render: ({ effect, edits, setEdit, tagsById }) => (
+    heading: "Destroy ‡",
+    render: ({ effect, tagsById }) => (
       <>
-        <Line label="Tag removed">
+        <Line label="Destroyed ‡">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
-        <SpendField value={edits.resourcesSpent} onChange={(v) => setEdit("resourcesSpent", v)} />
         <p className="text-xs text-muted">
-          Undo puts the tag back with its original source and expiry, and refunds the cost.
+          Undo puts the tag back with its original source and expiry. ‡
+        </p>
+      </>
+    ),
+  },
+
+  // The one Request a finished build files. Everything renders off the
+  // `effect` snapshot, never live state — the Structure row may already be
+  // gone (undone, torn down) and the card must still say what happened.
+  // Names are snapshots too: a dead contributor still swung the hammer.
+  BUILD_STRUCTURE: {
+    heading: "Build ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Raised ‡">{effect.typeName ?? "—"}</Line>
+        <Line label="Where ‡">{effect.locationName ?? "—"}</Line>
+        {(effect.turnsNeeded ?? 1) > 1 && (
+          <Line label="Work ‡">{effect.turnsNeeded} crew-turns of Moves ‡</Line>
+        )}
+        {(effect.resourcesSpent ?? 0) > 0 && (
+          <Line label="Paid ‡">
+            {effect.resourcesSpent} ⬢{effect.payer?.name ? ` — ${effect.payer.name}` : ""}
+          </Line>
+        )}
+        {(effect.contributors ?? []).length > 0 && (
+          <Line label="Crew ‡">{effect.contributors.map((c) => c.name).join(", ")}</Line>
+        )}
+        <p className="text-xs text-muted">
+          Undo tears it down and refunds the payer. The crew&apos;s spent Moves stay spent. ‡
         </p>
       </>
     ),
@@ -188,11 +225,13 @@ export const SECTIONS = {
     heading: "Transfer Tag",
     render: ({ effect, tagsById }) => (
       <>
-        <Line label="Handed over">
-          <TagStack effect={effect} tagsById={tagsById} /> to {effect.toName ?? "?"}
+        <Line label="Moved">
+          <TagStack effect={effect} tagsById={tagsById} /> from {effect.from?.name ?? effect.fromName ?? "?"} to{" "}
+          {effect.to?.name ?? effect.toName ?? "?"}
+          {effect.to?.kind === "room" ? " · stashed ‡" : effect.from?.kind === "room" ? " · taken from a stash ‡" : ""}
         </Line>
         <p className="text-xs text-muted">
-          Undo moves the tag back to its original holder.
+          Undo moves the tag back to where it came from. ‡
         </p>
       </>
     ),
@@ -388,11 +427,114 @@ export const SECTIONS = {
             (effect.targetName ?? "—")
           )}
         </Line>
+        <Line label="Body">{effect.corpseTagName ?? "—"}</Line>
+        <Line label="Taken from">{effect.source?.name ?? "—"}</Line>
         <p className="text-xs text-muted">
           The body is out of the world — nobody can loot or drag it — and the Cursed role has been
           lifted off the dead player&apos;s Discord account, so they can roll a full character again.
-          Undo raises the body but does <strong>not</strong> re-curse them; re-add the role in
-          Discord if you want that back.
+          Burying spends the filer&apos;s Move and consumes the corpse tag. Undo raises the body and
+          puts the corpse back where it was taken from, but does <strong>not</strong> re-curse them
+          and does not give the Move back; re-add the role in Discord if you want that back. ‡
+        </p>
+      </>
+    ),
+  },
+
+  BUTCHER_CORPSE: {
+    heading: "Butcher ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Body">{effect.corpseTagName ?? "—"}</Line>
+        <Line label="Taken from">{effect.source?.name ?? "—"}</Line>
+        <Line label="Made">{effect.yieldTagName ?? "—"}</Line>
+        {effect.human && effect.deadCharacterId ? (
+          <Line label="Was">
+            <CharacterLink characterId={effect.deadCharacterId} name={effect.deadName ?? "a person"} isGm />
+          </Line>
+        ) : null}
+        <p className="text-xs text-muted">
+          Free — no ⬢ and no Move — and the body is destroyed. Note that butchering someone does
+          <strong> not</strong> free their soul: the Cursed role stays on the dead player&apos;s
+          account, because nobody buried them. Engrave is the way out of that. Undo takes the yield
+          back and puts the body where it came from. ‡
+        </p>
+      </>
+    ),
+  },
+
+  EXTRACT_GODFLESH: {
+    heading: "Extract ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Rolled">{`${effect.die ?? "—"} on 1d6`}</Line>
+        <Line label="Cut with">{effect.tool ?? "—"}</Line>
+        <Line label="Where">{effect.locationName ?? "—"}</Line>
+        <Line label="Got">{`${effect.quantity ?? 0} × ${effect.tagName ?? "Godflesh"}`}</Line>
+        <Line label="Cost them">{effect.injuryTagName ?? "Nothing"}</Line>
+        <p className="text-xs text-muted">
+          A day in the marsh, and it spends the filer&apos;s Move. A 1 rolls the injury table:
+          without Armored Gloves that is fingers or a hand, with them a wound that heals. A 6 is a
+          good seam and pays one extra. Undo takes the Godflesh back and heals whatever it cost
+          them, but the Move stays spent. ‡
+        </p>
+      </>
+    ),
+  },
+
+  PACKAGE_ITEMS: {
+    heading: "Package ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Marked">{effect.label ?? "—"}</Line>
+        <Line label="Holds">
+          {(effect.contents ?? []).map((c) => `${c.name} ×${c.quantity}`).join(", ") || "—"}
+        </Line>
+        <Line label="Weight">{`${effect.innerLbs ?? 0} lb → ${effect.weightLbs ?? 0} lb`}</Line>
+        <p className="text-xs text-muted">
+          Packing halves what a load weighs, which is the only way a wagon of Squeeze reaches the
+          Depot. It needs Packaging Equipment in reach and costs no Move. The crate is an ordinary
+          consumable, so anyone holding it can open it from their own sheet — the line on the side
+          is whatever the packer typed, and it is <strong>not</strong> checked against what is
+          actually in there. Undo prises it open and deletes the crate. ‡
+        </p>
+      </>
+    ),
+  },
+
+  ENGRAVE_HEADSTONE: {
+    heading: "Engrave ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Memorialised">
+          {effect.targetCharacterId ? (
+            <CharacterLink characterId={effect.targetCharacterId} name={effect.targetName ?? "—"} isGm />
+          ) : (
+            (effect.targetName ?? "—")
+          )}
+        </Line>
+        <Line label="Spent">{`${effect.resourcesSpent ?? 0} ⬢`}</Line>
+        <Line label="Left behind">{effect.headstoneTagName ?? "—"}</Line>
+        <p className="text-xs text-muted">
+          A stone instead of a body, for someone whose corpse nobody could find. It frees the soul
+          exactly as burying does — the Cursed role is lifted — and costs the filer their Move as
+          well as the ⬢. The target is <strong>typed</strong>, and matched game-wide rather than in
+          one zone, so check the name is the person they meant. Undo refunds the ⬢, takes the stone
+          back and reopens the grave, but does <strong>not</strong> re-curse them. ‡
+        </p>
+      </>
+    ),
+  },
+
+  BREAK_SEAL: {
+    heading: "Break Seal",
+    render: ({ effect }) => (
+      <>
+        <Line label="Letter">{effect.openedName ?? effect.tagName ?? "—"}</Line>
+        <Line label="Wax">{effect.sealMark ?? "—"}</Line>
+        <Line label="Envelope">{effect.envelopeName ?? "—"}</Line>
+        <p className="text-xs text-muted">
+          They broke the wax and read it. Undo re-seals the letter and takes the spent
+          envelope back — but nothing unreads it. ‡
         </p>
       </>
     ),
@@ -405,14 +547,21 @@ export const SECTIONS = {
         <Line label="To">{effect.recipientName ?? "—"}</Line>
         <Line label="Guessed">{effect.guessedZoneName ?? "—"}</Line>
         <Line label="Arrived">{effect.delivered ? "Yes" : "No — the bird came back"}</Line>
-        {/* The plaintext, always — the DM the player actually received may be
-            enciphered (db/lib/gribble.js) if they can't read, and this is the
-            only surface where what was written is legible. */}
-        <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body ?? ""}</div>
+        <Line label="Letter">{effect.tagName ?? "—"}</Line>
+        {/* A snapshot of what was written, taken at send time. Null when the
+            letter went out sealed — the bird did not open it either, and this
+            desk is a record of what happened rather than an X-ray. The paper
+            itself is on somebody's sheet and a GM can read it there. ‡ */}
+        {effect.body ? (
+          <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body}</div>
+        ) : (
+          <p className="text-xs text-muted">It went out sealed. ‡</p>
+        )}
         <p className="text-xs text-muted">
           One letter a day, to a named person in a GUESSED zone — a wrong guess or a dead
-          recipient means it never arrived, and the sender is told a turn later. Undo hands the
-          day back and closes any reply window, but it cannot unsend a message that landed.
+          recipient means it never arrived, and the paper stays in the sender&apos;s hands. Undo
+          hands the day back and closes any reply window, but it cannot unsend a letter that
+          landed. ‡
         </p>
       </>
     ),

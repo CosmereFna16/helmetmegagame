@@ -47,4 +47,15 @@ function docsPath(...segments) {
   return dir ? path.join(dir, ...segments) : null;
 }
 
-module.exports = { docsPath };
+// Joins onto the repo ROOT — docs/'s parent, found the same way. Used to
+// reach web/public from db/, which only the asset-existence checks in
+// syncTags.js need. Those checks treat a null (or a missing directory) as
+// "cannot verify" rather than as a failure: docs/ is what ships everywhere
+// this code runs, and web/public may not be laid out the same way inside a
+// Next standalone build. A sync must not fail over a check it cannot perform.
+function repoPath(...segments) {
+  const dir = docsDir();
+  return dir ? path.join(path.dirname(dir), ...segments) : null;
+}
+
+module.exports = { docsPath, repoPath };

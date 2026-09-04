@@ -133,6 +133,7 @@ export default function CustomTagDialog({
   return (
     <Modal
       open={open}
+      modeless
       title="Custom tag"
       onClose={() => !pending && onClose?.()}
       actions={<InfoIcon text={TOOLTIP_TEXT} />}

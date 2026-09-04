@@ -34,6 +34,7 @@ export default function ArchiveContextModal({ archiveEntryId, onClose }) {
 
   return (
     <Modal
+      modeless
       title="In context"
       width="wide"
       onClose={onClose}

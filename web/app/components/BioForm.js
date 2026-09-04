@@ -29,6 +29,8 @@ export default function BioForm({
   portraitFantasyPartsEnabled,
   portraitSelection,
   hasCustomAvatar,
+  forcedIdentity,
+  concealGear,
 }) {
   const [state, formAction, pending] = useActionState(updateCharacterProfile, null);
 
@@ -43,6 +45,8 @@ export default function BioForm({
         portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
         portraitSelection={portraitSelection}
         hasCustomAvatar={hasCustomAvatar}
+        forcedIdentity={forcedIdentity}
+        concealGear={concealGear}
       />
       <AppearanceField defaultValue={character.appearance ?? ""} />
       <FormError>{state?.error}</FormError>

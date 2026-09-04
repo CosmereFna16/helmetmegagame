@@ -39,21 +39,28 @@ The wizard has five steps:
    the character sheet shows it disabled with a "make your case to a GM"
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
-4. **Antagonists** — twelve checkboxes, all off, naming the antagonist seats a
-   GM hands out in secret (Succubus, Cultist, the Judge…). Pure consent data:
-   nothing in the game reads `Character.antagonistOptIns`, grants from it or
-   gates on it — it exists so a GM choosing who receives one can tell who is
-   willing. Also **optional** — ticking nothing is a real answer, so
-   `canAdvance` is unconditionally true here too.
+4. **Antagonists** — eleven checkboxes, all off, naming the antagonist seats a
+   GM hands out in secret (the Demoness, the Judge…). Pure consent data:
+   nothing in the game grants from `Character.antagonistOptIns` or gates on it
+   — it exists so a GM choosing who receives one can tell who is willing. Also
+   **optional** — ticking nothing is a real answer, so `canAdvance` is
+   unconditionally true here too.
+
+   **Most of these are decoys.** Only two of the eleven are real seats today,
+   and a GM may hand one to somebody who ticked nothing at all. That is the
+   design: the list tells a player nothing about which threats exist. See
+   `THREATS.md` §1.
 
    Opt-in rather than opt-out deliberately: a player who clicks through without
    reading has consented to nothing. It is **creation-only** — the list is set
    here and `updateCharacterProfile` never reads the key, the same lock `title`
-   uses. There is no GM read/edit surface yet; the values just land on the row.
-   The catalog is `db/lib/antagonists.js` (alphabetized, so catalog order *is*
-   display order), and `normalizeAntagonistSlugs` is the server-side allowlist —
+   uses. A GM reads it on `/gm/dev?s=assignments`, which is the only surface
+   that shows it. The catalog is `db/lib/threats.js` (alphabetized, so catalog
+   order *is* display order — which is also what hides the real seats among the
+   decoys), and `normalizeAntagonistSlugs` is the server-side allowlist —
    a server action is a public endpoint, so the checkboxes are UX and that
-   function is the boundary.
+   function is the boundary. It drops a slug the catalog no longer carries,
+   which is why renaming one needs no data migration.
 5. **Confirm** — a summary, then `createCharacter`.
 
 ## 1b. Names
@@ -88,7 +95,7 @@ the proxy webhook username — and Prisma cannot concatenate columns in
 `OR`-over-three-columns for correctness nobody can see.
 
 Keeping it also means the never-backfilled name snapshots
-(`Note.characterName`, `SiloTransaction.actorName`/`toName`,
+(`Note.characterName`,
 `ArchiveEntry.characterName`, `AuditLog.details`) capture the titled form with
 no code change — correct, since those record who did something *as they were
 known then*.
@@ -147,8 +154,8 @@ the 10-char cap holds with the catalog as it stands.
 | Title | Earned from | MAN / WOMAN / NEUTRAL |
 |---|---|---|
 | Sergeant | tag `sergeant` | one word |
-| Constable | tag `watchman` | one word |
-| Captain | role `captain` | one word |
+| Constable | tag `cerberon` | one word |
+| Censor | role `censor` | one word |
 | Knighthood | tag `knighted` | Sir / Dame / Ser |
 | Nobility | tag `nobility` | Lord / Lady / Noble |
 | The Baron's seat | roles `baron` `baroness` | Baron / Baroness / Baron |
@@ -164,19 +171,19 @@ that; the dropdown picks between Lord and Sir. So `earnedTitles()` returns one
 word per earned title, never three.
 
 Only five titles are gendered at all. Rank and profession say nothing about
-their wearer, which is why Captain, Doctor and Master sit on the flat side —
+their wearer, which is why Censor, Doctor and Master sit on the flat side —
 and every gendered set carries a neutral third, so nobody has to pick a side
 to be styled.
 
 Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a Bishop
-may style themselves Father, Mother or Reverend instead. Same for Captain
-(grants `watchman`) and the Baron's family (grant `nobility`). **Most of
-Ravenheart is untitled** — a peasant earns nothing, and the picker says so
+may style themselves Father, Mother or Reverend instead. Same for Censor
+(grants `cerberon`) and the Baron's family (grant `nobility`). **Most of
+Ravenheart is untitled** — a Commoner earns nothing, and the picker says so
 rather than showing an empty control.
 
 Three titles hang off *purchasable* tags (`sergeant`, `knighted`,
 `medical-skilled`), so they can be bought with points — but each sits behind a
-membership gate already (`general-watch` needs `watchman`, `general-court`
+membership gate already (`general-cerberon` needs `cerberon`, `general-court`
 needs `courtier`), so nobody buys a title cold.
 
 ### Gender
@@ -327,10 +334,10 @@ Worth knowing because it was written and synced for every role and **rendered
 nowhere at all** until that card existed — an edit to `description` used to
 reach no one.
 
-**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Cult of
-Bacchus, the Judge, the NPC monsters, the Brigands — those seats are assigned
+**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Judge,
+the NPC monsters, the Brigands — those seats are assigned
 by hand by a GM and must never appear in the player-facing picker, so they are
-prose in `docs/threats.md` rather than data. They used to sit in
+prose in `db/lib/threats.js` rather than role data (`THREATS.md`). They used to sit in
 `zones[].threats[]`, carrying a full role's worth of fields that no sync ever
 read.
 
@@ -355,14 +362,13 @@ Baron in a 300-player game.
 
 **Who occupies a seat** is `roleCapacity.js#seatHolderStatuses(role)`: a
 living character, normally — the holder dies and the role is offered again,
-which is right for a Bum or a Watchman. The roles in
+which is right for a Bum or a Cerberus. The roles in
 `PERMANENT_SEAT_ROLE_SLUGS` — Gunboat's list: Baron, Baroness, Heir,
-Successor, Hand, Meister, Diplomat, Captain, Incarn, Bishop, Esculap,
-Inquisitor, Headman, Sheriff, Innkeeper, both Brigand roles and every
-Windlands role — count DEAD holders too, so once taken they stay taken for
-the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
+Successor, Hand, Meister, Arbiter, Censor, Incarn, Bishop, Esculap,
+Inquisitor, Headman, Sheriff, Innkeeper and both Brigand roles — count DEAD
+holders too, so once taken they stay taken for the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
 Merchant are unique and deliberately absent) nor a faction — read the
-constant, not a rule. A single-seat role on the list (Diplomat, Sheriff,
+constant, not a rule. A single-seat role on the list (Sheriff,
 Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
 means "a Character row still points at this Role": a GM deleting the dead
 row from the dev panel, or moving the dead holder to another role, frees the
@@ -417,19 +423,22 @@ row still enforces it.
 ### Playtest mode
 
 `GameConfig.playtestModeEnabled` is a second Dev Panel switch, **off** by
-default, that holds part of the roster back for a short test: the **Merchant**
-(unfinished) and **every role in the Windlands**. Their cards still render, just
-disabled, carrying a "closed for this playtest" chip — a locked role is still
-worth reading. Nothing is removed from `docs/roles.yaml`, so flipping the switch
-off restores the roster with no sync.
+default, that can hold part of the roster back for a short test: any role
+matched by slug, plus any role standing in a named zone. Its card still
+renders, just disabled, carrying a "closed for this playtest" chip — a
+locked role is still worth reading. Nothing is removed from
+`docs/roles.yaml`, so flipping the switch off restores the roster with no
+sync.
 
 Which roles it covers lives in `web/lib/characterCreation.js`
 (`PLAYTEST_LOCKED_ROLE_SLUGS`, `PLAYTEST_LOCKED_ZONE_NAMES`), not in the
-database. The Merchant is matched by `Role.slug`; the Windlands are matched by
-**zone name**, because nothing marks a role as a Windlander one — `Role` and
-`Faction` carry no availability column, and the zone holds three separate clan
-factions. `Zone` has no slug, so renaming the zone in `roles.yaml` means moving
-that list with it.
+database — a role is matched by `Role.slug`, a zone by **zone name**,
+because nothing marks a role as belonging to a zone — `Role` and `Faction`
+carry no availability column. `Zone` has no slug, so renaming the zone in
+`roles.yaml` means moving the list with it. `PLAYTEST_LOCKED_ZONE_NAMES` is
+`[]` — it named `["Windlands"]` until that zone came off the map entirely in
+the Bascinet 2 rebuild. The mechanism is live, it just has no target until
+somebody names one.
 
 Same presentation/enforcement split as everything else here: the card is a
 hint, `createCharacter` re-checks. One difference — **a superadmin does not
@@ -475,17 +484,21 @@ wizard, the server action, and the GM panel so the number a player is shown
 and the number the server enforces cannot drift apart.
 
 `Tag.pointCost` is **signed**. Positive costs points; negative *grants* them
-(the drawbacks, Old at `-2` and Frail at `-3`). Summing signed costs means
+(the drawbacks, Old and Frail at `-5` each). Summing signed costs means
 both directions fall out of one subtraction, and `remaining >= 0` is the only
 completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
-At most `GameConfig.maxDrawbackTags` drawback **tags** (default 5, live on
-`/gm/dev`) may be **bought** — a cap on the count of drawback tags held, not
-on the sum of what they grant. The role's own starting tags land as
+Drawbacks face **two** ceilings, and a build stops at whichever it reaches
+first: at most `GameConfig.maxDrawbackTags` of them may be bought (**5** by
+default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
+(**12** by default, matching `startingTagPoints` — you can never claim back
+more than you started with). Both are live on `/gm/dev`. Either alone leaves a
+hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
+alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
-Frail and the Headman's Old cost nobody a slot of the cap. `TAGS.md` §4a is
-the full rule.
+Frail and the Headman's Old count against neither. `TAGS.md` §4a is the full
+rule.
 
 Leftover points are kept, not lost: they land on `Character.tagPoints`.
 
@@ -533,13 +546,20 @@ While cursed, a player may still roll a new character — but only as a
 enforced by `isRoleSelectable`/`computeBudget`, unchanged by this — only
 where the `cursed` boolean they're fed comes from changed).
 
-**Players lift it themselves, by burying the body.** The `BURY_CHARACTER`
-request (`REQUESTS.md` §5d) is the app-side uncurse: anyone standing where a
-corpse lies types that character's first name, and the request removes the role
-from the dead player's Discord account after its transaction commits. That is
-the fiction the setting has always carried — `docs/documents.yaml`'s Respawning
-entry says to wait until your body is buried, and the Mortus role exists to do
-the burying — finally wired to something. A GM can still do it by hand from
+**Players lift it themselves, by burying the body — or, failing that, by
+carving a stone.** Two requests now do it (`REQUESTS.md` §5d,
+[`CORPSES.md`](CORPSES.md)). `BURY_CHARACTER` needs the dead character's actual
+**corpse tag**, held or lying in a room the filer can reach, and spends their
+Move; `ENGRAVE_HEADSTONE` is the answer to a body nobody can find, costing 4 ⬢
+and a Move and matching a **typed** first name game-wide. Either one removes the
+role from the dead player's Discord account after its transaction commits. That
+is the fiction the setting has always carried — `docs/documents.yaml`'s
+Respawning entry says to wait until your body is buried, and the Mortus role
+exists to do the burying — finally wired to something.
+
+**Butchering a corpse does not lift the curse.** Destroying a body is not
+burying it, and that is exactly why Engrave exists: somebody whose corpse was
+cut up and scattered has no body left to bury, and a stone is the only way out. A GM can still do it by hand from
 Discord's member panel; `/gm/dev/characters/[characterId]` shows a read-only
 Cursed status line, with no checkbox to toggle it from the app.
 
@@ -615,7 +635,8 @@ character.
 
 A dead character is not deleted, and their `CharacterTag` and `⬢` stay on the
 row — until somebody buries them. `Character.buriedAt`, set by a
-`BURY_CHARACTER` request, takes the body out of the world: it stops being
+`BURY_CHARACTER` (or `ENGRAVE_HEADSTONE`) request, takes the body out of the
+world: it stops being
 lootable, draggable and bindable, and it drops out of every zone target menu.
 Revive clears it, so a revived character is never a live person marked buried. Anyone standing in the zone the character died in can `TRANSFER_TAG`
 or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift `tradeable` tags or ⬢
@@ -655,7 +676,7 @@ thin member fetch aborts loudly rather than flagging the roster.
 
 Until the countdown runs out, a departed player's character is **ALIVE
 everywhere**: rosters, transfer pickers, their zone. They're incapacitated
-(no Default Move) and lootable-while-alive like any Catatonic character.
+(no auto-labor) and lootable-while-alive like any Catatonic character.
 
 ## 5b. Killing and reviving from the GM panel
 
@@ -684,15 +705,15 @@ dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.
 
-## 6. Special channels (`#watch`, `#intercom`)
+## 6. Special channels (`#cerberon`)
 
 These are the **only** per-member overwrites left in the game: zone access
 rides a role now, but a special channel's grant is still keyed on
 `Character.discordUserId`, reconciled after every zone change, every tag
-change and on character creation. `#intercom`'s *view* is a static grant to the
-six zone roles instead. The rules themselves (who holds which radio tag, the
-Fortress gate) live in one place: **`CHANNELS.md` §7**. They were duplicated
-here and drifted; don't re-add them.
+change and on character creation. The rules themselves (who holds which radio
+tag) live in one place: **`CHANNELS.md` §7**. They were duplicated here and
+drifted; don't re-add them. `#intercom` is gone — the PA is a button on the
+Council Room now (`CHANNELS.md` §7a) and grants nothing to anybody.
 
 ## 7. Sync order
 
@@ -724,5 +745,21 @@ never deletes. See `SYNC.md`.
 | Discord access + death | `web/lib/discordGuild.js` |
 | Name formatting | `db/lib/characterName.js` |
 | Dynasty | `db/lib/dynasty.js`, `web/lib/dynasty.js` |
-| Antagonist catalog | `db/lib/antagonists.js` |
+| Threat catalog | `db/lib/threats.js` (see `THREATS.md`) |
 | Launch gating | `db/lib/roleIds.js`, `web/lib/superadmin.js` |
+
+## Starting obols
+
+A few seats begin the game with coin in their pocket, so the Merchant has
+somebody to trade with on turn one: Baron 25 ¢, Hand 10 ¢, Esculap 10 ¢, and
+Baroness, Heir and Meister 5 ¢ each. The Merchant starts with 20 ¢ and a Depot
+Keycard; every Docker starts with a Keycard. An obol is one ⬢, so those are
+also the ⬢ figures.
+
+These are authored in `docs/roles.yaml` with a **count suffix** —
+`- Obol x25` — parsed by `db/lib/startingTags.js`. A bare name still means one,
+which is every other entry in every other role. Repeating the name five times
+could not work: `createCharacter` resolves the list with `name: { in: [...] }`,
+a set lookup that collapses duplicates.
+
+See `docs/systemdocs/DEPOT.md` §0g.

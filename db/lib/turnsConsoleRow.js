@@ -31,6 +31,6 @@ const TURNS_CONSOLE_ROW = {
 // Sits under the turn announcement, so it reads as "given the above, what
 // now?" rather than as a heading of its own.
 const CONSOLE_TEXT =
-  "-# Moves take effect next turn • Traveling spends your turn • Speaking sends a message in a channel without showing you typing.";
+  "-# Moves take effect next turn • Crossing a zone is free once a turn, then it spends your Move • Speaking sends a message in a channel without showing you typing. ‡";
 
 module.exports = { TURNS_CONSOLE_ROW, CONSOLE_TEXT };

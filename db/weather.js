@@ -6,7 +6,7 @@ const { turnEndsAt, moveWindow, epochSeconds } = require("./lib/turnClock");
 // game's baseline condition.
 const WEATHER_WEIGHTS = { CLEAR: 48, FOG: 25, RAIN: 17, STORM: 10 }; // sums to 100
 
-// Weather rolls every turn (twice a day — see advanceTurn() in
+// Weather rolls every turn (once a day — see advanceTurn() in
 // db/index.js), as a Markov transition off the *previous turn's* weather,
 // split into a DAWN table and a DUSK table so the roll also depends on
 // which phase is being entered. Every row in both tables sums to 100.
@@ -69,10 +69,10 @@ function rollWeather(previousWeather, phase) {
   return rollFromWeights(weights);
 }
 
-// Turns advance at 0:00 and 12:00 America/Chicago (bot/src/events/ready.js's
-// cron schedule), strictly alternating DAWN/DUSK — a DAWN turn always opens
-// at noon and runs until midnight the same day, a DUSK turn always opens at
-// midnight and runs until noon the same day. The announcement renders this as a
+// Turns advance at 0:00 America/Chicago (bot/src/events/ready.js's cron
+// schedule), once a real day, strictly alternating DAWN/DUSK — every turn opens
+// at midnight and runs until the next midnight, so an in-game day (a DAWN and
+// the DUSK after it) spans two real days. The announcement renders this as a
 // Discord <t:EPOCH:t>/<t:EPOCH:R> tag (per-viewer local time + relative
 // countdown), which needs an actual Unix epoch rather than a text label.
 //

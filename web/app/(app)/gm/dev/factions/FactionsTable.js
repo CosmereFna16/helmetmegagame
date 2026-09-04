@@ -3,7 +3,6 @@
 import SubmitButton from "@/app/components/SubmitButton";
 import Select from "@/app/components/Select";
 import ZoneChip from "@/app/components/ZoneChip";
-import CheckField from "@/app/components/CheckField";
 import { EmptyRow } from "@/app/components/EmptyState";
 import {
   useTableState,
@@ -14,16 +13,18 @@ import {
 import Pager from "@/app/components/Pager";
 // A "use server" module imported into a client component — the supported
 // pattern (ConversationPane.js does the same with its own actions module).
-import { updateFaction, deleteFaction } from "../actions";
+import { updateFaction, deleteFaction, assignFactionMember } from "../actions";
+import CheckField from "@/app/components/CheckField";
+import CharacterLink from "@/app/components/CharacterLink";
 
-const COL_COUNT = 6;
+const COL_COUNT = 7;
 
 const SEARCH_FIELDS = [(f) => f.name];
 
-// Modest by design: name search and name/silo sort, nothing more — the row
+// Modest by design: name search and name sort, nothing more — the row
 // itself is the interesting part (the inline-edit form below), not the list
 // mechanics around it.
-export default function FactionsTable({ rows }) {
+export default function FactionsTable({ rows, rooms = [], members = [], applications = [] }) {
   const table = useTableState({
     rows,
     searchFields: SEARCH_FIELDS,
@@ -51,7 +52,8 @@ export default function FactionsTable({ rows }) {
             <SortHeader label="Name" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
             <th scope="col">Zone</th>
             <th scope="col">Parent</th>
-            <SortHeader label="Silo" sortKey="silo" sort={table.sort} onSort={table.toggleSort} />
+            <th scope="col">Silo</th>
+            <th scope="col" title="✦ marks a faction a player founded in play">Members</th>
             <th scope="col" aria-label="Save" />
             <th scope="col" aria-label="Delete" />
           </tr>
@@ -87,22 +89,22 @@ export default function FactionsTable({ rows }) {
                     ))}
                 </Select>
               </td>
+              {/* The silo pointer. Re-pointing it moves nothing — the old
+                  room keeps whatever is in it. */}
               <td>
-                <input
-                  type="number"
-                  name="silo"
-                  defaultValue={f.silo}
-                  form={`faction-${f.id}`}
-                  className="control w-24"
-                />
-                {/* The checkbox only, no cover-story fields — three more text
-                    inputs on every row would drown the table, and this is the
-                    blunt correction tool. A quiet move that needs a plausible
-                    cover story is a transfer, and every transfer dialog offers
-                    the full block (web/app/components/QuietSiloFields.js). */}
-                <CheckField name="siloQuiet" form={`faction-${f.id}`}>
-                  Quiet ‡
-                </CheckField>
+                <Select name="siloRoomId" defaultValue={f.siloRoomId ?? ""} form={`faction-${f.id}`}>
+                  <option value="">None</option>
+                  {rooms.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.zoneName} · {r.locationName} · {r.name}
+                      {r.locked ? " (locked)" : ""}
+                    </option>
+                  ))}
+                </Select>
+              </td>
+              <td className="mono">
+                {f.memberCount}
+                {f.foundedInPlay ? <span title="Founded in play, not from roles.yaml"> ✦</span> : null}
               </td>
               <td>
                 {/* Outside its <form> (wired by form={...}), so useFormStatus
@@ -137,6 +139,81 @@ export default function FactionsTable({ rows }) {
         unit="factions"
         onPage={table.setPage}
       />
+
+      {/* The member mover. The player-facing actions all refuse to act
+          outside your own faction, which is the check a GM is here to skip —
+          so this posts its own action rather than reusing one of theirs. */}
+      <section className="panel flex flex-col gap-3 p-3">
+        <h2 className="panel-header">Move somebody</h2>
+        <form action={assignFactionMember} className="flex flex-wrap items-end gap-2">
+          <label className="field">
+            <span className="field-label">Character</span>
+            <Select name="characterId" required defaultValue="">
+              <option value="" disabled>
+                Choose a character…
+              </option>
+              {members.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.isLeader ? " ⚑" : c.isTreasurer ? " ⚜" : ""}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="field">
+            <span className="field-label">Faction</span>
+            <Select name="factionId" required defaultValue="">
+              <option value="" disabled>
+                Choose a faction…
+              </option>
+              {rows.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <CheckField name="isLeader" value="true">
+            Leader
+          </CheckField>
+          <CheckField name="isTreasurer" value="true">
+            Treasurer
+          </CheckField>
+          <SubmitButton pendingLabel="Moving…">Move</SubmitButton>
+        </form>
+        <p className="text-xs text-muted">
+          Making somebody Leader demotes whoever held it. Any handshake they had open is dropped. ‡
+        </p>
+      </section>
+
+      {/* Read-only. Answering an application for a faction would be answering
+          for its officers; the mover above is the GM's way in. */}
+      <section className="panel flex flex-col gap-3 p-3">
+        <h2 className="panel-header">Pending applications ({applications.length})</h2>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Character</th>
+              <th>Faction</th>
+              <th>Direction</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {applications.map((a) => (
+              <tr key={a.id}>
+                <td>
+                  <CharacterLink characterId={a.characterId} name={a.characterName} isGm />
+                </td>
+                <td>{a.factionName}</td>
+                <td>{a.kind === "INVITE" ? "Invited by the faction" : "Asked to join"}</td>
+                <td className="text-muted">{a.note || "—"}</td>
+              </tr>
+            ))}
+            {applications.length === 0 && <EmptyRow cols={4}>None.</EmptyRow>}
+          </tbody>
+        </table>
+      </section>
     </>
   );
 }

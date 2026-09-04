@@ -3,8 +3,8 @@ const { prisma, SPECIAL_CHANNELS } = require("@lifeweb/db");
 
 // Tupper/summary status is channel-ID-based (see channelIds below) — a
 // channel opts in by being a zone's #summary or a Location's own channel,
-// provisioned by db/lib/syncZones.js — plus the special channels (#watch,
-// #intercom, #mindlink, db/lib/specialChannels.js), which are tupper-only,
+// provisioned by db/lib/syncZones.js — plus the special channels (#cerberon,
+// db/lib/specialChannels.js), which are tupper-only,
 // never summary: they aren't tied to a place, so there's no zone adjudication
 // result to post there.
 

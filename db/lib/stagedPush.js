@@ -22,16 +22,20 @@ const NO_NOTES_TAIL =
   "receive adjudications, typically. If you need additional information or " +
   "believe this was in error, message the GMs.*";
 
-// The Routine close DM. Mirrors the Default Move DM (db/lib/defaultMovePass.js)
+// The Routine (and Labor) close DM. Mirrors the auto-labor DM (db/lib/autoLaborPass.js)
 // and is the only place a hand-filed Routine's payout is reported, since
 // nothing pays at confirm. sendDm writes the » prefix, so don't write one here.
 function formatRoutineCloseDm(turn, action, applied, adjudicated) {
   const effects = describeMoveEffects(applied);
+  const kind = action.moveKind === "LABOR" ? "Labor" : "Routine";
   const lines = [
-    `*Your Routine for turn ${turn.number}.*`,
+    `*Your ${kind} for turn ${turn.number}.*`,
     `» ${action.description}`,
     ...(effects ? [`**Applied:** ${effects}`] : []),
-    ...(action.resourceRollValue != null
+    // A refining shift pays no ⬢ and its range is a literal 0-0, so this
+    // line would only ever read "+0 ⬢". A range that cannot pay is not
+    // information (docs/systemdocs/FACTORY.md §4).
+    ...(action.resourceRollValue != null && action.resourceRollExpression !== "0-0"
       ? [
           `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
         ]
@@ -80,8 +84,8 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
       snapshot.resources = await addResources(tx, row.targetCharacterId, resources);
     }
 
-    // A party-to-party transfer, staged from the tray's composer or the
-    // FactionsPanel's Silo control. Mutually exclusive with `resources`.
+    // A party-to-party transfer, staged from the tray's composer. Mutually
+    // exclusive with `resources`.
     // Applied blind from the snapshot taken at staging time: if the party was
     // deleted since, InsufficientResourcesError stands in and stamps the row
     // Errored rather than silently dropping the ⬢.
@@ -98,10 +102,6 @@ async function applyOneStagedEffect(prisma, row, turn, equipSlots) {
           turnNumber: turn.number,
           turnPhase: turn.phase,
           note: `Staged transfer, turn ${turn.number}`,
-          // A quiet transfer hides the real Silo row from the faction's own
-          // officers and puts the cover story there instead.
-          hidden: transfer.hidden === true,
-          cover: transfer.cover ?? null,
         },
       });
       snapshot.transfer = transfer;
@@ -253,8 +253,11 @@ async function runStagedPushPass(prisma, turn, config) {
   // Independent of the routine-closing logic below: the die was already
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.
+  // A lesson's Gambit is excluded: the lesson pass (db/lib/lessonPass.js)
+  // already told the learner the die AND what it did, in one line.
   const gambitRollNotices = [];
   for (const action of unapplied) {
+    if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,
@@ -302,11 +305,14 @@ async function runStagedPushPass(prisma, turn, config) {
           (e) => e.targetCharacterId === action.characterId,
         );
         // Neither suppresses the DM, only its "no notes" tail. The remaining
-        // skip is the "auto:" family (Default Move / travel stub each send
+        // skip is the "auto:" family (auto-labor / travel stub each send
         // their own DM) — reads pre-update gmNotes so the auto:silent_close
         // appended above can't mute the notice it's meant to accompany.
+        //
+        // LABOR closes the same way a Routine does: it is never arbitrated,
+        // but the player still needs to be told what their day paid.
         if (
-          action.moveKind === "ROUTINE" &&
+          (action.moveKind === "ROUTINE" || action.moveKind === "LABOR") &&
           !(action.gmNotes ?? "").includes("auto:") &&
           action.character?.discordUserId
         ) {

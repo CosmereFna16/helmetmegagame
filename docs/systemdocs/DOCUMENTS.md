@@ -34,8 +34,8 @@ cards, in four tabs:
   GMs** — those who hold the GM role and hold **no zone seat at all**
   (`getMyZones().length === 0`). A GM seated anywhere, in one zone or several,
   never sees this tab. A secret document can
-  also be assigned via tags, so a player with the `Cultist` tag still sees the
-  cult briefs in their Assigned tab — the two paths are independent.
+  also be assigned via tags, so a player with the `Demoness` tag still sees the
+  Demoness brief in their Assigned tab — the two paths are independent.
 - **ALL** — every written document in the game, on the same Discord-role gate
   as GAMEMASTER and likewise absent for a player. A GM's overview rather than
   anyone's folder, so its source line answers a different question from the

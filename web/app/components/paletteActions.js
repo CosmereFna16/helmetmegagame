@@ -27,6 +27,7 @@ const GENERIC_PAGES = [
 const GM_PAGES = [
   { label: "Players", href: "/gm/players" },
   { label: "Adjudicate", href: "/gm/turns" },
+  { label: "Structures", href: "/gm/structures" },
   { label: "Dev Panel", href: "/gm/dev" },
   { label: "Dev · Characters", href: "/gm/dev/characters" },
   { label: "Dev · Factions", href: "/gm/dev/factions" },

@@ -7,7 +7,7 @@ rule after the first playtest broke the old flow:
 
 A player locks in a Move; GMs spend the day *staging* — the canonical result,
 private messages, public declarations, mechanical adjustments — all of it
-freely editable until the turn-end cron (12:00/00:00 America/Chicago,
+freely editable until the turn-end cron (00:00 America/Chicago, nightly,
 `TURN-ENGINE.md`) applies and delivers everything in one push. No more
 resolve-a-move, DM-a-player, resolve-the-next drip: the whole turn lands at
 once, for everyone.
@@ -22,7 +22,7 @@ day of work survives a refresh):
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`**. The composer requires a real, standable zone (the `Caves` group seat is excluded from the picker), so a row always has one to post to. If that zone's summary channel isn't configured, the post is skipped and recorded on `deliveryFailures` — never lost. A post survives the Dawn wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). |
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
-| **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount, hidden?, cover? } }`, mutually exclusive with `resources` | A party-to-party ⬢ move, not a mint/burn from nowhere — either end may be a character or a faction Silo, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive the player's `TRANSFER_RESOURCES` request and every GM transfer surface use). `targetCharacterId` is nullable to allow **Silo → Silo**: it files the row under the character end if there's exactly one, the recipient if both ends are characters, and null otherwise. Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. When either end is a Silo the composer also offers the **quiet adjustment** block (`FACTIONS.md` §5a): `hidden` keeps the real Silo row off `/faction`, and `cover` is the fiction shown in its place at the same amount. Both are snapshotted into the payload at staging time and passed straight to `writeSiloRows` at the push — never re-derived. A quiet row reads `· quiet ‡` on the tray and in the push preview. |
+| **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive the player's `TRANSFER_RESOURCES` request and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
 ### Long messages split; they are never truncated
 
@@ -93,7 +93,7 @@ tray as "unattached" for the GM to keep or drop.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
   `auto:silent_close` appended to `gmNotes` and pays its declared numbers.
 - **Every Routine gets a close DM**, whatever its review status, built to
-  match the Default Move DM: the description, `**Applied:** …`, and the
+  match the auto-labor DM: the description, `**Applied:** …`, and the
   resource roll. This is the *only* place a hand-filed Routine's payout is
   reported — nothing pays at confirm — so a player who declared used to learn
   less about their turn than one who slept through it. A **tail** ("passed
@@ -222,6 +222,13 @@ call site follows success with `refresh()` and the pair meant rendering
   `web/app/api/move-lock/release/route.js`). Every card's meta line under the
   name leads with `roleTitle` (Move/Request/Caving desks alike), so who's
   acting reads at a glance before you open anything.
+- **The composers do not cover the desk.** Every staging dialog here — message,
+  declaration, effect, transfer, and the push preview — is **modeless**
+  (`DESIGN-SYSTEM.md` §8): no backdrop, clicks pass through, and the header
+  drags, so a GM can pull someone up in the inspector while writing about them.
+  Escape only closes one while focus is actually inside it. Under 1024px they
+  revert to ordinary blocking modals. ‡
+
 - **Inspector** — *"quickly pull up the guy he was talking to"*. Every
   character name in the workspace is a click target that swaps the column to
   that character: Sheet (live facts + gambit modifier), Tags, **Moves**, their
@@ -264,7 +271,7 @@ keeps itself current and stays reachable from the keyboard:
   a modal is open, while any panel holds unsaved edits
   (`useDirtyGuard.js#isAnyDirty`), or while the tab is hidden — a GM
   mid-sentence never gets the page yanked out from under them. The header
-  carries an "updated HH:MM" stamp, a **countdown** to the next noon/midnight
+  carries an "updated HH:MM" stamp, a **countdown** to the nightly midnight
   CT push, and an `N/M solved` progress chip.
 - The poll is **version-aware** (`useDeskVersion.js` + `/api/desk-version` +
   `web/lib/deployVersion.js`): it only calls `router.refresh()` after the
@@ -363,7 +370,51 @@ are otherwise as documented in `REQUESTS.md`, including the `changed`
 field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 `request_reviewed` audit row.
 
-## 6. Where the code lives
+## 6. Structures at the desk
+
+Damage, Repair, Destroy and Clear are a GM's ruling on a built thing — never a
+Request, and never staged for the push. `/gm/structures` is a GM-visible page
+reachable through ⌘K; it carries no rail item of its own.
+
+All four are **immediate microactions**, the Dev Panel posture: a conditional
+`updateMany` claims the row (so two GMs clicking at once land exactly one
+change), each writes one `AuditLog` row (`structure_damaged` /
+`structure_repaired` / `structure_destroyed` / `structure_cleared`), speaks an
+ambient line into the structure's Location channel, and — Damage, Repair and
+Destroy only, not Clear — DMs the structure's contributors and payer
+(`stakeholderCharacterIds`, `db/lib/structures.js`). Clearing a wreck sends no
+DM: the stakeholders already heard about the destruction or abandonment, and
+"the rubble was tidied" is not news anyone needs.
+
+**Destroy** takes any of the three present statuses
+(`UNDER_CONSTRUCTION`/`COMPLETE`/`DAMAGED`) to `RUINED`. Sabotaging a site
+still under construction destroys the work done, never silently — the crew
+still get the destruction DM, same as a finished structure's contributors. If
+the structure held a `LocationLink` edge (`Structure.linkId`) and nothing else
+in `HOLDS_EDGE` still holds it, the edge reverts to its born (`authoredOpen`)
+state and both endpoints' anchors are reposted.
+
+**Player demolition is a GAMBIT adjudicated at the desk, never an apply-first
+Request.** The GM resolves the die, stages the public outcome through the
+ordinary composer (§1), and clicks Destroy (or Damage, for a lesser outcome)
+on `/gm/structures` in the same sitting — the ruling and its mechanical
+consequence happen together, by hand.
+
+**The two-turn siege.** An assault on a structure or a shut gate is staged as
+a PUBLIC declaration into the defenders' `#summary` on turn N; it can only
+resolve turn N+1, never the same turn — Moves lock at 21:00 CT and a sleeping
+defender has to get their hours before the blow lands. The Destroy confirm
+dialog on `/gm/structures` restates the rule at the point of clicking, so the
+GM working the desk sees it again right before committing.
+
+**The Move card's "Standing here:" line**
+(`web/lib/moveRows.js#standingHereLines`) prints each structure's
+`defenseNote` only while it is `COMPLETE` or `DAMAGED` — a ruin never grants
+its clause. This is the siege licence in practice: the Battering Ram's note is
+what makes storming a shut gate adjudicable at all, and it stops being
+adjudicable the moment the Ram is a ruin.
+
+## 7. Where the code lives
 
 | File | Role |
 |---|---|

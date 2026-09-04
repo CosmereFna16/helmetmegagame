@@ -30,7 +30,7 @@ signed off yet, and it stays there until Bascinet replaces the words.
 **Where it goes.** At the very end of the string, after the final punctuation.
 **One per string, not one per sentence** — a three-sentence tag description gets
 exactly one ‡, at the end. A multi-block document marks per rendered block, the
-way `docs/threats.md` already does. It sits *after* the other glyph
+way `docs/handbook.md` already does. It sits *after* the other glyph
 conventions rather than displacing them: a line ending in `3 ⬢` becomes
 `3 ⬢ ‡`, and a `»` quote line keeps its prefix.
 
@@ -46,11 +46,13 @@ is Bascinet's signal, not yours.
 - `docs/systemdocs/*` and this file — internal reference, not game text. (A
   few marks already sit in `DESIRES.md` and `TAGS.md` §4a. Those are an older,
   narrower use — a drafted *rule* awaiting sign-off, not copy — and they stay.)
-- Commit messages, and your replies in chat.
+- Commit messages, `CHANGELOG.md`, and your replies in chat. The changelog is
+  internal reference like `docs/systemdocs/*`, and its entries are commit
+  subjects, so it is exempt twice over. Never mark it.
 
 **Never put one in a value something matches on.** This is the caveat that keeps
 the directive from breaking the game. No ‡ in a slug, an id, an enum value, a
-`{resource:…}` or `{partysize:N}` token, a Discord channel or role name, or any
+`{resource:…}` token, a Discord channel or role name, or any
 string a sync or a lookup compares. Those are keys, not prose. A tag's `name` is
 safe, because the catalog matches on `slug`; a Zone's Discord role title is not,
 because the channel doctor matches on it.
@@ -143,6 +145,27 @@ otherwise serialize writers. That matters more here than in most repos, because
 several sessions share this one checkout — see the local verification note under
 **Commands** for how quickly it moves underneath you.
 
+### When Bascinet says "verify"
+
+"Verify" is a specific request, not a vague one. Dispatch **two Opus subagents
+in parallel**, both read-only, both pointed at the work just finished. Keep each
+one small and quick — a bounded look, not a full audit. Then read both returns,
+resolve any conflict yourself, and report.
+
+**Subagent A — REVIEW.** Three questions:
+
+1. What would a player find weird, annoying, or confusing about this?
+2. Does this break any other system we might not have noticed?
+3. Does it hold up at the edges — 100+ players, a dead or Catatonic character, an
+   empty zone, a turn already open, a GM mid-adjudication?
+
+**Subagent B — SIMPLIFY.** One question: is anything here unnecessary? This
+codebase grows by accretion, so look for the duplicated helper, the flag nobody
+reads, the state that could be derived, the abstraction with one caller. Say what
+could be deleted outright.
+
+Both return findings with `file:line` evidence, not impressions. Neither writes.
+
 ## What this file is
 
 This file is the map, plus the rules that apply everywhere. Each game system
@@ -195,7 +218,7 @@ you pick the right doc — they are never enough to change code with.
 |---|---|
 | [`ARCHITECTURE.md`](docs/systemdocs/ARCHITECTURE.md) | You're deciding where a new module goes, or touching anything that talks to Discord from both faces |
 | [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
-| [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, default moves, weather, the side-effect thunk |
+| [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, auto-labor, weather, the side-effect thunk |
 | [`LAUNCH.md`](docs/systemdocs/LAUNCH.md) | You're opening a game or running a Restart Game wipe — the order that keeps players from being locked out |
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
@@ -206,29 +229,33 @@ you pick the right doc — they are never enough to change code with.
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
-| [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, the Reply window, or the **Literate cipher** (`db/lib/gribble.js`) that any future literacy feature should reuse |
+| [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
+| [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
-| [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, the Silo, or Leader/Treasurer authority |
+| [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
-| [`PRODUCTION.md`](docs/systemdocs/PRODUCTION.md) | You're touching `/hunt` `/fish` `/farm` `/herd`, payouts, or resource shorthand |
-| [`PARTY-SIZE.md`](docs/systemdocs/PARTY-SIZE.md) | You're touching the Cult of Bacchus's party goals or the `{partysize:N}` token |
+| [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
+| [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
+| [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
+| [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
+| [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
+| [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
+| [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
 | [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
 
 Other reference docs, outside `systemdocs/`:
 
 - `docs/lore.md` — the setting.
-- `docs/threats.md` — the antagonist seats. It briefs 8 of them, while
-  `db/lib/antagonists.js` ships 12 opt-in entries.
 - `docs/handbook.md` — the player handbook, read at runtime by the web app
   (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
   live surfaces: the pinned "Player Handbook" card on `/documents` and the
@@ -294,18 +321,16 @@ npm run db:backup                    # Railway volume backup, now. Needs
 # individual scripts exist for one master at a time. See SYNC.md.
 npm run db:sync                      # zones, narrowcast channels, tags,
                                      #   roles, desires, documents.
-                                     #   `-- --seed-silos` re-seeds every Silo.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   Locations, Rooms, their channels/
                                      #   threads + roles)
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
-npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced;
-                                     #   `-- --seed-silos` re-seeds every Silo)
+npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
 npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
                                      #   retires a template absent from the
                                      #   YAML — see DESIRES.md §10)
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
-npm run db:sync-narrowcast-channels  # #watch/#intercom provisioning + reconcile.
+npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
                                      #   Run AFTER db:sync-zones.
 npm run db:rebuild-info-channel      # destructive rebuild of #info
 
@@ -321,6 +346,14 @@ npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
 npm run db:prune-orphan-roles        # deletes Discord character roles no living
                                      #   character claims. DRY RUN unless given
                                      #   `-- --apply`. Guards the 250-role cap.
+                                     #   `-- --include-catatonic` also accepts
+                                     #   the Catatonic repaint, which can never
+                                     #   match the normal signature.
+npm run db:prune-stale-channels      # deletes categories, channels and zone/
+                                     #   location roles from a PREVIOUS game
+                                     #   that no DB row references. db:sync-
+                                     #   zones cannot see these. DRY RUN unless
+                                     #   given `-- --apply`.
 npm run db:report-inactive-characters  # read-only inactivity report
 npm run db:open-rp-channels          # between games: open every roleplay
                                      #   channel to the guild. DRY RUN unless
@@ -440,21 +473,21 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 
 | Role | Source | What it gates |
 |---|---|---|
-| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`/`#intercom`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
-| **Location role** | `Location.discordRoleId`, one per Location ("Location: Square"), created by `db:sync-zones` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change (`db/lib/locationMove.js`); reconciled by the channel doctor. |
-| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone and Location roles** instead (`CHANNELS.md` §3). |
+| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
+| **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
+| **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var | `/gm` pages, the `/gm` and `/message` slash commands. Checked via REST (`isGm`), not stored on any model. |
 | **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may create a character, paired with `GameConfig.openToPlayers` (`CHARACTERS.md` §4b). |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick a role flagged `leader: true` at character creation — unless `GameConfig.leaderWhitelistEnabled` is switched off on `/gm/dev` (`CHARACTERS.md` §2). |
-| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), plus the 🌬️ whisper. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
+| **Cursed role** | `DISCORD_CURSED_ROLE_ID` env var | What a player may re-roll as after a death (`CHARACTERS.md` §4), **and** the ghost seat: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 One more gate exists that is **not** a Discord role, and it's the only soft
 one in the app. `GmAssignment` (one row per seat, keyed on the pair
 `discordUserId` + `zoneId`, set from `/gm/gamemasters`) seats a zone-GM over
-one or more of the four **seat** zones — Town, Fortress, Windlands, Caves,
-never one of the three cave levels. All it does is decide which zones that GM's
+one or more of the six **seat** zones — Town, Fortress, Forest, Black Hills,
+Marshes, Underground — never one of the two cave levels. All it does is decide which zones that GM's
 tables *open* on. No query is scoped by it, and no row is hidden — a Move
 crosses zones by nature, so hiding rows would break the job. Every other row in
 the table above is real enforcement; this one is just convenience. Read
@@ -546,6 +579,22 @@ Move-declaration DM uses it to explain Routine/Gambit under the
 dropdowns. Use it sparingly: it's for explaining a control, not for
 footnoting prose.
 
+**A line the WORLD says into a channel is `-#` subtext, and it goes through
+`db/lib/ambientLine.js`.** A gate crossing into a zone's `#summary`, a smell in
+a Location, a whisper overheard in a Room, somebody moving goods around a
+stash — all of it is scenery. It arrives unprompted, often mid-scene, and
+full-size bot text competing with player prose read as an interruption. Subtext
+sits under the conversation instead of in it. Two things are easy to get wrong
+by hand and the helper handles both: `-#` is **per line**, so a multi-line block
+needs the prefix on every line, and there is still only **one ‡ per message**,
+at the very end.
+
+**The intercom is the deliberate exception** (`db/lib/intercom.js`). A PA is
+not scenery, it is a loudspeaker, and it carries an `@here` — delivering the
+loudest notification Discord has in the quietest text it renders was
+backwards. Full size, no helper. If something else ever needs to be *heard*
+rather than noticed, it belongs on that side of the line too.
+
 Lines that quote or restate player/character content get a `»` prefix — e.g.
 `» {move description}`. `web/lib/discordGuild.js#sendDm` adds that prefix
 **automatically** to every DM a GM sends a player, so those callers pass raw
@@ -559,7 +608,7 @@ they're mixed with other formatting (zone, dice roll) that doesn't go through
 it**. This applies everywhere text is written: the YAML masters, bot/DM
 strings, and the web UI.
 
-- Prose that names Resources (or the Silo) **as a concept** uses the plain
+- Prose that names Resources **as a concept** uses the plain
   word and no glyph: "you are only limited by your Resources".
 - Anywhere a **quantity** is shown, drop the word and write `{number} ⬢`:
   `0–4 ⬢`, `3 ⬢`, `+5 ⬢`, `30 ⬢ flat`. Never `3 Resources ⬢`.
@@ -567,11 +616,10 @@ strings, and the web UI.
   `<th>Resources</th>` over cells reading `12 ⬢` — never the other way
   around. A number `<input>` just gets a plain label.
 
-Two exceptions. A `{resource:…}` bubble already renders its own glyph via
-`ResourceChip.js`, so never write a glyph after one. `PartySizeChip.js` is
-the opposite case and carries **no** glyph, because a party threshold is a
-count of people, not a currency. Also, literal syntax a player is meant to
-*type* (`/move`, `/conceal`) is quoted as-is. The glossary line in
+One exception. A `{resource:…}` bubble already renders its own glyph via
+`ResourceChip.js`, so never write a glyph after one. Also, literal syntax a
+player is meant to *type* (`/move`, `/conceal`) is quoted as-is. The glossary
+line in
 `docs/systemdocs/infochannel.yaml` is, on purpose, the one place the glyph is
 introduced to players.
 
@@ -669,6 +717,67 @@ hours ago.
 **Pushing to `master` is a deploy.** Read the next section before pushing
 anything that carries a schema change.
 
+### The changelog
+
+**Every push writes an entry in `CHANGELOG.md` and posts the same entry to
+Discord.** `npm run push` does both for you — the entry is written *before* the
+commit, so it rides along inside that commit instead of trailing behind in a
+second one, and the Discord post goes out after the push succeeds.
+
+**The changelog is GM-facing, and it says what changed in the game — never
+which files moved.** A path means nothing to a GM. Write the sentence you would
+say out loud: "the good labor spots now wear out as they are worked", not
+`✎ db/lib/autoLaborPass.js`. The heading is that sentence; each note under it is
+one more.
+
+```
+npm run push -- "Subject" "a note" "another note"   # commit, push, log, announce
+npm run push -- "Subject" --hidden                  # push, log nothing, say nothing
+npm run changelog                                   # log HEAD + announce, for a hand commit
+npm run changelog -- --dry-run                      # preview the CHANGELOG.md entry
+npm run changelog -- --announce --dry-run           # preview the Discord message
+```
+
+The first argument is the heading. Every plain argument after it is one note.
+Three glyphs, and a note with none is a change:
+
+```
+## 2026-09-03 · Laboring wears the good spots out
+
+✎ The best labor Locations now drift down as they are worked, so nobody camps one
+✚ A Labor? button on the turn console
+− The old /labor command
+```
+
+A note may lead with its own glyph — `"+A Labor? button"`, `"-The old /labor
+command"`, plain text for `✎`. The glyphs are `✚ − ✎` rather than `+ - ~`
+because none of those three is a Markdown list marker, so the lines render
+literally with no code fence around them — and prose inside a fence does not
+wrap, which is the whole reason the old file-list format could get away with
+one.
+
+Commit by hand and nothing is logged, so run `npm run changelog` afterwards. It
+reads HEAD, and takes its notes from the **commit message body** — any body line
+starting with a glyph, a `-` or a `*`.
+
+**Two things stay out of it.**
+
+- **`--hidden`.** If Bascinet says a push is hidden, pass `--hidden` (or
+  `--secret`) and nothing is written and nothing is posted. There is no partial
+  version — a heading alone still tells the GMs something happened.
+- **Lore and antagonists, by default.** A push touching `docs/lore.md`,
+  `docs/archive/`, `db/lib/threats.js` or `docs/systemdocs/THREATS.md` is held
+  back on its own, with a line printed saying so. The GMs get briefed on that
+  material deliberately and in order, not by changelog. `--tell-gms` overrides it for the
+  odd case where the change really is theirs to see. The same applies to your
+  own wording: don't describe a secret in a note about some other file.
+
+The Discord half is **best-effort and never fails the push** — a missing
+`DISCORD_TOKEN` or a Discord outage prints a warning and the run stays green.
+The channel id is hardcoded in `scripts/changelog/log.js` for the reason
+`db/lib/roleIds.js` gives: a channel id is not a secret, there is one guild, and
+a missing env var would have failed silently.
+
 ## Deploy workflow
 
 Unless the user says otherwise, after finishing a set of changes, run
@@ -758,6 +867,9 @@ global CLIs. To make one able to build, run, and deploy:
   `ActionStatus.ADJUDICATED`. `TagSource.DESIRE_REWARD` and
   `TagSource.LEADER_GRANT` are the same shape from an earlier tag-sourcing
   design — declared in the enum, written and read nowhere.
+  `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
+  stays in the schema, but nothing reads or writes it since the Cult of
+  Bacchus was archived (`docs/archive/bacchus.yaml`).
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
@@ -765,6 +877,12 @@ global CLIs. To make one able to build, run, and deploy:
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
+  `FactionApplication_pending_unique` is the same shape of ghost: a PARTIAL
+  unique index (`WHERE status = 'PENDING'`), which Prisma's schema language
+  cannot express. Decline that drop too — without it a character could hold
+  two live applications to one faction. `ThreatSpawn_pending_unique` is the
+  third of these, and the same answer: without it a player could hold two live
+  spawn offers (`THREATS.md` §4).
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

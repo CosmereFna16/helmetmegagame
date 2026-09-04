@@ -1,8 +1,10 @@
 const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
+const { presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
+const { babble, speaksBabble, STUPID_SLUG } = require("@lifeweb/db/lib/babble");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
@@ -92,36 +94,44 @@ function attachmentPlaceholders(message) {
   );
 }
 
-function avatarUrlFor(character) {
-  const base = process.env.WEB_BASE_URL;
-  if (!base) return undefined;
-  return `${base}/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
-}
-
-// The silhouette every concealed message posts under — deliberately
-// identical for everyone, since a per-character avatar would be a fingerprint.
-function concealedAvatarUrl() {
-  const base = process.env.WEB_BASE_URL;
-  return base ? `${base}/assets/unknown.png` : undefined;
-}
-
 // The core send: post `content` (and any files) into `channel` as
 // `character`, track it, and write the transcript row. Takes no Message —
 // the Speak modal has no source message, only an interaction.
-// `conceal` carries { alias } for an anonymous send. Tracking via
+// `identity` is the resolved presentedIdentity(character, ...) — forced >
+// concealed > own name (db/lib/presentedIdentity.js). Tracking via
 // trackProxy is mandatory: every reaction handler is gated on recentProxies.
-async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, conceal = null }) {
+// A caller that passes no identity gets the plain one — never a crash on the
+// hottest path in the bot.
+async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, identity = presentedIdentity(character) }) {
   const threadId = channel.isThread() ? channel.id : undefined;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const text = config?.tupperAutocorrectEnabled
-    ? capitalizeSentences(fixContractions(content ?? ""))
-    : (content ?? "");
+
+  // Stupid (docs/systemdocs/FACTORY.md) is the one thing that reads off the
+  // SPEAKER rather than off GameConfig, and it wins over the autocorrect below
+  // — there is nothing left to capitalise. Most callers already have the tags
+  // loaded; the findFirst is the fallback, and it only fires for a caller that
+  // doesn't, on a path that is already making one query.
+  const babbling = Array.isArray(character?.tags)
+    ? speaksBabble(character.tags)
+    : Boolean(
+        character?.id &&
+          (await prisma.characterTag.findFirst({
+            where: { characterId: character.id, quantity: { gt: 0 }, tag: { slug: STUPID_SLUG } },
+            select: { id: true },
+          })),
+      );
+
+  const text = babbling
+    ? babble(content ?? "")
+    : config?.tupperAutocorrectEnabled
+      ? capitalizeSentences(fixContractions(content ?? ""))
+      : (content ?? "");
 
   const payload = {
     content: text,
-    username: conceal ? conceal.alias : character.name,
-    avatarURL: conceal ? concealedAvatarUrl() : avatarUrlFor(character),
+    username: identity.name,
+    avatarURL: process.env.WEB_BASE_URL ? `${process.env.WEB_BASE_URL}${identity.avatarPath}` : undefined,
     files,
     threadId,
     // Role mentions render but never notify — character-role pings are
@@ -160,8 +170,8 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
     // files the alias. recentProxies is in-memory and capped, so a restart
     // makes an old concealed message inert to every reaction — the safe
     // direction.
-    concealed: Boolean(conceal),
-    alias: conceal?.alias ?? null,
+    concealed: identity.concealed,
+    alias: identity.alias,
   });
 
   return { webhookMessage, content: text };
@@ -241,7 +251,7 @@ async function handBack(message, reason, text) {
 // including failing ones — a message left under a real Discord name breaks
 // the character/account separation the game depends on. Returns null when
 // the message could not be proxied.
-async function sendAsCharacter(channel, character, message, { conceal = null, content: override = null } = {}) {
+async function sendAsCharacter(channel, character, message, { identity = presentedIdentity(character), content: override = null } = {}) {
   const text = override ?? message.content;
 
   const refusal = proxyRefusal(message, text);
@@ -258,7 +268,7 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
       content: text,
       files: [...message.attachments.values()].map((a) => a.url),
       discordUserId: message.author.id,
-      conceal,
+      identity,
     }));
   } catch (err) {
     console.error("Failed to proxy message, returning it to its author:", err);
@@ -267,14 +277,14 @@ async function sendAsCharacter(channel, character, message, { conceal = null, co
     return null;
   }
 
-  // Both halves of a concealed send are kept: alias is what the room saw,
-  // character.name is who it was. recordArchiveMessage swallows its own
-  // failures.
+  // Both halves of a forced or concealed send are kept: alias is what the
+  // room saw, character.name is who it was. recordArchiveMessage swallows
+  // its own failures.
   await recordArchiveMessage(prisma, {
     discordMessageId: webhookMessage.id,
     content: [content, ...attachmentPlaceholders(message)].filter(Boolean).join("\n"),
     character,
-    concealedAlias: conceal?.alias ?? null,
+    concealedAlias: identity.alias,
     ...resolveChannelContext(channel),
   });
   await touchCharacterActivity(prisma, character.id);

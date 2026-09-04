@@ -2,22 +2,16 @@
 // db/scripts/sync/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
 // "Restart Game" flow (web/app/(app)/gm/dev/actions.js). Must run AFTER
 // syncLocationsFromYaml and syncTagsFromYaml (starting_zone/starting_tags are
-// validated against them). Threats live in docs/threats.md, not here.
+// validated against them). Threats live in db/lib/threats.js, not here.
 //
-// A faction's `silo` and parentFactionId are live game state once created,
-// so both are only written on CREATE — unless `seedSilos: true` (a wipe, or
-// `--seed-silos`), which reasserts the authored silo and hierarchy anyway.
+// A faction's parentFactionId is live game state once created, so it is
+// only written on CREATE.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
-const { roleWeight, factionSiloSeed } = require("./factionSilo");
-const { seatZoneIdFor } = require("./seatZone");
 const { entriesOf } = require("./yamlEntries");
-
-// Excluded from silo seeding — it stays silo-less on purpose (see
-// db/lib/factionSilo.js and the "Silos" section of CLAUDE.md's linked plan).
-const UNAFFILIATED_SLUG = "unaffiliated";
+const { parseStartingTag } = require("./startingTags");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -46,16 +40,9 @@ function parseRolesYaml(doc) {
         slug: faction.slug,
         name: faction.name,
         zoneName: zone.name,
-        // Optional override for where the Silo sits, when a faction groups
-        // under one zone and banks in another. Absent for almost every
-        // faction, and absent means "the zone it's nested in".
-        siloZoneName: faction.silo_zone ?? null,
         parentSlug: faction.parent ?? null,
+        siloRoomSlug: faction.silo ?? null,
         sortOrder: factionOrder++,
-        // Summed below as each of its roles is parsed — this is what
-        // db/lib/factionSilo.js#factionSiloSeed scales into an opening silo.
-        // A faction's opening balance is entirely derived from its roles.
-        totalWeight: 0,
       };
       factions.push(entry);
 
@@ -82,6 +69,9 @@ function parseRolesYaml(doc) {
           startingTagNames: role.starting_tags ?? [],
           grantsLeader: role.leader === true,
           grantsTreasurer: role.treasurer === true,
+          // Independent of `leader:` since the whitelist split — see the
+          // Role.requiresWhitelist comment in schema.prisma.
+          requiresWhitelist: role.whitelist === true,
           // A seat that fixes its holder's gender rather than letting them
           // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
           // against the enum here, so a YAML typo lands as null instead of a
@@ -90,10 +80,6 @@ function parseRolesYaml(doc) {
           docElements: role.doc_elements ?? [],
         };
         roles.push(parsedRole);
-        // roleWeight reads the raw YAML `weight` (a number, "unlimited", or
-        // absent) — parsedRole has already normalized that into
-        // weight/unlimited fields, so it's read off the source `role` here.
-        entry.totalWeight += roleWeight(role);
       }
     }
   }
@@ -118,12 +104,9 @@ function changed(row, data) {
   );
 }
 
-async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
+async function syncRolesFromYaml(prisma) {
   const { factions, roles } = parseRolesYaml(loadDoc());
   resolveParentSlugs(factions);
-
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playerCount: true } });
-  const playerCount = config?.playerCount ?? 100;
 
   const slugs = { faction: new Set(), role: new Set() };
   for (const f of factions) {
@@ -158,22 +141,9 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
     return firstLocationByZoneId.get(presenceZoneIdBySlug.get(entry.startingZoneSlug)) ?? null;
   };
 
-  const zoneByName = new Map(zones.map((z) => [z.name, z]));
   for (const f of factions) {
     if (!zoneIdByName.has(f.zoneName)) {
       throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:sync-zones first`);
-    }
-    if (f.siloZoneName) {
-      const siloZone = zoneByName.get(f.siloZoneName);
-      if (!siloZone) {
-        throw new Error(`docs/roles.yaml: faction "${f.name}" has unknown silo_zone "${f.siloZoneName}" — run db:sync-zones first`);
-      }
-      // A Silo has to sit on a SEAT zone. Seated on a cave level it would be
-      // unreachable, because canReachSilo maps the actor's presence zone up
-      // to its seat before comparing.
-      if (seatZoneIdFor(siloZone) !== siloZone.id) {
-        throw new Error(`docs/roles.yaml: faction "${f.name}" has silo_zone "${f.siloZoneName}", which is not a seat zone`);
-      }
     }
   }
   for (const r of roles) {
@@ -189,7 +159,10 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
         throw new Error(`docs/roles.yaml: role "${r.name}": starting_location "${r.startingLocationSlug}" is not in starting_zone "${r.startingZoneSlug}"`);
       }
     }
-    for (const name of r.startingTagNames) {
+    // An entry may carry a count — "Obol x5" — so validate the parsed name
+    // rather than the raw string. See db/lib/startingTags.js.
+    for (const entry of r.startingTagNames) {
+      const { name } = parseStartingTag(entry);
       if (!tagNames.has(name)) {
         throw new Error(`docs/roles.yaml: role "${r.name}" has starting_tag "${name}" not in docs/tags.yaml — run db:sync-tags first`);
       }
@@ -203,7 +176,6 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
     rolesUpdated: 0,
     rolesPruned: [],
     factionsPruned: [],
-    seededSilos: [],
   };
 
   // Pass 1: Faction scalars.
@@ -216,54 +188,62 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
     const data = {
       name: entry.name,
       zoneId: zoneIdByName.get(entry.zoneName),
-      // Written on every sync, null included. That's the whole point: the
-      // silo seat is authored in the YAML, so deleting a `silo_zone:` line
-      // puts the Silo back rather than leaving a stale hand edit standing.
-      siloZoneId: entry.siloZoneName ? zoneIdByName.get(entry.siloZoneName) : null,
       sortOrder: entry.sortOrder,
     };
-    // Unaffiliated is deliberately excluded from silo seeding — it seeds 0
-    // and stays silo-less, both on creation and on a --seed-silos re-run.
-    const siloSeed = entry.slug === UNAFFILIATED_SLUG ? 0 : factionSiloSeed(entry.totalWeight, playerCount);
     let row = await prisma.faction.findUnique({ where: { slug: entry.slug } });
     if (!row) {
-      // Claim a pre-slug row of the same name rather than duplicating it.
-      row = await prisma.faction.findFirst({ where: { name: entry.name, slug: null } });
-      if (row) {
-        row = await prisma.faction.update({ where: { id: row.id }, data: { slug: entry.slug, ...data } });
-        stats.factionsUpdated++;
-        freshFactionIds.add(row.id);
-      } else {
-        row = await prisma.faction.create({ data: { slug: entry.slug, silo: siloSeed, ...data } });
-        stats.factionsCreated++;
-        freshFactionIds.add(row.id);
-        stats.seededSilos.push({ name: entry.name, silo: siloSeed });
-      }
-    } else {
-      // seedSilos writes the computed silo onto an EXISTING row too — Faction
-      // rows persist across a wipe, so without this every restarted game
-      // would start with every silo at 0.
-      const rowData = seedSilos ? { ...data, silo: siloSeed } : data;
-      if (changed(row, rowData)) {
-        row = await prisma.faction.update({ where: { id: row.id }, data: rowData });
-        stats.factionsUpdated++;
-      }
-      if (seedSilos) stats.seededSilos.push({ name: entry.name, silo: siloSeed });
+      row = await prisma.faction.create({ data: { slug: entry.slug, ...data } });
+      stats.factionsCreated++;
+      freshFactionIds.add(row.id);
+    } else if (changed(row, data)) {
+      row = await prisma.faction.update({ where: { id: row.id }, data });
+      stats.factionsUpdated++;
     }
     factionIdBySlug.set(entry.slug, row.id);
   }
 
-  // Pass 2: faction hierarchy, now that every row exists. Create-only, like
-  // `silo` (see the header) — a clan can break away or be absorbed mid-game,
-  // so only a fresh row or an explicit re-seed takes its parent from the YAML.
+  // Pass 2: faction hierarchy, now that every row exists. Create-only — a
+  // clan can break away or be absorbed mid-game, so only a fresh row takes
+  // its parent from the YAML.
   for (const entry of factions) {
     const parentFactionId = entry.parentSlug ? factionIdBySlug.get(entry.parentSlug) : null;
     const id = factionIdBySlug.get(entry.slug);
-    if (!seedSilos && !freshFactionIds.has(id)) continue;
+    if (!freshFactionIds.has(id)) continue;
     const current = await prisma.faction.findUnique({ where: { id }, select: { parentFactionId: true } });
     if (current.parentFactionId !== parentFactionId) {
       await prisma.faction.update({ where: { id }, data: { parentFactionId } });
     }
+  }
+
+  // Pass 2b: the silo pointer. A FLOOR, not a create-only field and not a
+  // reset: it fills a faction that has no silo and leaves one that does
+  // alone. That is stronger than the hierarchy's create-only rule above and
+  // still can't clobber a Leader — re-pointing a silo writes a non-null id,
+  // which this never touches — while a faction that predates the silo
+  // column still gets the one roles.yaml names for it.
+  //
+  // Rooms come from db:sync-zones, which runs first, so an unknown slug is a
+  // warning rather than a throw — the same posture seedRoomStash takes
+  // toward a tag that hasn't synced yet.
+  for (const entry of factions) {
+    if (!entry.siloRoomSlug) continue;
+    const id = factionIdBySlug.get(entry.slug);
+    const room = await prisma.room.findUnique({
+      where: { slug: entry.siloRoomSlug },
+      select: { id: true },
+    });
+    if (!room) {
+      console.warn(
+        `roles.yaml: faction "${entry.name}" names unknown silo room "${entry.siloRoomSlug}" — run db:sync-zones first.`,
+      );
+      continue;
+    }
+    // The `siloRoomId: null` in the WHERE *is* the floor — one round trip,
+    // and a faction whose officers have already picked a silo is skipped.
+    await prisma.faction.updateMany({
+      where: { id, siloRoomId: null },
+      data: { siloRoomId: room.id },
+    });
   }
 
   // Pass 3: Role scalars.
@@ -283,6 +263,7 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
       startingTagSlugs: entry.startingTagNames,
       grantsLeader: entry.grantsLeader,
       grantsTreasurer: entry.grantsTreasurer,
+      requiresWhitelist: entry.requiresWhitelist,
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,
       startingZoneId: entry.startingZoneSlug
@@ -302,8 +283,8 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
 
   // Pass 4: prune. Unlike syncLocations (hard-destructive) this only removes
   // rows nothing points at — a Role still held by a character, or a Faction
-  // with members or a non-empty silo, is left in place and reported instead,
-  // since deleting it would orphan live game state.
+  // with members, is left in place and reported instead, since deleting it
+  // would orphan live game state.
   for (const role of await prisma.role.findMany({
     where: { slug: { notIn: [...slugs.role] } },
     include: { _count: { select: { characters: true } } },
@@ -317,11 +298,17 @@ async function syncRolesFromYaml(prisma, { seedSilos = false } = {}) {
   }
 
   for (const faction of await prisma.faction.findMany({
-    where: { slug: { notIn: [...slugs.faction] } },
+    // A faction founded in play was never in roles.yaml and never will be, so
+    // "absent from the YAML" cannot mean "delete" for it. Without this, the
+    // moment its last member walked out or died the next `db:sync-roles` —
+    // which `npm run db:sync` runs every time — would delete the row and
+    // cascade its applications away (FACTIONS.md §3: a faction with nobody
+    // left is leaderless, not deleted).
+    where: { slug: { notIn: [...slugs.faction] }, foundedById: null },
     include: { _count: { select: { characters: true, roles: true } } },
   })) {
-    if (faction._count.characters > 0 || faction._count.roles > 0 || faction.silo !== 0) {
-      console.warn(`Faction "${faction.name}" dropped out of roles.yaml but still has members/roles/silo — keeping`);
+    if (faction._count.characters > 0 || faction._count.roles > 0) {
+      console.warn(`Faction "${faction.name}" dropped out of roles.yaml but still has members/roles — keeping`);
       continue;
     }
     await prisma.faction.delete({ where: { id: faction.id } });

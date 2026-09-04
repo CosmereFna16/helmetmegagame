@@ -1,19 +1,30 @@
-// The zone code — the four zones as a colour vocabulary.
+// The zone code — the zones as a colour vocabulary.
 //
 // Lives in web/lib rather than db/lib because a CSS token key is of no use to
 // the bot; db/lib is for what both faces genuinely need. Nothing here touches
 // Prisma.
 //
-// `Zone` has no slug column — syncLocations.js creates and matches zones by
-// name, which that file itself calls a known fragility. Adding a slug would
-// mean touching the destructive locations sync for the sake of four rows, so
-// instead the name is slugified and checked against the known set. That
-// degrades correctly: a renamed or fifth zone yields null and renders the
-// neutral chip, rather than an uncoloured mark or a throw.
+// Callers hand this a zone NAME rather than a slug, because most of them have
+// a display row and not a Zone. The name is slugified and checked against the
+// known set, which degrades correctly: an unrecognised zone yields null and
+// renders the neutral chip, rather than an uncoloured mark or a throw.
+//
+// "Underground" is deliberately absent. It is a CAVE_GROUP — a category and a
+// GM seat, never a place — so it has no chip to colour; its two levels, Caves
+// and Depths, carry their own.
 
 // Canonical order, matching the zones: → factions: nesting in docs/roles.yaml
-// and the Fortress → Town → Windlands → Caves reading order of the map.
-export const ZONE_KEYS = ["fortress", "town", "windlands", "caves"];
+// and the reading order of the map: the two built-up places, the three
+// stretches of wild, then down.
+export const ZONE_KEYS = [
+  "fortress",
+  "town",
+  "forest",
+  "hills",
+  "marshes",
+  "caves",
+  "depths",
+];
 
 export function zoneKey(zoneName) {
   if (!zoneName) return null;

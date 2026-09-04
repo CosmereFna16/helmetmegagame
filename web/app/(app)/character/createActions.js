@@ -9,11 +9,15 @@ import {
   isDynastyHead,
   isDynastyMember,
   normalizeAntagonistSlugs,
+  parseStartingTag,
+  isMerchantRole,
+  setMerchantFace,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
   syncCharacterNickname,
@@ -32,12 +36,15 @@ import {
   tagsById as buildTagsById,
   effectiveTotalCost,
   negativeTagCount,
+  negativeTagPoints,
   DEFAULT_MAX_DRAWBACK_TAGS,
+  DEFAULT_MAX_DRAWBACK_POINTS,
   chainSiblingsToRemove,
   heldHigherTiers,
   requirementSatisfied,
   exclusiveConflict,
   conflictingTag,
+  roleExcluded,
   CURSED_ROLE_SLUGS,
 } from "@/lib/characterCreation";
 
@@ -95,7 +102,7 @@ export async function createCharacter(formData) {
   }
 
   const [role, config, member, openTurn] = await Promise.all([
-    // Zone comes along for the playtest lock below (no Windlander column).
+    // Zone comes along for the playtest lock below.
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
@@ -133,7 +140,7 @@ export async function createCharacter(formData) {
   // falsy: no config row leaves the whitelist enforced.
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  if (role.grantsLeader && !leaderWhitelisted) {
+  if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
 
@@ -163,9 +170,18 @@ export async function createCharacter(formData) {
     return { error: "One of those tags isn't available for purchase." };
   }
 
-  // Role tags come from the catalog by name (roles.yaml, validated by db:sync-roles).
-  const startingTags = role.startingTagSlugs.length
-    ? await prisma.tag.findMany({ where: { name: { in: role.startingTagSlugs } } })
+  // Role tags come from the catalog by name (roles.yaml, validated by
+  // db:sync-roles). An entry may carry a count — "Obol x5" — so the name is
+  // parsed out for the lookup and the count kept beside it. Repeating the name
+  // five times could not have worked: this is a `name: { in: [...] }` set
+  // lookup and would collapse the duplicates. See db/lib/startingTags.js.
+  const startingWanted = new Map();
+  for (const entry of role.startingTagSlugs) {
+    const { name, quantity } = parseStartingTag(entry);
+    startingWanted.set(name, (startingWanted.get(name) ?? 0) + quantity);
+  }
+  const startingTags = startingWanted.size
+    ? await prisma.tag.findMany({ where: { name: { in: [...startingWanted.keys()] } } })
     : [];
 
   // A word this character has no claim to lands as null, not a failed create.
@@ -208,6 +224,15 @@ export async function createCharacter(formData) {
     }
   }
 
+  // Seats that may never hold a tag at all (Tag.excludedRoleSlugs) — a
+  // Migrant has no faction to be a Devoted Follower of. The menu drops these
+  // rows entirely, so reaching here means a hand-posted cart.
+  for (const tag of selected) {
+    if (roleExcluded(tag, role.slug)) {
+      return { error: `A ${role.name} can't take ${tag.name}.` };
+    }
+  }
+
   // Prerequisites: requiredTag, plus the hidden-category group gate, must
   // be satisfied by something granted or selected.
   const heldOrSelectedIds = [...grantedIds, ...tagIds];
@@ -236,13 +261,22 @@ export async function createCharacter(formData) {
     }
   }
 
-  // Drawback cap (TAGS.md §4a) counts only bought tags — role-granted
-  // starting tags never pass through `selected`.
+  // Both drawback ceilings (TAGS.md §4a), checked separately so a refusal
+  // names the one that actually stopped the build. Each counts only bought
+  // tags — role-granted starting tags never pass through `selected`.
   const maxDrawbacks = config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS;
   const drawbackCount = negativeTagCount(selected);
   if (drawbackCount > maxDrawbacks) {
     return {
       error: `You picked ${drawbackCount} drawbacks and can take at most ${maxDrawbacks}.`,
+    };
+  }
+
+  const maxDrawbackPoints = config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS;
+  const drawbackPoints = negativeTagPoints(selected);
+  if (drawbackPoints > maxDrawbackPoints) {
+    return {
+      error: `Your drawbacks claim back ${drawbackPoints} points and you can claim at most ${maxDrawbackPoints}.`,
     };
   }
 
@@ -258,12 +292,15 @@ export async function createCharacter(formData) {
   const tagIdsToGrant = new Map();
   for (const tag of startingTags) {
     const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
-    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn });
+    // A count only means anything on a stackable tag; asking for five of a
+    // non-stackable one still yields the one row CharacterTag allows.
+    const quantity = tag.stackable ? (startingWanted.get(tag.name) ?? 1) : 1;
+    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn, quantity });
   }
   for (const tag of selected) {
     if (!tagIdsToGrant.has(tag.id)) {
       const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
-      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn });
+      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn, quantity: 1 });
     }
     // A purchased higher tier replaces a role-granted lower tier of the same
     // chain — the discount above already paid for exactly one rung.
@@ -316,11 +353,12 @@ export async function createCharacter(formData) {
       });
 
       await tx.characterTag.createMany({
-        data: [...tagIdsToGrant].map(([tagId, { source, expiresTurn }]) => ({
+        data: [...tagIdsToGrant].map(([tagId, { source, expiresTurn, quantity }]) => ({
           characterId: character.id,
           tagId,
           source,
           expiresTurn,
+          quantity: quantity ?? 1,
         })),
       });
 
@@ -349,6 +387,20 @@ export async function createCharacter(formData) {
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
+
+  // The Depot's turret spares exactly one face, and it used to be a GM's job
+  // to type it in — so a new Merchant met a gun he was forbidden to arm and
+  // had to go and ask somebody. He knows his own name here. Set once and never
+  // resynced: the turret reads a face, so concealing himself later still gets
+  // him shot, which is the design (DEPOT.md §0f).
+  if (isMerchantRole(role.slug)) {
+    await setMerchantFace(prisma, created.name).catch(() => {});
+    // ...and his wax stamp bears his own initials, for the same reason: the
+    // catalog cannot know them, and asking a GM to type them in means a
+    // Merchant whose seal is a blank smudge until somebody notices.
+    // See db/lib/merchantSeal.js.
+    await setMerchantSeal(prisma, created.name).catch(() => {});
+  }
 
   // A new Baron renames every living family member, including one created
   // before a Baron existed. Best-effort — must not cost this create.
@@ -424,7 +476,7 @@ export async function reserveRoleAction(roleId) {
   }
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  if (role.grantsLeader && !leaderWhitelisted) {
+  if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
   const cursed = isCursed(member);

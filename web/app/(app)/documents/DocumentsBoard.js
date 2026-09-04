@@ -6,6 +6,7 @@ import Modal from "@/app/components/Modal";
 import DocumentMarkdown from "../../components/DocumentMarkdown";
 import ChipText from "../../components/ChipText";
 import { getDocumentHeadings } from "@/lib/documentHeadings";
+import TagCatalogTab from "./TagCatalogTab";
 
 // One card in the pinned board. Collapsed it shows its title, its source and
 // a few lines of the text bleeding out under a fade; clicking opens the full
@@ -154,6 +155,7 @@ export default function DocumentsBoard({
   gmDocs = [],
   secretDocs = [],
   allDocs = [],
+  tagCatalog = [],
   hasCharacter,
 }) {
   const router = useRouter();
@@ -194,7 +196,7 @@ export default function DocumentsBoard({
   // board's own selected tab (a chip can open a document from another tab
   // without switching the board underneath it).
   const navTab = found ? found[0] : tab;
-  const { pinned: navPinned, rest: navRest } = applyFilters(listsByTab[navTab], query, sortMode);
+  const { pinned: navPinned, rest: navRest } = applyFilters(listsByTab[navTab] ?? [], query, sortMode);
   const navFlat = [...navPinned, ...navRest];
   const navIndex = open ? navFlat.findIndex((d) => d.key === open.key) : -1;
   const prevDoc = navIndex > 0 ? navFlat[navIndex - 1] : null;
@@ -232,7 +234,9 @@ export default function DocumentsBoard({
     setQuery("");
   };
 
-  const activeList = listsByTab[tab];
+  // "tags" isn't a key in listsByTab — its rows aren't doc-shaped, so this
+  // whole search/sort/board machinery is skipped for it below.
+  const activeList = listsByTab[tab] ?? [];
   const { pinned, rest } = applyFilters(activeList, query, sortMode);
   const totalCount = activeList.length;
   const visibleCount = pinned.length + rest.length;
@@ -314,59 +318,75 @@ export default function DocumentsBoard({
             All ({allDocs.length})
           </button>
         )}
+        {tagCatalog.length > 0 && (
+          <button
+            type="button"
+            className="tab-item"
+            data-active={tab === "tags"}
+            onClick={() => switchTab("tags")}
+          >
+            Tags ({tagCatalog.length})
+          </button>
+        )}
       </div>
 
-      {totalCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="field" style={{ flex: "1 1 16rem" }}>
-            <span className="field-label">Search</span>
-            <input
-              type="search"
-              placeholder="Name, source, or text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
-          {query && (
-            <span className="text-sm text-muted">
-              {visibleCount} of {totalCount}
-            </span>
-          )}
-          <div className="segmented" role="group" aria-label="Sort">
-            {[
-              ["default", "Default"],
-              ["az", "A–Z"],
-              ["source", "Source"],
-            ].map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={sortMode === mode}
-                onClick={() => setSortMode(mode)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {totalCount === 0 ? (
-        <p className="panel p-4 empty-state">
-          {tab === "assigned"
-            ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
-            : tab === "gamemaster"
-              ? "No gamemaster papers have been written yet."
-              : tab === "secret"
-                ? "No secret documents have been written yet."
-                : tab === "all"
-                  ? "No documents have been written yet."
-                  : "No public documents have been posted yet."}
-        </p>
-      ) : visibleCount === 0 ? (
-        <p className="panel p-4 empty-state">Nothing matches “{query}” in this tab.</p>
+      {tab === "tags" ? (
+        <TagCatalogTab tags={tagCatalog} />
       ) : (
-        renderBoard()
+        <>
+          {totalCount > 0 && (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="field" style={{ flex: "1 1 16rem" }}>
+                <span className="field-label">Search</span>
+                <input
+                  type="search"
+                  placeholder="Name, source, or text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </label>
+              {query && (
+                <span className="text-sm text-muted">
+                  {visibleCount} of {totalCount}
+                </span>
+              )}
+              <div className="segmented" role="group" aria-label="Sort">
+                {[
+                  ["default", "Default"],
+                  ["az", "A–Z"],
+                  ["source", "Source"],
+                ].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={sortMode === mode}
+                    onClick={() => setSortMode(mode)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {totalCount === 0 ? (
+            <p className="panel p-4 empty-state">
+              {tab === "assigned"
+                ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
+                : tab === "gamemaster"
+                  ? "No gamemaster papers have been written yet."
+                  : tab === "secret"
+                    ? "No secret documents have been written yet."
+                    : tab === "all"
+                      ? "No documents have been written yet."
+                      : "No public documents have been posted yet."}
+            </p>
+          ) : visibleCount === 0 ? (
+            <p className="panel p-4 empty-state">Nothing matches “{query}” in this tab.</p>
+          ) : (
+            renderBoard()
+          )}
+        </>
       )}
 
       {open && (

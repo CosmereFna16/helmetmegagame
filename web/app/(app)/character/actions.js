@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, seatZoneIdFor } from "@lifeweb/db";
+import { prisma, loadConcealment, loadForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
@@ -44,10 +44,21 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  // The conceal toggle. No Discord side effect: the proxy pipeline reads
-  // Character.concealed at send time (PROXYING.md).
-  const concealed = formData.get("concealed") === "on";
-  const avatar = formData.get("avatar");
+  // The conceal toggle. No Discord side effect: the proxy pipeline resolves
+  // concealment at send time (PROXYING.md). A forced identity (Tag.forcedName
+  // — Apex Form's "Beast") locks it off: the switch renders disabled, and this
+  // is the lock behind it. The same tag fixes the face, so an upload is
+  // dropped too.
+  const forcedName = await loadForcedName(prisma, character.id);
+  // And the gear gate, the same one /conceal applies. Without something
+  // concealing EQUIPPED there is nothing to turn on; under something that
+  // forces it there is no choice either way, so the stored preference is left
+  // exactly as it was rather than being quietly rewritten by a form post.
+  const concealment = forcedName ? null : await loadConcealment(prisma, character.id);
+  const concealed = concealment?.forced
+    ? character.concealed
+    : Boolean(concealment) && formData.get("concealed") === "on";
+  const avatar = forcedName ? null : formData.get("avatar");
 
   // Age is set once and then fixed. The input renders `disabled` after the
   // first save so it submits nothing, but that is only the UI half — this is
@@ -122,6 +133,11 @@ export async function setPortraitAvatar(rawSelection) {
   if (!gameConfig?.portraitMakerEnabled) {
     return { ok: false, error: "The portrait maker is closed right now." };
   }
+  // The face is fixed while a forced identity is held (Tag.forcedName); the
+  // button is hidden, and this is the lock.
+  if (await loadForcedName(prisma, character.id)) {
+    return { ok: false, error: "Your face is not yours to change right now. ‡" };
+  }
 
   // Anything invalid, out of range, or fantasy-while-gated silently becomes
   // the default for that slot, so this cannot throw on a malformed post.
@@ -167,73 +183,3 @@ export async function resetAvatarToDefault() {
   return { ok: true };
 }
 
-export async function setDefaultEffort(characterId, formData) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { id: characterId ?? "", discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character");
-
-  const description = formData.get("description")?.toString().trim();
-  if (!description) return;
-
-  const labor = formData.get("labor") === "on";
-  const shareInSummary = formData.get("shareInSummary") === "on";
-  const summaryMessage = formData.get("summaryMessage")?.toString().trim() || null;
-
-  // The zone owns the #summary channel, so it's derived from where the
-  // character stands rather than picked — the panel has no channel field. A
-  // cave level has no summary channel of its own, so that comes back null and
-  // the share-in-summary half simply doesn't apply.
-  const zone = character.zoneId
-    ? await prisma.zone.findUnique({
-        where: { id: character.zoneId },
-        select: { id: true, discordSummaryChannelId: true, parentZoneId: true, seatZoneId: true },
-      })
-    : null;
-  const summaryChannelId = zone?.discordSummaryChannelId ?? null;
-  // The SEAT zone, not the presence zone — a Default Move filed from a cave
-  // level belongs on the Caves GM's table (db/lib/seatZone.js).
-  const seatZoneId = seatZoneIdFor(zone) ?? null;
-
-  await prisma.defaultEffort.upsert({
-    where: { characterId: character.id },
-    create: {
-      characterId: character.id,
-      description,
-      labor,
-      zoneId: seatZoneId,
-      shareInSummary: shareInSummary && !!summaryChannelId,
-      summaryChannelId: shareInSummary ? summaryChannelId : null,
-      summaryMessage,
-      setByCharacterId: character.id,
-    },
-    update: {
-      description,
-      labor,
-      zoneId: seatZoneId,
-      shareInSummary: shareInSummary && !!summaryChannelId,
-      summaryChannelId: shareInSummary ? summaryChannelId : null,
-      summaryMessage,
-      setByCharacterId: character.id,
-    },
-  });
-
-  revalidatePath("/character");
-}
-
-export async function deleteDefaultEffort(characterId) {
-  const session = await auth();
-  if (!session?.discordUserId) redirect("/");
-
-  const character = await prisma.character.findFirst({
-    where: { id: characterId ?? "", discordUserId: session.discordUserId, status: "ALIVE" },
-  });
-  if (!character) redirect("/character");
-
-  await prisma.defaultEffort.deleteMany({ where: { characterId: character.id } });
-
-  revalidatePath("/character");
-}

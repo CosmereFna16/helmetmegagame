@@ -35,8 +35,9 @@ Note what the last three mean in practice: after a wipe, player topics **never
 expire** and the doctor **never runs post-turn**, until you re-tick them.
 
 **The wipe resets the playtest lock, and the `#turns` repost is best-effort.**
-`playtestModeEnabled` — the switch that locks the Merchant and every
-Windlands role out of character creation — is reset to `false` by the wipe
+`playtestModeEnabled` — the switch that holds back
+`PLAYTEST_LOCKED_ROLE_SLUGS` and `PLAYTEST_LOCKED_ZONE_NAMES`, both empty
+since the Bascinet 2 rebuild — is reset to `false` by the wipe
 like everything else, so a playtest that wants those locked has to re-tick it
 afterwards. Separately, `finishGameWipe` reposts the `#turns` console for the
 fresh Turn 1 itself, so the channel is no longer left empty on Day 1 — but that
@@ -55,13 +56,8 @@ a GM unseated unless you specifically want the default.
 ## 2. What the wipe actually runs
 
 `wipeGameData` does the database half synchronously — every player- and
-turn-scoped row deleted in one transaction (in FK-dependency order), factions'
-silos zeroed, `GameConfig` reset, and a fresh Turn 1/DAWN opened. The role re-sync runs with
-`seedSilos: true`, so every silo comes back at its computed opening balance
-(`db/lib/factionSilo.js`) rather than staying at the 0 it was zeroed to.
-Because the same transaction resets `playerCount` to 100, the wipe always
-seeds at the 100-player scale — for a smaller game, set `playerCount` on
-`/gm/dev` and re-run `npm run db:sync-roles -- --seed-silos`. It writes a
+turn-scoped row deleted in one transaction (in FK-dependency order),
+`GameConfig` reset, and a fresh Turn 1/DAWN opened. It writes a
 `SystemReport` row (`kind: WIPE`) **before** the Discord half starts, then hands
 that half to `after()` and returns.
 
@@ -80,7 +76,7 @@ The order, and why:
 | 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, every Location channel and every thread under it, Rooms and anchors included. It then **nulls the recorded thread/anchor ids and hashes** so the re-sync rebuilds them instead of hash-matching something that no longer exists |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
 | 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, `#summary`, Location channel, zone and location role, Room thread and anchor from `docs/zones.yaml` |
-| 7 | **Special channels sync** | Right after zones, because `#intercom`'s view grants name the zone roles step 6 may have just recreated |
+| 7 | **Special channels sync** | Right after zones, because a registry entry's `roleViewZones` grants name zone roles step 6 may have just recreated |
 | 8 | **Tag sync** → 9. **Role sync** → 10. **Desire sync** → 11. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions |
 | 12 | **Channel doctor** (cheap, apply) | The structural backstop: whatever a retry above still missed, the doctor finds by diffing Discord against the now-empty roster and repairs. Not a bigger retry count — a different mechanism |
 
@@ -128,7 +124,7 @@ The order, and why:
     wipe reposts it, but the step is best-effort — restart the bot if the
     channel is empty (§1).
 11. Re-enter Game Config from the screenshot, including **Playtest mode** if
-    you want the Merchant and the Windlands locked, and the three passes that
+    you have named something for it to hold back, and the three passes that
     default to off: message wipe, thread expiry, auto-reconcile.
 12. **Tick "Open to players" last.** A player also needs the player role —
     the two together are "the doors are open" and "you are on the list".
@@ -139,13 +135,12 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 
 | Survives | Consequence |
 |---|---|
-| `#watch`, `#intercom`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
+| `#cerberon`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
-| `GhostWhisper` rows | A returning player can carry a 12-hour whisper cooldown into the new game. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. Faction `silo` is zeroed, then re-seeded at its computed opening balance (`db/lib/factionSilo.js`). |
+| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |
 
 Everything zone-side in Discord — categories, channels, zone and location
 roles, anchors, Room threads — is **destroyed and regenerated**. Zone,
@@ -202,8 +197,10 @@ around that or add a second superadmin before the game opens.
 - [ ] The role tree on step 2 is populated — empty means the role sync failed
 - [ ] The point-buy menu on step 3 has tags
 - [ ] `/documents` is populated
-- [ ] `#watch` and `#intercom` exist under a `radio` category, and the old
-      `#radio` is gone
+- [ ] `#cerberon` exists under a `radio` category, and the old `#radio` and
+      `#intercom` are gone
+- [ ] The Council Room's starter post carries an **Intercom** button, and
+      pressing it reaches every `#summary` but the Black Hills'
 - [ ] `npm run db:doctor -- --full` comes back with nothing (or nothing you
       didn't expect)
 - [ ] Make one throwaway character end to end, then check it can see exactly

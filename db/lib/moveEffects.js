@@ -26,8 +26,8 @@ async function addResources(tx, characterId, amount) {
   if (!amount) return 0;
   // One atomic statement, not read-then-write. The old shape (findUnique, add
   // in JS, write the literal back) lost an update whenever anything else
-  // touched the same character between the two — a /labor confirm racing a
-  // transfer, or the Default Move pass racing a player at rollover. GREATEST
+  // touched the same character between the two — a Labor confirm racing a
+  // transfer, or the auto-labor pass racing a player at rollover. GREATEST
   // keeps the clamp that db/lib/hungerPass.js also applies; Prisma's
   // `increment` can't express it, which is why this is raw.
   //
@@ -65,7 +65,7 @@ const MOVE_EFFECTS = {
   // passed and the character labored — even a roll of 0 ⬢ spent the day — so
   // the payout grants Exhausted, and db/lib/laborAccess.js#computeLaborAccess
   // refuses the next one until the expiry sweep clears it. Both payout paths
-  // (db/lib/stagedPush.js §2, db/lib/defaultMovePass.js) run while the
+  // (db/lib/stagedPush.js §2, db/lib/autoLaborPass.js) run while the
   // action's own turn closes, so `turn.number + durationTurns` blocks exactly
   // the following turn — the same clock arithmetic as the Hunger grant in
   // db/lib/hungerPass.js. An Unsolve reverts the exhaustion along with the
@@ -102,6 +102,44 @@ const MOVE_EFFECTS = {
       if (tag) {
         await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: tag.id } });
       }
+    },
+  },
+
+  // A day spent on the Godard Factory floor: one Godflesh becomes eight
+  // Squeeze (db/lib/refinery.js). `read` can only say "this was a Labor" —
+  // whether it was a REFINING one depends on where the character was standing,
+  // which is a database question, so applyRefinery decides and returns null at
+  // every other Location. That is what lets this work from a bare Action row:
+  // the hand-filed path (db/lib/stagedPush.js) applies at turn close with
+  // nothing in memory but the row itself.
+  //
+  // Nothing is recorded for an ordinary Labor, so old rows and every other
+  // location are untouched.
+  refined: {
+    read: (action) => (action.resourceRollExpression ? 1 : 0),
+    apply: async (tx, action) => {
+      // WHERE THE LABOR WAS FILED, not where they are standing now. A free
+      // zone move costs no Action (CARRY.md §2a), so the two can differ by the
+      // time this runs at turn close. Older rows carry no locationId and fall
+      // back to the live one, which is what they always did.
+      let locationId = action.locationId ?? null;
+      if (!locationId) {
+        const character = await tx.character.findUnique({
+          where: { id: action.characterId },
+          select: { locationId: true },
+        });
+        locationId = character?.locationId ?? null;
+      }
+      // 0, not null: applyMoveEffects falls back to the READ value when apply
+      // reports nothing, so a null here would stamp `refined: 1` on every
+      // ordinary Labor in the game.
+      if (!locationId) return 0;
+      const { applyRefinery } = require("./refinery");
+      return (await applyRefinery(tx, action.characterId, locationId)) ?? 0;
+    },
+    revert: async (tx, action, snapshot) => {
+      const { revertRefinery } = require("./refinery");
+      await revertRefinery(tx, action.characterId, snapshot);
     },
   },
 };
@@ -144,6 +182,13 @@ function describeMoveEffects(applied) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     else if (key === "exhausted") parts.push("Exhausted");
+    else if (key === "refined") {
+      parts.push(
+        value.empty
+          ? "nothing to refine — no Godflesh here"
+          : `+${value.produced?.quantity ?? 0} Squeeze, −1 Godflesh`,
+      );
+    }
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

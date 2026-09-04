@@ -13,7 +13,3 @@ export function getMyFactionRole(discordUserId, factionId) {
 export function getFactionAncestorIds(factionId) {
   return shared.getFactionAncestorIds(prisma, factionId);
 }
-
-export function getSiloAccess(discordUserId, targetFactionId) {
-  return shared.getSiloAccess(prisma, discordUserId, targetFactionId);
-}

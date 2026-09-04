@@ -108,11 +108,20 @@
 
      Fortress deviates from the map here: the roof terracotta #9c4132
      measures 2.00 against this surface, so it is lifted in L with hue and
-     saturation held. Do not "fix" it back to the map value. */
+     saturation held. Do not "fix" it back to the map value.
+
+     Seven zones since the Bascinet 2 map. Forest keeps the green the retired
+     Windlands wore; the Black Hills, Marshes and Depths take the blue-grey,
+     grey-green and mauve of their regions on Bascinet's drawing. There is no
+     --zone-underground: that zone is a category and a GM seat, never a place,
+     so nothing ever renders a chip for it. */
   --zone-fortress: #c7604f;
   --zone-town: #998d6b;
-  --zone-windlands: #7f8c64;
+  --zone-forest: #7f8c64;
+  --zone-hills: #79899b;
+  --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
+  --zone-depths: #8f7f9c;
 }
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
@@ -137,11 +146,14 @@
 
   /* Zone code -- see the dusk block for what these are and why they are not
      gated at AA. Fortress is lifted again (#9c4132 measures 2.12 on this
-     surface); the other three ship the map hex untouched. */
+     surface); the others ship the map hex untouched. */
   --zone-fortress: #c45947;
   --zone-town: #998d6b;
-  --zone-windlands: #7f8c64;
+  --zone-forest: #7f8c64;
+  --zone-hills: #79899b;
+  --zone-marshes: #8d9384;
   --zone-caves: #939d9e;
+  --zone-depths: #8f7f9c;
 }
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
@@ -178,11 +190,15 @@
 
   /* Zone code -- see the dusk block. On a near-white surface the deviation
      inverts: Fortress ships the map hex at full strength (6.26), and it is
-     CAVES that has to darken, its stone grey #939d9e measuring 2.66 here. */
+     the pale ones that have to darken — Caves' stone grey #939d9e measures
+     2.66 here, and the Black Hills, Marshes and Depths sit in the same band. */
   --zone-fortress: #9c4132;
   --zone-town: #998d6b;
-  --zone-windlands: #7f8c64;
+  --zone-forest: #7f8c64;
+  --zone-hills: #6c7c8e;
+  --zone-marshes: #7f8677;
   --zone-caves: #838e90;
+  --zone-depths: #82728f;
 }
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected
@@ -812,6 +828,19 @@ input[type="radio"]:focus-visible,
   cursor: pointer;
 }
 
+/* A filled slot is wrapped in a Tooltip, and .tag-hover is inline-flex — so
+   the wrapper stretched across its grid cell but the button inside shrank to
+   the tag, leaving a gap before the next slot. Make the wrapper a stretching
+   flex row and let the button fill it, so filled and empty slots match. */
+.equip-slots > .tag-hover {
+  display: flex;
+}
+
+.equip-slots > .tag-hover > .equip-slot {
+  flex: 1;
+  min-width: 0;
+}
+
 .equip-slot:disabled {
   cursor: default;
 }
@@ -1157,8 +1186,11 @@ input[type="radio"]:disabled {
 
 .zone-chip[data-zone="fortress"] { border-left-color: var(--zone-fortress); }
 .zone-chip[data-zone="town"] { border-left-color: var(--zone-town); }
-.zone-chip[data-zone="windlands"] { border-left-color: var(--zone-windlands); }
+.zone-chip[data-zone="forest"] { border-left-color: var(--zone-forest); }
+.zone-chip[data-zone="hills"] { border-left-color: var(--zone-hills); }
+.zone-chip[data-zone="marshes"] { border-left-color: var(--zone-marshes); }
 .zone-chip[data-zone="caves"] { border-left-color: var(--zone-caves); }
+.zone-chip[data-zone="depths"] { border-left-color: var(--zone-depths); }
 
 /* No faction at all -- not a fifth zone. Reads as absent rather than as a
    colour nobody has learned yet. */
@@ -1294,6 +1326,9 @@ input[type="radio"]:disabled {
 }
 
 .modal-overlay {
+  /* The pinned .modal-header's own height, declared where every descendant
+     inherits it — .modal-substick offsets against it. */
+  --modal-head-h: 3.5rem;
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -1322,6 +1357,42 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="narrow"] { max-width: 24rem; }
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
+
+/* A modeless dialog (Modal.js `modeless`, desktop only). The dim is gone and
+   the overlay stops catching pointer events, so the GM desks' right-hand
+   inspector stays browsable while a composer is open. Only the panel itself
+   takes clicks back. ‡ */
+.modal-overlay[data-modeless="true"] {
+  background: transparent;
+  pointer-events: none;
+}
+
+.modal-overlay[data-modeless="true"] > * {
+  pointer-events: auto;
+}
+
+/* With nothing dimmed behind it the panel has to carry its own separation:
+   a tighter second shadow under --e-3's soft one, plus a brighter edge. */
+.modal-overlay[data-modeless="true"] .modal-panel {
+  box-shadow: var(--e-2), var(--e-3);
+  border-color: var(--muted);
+}
+
+/* The header is the drag handle. */
+.modal-overlay[data-modeless="true"] .modal-header {
+  cursor: grab;
+  user-select: none;
+}
+
+.modal-overlay[data-modeless="true"] .modal-header:active {
+  cursor: grabbing;
+}
+
+/* ...but the controls inside it are still controls. */
+.modal-overlay[data-modeless="true"] .modal-header button,
+.modal-overlay[data-modeless="true"] .modal-header a {
+  cursor: pointer;
+}
 
 /* The Journal composer's @ mention dropdown — a small popover pinned under
    the textarea, one level lighter than the modal it sits inside so it reads
@@ -1372,11 +1443,66 @@ input[type="radio"]:disabled {
   overflow-y: auto;
 }
 
+/* Pinned, not just a flex row. The panel is ONE scroll box — header, body and
+   .modal-actions footer together — so on a phone the Add Tag dialog's Cancel
+   sat below a tag catalog nobody could scroll past, and the dialogs with no
+   footer at all (Spend Tag Points, Claim a Desire) had no exit but Escape,
+   which a phone does not have. Sticking the header keeps the ✕ on screen
+   however long the body gets. It bleeds back out of .modal-panel's padding
+   (the negative margin + matching padding) and sticks at that same negative
+   offset, so it lands flush with the panel's top edge rather than leaving a
+   16px strip of scrolling content above it. */
 .modal-header {
+  position: sticky;
+  top: calc(var(--sp-4) * -1);
+  z-index: 2;
+  margin: calc(var(--sp-4) * -1) calc(var(--sp-4) * -1) 0;
+  padding: var(--sp-4);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* 44px of tappable area — the reason this exists is thumbs — pulled back out
+   of the flow with a negative margin so it doesn't grow the header on a
+   desktop, where the glyph alone is the whole control. */
+.modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px -10px -10px 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover,
+.modal-close:focus-visible {
+  color: var(--accent-text);
+}
+
+/* For a bar a modal body sticks to its own top — PointBuy's mobile budget
+   readout, DesireCatalog's target slot. At top:0 they would slide under the
+   pinned header, which occupies exactly that band. */
+.modal-substick {
+  position: sticky;
+  top: var(--modal-head-h, 3.5rem);
+  z-index: 1;
 }
 
 /* Same serif and size as .panel-header, deliberately without the hairline
@@ -2078,13 +2204,21 @@ input[type="radio"]:disabled {
   box-shadow: var(--e-3);
 }
 
+/* Pinned for the same reason .modal-header is: this row carries the sheet's
+   only ✕, and .doc-sheet is one 86vh scroll box, so on a phone the close
+   scrolled away a screen into a long document. Bleeds out of .doc-sheet's
+   own var(--sp-6) padding and sticks flush at that negative offset. */
 .doc-sheet-head {
+  position: sticky;
+  top: calc(var(--sp-6) * -1);
+  z-index: 2;
+  background: var(--surface-raised);
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-  padding-bottom: var(--sp-3);
+  margin: calc(var(--sp-6) * -1) calc(var(--sp-6) * -1) var(--sp-4);
+  padding: var(--sp-6) var(--sp-6) var(--sp-3);
   border-bottom: 1px solid var(--border);
 }
 
@@ -2481,8 +2615,65 @@ input[type="radio"]:disabled {
   background: var(--field-bg);
 }
 
-.desk-qty {
-  width: 4rem;
+/* QuantityField.js — the one quantity control in the app (− / number / +).
+   It replaced nine hand-rolled number inputs whose widths had drifted to
+   4rem, 7rem and 10rem depending on which surface you landed on.
+
+   The native spinners are hidden because the − / + buttons ARE the spinner,
+   and two sets of arrows on one control reads as a bug. The input keeps
+   type="number" regardless: it's what gets a numeric keypad on a phone. */
+.qty {
+  display: inline-flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+}
+
+.qty-input {
+  width: 3.5rem;
+  text-align: center;
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 4px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+}
+
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.qty-input[type="number"] {
+  appearance: textfield;
+}
+
+.qty-btn {
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--r-sm);
+  width: 1.9rem;
+  font-size: var(--fs-base);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: var(--row-hover);
+}
+
+.qty-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The boxed form keeps .field's stacked label but must not stretch the
+   control to the label's width. */
+.qty-field {
+  align-items: flex-start;
 }
 
 /* The push preview's clickable lines: a plain-text button, not a chip — it
@@ -3599,6 +3790,15 @@ input[type="radio"]:disabled {
   gap: 1rem;
 }
 
+/* The cap above is for SETTINGS: a row of number inputs stretched across a
+   wide monitor is unreadable. A section whose body is a table wants the
+   opposite — the Threats tables carry eight columns and were being squeezed
+   into 46rem and then scrolled sideways, which is exactly the cramped feel
+   this modifier removes. */
+.ops-section--wide {
+  max-width: none;
+}
+
 .ops-section-head {
   display: flex;
   flex-direction: column;
@@ -3770,4 +3970,271 @@ input[type="radio"]:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── The Merchant's Depot console ────────────────────────────────────────
+   The cockpit strip and its tabs. See docs/systemdocs/DEPOT.md.
+
+   The strip is pinned above the tabs and never scrolls away, because the four
+   things it shows — money, fuel, shuttle, turret — all matter whichever job
+   you are doing. Every colour here is a token, so the whole thing follows the
+   active theme. */
+
+.depot-cockpit,
+.console-strip {
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.depot-cockpit-head,
+.console-strip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.depot-greeting,
+.console-title {
+  font-size: var(--fs-lg);
+  color: var(--text);
+}
+
+.depot-balance,
+.console-figure {
+  font-size: var(--fs-xl);
+  color: var(--accent);
+}
+
+/* The ⬢/¢ segmented control, sitting beside the balance. Deliberately quiet:
+   it is a preference, not a control that moves money. */
+.depot-cockpit-money {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+
+.depot-cockpit-stats,
+.console-strip-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  align-items: center;
+}
+
+.depot-stat,
+.console-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.depot-stat-label,
+.console-stat-label {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+/* The fuel bar. Width is set inline from the percentage; the colour comes
+   from the tone class, so a dying generator is red before you read a number. */
+.depot-gauge {
+  display: inline-block;
+  width: 5rem;
+  height: 0.5rem;
+  border-radius: var(--r-full);
+  background: var(--field-bg);
+  overflow: hidden;
+}
+
+.depot-gauge-fill {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.depot-gauge-positive .depot-gauge-fill { background: var(--positive); }
+.depot-gauge-warning .depot-gauge-fill { background: var(--warning); }
+.depot-gauge-danger .depot-gauge-fill { background: var(--danger); }
+
+.depot-lamp {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.depot-lamp-on { color: var(--positive); border-color: var(--positive); }
+.depot-lamp-off { color: var(--muted); }
+.depot-lamp-armed { color: var(--danger); border-color: var(--danger); }
+
+.depot-notice,
+.console-notice {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+
+.depot-notice-danger,
+.console-notice-danger {
+  color: var(--danger);
+  border-left-color: var(--danger);
+}
+
+.depot-tabs,
+.console-tabs {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.depot-tab,
+.console-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.depot-tab:hover,
+.console-tab:hover { color: var(--text); }
+
+.depot-tab-on,
+.console-tab-on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Two columns where there is room, stacked where there is not. The aside is
+   the manifest/summary side and is always the narrower of the two. */
+.depot-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .depot-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.depot-aside { position: sticky; top: var(--sp-4); }
+
+@media (max-width: 60rem) {
+  .depot-aside { position: static; }
+}
+
+.depot-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+.depot-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.depot-list li:last-child { border-bottom: none; }
+
+.depot-totals {
+  margin-top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+.depot-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.depot-totals dt { color: var(--muted); }
+
+.depot-subhead {
+  margin-top: var(--sp-5);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.depot-meter {
+  margin-top: var(--sp-3);
+  height: 0.5rem;
+  border-radius: var(--r-full);
+  background: var(--field-bg);
+  overflow: hidden;
+}
+
+.depot-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.depot-stepper-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  justify-content: flex-end;
+}
+
+.depot-stepper-count {
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.depot-seal {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--r-sm);
+  padding: 0.05rem 0.3rem;
+}
+
+.depot-crate-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* The printed manifest on a crate. Monospaced because it is a waybill, and
+   allowed to wrap because a full crate's line is long. */
+.depot-manifest {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  overflow-wrap: anywhere;
+}
+
+.depot-pending {
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
 }

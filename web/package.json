@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "assets:letters": "node scripts/generate-letters.js",
+    "assets:helms": "node scripts/generate-helms.js",
     "audit:contrast": "node scripts/audit-contrast.js"
   },
   "dependencies": {

@@ -15,8 +15,8 @@
 # EVERY tag in it must be held (butcher-a-human wants Cruel and Butcher
 # both). It is always AND and can never carry `combine: or` — the sync
 # refuses that pairing. So `anyTags: [dancer]` + `anyRoles: [minstrel,
-# diplomat]` reads "holds Dancer, AND holds Minstrel or Diplomat" — not
-# "Dancer or Minstrel or Diplomat". Omit a sub-key entirely rather than
+# courtier]` reads "holds Dancer, AND holds Minstrel or Courtier" — not
+# "Dancer or Minstrel or Courtier". Omit a sub-key entirely rather than
 # writing an empty list.
 #
 # The one opt-out is `requires.combine: or`, which joins anyTags with
@@ -28,7 +28,7 @@
 # notTags/notRoles are never part of the OR. AND remains the default and the
 # common case — the five Lifeweb feed-* entries and all five corrupt ones keep
 # it deliberately (corrupt is visible: false and promises no unlocks, so it
-# reads as a Watch tag rather than a broad purchase).
+# reads as a Cerberon tag rather than a broad purchase).
 #
 # TIER: one of 1, 2, 3, 4, 5, 7. Tier 6 is deliberately absent from the
 # whitelist — don't invent it. Tier doubles as the default Tag Point award
@@ -91,16 +91,14 @@ familyGroups:
     name: Ambition
   mind:
     name: Mind
-  bacchus:
-    name: Bacchus
   demoness:
     name: Demoness
 
 # THE PALETTE — same rules as docs/taggroups.yaml, keep it:
 #   * One hue per GROUP, so the picker reads by group at a glance: Appetite
 #     amber, Heart rose, Blood red, Nerve green, Ambition teal, Mind blue,
-#     Bacchus violet and Demoness magenta (the last two match their tag
-#     categories in taggroups.yaml).
+#     and Demoness magenta (which matches its tag category in
+#     taggroups.yaml).
 #   * Families inside a group step by LIGHTNESS and SATURATION, never out of
 #     the hue.
 #   * `color` is drawn as the 3px left rule on a picker row (a .panel on
@@ -245,16 +243,19 @@ families:
     color: "#f0c4d0"
     # Giving with nothing back — feeding the poor, hugs given, mercy,
     # treating strangers.
-  cult-bacchus:
-    name: Cult of Bacchus
-    group: bacchus
-    color: "#b48ae0"
-    # Bacchus: revelry, rite, excess, spectacle.
   demoness:
     name: Demoness
     group: demoness
     color: "#d98ad0"
     # Predation, domination, enslavement, terror.
+  stupidity:
+    name: Stupidity
+    group: mind
+    color: "#b6a98f"
+    # The one family {tag:stupid} does not lock. It exists precisely so that
+    # tag's `desires.locks` has something to except besides alcohol — a
+    # character with no reachable Desire at all has been benched rather than
+    # changed. Nothing but Squeeze puts anybody in it. ‡
   # Deliberate adjacencies (not bugs — see content-spec.md §1):
   #   - violence and bravery overlap on duels/tournaments/battles (both
   #     keys on the same desire), so Craven and Pacifist bite differently.
@@ -274,8 +275,6 @@ desires:
     name: See the Windlands
     tier: 2
     families: [adventure]
-    requires:
-      notTags: [windlander]
 
   win-an-argument:
     name: Win an argument
@@ -728,7 +727,7 @@ desires:
     tier: 1
     families: [charity, faith]
     requires:
-      anyTags: [pious, post-christian, fundamentalist, the-wind, saint, pilgrim, old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
+      anyTags: [pious, post-christian, fundamentalist, saint, pilgrim, old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
 
   finish-a-painting:
     name: Finish a {tag:painting}
@@ -736,14 +735,6 @@ desires:
     families: [craft]
     requires:
       anyTags: [artist]
-
-  sign-language-talk:
-    name: Hold a whole conversation in sign
-    tier: 1
-    families: [social, craft]
-    requires:
-      anyTags: [sign-language]
-    cooldownTurns: 5
 
   eat-dangerous:
     name: Eat something impressively dangerous
@@ -869,8 +860,8 @@ desires:
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [watchman, sheriff]
-      anyTags: [watchman]
+      anyRoles: [cerberus, sheriff]
+      anyTags: [cerberon]
       combine: or
 
   arrest-a-criminal:
@@ -878,7 +869,7 @@ desires:
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   execute-someone:
     name: Execute someone
@@ -979,19 +970,12 @@ desires:
     requires:
       anyRoles: [sheriff]
 
-  tidings-of-an-army:
-    name: Bring tidings of an approaching army the day before it arrives
-    tier: 5
-    families: [duty]
-    requires:
-      anyRoles: [herald]
-
   deliver-a-message:
     name: Deliver an important message
     tier: 1
     families: [duty]
     requires:
-      anyRoles: [herald]
+      anyTags: [literate]
 
   protection-racket:
     name: Start a protection racket
@@ -1007,49 +991,27 @@ desires:
     requires:
       anyRoles: [pusher]
 
-  form-a-clan:
-    name: Form a new clan of at least 4 people
-    tier: 7
-    families: [faction-success, status]
-    requires:
-      anyRoles: [follower]
-
-  become-the-bastard:
-    name: Become the new Bastard
-    tier: 7
-    families: [status]
-    requires:
-      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
-
-  become-lieutenant:
-    name: Become the new Lieutenant
-    tier: 5
-    families: [status]
-    requires:
-      anyRoles: [clansman-broken-spears-clan, clansman-windrider-clan]
-    oncePerLife: true
-
-  promoted-to-watchman:
-    name: Be promoted to Watchman
+  promoted-to-cerberus:
+    name: Be promoted to Cerberus
     tier: 4
     families: [status, duty]
     requires:
       anyRoles: [squire]
     oncePerLife: true
 
-  promoted-to-captain-squire:
-    name: Be promoted to Captain
+  promoted-to-censor-squire:
+    name: Be promoted to Censor
     tier: 7
     families: [status, duty]
     requires:
       anyRoles: [squire]
 
-  promoted-to-captain-watchman:
-    name: Be promoted to Captain
+  promoted-to-censor-cerberus:
+    name: Be promoted to Censor
     tier: 3
     families: [status, duty]
     requires:
-      anyRoles: [watchman]
+      anyRoles: [cerberus]
     oncePerLife: true
 
   coronate-a-baron:
@@ -1072,7 +1034,7 @@ desires:
     tier: 2
     families: [food]
     requires:
-      anyRoles: [incarn, diplomat]
+      anyRoles: [incarn, arbiter]
 
   sibling-in-trouble:
     name: Get your sibling in trouble
@@ -1080,49 +1042,6 @@ desires:
     families: [scheming]
     requires:
       anyRoles: [heir, successor]
-
-  take-ravenheart:
-    name: Take Ravenheart
-    tier: 7
-    families: [faction-success]
-    requires:
-      anyRoles: [bastard]
-
-  take-the-town:
-    name: Take the town
-    tier: 5
-    families: [faction-success]
-    requires:
-      anyRoles: [bastard]
-    oncePerLife: true
-
-  slay-the-champion:
-    name: Slay the Champion
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [captain]
-
-  slay-the-captain:
-    name: Slay the Captain
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [champion]
-
-  slay-the-baron:
-    name: Slay the Baron
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [champion, bastard]
-
-  slay-the-bastard:
-    name: Slay the Bastard, by your own hand
-    tier: 7
-    families: [violence, feud]
-    requires:
-      anyRoles: [baron, captain]
 
   save-the-barons-life:
     name: Save the Baron's life
@@ -1182,41 +1101,28 @@ desires:
       anyTags: [musician, artist]
       combine: or
 
-  convince-the-baron:
-    name: Convince the Baron to join the Culture
-    tier: 7
-    families: [faction-success]
-    requires:
-      anyRoles: [diplomat]
-
-  saved-by-your-drone:
-    name: Be saved by your {tag:drone} in the last moment
-    tier: 4
-    families: [adventure]
-    requires:
-      anyRoles: [diplomat]
-
-  mingle-locally:
-    name: Romantically mingle with the local populace
-    tier: 2
-    families: [romance]
-    requires:
-      anyRoles: [diplomat]
+  baron-restates-allegiance:
+    name: Get the Baron to explicitly restate his allegiance to the God-King
+    tier: 1
     cooldownTurns: 4
-
-  defuse-a-situation:
-    name: Defuse a difficult political situation
-    tier: 2
-    families: [scheming, faction-success]
+    families: [duty, scheming]
     requires:
-      anyRoles: [diplomat]
+      anyRoles: [arbiter]
 
-  stop-a-battle:
-    name: Stop a battle through diplomacy
+  shake-hands-with-the-ordinator:
+    name: Shake hands with the Tribunal Ordinator
     tier: 4
-    families: [scheming, bravery]
+    oncePerLife: true
+    families: [duty, status]
     requires:
-      anyRoles: [diplomat]
+      anyRoles: [arbiter]
+
+  process-a-criminal:
+    name: Process a criminal
+    tier: 2
+    families: [duty]
+    requires:
+      anyRoles: [arbiter]
 
   save-a-life-medical:
     name: Save a life
@@ -1275,12 +1181,12 @@ desires:
     requires:
       anyRoles: [baron]
 
-  captain-turret-multikill:
+  censor-turret-multikill:
     name: Get a multi-kill with the automated turret without killing friendlies
     tier: 3
     families: [violence, duty]
     requires:
-      anyRoles: [captain]
+      anyRoles: [censor]
 
   incarn-process-prisoner:
     name: Process a prisoner
@@ -1344,21 +1250,14 @@ desires:
     tier: 7
     families: [faction-success, status]
     requires:
-      anyRoles: [peasant]
+      anyRoles: [commoner]
 
   peasant-higher-rank:
     name: Acquire a higher rank
     tier: 5
     families: [status]
     requires:
-      anyRoles: [peasant]
-
-  stomp-out-opposing-clan:
-    name: Stomp out the opposing clan once and for all
-    tier: 7
-    families: [feud, faction-success]
-    requires:
-      anyRoles: [lieutenant-broken-spears-clan, lieutenant-windrider-clan]
+      anyRoles: [commoner]
 
   # User gave no tier for this one.
   minstrel-joke-at-baron:
@@ -1431,7 +1330,7 @@ desires:
     families: [esoterica, adventure]
     requires:
       anyTags: [esoteric, adventurer]
-      anyRoles: [diplomat, scholastic]
+      anyRoles: [scholastic]
       combine: or
 
   forbidden-knowledge:
@@ -1565,7 +1464,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   cook-a-lavish-meal:
     name: Cook a {tag:lavish-meal}
@@ -1617,22 +1516,22 @@ desires:
       anyTags: [death-wish]
 
   # === 4e. ‡ drafted fill-ins ===============================================
-  # Corrupt (T: corrupt, R: watchman/sheriff)
+  # Corrupt (T: corrupt, R: cerberus/sheriff)
   look-the-other-way:
     name: Look the other way for a friend
     tier: 1
     families: [duty, theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
-  sell-a-watch-secret:
-    name: "Sell Watch information or equipment"
+  sell-a-cerberon-secret:
+    name: "Sell Cerberon information or equipment"
     tier: 1
     families: [betrayal, theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   shake-down-a-merchant:
     name: Shake down someone with more to lose than you
@@ -1640,7 +1539,7 @@ desires:
     families: [theft, cruelty]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   pocket-60:
     name: Hold 60 ⬢ that was never yours
@@ -1649,7 +1548,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   # Brave (T: brave)
   stand-your-ground-alone:
@@ -1709,101 +1608,6 @@ desires:
     families: [scheming, social]
     requires:
       anyTags: [schemer]
-
-  bacchus-chant:
-    name: Chant the rites in the old tongue where somebody can hear
-    tier: 2
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-    cooldownTurns: 4
-
-  bacchus-boombox:
-    name: Make the whole street hear the {tag:boombox}
-    tier: 2
-    oncePerLife: true
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-bare-feet:
-    name: Get a stranger to take off their shoes and dance
-    tier: 2
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [cultist]
-    cooldownTurns: 4
-
-  bacchus-first-taste:
-    name: Give a first taste to somebody who has never had one
-    tier: 3
-    families: [cult-bacchus, drugs]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-feast:
-    name: "Throw an amazing feast, including at least 3 lavish meals"
-    tier: 2
-    families: [cult-bacchus, food]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-spend-it-all:
-    name: Spend 50 ⬢ in one night on nothing that lasts
-    tier: 4
-    families: [cult-bacchus, wealth]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-initiate-willing:
-    name: Initiate somebody who wants it
-    tier: 2
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-    cooldownTurns: 4
-
-  bacchus-break-a-vow:
-    name: "Make somebody break a vow"
-    tier: 4
-    families: [cult-bacchus, romance]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-noble-dance:
-    name: Get somebody with {tag:nobility} to dance with you
-    tier: 4
-    families: [cult-bacchus, vanity]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-initiate-unwilling:
-    name: "Initiate somebody forcefully"
-    tier: 3
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-ambrosia:
-    name: Drink {tag:ambrosia}
-    tier: 5
-    families: [cult-bacchus, drugs]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-defile:
-    name: Hold a rite inside the Cathedral
-    tier: 5
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-bring-the-demoness:
-    name: Bring the Demoness into the fold
-    tier: 7
-    families: [cult-bacchus, scheming]
-    requires:
-      anyTags: [cultist]
 
   dem-let-loose:
     name: Talk somebody into letting loose
@@ -1941,20 +1745,22 @@ desires:
     requires:
       anyRoles: [metalsmith]
 
-  # --- Role-flavoured: the Outsider -----------------------------------------
+  # --- Role-flavoured: the woods ---------------------------------------------
+  # These were the Outsider's, gated on that seat. The seat is gone; Forester
+  # is what it actually meant, and the Hunter kit hands that to any Commoner.
   scare-off-a-trespasser:
     name: Scare somebody away from your territory
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [outsider]
+      anyTags: [forester]
 
   warn-the-town:
     name: Alert the town to a threat coming through the woods
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [outsider]
+      anyTags: [forester]
 
   renovate-the-inn:
     name: "Renovate the inn with a skilled builder's help"
@@ -2010,36 +1816,12 @@ desires:
     requires:
       anyRoles: [brigand, brigand-leader]
 
-  escape-the-watch:
-    name: Be chased by the Watch or the Sheriff, and escape
+  escape-the-cerberon:
+    name: Be chased by the Cerberon or the Sheriff, and escape
     tier: 3
     families: [adventure, theft]
     requires:
       anyRoles: [brigand, brigand-leader]
-
-  # --- Role-flavoured: the Mother -------------------------------------------
-  comfort-the-bastard:
-    name: Comfort the distressed Bastard
-    tier: 1
-    families: [social, charity]
-    requires:
-      anyRoles: [mother]
-    cooldownTurns: 5
-
-  bastard-takes-your-advice:
-    name: Have the Bastard act on your advice
-    tier: 2
-    families: [social, scheming]
-    requires:
-      anyRoles: [mother]
-    cooldownTurns: 4
-
-  stop-a-plot-against-the-bastard:
-    name: Stop a plot against the Bastard
-    tier: 4
-    families: [duty, scheming]
-    requires:
-      anyRoles: [mother]
 
   # --- Role-flavoured: the Migrant ------------------------------------------
   through-the-town-gates:
@@ -2141,113 +1923,6 @@ desires:
     families: [demoness, romance, scheming]
     requires:
       anyTags: [demoness]
-
-  # --- Bacchus ------------------------------------------------------------
-  # EVERY entry here carries cult-bacchus. The Cultist tag locks tier 1 to
-  # cult-bacchus alone and tiers 2-5/7 to cult-bacchus plus alcohol, drugs,
-  # food and romance — so a Bacchus desire filed under cruelty or faith
-  # ALONE would be invisible to the only people who can pick it.
-  bacchus-force-feed-fish:
-    name: "Force feed someone a living fish"
-    tier: 2
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-eat-fish:
-    name: "Eat a living fish"
-    tier: 1
-    families: [cult-bacchus, food]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-perform-a-rite:
-    name: "Perform a rite"
-    tier: 1
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-disinter-and-hang:
-    name: "Disinter a body and hang it publicly"
-    tier: 2
-    families: [cult-bacchus, mortality]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-display-a-corpse:
-    name: "Display a dead cave monster's body in a public area"
-    tier: 2
-    families: [cult-bacchus, social]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-human-flesh:
-    name: "Secretly feed someone a meal made out of human flesh"
-    tier: 2
-    families: [cult-bacchus, food, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-torture-outsider:
-    name: "Torture a non-cultist"
-    tier: 2
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-desecrate-a-painting:
-    name: "Desecrate a painting"
-    tier: 3
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  # Tier 4, not 7: the sign-off swapped this with the cathedral. A naked
-  # blood-run is a night's scandal; burning the Cathedral is a once-ever act.
-  bacchus-blood-run:
-    name: "Cover yourself in blood and run around the town, naked"
-    tier: 4
-    families: [cult-bacchus, vanity]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-make-a-lunatic:
-    name: "Make someone a {tag:lunatic}"
-    tier: 4
-    families: [cult-bacchus, cruelty]
-    requires:
-      anyTags: [cultist]
-
-  # The three tier-7s below are automatically oncePerLife (the sync sets it
-  # for every tier-7 entry), so a cult gets one shot at each.
-  bacchus-funeral-party:
-    name: "Turn a non-cultist's funeral into a party"
-    tier: 7
-    families: [cult-bacchus, mortality]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-burn-the-cathedral:
-    name: "Burn the Cathedral down"
-    tier: 7
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  bacchus-cross-in-the-pits:
-    name: "Throw the {tag:silver-cross} into the Aberrant Pits"
-    tier: 7
-    families: [cult-bacchus, faith]
-    requires:
-      anyTags: [cultist]
-
-  # === 5. Tag and role fill-ins (2026-09-02) ==============================
-  # Every name below is dictated verbatim, so none of them carries a ‡.
-  # Cooldowns: an explicit number was given for some; the rest take the
-  # inverted ladder from the header (tier 1 -> 5, 2 -> 4, 3 -> 3), because
-  # none of them costs anything per attempt. Nothing here is ever written
-  # cooldownTurns 1 or 2 — the slot lock already dominates those.
 
   become-new-esculap:
     name: Become the new Esculap
@@ -2369,6 +2044,32 @@ desires:
       anyTags: [saint]
     oncePerLife: true
 
+  # Eating one. Two entries rather than one, because the two tags want
+  # genuinely different things out of it and pay differently for it.
+  #
+  # Cruel is about the act — you did it because it was the worst thing you
+  # could do to a body — so it repeats on the ordinary tier-2 cooldown. Glutton
+  # is about the appetite, and appetite has a first time exactly once, which is
+  # what oncePerLife is for. It sits in `food` as well as `cruelty` so a
+  # Glutton's bottom slot (locked to food Desires, docs/tags.yaml) can hold it.
+  #
+  # Both need {tag:human-flesh}, which only the Butcher button produces, so
+  # the real gate is upstream of `requires` and neither entry restates it.
+  eat-human-flesh:
+    name: Eat {tag:human-flesh} ‡
+    tier: 2
+    families: [cruelty, food]
+    requires:
+      anyTags: [cruel]
+
+  feast-on-human-flesh:
+    name: Discover what a person tastes like ‡
+    tier: 4
+    families: [food, cruelty]
+    requires:
+      anyTags: [glutton]
+    oncePerLife: true
+
   # The one allTags gate in the file: butchering a person takes the stomach
   # AND the trade, so either tag alone is not enough.
   butcher-a-human:
@@ -2434,3 +2135,87 @@ desires:
     requires:
       anyRoles: [bum]
     cooldownTurns: 5
+
+  # --- The Godard Factory ------------------------------------------------
+  # docs/systemdocs/FACTORY.md. The universal one is Moonshine; the rest are
+  # the three Marshes seats, and the last is what is left to somebody who ate
+  # a cube.
+  drink-moonshine:
+    name: Drink moonshine
+    tier: 2
+    families: [alcohol]
+    # Not the bare tier: the cooldown ladder for a Desire whose cost is real
+    # but small, and this one costs your eyes a notch at a time.
+    cooldownTurns: 3
+  get-a-manor-near-the-keep:
+    name: Get a manor near the keep
+    tier: 4
+    families: [wealth, status]
+    requires:
+      anyRoles: [banneret]
+    oncePerLife: true
+  buy-yourself-an-automobile:
+    name: Buy yourself an automobile
+    tier: 4
+    families: [wealth]
+    requires:
+      anyRoles: [banneret]
+    oncePerLife: true
+  sell-squeeze-to-the-merchant:
+    name: Sell squeeze to the merchant
+    tier: 1
+    families: [wealth]
+    requires:
+      anyRoles: [banneret]
+  hire-someone:
+    name: Hire someone
+    tier: 1
+    families: [status]
+    requires:
+      anyRoles: [banneret]
+  throw-someone-in-the-boiling-vats:
+    name: Let loose your anger by throwing someone in the boiling vats
+    tier: 4
+    families: [cruelty, violence]
+    requires:
+      allTags: [cruel]
+      anyRoles: [geschef]
+    oncePerLife: true
+  become-the-banneret:
+    name: Become the Banneret
+    tier: 4
+    families: [status]
+    requires:
+      anyRoles: [geschef]
+    oncePerLife: true
+  make-the-banneret-happy:
+    name: Make the Banneret happy
+    tier: 1
+    families: [social]
+    requires:
+      anyRoles: [geschef]
+  hit-a-refugee-with-your-cudgel:
+    name: Hit a refugee with your cudgel
+    tier: 1
+    families: [cruelty]
+    requires:
+      anyRoles: [geschef]
+  become-the-geschef:
+    name: Become the Geschef
+    tier: 3
+    families: [status]
+    requires:
+      anyRoles: [refugee]
+    oncePerLife: true
+  argue-with-the-geschef:
+    name: Argue with the Geschef
+    tier: 1
+    families: [social]
+    requires:
+      anyRoles: [refugee]
+  look-at-the-pretty-statues:
+    name: Go into the Keep and look at the pretty statues
+    tier: 3
+    families: [stupidity]
+    requires:
+      anyTags: [stupid]
