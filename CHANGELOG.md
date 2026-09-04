@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Two fixes on the Threats tables and the character sheet
+
+✎ The Threats tables now use the full width instead of half the screen  
+✎ Fixed a crash on /character — the profile picture field threw as soon as the page rendered
+
 ## 2026-09-04 · Leper cannot be stacked with the other ugliness
 
 ✎ Leper now conflicts with Ugly, Disfigured, Pretty and Beautiful
