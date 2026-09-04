@@ -1277,7 +1277,6 @@ tags:
   # else taking it is picking up a free tag with no cost to it.
   mimes-vow:
     name: "Mime's Vow"
-    keepSlug: true
     category: general
     group: general-traits
     description: "You can't speak. You mean, you really shouldn't."
