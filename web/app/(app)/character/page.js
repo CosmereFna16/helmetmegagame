@@ -152,6 +152,10 @@ async function loadCreationData(discordUserId) {
                 // and an entry may carry a count ("Obol x5").
                 startingTagNames: startingTagNames(role.startingTagSlugs),
                 grantsLeader: role.grantsLeader,
+                // Drives the "Whitelist only" hover on a greyed card. Separate
+                // from grantsLeader, which now only means faction Leader.
+                requiresWhitelist: role.requiresWhitelist,
+                whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
                 // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
                 cap: cap === Infinity ? null : cap,
                 taken: takenByRole.get(role.id) ?? 0,

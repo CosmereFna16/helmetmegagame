@@ -53,6 +53,16 @@
 # Treasurer are plain booleans on Character, not Tags (see
 # docs/systemdocs/TAGS.md §6).
 #
+# `whitelist: true` is a SEPARATE thing, and used to be the same thing: who
+# may claim this seat at all. Picking a whitelisted role needs the @Leader
+# Whitelist Discord role (db/lib/roleIds.js), unless a GM has switched
+# GameConfig.leaderWhitelistEnabled off on /gm/dev. It rode on `leader:` until
+# the two were split, which conflated a hosting decision with a faction
+# mechanic — the Baron HAS to lead the Court whether or not his seat is gated,
+# and the Hand and the Arbiter are gated without leading anything. Every
+# `leader: true` role is also whitelisted today, but that is a choice, not a
+# rule: set both, independently.
+#
 # `starting_resources` (role-level) is how many Resources that character
 # starts play with. A faction's Silo is not listed here: its opening balance
 # is computed at seed time from the weights of the faction's roles — see
@@ -134,6 +144,7 @@ zones:
             starting_zone: fortress
             extra_starting_points: 7
             leader: true
+            whitelist: true
             starting_tags:
               - Armory Key
               - Ravenhearter
@@ -259,6 +270,7 @@ zones:
             starting_zone: fortress
             extra_starting_points: 7
             treasurer: true
+            whitelist: true
             starting_tags:
               - Armory Key
               - Ravenhearter
@@ -427,6 +439,7 @@ zones:
             starting_resources: 1
             starting_zone: fortress
             leader: true
+            whitelist: true
             treasurer: true
             starting_tags:
               - Armory Key
@@ -576,6 +589,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             leader: true
+            whitelist: true
             starting_tags:
               - Cathedral Key
               - Ravenhearter
@@ -664,6 +678,7 @@ zones:
             starting_resources: 26
             starting_zone: town
             leader: true
+            whitelist: true
             starting_tags:
               - Sanctuary Key
               - Ravenhearter
@@ -731,6 +746,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             leader: true
+            whitelist: true
             starting_tags:
               - Order Key
               - Cathedral Key
@@ -844,6 +860,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             leader: true
+            whitelist: true
             starting_tags:
               - Ravenhearter
               - Insightful
@@ -1080,6 +1097,7 @@ zones:
             starting_resources: 9
             starting_zone: town
             leader: true
+            whitelist: true
             starting_tags:
               - Cellar Key x3
               - Ravenhearter
@@ -1139,6 +1157,7 @@ zones:
             starting_zone: east-forests
             starting_location: east-forests-26
             leader: true
+            whitelist: true
             starting_tags:
               - Hills Camp
               - Brigand
@@ -1216,6 +1235,7 @@ zones:
             starting_resources: 10
             starting_zone: caves
             leader: true
+            whitelist: true
             starting_tags:
               - Cart
               - Literate
@@ -1327,6 +1347,7 @@ zones:
             starting_zone: marshes
             starting_location: factory
             leader: true
+            whitelist: true
             starting_tags:
               - Horse
               - Cart

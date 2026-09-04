@@ -140,7 +140,7 @@ export async function createCharacter(formData) {
   // falsy: no config row leaves the whitelist enforced.
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  if (role.grantsLeader && !leaderWhitelisted) {
+  if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
 
@@ -476,7 +476,7 @@ export async function reserveRoleAction(roleId) {
   }
   const leaderWhitelisted =
     bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
-  if (role.grantsLeader && !leaderWhitelisted) {
+  if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
   const cursed = isCursed(member);

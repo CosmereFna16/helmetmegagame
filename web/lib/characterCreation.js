@@ -209,7 +209,7 @@ export function effectiveTotalCost(tags, tagsById, heldIds = []) {
 
 export function isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked = false }) {
   if (playtestLocked) return false;
-  if (role.grantsLeader && !leaderWhitelisted) return false;
+  if (role.requiresWhitelist && !leaderWhitelisted) return false;
   if (!cursed) return true;
   return CURSED_ROLE_SLUGS.includes(role.slug);
 }

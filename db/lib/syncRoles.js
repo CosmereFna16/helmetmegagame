@@ -69,6 +69,9 @@ function parseRolesYaml(doc) {
           startingTagNames: role.starting_tags ?? [],
           grantsLeader: role.leader === true,
           grantsTreasurer: role.treasurer === true,
+          // Independent of `leader:` since the whitelist split — see the
+          // Role.requiresWhitelist comment in schema.prisma.
+          requiresWhitelist: role.whitelist === true,
           // A seat that fixes its holder's gender rather than letting them
           // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
           // against the enum here, so a YAML typo lands as null instead of a
@@ -260,6 +263,7 @@ async function syncRolesFromYaml(prisma) {
       startingTagSlugs: entry.startingTagNames,
       grantsLeader: entry.grantsLeader,
       grantsTreasurer: entry.grantsTreasurer,
+      requiresWhitelist: entry.requiresWhitelist,
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,
       startingZoneId: entry.startingZoneSlug

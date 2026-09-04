@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Leader Whitelist is now just a whitelist
+
+✎ Whitelisting a role no longer means making its holder a faction Leader. The two are separate settings now, so a seat can be gated without leading anything — the Hand is the first one
+− The star on gated role cards. A card you can't pick is greyed and says "Whitelist only" on hover instead, which the silent grey never did
+✚ The Hand now needs the whitelist. Every seat that needed it before still does
+
 ## 2026-09-04 · The point-buy meter stops tripping the contrast gate
 
 ✎ No player-visible change — the meter is the colour it always was

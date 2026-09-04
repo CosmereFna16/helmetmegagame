@@ -2364,6 +2364,14 @@ model Role {
   grantsTreasurer     Boolean  @default(false)
   docElements         String[] @default([])
 
+  // Whether picking this role needs the @Leader Whitelist Discord role. This
+  // used to ride on grantsLeader, which conflated two unrelated things: the
+  // Baron HAS to lead the Court, but "who may claim this seat" is a hosting
+  // decision that has nothing to do with faction mechanics. Declared as
+  // `whitelist:` in docs/roles.yaml. Gated by GameConfig.leaderWhitelistEnabled;
+  // superadmins bypass. See docs/systemdocs/CHARACTERS.md §2.
+  requiresWhitelist   Boolean  @default(false)
+
   // A seat that fixes the holder's gender rather than letting them choose:
   // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
   // ordinary role, which is nearly all of them. Declared as `gender:` in

@@ -68,7 +68,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // against a raw null would coerce to 0 and read every uncapped role as
   // full, so the null check must stay explicit. Uncapped is never full.
   const full = cap !== null && taken >= cap;
-  return (
+  const card = (
     <button
       type="button"
       disabled={disabled}
@@ -77,10 +77,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
-        <strong>
-          {role.name}
-          {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
-        </strong>
+        <strong>{role.name}</strong>
         <span className="text-sm" style={{ color: full ? "var(--accent-text)" : "var(--muted)" }}>
           {taken}/{cap === null ? "∞" : cap}
         </span>
@@ -103,6 +100,21 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       </span>
     </button>
   );
+
+  // A disabled card is just grey, which reads as a bug. Playtest locks say so
+  // with a chip inside the card; the whitelist can't, because a disabled
+  // button swallows pointer events for its descendants and the tooltip would
+  // never fire. So the hover goes on a wrapper OUTSIDE the button. `block` is
+  // load-bearing: HoverCard's trigger is an inline span, and an inline grid
+  // child would collapse the card's width.
+  if (role.whitelistBlocked) {
+    return (
+      <Tooltip text="Whitelist only ‡" className="block">
+        {card}
+      </Tooltip>
+    );
+  }
+  return card;
 }
 
 export default function CreateCharacterWizard({
