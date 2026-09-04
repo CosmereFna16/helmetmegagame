@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Spillway no longer eats a shift by accident
+
+
 ## 2026-09-04 · The Depot's turret learns the Merchant's face when he is created
 
 ✚ The Depot's turret now knows the Merchant's face the moment he is made, so he can arm it himself  
