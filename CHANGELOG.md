@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The intercom is loud now, and it lands in the transcript
+
+✎ The PA is no longer small grey subtext. Everything else the world says is scenery and sits under the conversation, but a loudspeaker is the opposite of scenery — and it pings everyone, so delivering it in the quietest text Discord renders was backwards  
+✚ Announcements are recorded in the archive. They were the one kind of public talk missing from it  
+✎ An announcement ending in ! or ? keeps its own punctuation instead of picking up a stray full stop
+
 ## 2026-09-04 · Vow of Silence is a Minstrel's, and nobody else's
 
 Vow of Silence can only be taken by a Minstrel now  
