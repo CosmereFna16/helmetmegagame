@@ -6481,6 +6481,100 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  # Five more of the Merchant's imports, priced off DEPOT.md §3: the sell-back
+  # column is floor(depotPrice x 0.44), the same ratio every other ware uses.
+  # Descriptions are Bascinet's, dictated verbatim, so none of them takes a ‡.
+  #
+  # Weights come off the CARRY.md §1a bands and match the weapons already in
+  # this group: a long gun and a sword weigh 5, a pistol 2.
+  ctt43-rifle:
+    name: CTT4&3 Rifle
+    category: items
+    group: items-weapons
+    description: "A semi-automatic rifle chambered in .308."
+    pointCost: 0
+    depotPrice: 260
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 114
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  kpfw-6-avtomat:
+    name: Kpfw-6 Avtomat
+    category: items
+    group: items-weapons
+    description: "An experimental fully automatic rifle that belongs to the past."
+    pointCost: 0
+    depotPrice: 540
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 237
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  adamantium-sword:
+    name: Adamantium Sword
+    category: items
+    group: items-weapons
+    description: "Fit for the highest of nobility. Light, strong, and unimaginably sharp."
+    pointCost: 0
+    depotPrice: 230
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 101
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  silver-sword:
+    name: Silver Sword
+    category: items
+    group: items-weapons
+    description: "You're no longer afraid of the night."
+    pointCost: 0
+    depotPrice: 150
+    sellable: true
+    sellablePrice: 66
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  bb-pistol:
+    name: BB Pistol
+    category: items
+    group: items-weapons
+    description: "Hurts!"
+    pointCost: 0
+    depotPrice: 75
+    sellable: true
+    sellablePrice: 33
+    tradeable: true
+    weight: 2
+    equippable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   # --- Tonics -------------------------------------------------------------
   # Alcohol, drugs and tonics, and the recipes for them. Split into Basic and Skilled brewing. Some need special ingredients.
   cave-fungus:

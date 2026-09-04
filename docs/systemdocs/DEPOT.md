@@ -353,14 +353,19 @@ buying one mid-game is still a real decision.
 | `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
 | `amoeba-vial` | 64 | 28 | |
 | `illusion-crystal` | 73 | 32 | |
+| `bb-pistol` | 75 | 33 | Equippable |
 | `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
+| `silver-sword` | 150 | 66 | |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
 | `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
 | `ml-23` | 182 | 80 | A 9mm pistol |
 | `motorcycle` | 209 | 92 | Caving loot he also imports |
+| `adamantium-sword` | 230 | 101 | |
 | `flamethrower` | 237 | 104 | Caving loot he also imports |
+| `ctt43-rifle` | 260 | 114 | A .308 semi-automatic |
+| `kpfw-6-avtomat` | 540 | 237 | The dearest thing on the counter |
 
 Three of these need code, not just catalog data:
 
