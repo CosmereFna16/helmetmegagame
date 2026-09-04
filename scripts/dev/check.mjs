@@ -31,7 +31,6 @@ const DEFAULT_ROUTES = [
 
   // Player surfaces.
   { path: "/character", as: "player" },
-  { path: "/depot", as: "player" },
   { path: "/documents", as: "player" },
   { path: "/faction", as: "player" },
   { path: "/notes", as: "player" },
@@ -39,6 +38,11 @@ const DEFAULT_ROUTES = [
   // Deliberate redirect stubs, kept so old links still land somewhere:
   // web/app/(app)/store/page.js and web/app/(app)/gm/page.js.
   { path: "/store", as: "player", expect: "/character" },
+  // The Depot is gated on the Merchant's Licence or a Depot Keycard, not on
+  // being a player, so an ordinary character is SUPPOSED to be bounced. The
+  // licensed path cannot be checked here without minting a merchant, so this
+  // row asserts the gate shuts rather than that the page renders.
+  { path: "/depot", as: "player", expect: "/character" },
   { path: "/gm", as: "gm", expect: "/gm/players" },
 
   // Conditional on game state — a GM always passes, a player only sometimes,
