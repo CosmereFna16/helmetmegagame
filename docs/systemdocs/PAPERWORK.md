@@ -101,11 +101,29 @@ carries, "Three cups, stacked." `db:sync-tags` composes the whole description
 around it, so the boilerplate is written once; authoring a `description:`
 beside a `sealMark:` is an error rather than an override.
 
-- **Six courtier seals**, `pointCost: 1`, gated on `courtier`.
+- **Six courtier seals**, `pointCost: 1`, gated on `courtier`, and
+  **`exclusive`** — a courtier has *one* seal. It is a signature, not a
+  collection, and a courtier who owned all six could sign as anybody.
+
+  Note what that does and does not cover. `exclusive` is enforced on the
+  purchase paths only — the creation wizard, `/store`, and their server-side
+  re-checks — the same posture the Beliefs have. It does **not** stop a second
+  seal arriving by Transfer, by Loot or from a GM, and that is deliberate: a
+  seal is a physical object, so taking one off somebody is exactly the kind of
+  thing the game is for. What you cannot do is *buy* a second.
+
+  All six share `requiredTag: courtier`, which does not defeat the flag —
+  `exclusiveConflict`'s exemption (`web/lib/characterCreation.js`) is for a
+  direct parent/child pair, and neither seal requires the other.
 - **Eight office stamps**, `purchasable: false`, each starting in the room its
   seat works out of (`docs/zones.yaml` `stash:`). All `tradeable: true` like
   every other piece of office regalia — prying the Bishop's stamp off the
   Bishop is the kind of thing the game is for (`TAGS.md` §5).
+
+  **Not `exclusive`.** A stamp belongs to a seat rather than to a person, so
+  holding two means you took one of them off somebody, which is a situation
+  worth having. It would also be inert: nothing here is purchasable, and the
+  purchase paths are the only place the flag is enforced.
 
 **The Merchant's is the one stamp with no mark in the file.** His bears his own
 initials, written once at character creation beside the line that teaches the

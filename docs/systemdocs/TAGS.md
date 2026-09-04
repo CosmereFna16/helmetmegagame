@@ -104,9 +104,16 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the five Addictions
-  (`general-addictions`) — so a character holds at most one belief and at most
-  one Addiction, independently. **Nothing in `general-personality` carries it**:
+  are a single answer rather than a collection, on the five Addictions
+  (`general-addictions`), and on the six courtier wax seals (`items-paper`,
+  `PAPERWORK.md` §5) — so a character holds at most one belief, at most one
+  Addiction and at most one personal seal, independently.
+
+  The seals are the one case where the flag sits in a group that also holds
+  tags **without** it — blank paper, the eight office stamps, and every note
+  anybody writes. That is fine and is what "per tag group" means: the rule only
+  ever compares two tags that BOTH carry the flag, so nothing else in
+  `items-paper` is touched. **Nothing in `general-personality` carries it**:
   the 2026-09-01 merge dropped it from the nine ex-Restrictions on purpose, so
   Pacifist + Craven is now a legal character. That is what makes the merged
   group actually merged — leaving the flag on would have kept "one Restriction
@@ -429,7 +436,10 @@ reason to price one at 5.
 without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
-the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
+the carry caps landed (`CARRY.md`). **Fast Metabolism is a fourth, at −6** —
+between the −5 and −7 bands, Bascinet's call; it is the only tag that changes
+the *size* of the per-turn upkeep rather than exempting somebody from it
+(`TURN-ENGINE.md` §2 step 8). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of
 deliberate outlier as Pack Mule; don't read a pattern into it. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
@@ -439,11 +449,15 @@ Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 at whichever it reaches first:**
 
 - **`GameConfig.maxDrawbackTags`** — how many drawback tags may be bought.
-  **6** by default.
+  **4** by default.
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
-  claim back in total, stored as a **positive magnitude**. **12** by default,
-  matching `startingTagPoints` on purpose, so the rule says itself: *you can
-  never claim back more than you started with.*
+  claim back in total, stored as a **positive magnitude**. **14** by default.
+  That sits a little *above* `startingTagPoints`, on purpose. The two used to
+  match, on the tidy rule *you can never claim back more than you started
+  with* — but that made the heavy-drawback build a trap rather than a trade:
+  four real problems bought you nothing the ordinary budget couldn't already
+  reach. At 14 the ceiling is exactly one Character-defining pick, so a
+  character who takes on that much trouble gets something for it.
 
 Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.
@@ -452,7 +466,7 @@ at all.
 count cap by itself spends the same slot on a −1 and on a −11, so five
 drawbacks are worth −5 to one player and −43 to another — the cap reads as an
 instruction to stack the heaviest tags in the catalog, and the player taking
-five small human flaws is simply playing it wrong. A point cap by itself is
+four small human flaws is simply playing it wrong. A point cap by itself is
 the mirror problem: one Appendicitis finishes you, while ten −1s are never
 stopped by anything. The game shipped each in turn — `maxNegativeTags`
 (points, retired 2026-08-31) then `maxDrawbackTags` (count) — before landing

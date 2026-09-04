@@ -1047,6 +1047,19 @@ tags:
       locks:
         - families: [wealth]
 
+  # The one tag that changes the MAGNITUDE of the per-turn upkeep rather than
+  # exempting somebody from it — hardcoded by slug in db/lib/hungerPass.js,
+  # same as hungerless. Priced at -6, deliberately off the -5/-7 bands
+  # (TAGS.md §4a).
+  fast-metabolism:
+    name: Fast Metabolism
+    category: general
+    group: general-traits
+    description: "You consume 2 ⬢ per turn. ‡"
+    pointCost: -6
+    purchasable: true
+    purchasableAfterStart: false
+
   bad-liar:
     name: Bad Liar
     category: general
@@ -6092,6 +6105,7 @@ tags:
     group: items-paper
     sealMark: "Three cups, stacked."
     pointCost: 1
+    exclusive: true
     requiredTag: courtier
     tradeable: true
     weight: 0
@@ -6105,6 +6119,7 @@ tags:
     group: items-paper
     sealMark: "Two saints beholding each other."
     pointCost: 1
+    exclusive: true
     requiredTag: courtier
     tradeable: true
     weight: 0
@@ -6118,6 +6133,7 @@ tags:
     group: items-paper
     sealMark: "A cross wrapped in vines."
     pointCost: 1
+    exclusive: true
     requiredTag: courtier
     tradeable: true
     weight: 0
@@ -6131,6 +6147,7 @@ tags:
     group: items-paper
     sealMark: "A fleur de lis—chivalrous and noble."
     pointCost: 1
+    exclusive: true
     requiredTag: courtier
     tradeable: true
     weight: 0
@@ -6144,6 +6161,7 @@ tags:
     group: items-paper
     sealMark: "A knight on a warhorse."
     pointCost: 1
+    exclusive: true
     requiredTag: courtier
     tradeable: true
     weight: 0
@@ -6157,6 +6175,7 @@ tags:
     group: items-paper
     sealMark: "An ox."
     pointCost: 1
+    exclusive: true
     requiredTag: courtier
     tradeable: true
     weight: 0
@@ -6168,6 +6187,13 @@ tags:
   # room the seat works out of (docs/zones.yaml `stash:`) and is `tradeable`
   # like every other piece of office regalia, so prying the Bishop's stamp off
   # the Bishop is exactly the kind of thing the game is for (TAGS.md §5).
+  #
+  # NOT `exclusive`, unlike the six above. A stamp is an object attached to a
+  # seat rather than a signature you chose, so holding the Bishop's and the
+  # Captain's at once is a real and interesting situation — you took one of
+  # them off somebody. `exclusive` is also only enforced on the purchase paths,
+  # and nothing here is purchasable, so setting it would be inert as well as
+  # wrong.
 
   bannerets-wax-stamp:
     name: Banneret's Wax Stamp
