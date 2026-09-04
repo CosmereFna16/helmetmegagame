@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · A courtier has one wax seal, not six
+
+✎ At most one personal wax seal per courtier, at creation and in the store
+
 ## 2026-09-04 · Paperwork: paper you can write on, seal, post and tear down
 
 ✚ Write and Seal Letter on the Actions grid, for anyone with their letters  
