@@ -505,7 +505,7 @@ zones:
         name: Forest 1
         description: >-
           The river comes out of the rock here, cold enough to ache. Beyond it the trees give up and the land goes to scree. Nobody has any reason to be this far west, which is its own kind of reason. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 2
       forest-2:
@@ -519,14 +519,14 @@ zones:
         name: Forest 3
         description: >-
           Four ways meet under a beech old enough to have a name nobody remembers. The undergrowth is trodden flat in a ring around it. People stop here. Not all of them go on. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 4
       forest-4:
         name: Forest 4
         description: >-
           The road proper, rutted by cart wheels and kept clear by the Baron's men. It runs downhill toward the town's north gate and uphill toward the manors. Walking it means being seen. ‡
-        yield: { hunting: 0.5, farming: 0.5, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.5, fishing: 0.9 }
         rooms: {}
       # map node 5
       forest-5:
@@ -540,7 +540,7 @@ zones:
         name: Forest 6
         description: >-
           Charcoal burners worked here once. The clearings are circles of black earth where nothing has grown back, and the stacked kilns have collapsed into shapes that look, at dusk, like people sitting. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 7
       forest-7:
@@ -568,14 +568,14 @@ zones:
         name: Forest 10
         description: >-
           The eastern bank, where the river turns and the water goes quiet and deep. There is a culvert in the bank, grated once. The grate is gone. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 36
       forest-36:
         name: Forest 11
         description: >-
           Coppiced woodland, cut on a cycle so old it looks natural until you notice every trunk is the same age. The farms begin where the stools end. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
 
   east-forests:
@@ -600,21 +600,21 @@ zones:
         name: Black Hills 1
         description: >-
           Where the mountain road finally comes down out of the rock. The trees here are wrong — taller, further apart, quieter — and the ground between them is clear in a way no forest manages by itself. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 13
       east-forests-13:
         name: Black Hills 2
         description: >-
           The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 25
       east-forests-25:
         name: Black Hills 3
         description: >-
           Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 26. Renamed off the numbered series because the brigands live
       # here now — a place people talk about needs a name people can say.
@@ -622,7 +622,7 @@ zones:
         name: Ravine
         description: >-
           The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. The hills split here, a dry cut too steep to walk into and too deep to see the bottom of. Roots come through the wall of it. Somebody has been up and down this more than once, and has been careful about where they put their feet. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms:
           ravine-camp:
             name: Ravine Camp
@@ -646,28 +646,28 @@ zones:
         name: Black Hills 5
         description: >-
           A crossroads of deer paths in a stand of black pine, so dense that noon reads as evening. Sound does not carry. Neither do shouts. ‡
-        yield: { hunting: 1.3, fishing: 0.8 }
+        yield: { hunting: 1.0, fishing: 0.8 }
         rooms: {}
       # map node 28
       east-forests-28:
         name: Black Hills 6
         description: >-
           Ruins under moss: footings, a doorstep, the stub of a chimney, all laid out in a grid too regular for a village. Whatever stood here was planned by somebody with a straight edge. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 29
       east-forests-29:
         name: Black Hills 7
         description: >-
           A dead end that does not look like one until you are in it — a bowl of ground ringed by rock, floored in fern. Excellent for hiding. Terrible for leaving. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 30
       east-forests-30:
         name: Black Hills 8
         description: >-
           The eastern edge, where the forest thins into scrub and the ground starts its long fall toward the marsh. The air changes here. You can taste it before you see it. ‡
-        yield: { hunting: 1.1 }
+        yield: { hunting: 1.0 }
         rooms: {}
 
   marshes:
