@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Leper cannot be stacked with the other ugliness
+
+✎ Leper now conflicts with Ugly, Disfigured, Pretty and Beautiful
+
 ## 2026-09-04 · A helmet is a face: concealment now takes something over yours
 
 ✎ /conceal needs concealing headgear equipped — a bare face can no longer go unnamed  
