@@ -13,7 +13,7 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
-const { isMounted, equippedSlugs } = require("./mounts");
+const { isMounted, isBoated, boatCrossing, equippedSlugs } = require("./mounts");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 
 // Legs too badly hurt to walk a whole zone for free. A Peg Leg is absent on
@@ -55,19 +55,30 @@ function freeMovesLeft(character, config, openTurn) {
   return Math.max(0, allowance - spent);
 }
 
-function freeZoneMoves(character, config) {
+// `crossing` is optional: `{ fromZoneSlug, toZoneSlug }` when the caller knows
+// where this character is actually going. Only the boat needs it — its extra
+// move is earned per crossing rather than banked per turn — so every caller
+// that is merely displaying an allowance passes nothing and is unaffected.
+function freeZoneMoves(character, config, crossing = null) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return 0;
   const base = config?.freeZoneMovesPerTurn ?? 1;
+  const active = equippedSlugs(held);
   // A horse carries you whatever your legs are, so it is checked FIRST and
   // cancels lameness outright rather than adding one to a zero.
-  if (isMounted(equippedSlugs(held))) return base + 1;
+  if (isMounted(active)) return base + 1;
+  // A boat does the same, but only where the water goes. It does NOT cancel
+  // lameness: you still have to get down to the bank.
+  const onWater = isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug);
   if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return 0;
-  return base;
+  return onWater ? base + 1 : base;
 }
 
-// Why a character has no free crossing, as one sentence for the sheet's hover
-// — the number alone leaves a lamed player staring at a bare 0.
+// One sentence explaining the sheet's crossing count, for its hover. Usually
+// that means why the number is 0 — a bare 0 leaves a lamed or overloaded player
+// with nothing to act on. It also covers the opposite case: a boat's extra
+// crossing is earned per crossing, not banked, so the number UNDERSTATES what a
+// boatman gets on the water and has to say so.
 function freeZoneMovesReason(character) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
@@ -76,6 +87,11 @@ function freeZoneMovesReason(character) {
   if (isMounted(equippedSlugs(held))) return null;
   const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
   if (lamed) return `${lamed.tag.name}: you cannot walk a zone for free. Ride, and you can. ‡`;
+  // Not a refusal — the number above is right for most crossings, and the
+  // boat quietly adds one to the three that touch water.
+  if (isBoated(equippedSlugs(held))) {
+    return "Your boat adds a free crossing between the Forest, the Black Hills and the Marshes. It does nothing anywhere else. ‡";
+  }
   return null;
 }
 
@@ -211,7 +227,10 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
         // the check, so two tabs cannot both spend the last one. A turn id
         // that differs from the stored one resets the counter in the same
         // statement, which is why nothing ever has to sweep this field.
-        const allowance = freeZoneMoves(character, config);
+        const allowance = freeZoneMoves(character, config, {
+          fromZoneSlug: currentLocation.zone?.slug,
+          toZoneSlug: targetLocation.zone?.slug,
+        });
         const spentFree = character.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
 
         if (spentFree < allowance) {

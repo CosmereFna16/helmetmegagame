@@ -6,7 +6,7 @@
 // pair (see Role in schema.prisma):
 //   isUnique  -> exactly 1 seat, at any game size. A single named character
 //                (Baron, Bishop, Headman) — NOT the same as "1 per 100".
-//   unlimited -> uncapped chaff roles (Peasant, Migrant).
+//   unlimited -> uncapped chaff roles (Commoner, Migrant).
 //   weight    -> seats per 100 players, scaled by GameConfig.playerCount.
 //
 // Returns Infinity for uncapped roles so callers can compare `taken < cap`
@@ -46,7 +46,7 @@ const PERMANENT_SEAT_ROLE_SLUGS = [
   "successor",
   "hand",
   "meister",
-  "diplomat",
+  "arbiter",
   // The Watch
   "captain",
   "incarn",

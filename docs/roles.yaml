@@ -37,7 +37,7 @@
 # expressed as seats allowed per 100 total players — the picker computes
 # `round(weight * GameConfig.playerCount / 100)`, so raising playerCount to
 # 120 scales every capped role by 1.2. `weight: unlimited` means no cap at
-# any scale (chaff roles like Peasant/Migrant).
+# any scale (chaff roles like Commoner/Migrant).
 #
 # `multiple: false` roles get no `weight` field at all — they're a single
 # specific named character (Baron, Bishop, Headman, ...) and always stay
@@ -157,7 +157,9 @@ zones:
               - Literate
               - Courtier
               - Obol x25
+              - Post-Christian
             doc_elements:
+              - godking
               - squeeze
               - courtstructure
               - lifewebbasic
@@ -186,7 +188,9 @@ zones:
               - Jewelry
               - Literate
               - Obol x5
+              - Post-Christian
             doc_elements:
+              - godking
               - courtstructure
               - lifewebbasic
               - fortressstarting
@@ -212,7 +216,9 @@ zones:
               - Nobility
               - Literate
               - Obol x5
+              - Post-Christian
             doc_elements:
+              - godking
               - courtstructure
               - lifewebbasic
               - fortressstarting
@@ -235,7 +241,9 @@ zones:
               - Nobility
               - Jewelry
               - Literate
+              - Post-Christian
             doc_elements:
+              - godking
               - courtstructure
               - lifewebbasic
               - fortressstarting
@@ -280,6 +288,7 @@ zones:
               - Elevator Key
               - Obol x10
             doc_elements:
+              - godking
               - squeeze
               - courtstructure
               - lifewebbasic
@@ -311,6 +320,7 @@ zones:
             starting_resources: 2
             starting_zone: fortress
             treasurer: true
+            whitelist: true
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -320,12 +330,41 @@ zones:
               - Bird
               - Obol x5
             doc_elements:
+              - godking
               - squeeze
               - courtstructure
               - lifewebbasic
               - fortressstarting
               - courtier
               - medical
+              - ravenhearteconomy
+          arbiter:
+            name: Arbiter
+            intro: >-
+              Represent the God-King Enoch II's interests, support Ravenheart's defense, and advise the Baron.
+            description:
+              - >-
+                You are on the Baron's side or you dislike him—it's up to you. However, your home and allegiance is back in the Kingdom, and as such, you are here to serve His Majesty God-King Enoch II's interests—primarily by ensuring neither Ravenheart's court nor its peasants get uppity, and secondarily by aiding in the organization of its defenses against both internal and external threats.
+              - >-
+                Unless the God-King orders you otherwise, ensure you're helping the fortress however you can. It is particularly important that you aid in economic matters, such as in the organization of Godard Factory or the town's taxation. Ensure the Meister and the Headman do their jobs.
+              - >-
+                Ask the Baron how you can help him. Your service will surely be appreciated.
+            difficulty: normal
+            multiple: false
+            whitelist: true
+            starting_resources: 2
+            starting_zone: fortress
+            starting_location: keep
+            starting_tags:
+              - Ravenhearter
+              - Literate
+              - Sabre
+              - Major's Insignia
+              - Obol x4
+            doc_elements:
+              - godking
+              - courtstructure
+              - fortressstarting
               - ravenhearteconomy
           courtier:
             name: Courtier
@@ -336,8 +375,6 @@ zones:
                 For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor's affection. It is your day to make of it what you will.
               - >-
                 As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
-              - >-
-                Buy the {tag:manor} tag once you're established if you want a household of your own to run, alongside your wine and your politics.
             difficulty: easy
             multiple: true
             weight: 6
@@ -348,6 +385,7 @@ zones:
               - Courtier
               - Literate
             doc_elements:
+              - godking
               - courtier
               - courtstructure
               - fortressstarting
@@ -367,28 +405,8 @@ zones:
               - Ravenhearter
               - Musician
             doc_elements:
+              - godking
               - courtier
-              - courtstructure
-              - fortressstarting
-          diplomat:
-            name: Diplomat
-            intro: >-
-              Recover ancient artifacts and study Ravenheartian culture.
-            description:
-              - >-
-                Recover ancient artifacts and study Ravenheartian culture. Meddle. Convince the Baron to join your interstellar federation.
-            difficulty: easy
-            multiple: true
-            weight: 1
-            starting_resources: 1
-            starting_zone: fortress
-            starting_tags:
-              - Ravenhearter
-              - Literate
-              - Drone
-            doc_elements:
-              - courtier
-              - diplomat
               - courtstructure
               - fortressstarting
           servant:
@@ -409,6 +427,7 @@ zones:
               - Ravenhearter
               - Cooking (Basic)
             doc_elements:
+              - godking
               - courtier
               - courtstructure
               - fortressstarting
@@ -420,7 +439,7 @@ zones:
           captain:
             name: Captain
             intro: >-
-              Bravely lead the Watch and hold back the darkness, you goddamn hero.
+              Bravely lead  and hold back the darkness, you goddamn hero.
             description:
               - >-
                 Ravenheart is an ancient bastion of humanity, a beacon of light. It is your solemn duty — at least on paper — to uphold that. Do you understand the gravity of your situation? Oh, enough waxing, Captain — you will either solve the problem or you won't.
@@ -457,7 +476,9 @@ zones:
               - Buckler
               - Mail Coif
               - Mail Shirt
+              - Post-Christian
             doc_elements:
+              - godking
               - courtstructure
               - fortressstarting
               - watchman
@@ -469,14 +490,14 @@ zones:
               You are a warrior monk, the Warden, the unbound spirit of the Keep.
             description:
               - >-
-                In your heart, you know it is the nature of the Universe that good will win. It is not important to make a big fuss — God is on your side. Above all, keep yourself, and if you can the Baron, the Captain — but changing people's minds is like wrestling a donkey in the mud, you know — pure, holy, a servant of Goodness. Do not stoop to the madness of passion, Incarn!
+                Guard the Keep, process prisoners, pray to God, and guard the Silver Cross. Your allegiance is to God first and foremost, and Ravenheart second. Fortunately, the Baron is on the side of order more often than not, so your cause is aligned with this. Do not stoop to the madness of passion, Incarn. Be resolute, quiet, and powerful.
               - >-
                 Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
               - >-
                 Your role is as organizational as it is combat-like — you should assist the Captain in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger — always be a step ahead of the darkness.
             difficulty: normal
             multiple: false
-            starting_resources: 1
+            starting_resources: 2
             starting_zone: fortress
             treasurer: true
             starting_tags:
@@ -491,6 +512,7 @@ zones:
               - Disabler
               - Mail Coif
               - Mail Shirt
+              - Post-Christian
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -501,7 +523,7 @@ zones:
           watchman:
             name: Watchman
             intro: >-
-              Serve the Baron and salute your Captain. You are the man of the hour!
+              Serve the Baron and defend Ravenheart. You are the man of the hour.
             description:
               - >-
                 Serve the Baron, salute your Captain. Darkness is coming — do you heed the call, or frolic about?
@@ -514,7 +536,7 @@ zones:
                 Or you can try to be a good man. It's up to you.
             difficulty: easy
             multiple: true
-            weight: 7
+            weight: 6
             starting_resources: 1
             starting_zone: fortress
             starting_tags:
@@ -528,6 +550,7 @@ zones:
               - Simple Helm
               - Mail Coif
               - Mail Shirt
+              - Post-Christian
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -554,6 +577,7 @@ zones:
               - Buckler
               - Mail Coif
               - Mail Shirt
+              - Post-Christian
             doc_elements:
               - courtstructure
               - fortressstarting
@@ -598,7 +622,6 @@ zones:
               - Literate
               - Post-Christian
               - Bishop's Mitre
-              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -867,7 +890,6 @@ zones:
               - Old
               - Laboring (Skilled)
               - Laboring (Farming)
-              - House
               - Literate
               - Headman's Cap
             doc_elements:
@@ -894,7 +916,6 @@ zones:
               - Ranged (Basic)
               - Neoclassic R&W10
               - Cudgel
-              - House
               - Sheriff's Badge
             doc_elements:
               - townstarting
@@ -922,23 +943,22 @@ zones:
             starting_tags:
               - Ravenhearter
               - Smithing
-              - House
             doc_elements:
               - townstarting
               - smithing
               - combat
               - independent
-          peasant:
-            name: Peasant
+          commoner:
+            name: Commoner
             intro: >-
-              You're a peasant. Make a living at day, live your life at night.
+              You're a commoner. Make a living at day, live your life at night.
             description:
               - >-
-                Peasantry — the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires or become honest and authentic — choose a life, build it, and protect it.
+                Commonry — the unlimitedness of knowing you are not being watched, because you are one of Many. You are free, in a way. You must feed yourself and pay your taxes, but what else? It is time to choose a path. Fulfill your Desires or become honest and authentic — choose a life, build it, and protect it.
               - >-
                 Naturally, you must work during the Dawn, but you are encouraged to experiment with what you do at Dusk.
               - >-
-                You start skilled, and a farmer besides — the Farms are the richest soil in the valley, though not the only ground worth working. Press Labor? in a location to see what it yields before you spend the day there. Or find your own trade. ‡
+                You start skilled at labor and nothing else, which is the point — buy a kit and you are a fisherman, a farmer or a hunter by Dawn. Press Labor? in a location to see what it yields before you spend the day there. Or find your own trade entirely. ‡
             difficulty: easy
             multiple: true
             weight: unlimited
@@ -947,60 +967,9 @@ zones:
             starting_tags:
               - Ravenhearter
               - Laboring (Skilled)
-              - Laboring (Farming)
-              - Shack
             doc_elements:
               - townstarting
               - production
-              - independent
-          herald:
-            name: Herald
-            intro: >-
-              Tell the news, take messages, and hope either the Baron or the Headman will pay you.
-            description:
-              - >-
-                Done rightly, your job can be quite profitable — particularly if you're willing to spy and play the information game.
-              - >-
-                Many people are willing to divulge their secrets. Lend an ear, and you'll be surprised at what you pick up.
-              - >-
-                Since it takes 1 Turn to travel between Zones — and most people aren't making the trip back and forth anyways — information's not instant. The Baron, the Headman, or even the Hand might like to know what's happening on the other side of Ravenheart.
-            difficulty: easy
-            multiple: true
-            weight: 1
-            starting_resources: 1
-            starting_zone: town
-            starting_tags:
-              - Ravenhearter
-              - Literate
-            doc_elements:
-              - townstarting
-              - independent
-          outsider:
-            name: Outsider
-            intro: >-
-              Nature garbs you. Live on the outskirts, free and independent.
-            description:
-              - >-
-                Live on the outskirts, free and independent.
-              - >-
-                You are aware of the Goddess of Nature, Sylva. Some still worship her in Ravenheart. It is up to you to follow the Church or stick to the oldways.
-              - >-
-                Forage and heal as a Healer (Medical (Basic), Brewing (Basic)), or take up Laboring (Hunting) and work the woods — both still Forester at heart. Pick Labor as your Move's kind; the Forest is the Town's hunting ground, and some tiles are far better than others. ‡
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 2
-            starting_zone: town
-            extra_starting_points: 7
-            starting_tags:
-              - Ravenhearter
-              - Laboring (Basic)
-              - Forester
-              - Old Ways (Sylvia)
-            doc_elements:
-              - townstarting
-              - production
-              - medical
               - independent
           mortus:
             name: Mortus
@@ -1041,7 +1010,7 @@ zones:
                 You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for food and coin.
             difficulty: easy
             multiple: true
-            weight: 5
+            weight: 4
             starting_resources: 1
             starting_zone: town
             extra_starting_points: -3
@@ -1117,7 +1086,7 @@ zones:
                 Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)), wait tables, or just keep the room talking — pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
             difficulty: easy
             multiple: true
-            weight: 3
+            weight: 2
             starting_resources: 1
             starting_zone: town
             starting_tags:
@@ -1130,80 +1099,6 @@ zones:
               - meals
               - inn
               - independent
-      brigands:
-        name: Brigands
-        silo: ravine-camp
-        roles:
-          brigand-leader:
-            name: Brigand Leader
-            intro: >-
-              You raided a shipment on the way to the Fortress — well done!
-            description:
-              - >-
-                Some call you scum. But what do they know of freedom?
-              - >-
-                The Brigand Leader is given the sacred task of organizing his small band of scrappy men. Keep them in line; earn their loyalty, buy them booze, or bully them into submission. Also, find a place to make your base.
-              - >-
-                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
-              - >-
-                As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
-              - >-
-                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
-              - >-
-                A little hint: some of the Watchmen take bribes.
-            difficulty: normal
-            multiple: false
-            starting_resources: 3
-            starting_zone: east-forests
-            starting_location: east-forests-26
-            leader: true
-            whitelist: true
-            starting_tags:
-              - Hills Camp
-              - Brigand
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Padded Armor
-              - Broadsword
-              - Mail Coif
-              - Buckler
-              - Crossbow
-            doc_elements:
-              - concealing
-          brigand:
-            name: Brigand
-            intro: >-
-              You raided a shipment on the way to the Fortress — well done!
-            description:
-              - >-
-                Some call you scum. But what do they know of freedom?
-              - >-
-                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
-              - >-
-                As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
-              - >-
-                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
-              - >-
-                A little hint: some of the Watchmen take bribes.
-            difficulty: easy
-            multiple: true
-            weight: 2
-            starting_resources: 2
-            starting_zone: east-forests
-            starting_location: east-forests-26
-            starting_tags:
-              - Hills Camp
-              - Brigand
-              - Melee (Basic)
-              - Ranged (Basic)
-              - Dagger
-              - Padded Armor
-              - Gladius
-              - Padded Cap
-              - Buckler
-              - Shortbow
-            doc_elements:
-              - concealing
   - name: Caves
     situation:
       - >-
@@ -1245,6 +1140,7 @@ zones:
               - Silencer
               - Obol x20
             doc_elements:
+              - godking
               - squeeze
               - townstarting
           docker:
@@ -1361,6 +1257,7 @@ zones:
               - Factory Key
               - Banneret's Key
             doc_elements:
+              - godking
               - godardfactory
               - squeeze
               - ravenhearteconomy
@@ -1421,3 +1318,87 @@ zones:
               - Factory Key
             doc_elements:
               - godardfactory
+
+  - name: Black Hills
+    situation:
+      - >-
+        A tax caravan bound for the Fortress never arrived, and the road it took is one nobody has walked since. The Baron has not said the word brigand out loud. ‡
+      - >-
+        Hunters who work the hills have started coming back a day early, and none of them will say why. The ones who do say anything mention the ravine. ‡
+      - >-
+        Somebody has been leaving cuts in the bark at shoulder height, in marks the town cannot read. They are fresher than they were last week. ‡
+    factions:
+      brigands:
+        name: Brigands
+        silo: ravine-camp
+        roles:
+          brigand-leader:
+            name: Brigand Leader
+            intro: >-
+              You raided a shipment on the way to the Fortress — well done!
+            description:
+              - >-
+                Some call you scum. But what do they know of freedom?
+              - >-
+                The Brigand Leader is given the sacred task of organizing his small band of scrappy men. Keep them in line; earn their loyalty, buy them booze, or bully them into submission. Also, find a place to make your base.
+              - >-
+                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
+              - >-
+                As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
+              - >-
+                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
+              - >-
+                A little hint: some of the Watchmen take bribes.
+            difficulty: normal
+            multiple: false
+            starting_resources: 3
+            starting_zone: east-forests
+            starting_location: east-forests-26
+            leader: true
+            whitelist: true
+            starting_tags:
+              - Hills Camp
+              - Brigand
+              - Melee (Basic)
+              - Ranged (Basic)
+              - Padded Armor
+              - Broadsword
+              - Mail Coif
+              - Buckler
+              - Crossbow
+            doc_elements:
+              - concealing
+          brigand:
+            name: Brigand
+            intro: >-
+              You raided a shipment on the way to the Fortress — well done!
+            description:
+              - >-
+                Some call you scum. But what do they know of freedom?
+              - >-
+                You successfully raided a tax caravan. You're rich! But they might be looking for you. Put your resources together and plan your next move.
+              - >-
+                As a Brigand, you can do whatever you want. But here are some three goals in order of priority in case you need inspiration: 1. Survive, 2. Make money, 3. Find the airship in the Baron's fortress and hitch a ride off this planet! Ha-ha… just kidding. You, in the Keep? Impossible. But imagine…
+              - >-
+                You are probably afraid of fighting. You do not want to die. Your greatest strength is your creativity: forge papers and play con games; kidnap the metalsmith and build an empire; pay a lady to lure the Heir out and take him hostage; ambush whoever's bringing the tax caravan. Or rob the merchant. Oh, imagine robbing the merchant! If you have to fight, fine, but be careful.
+              - >-
+                A little hint: some of the Watchmen take bribes.
+            difficulty: easy
+            multiple: true
+            weight: 2
+            starting_resources: 2
+            starting_zone: east-forests
+            starting_location: east-forests-26
+            starting_tags:
+              - Hills Camp
+              - Brigand
+              - Melee (Basic)
+              - Ranged (Basic)
+              - Dagger
+              - Padded Armor
+              - Gladius
+              - Padded Cap
+              - Buckler
+              - Shortbow
+            doc_elements:
+              - concealing

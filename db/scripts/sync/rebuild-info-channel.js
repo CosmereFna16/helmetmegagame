@@ -48,7 +48,7 @@ const DOCS_DIR = docsPath();
 const BOLD_ROLE_NAMES = new Set([
   "Courtier",
   "Watchman",
-  "Peasant",
+  "Commoner",
   "Follower",
   "Clansman (Broken Spears Clan)",
   "Clansman (Windrider Clan)",

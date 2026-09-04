@@ -30,21 +30,12 @@ documents:
 
       So, the Fortress survives off of the town's taxes, and provides protection in turn.
       The Church survives off of the town's taxes, and provides religious services in turn.
-  diplomat:
-    name: Diplomat
+  godking:
+    name: The God-King
     public: false
-    secret: true
     tags: []
     description: |-
-      You are from the Culture, a post-scarcity interstellar empire of hedonists ruled by benevolent AI. You want the best for the people of Ravenheart — and that would mean convincing the Baron to join the Culture — but Contact (the Culture's diplomatic wing) operates in the scale of centuries, not human generations. They don't think it's the right time, although they haven't told you why. In general, Contact is very non-interventionist. Therefore, do the best you can to quietly help people and further the Culture's mission: help push for a leader likely to cooperate, ensure the Order of the Silver Cross doesn't grow out of control, and above all, do not blow your cover! The *last* thing the Culture wants is for the people of Ravenheart to know you're here…
-
-      They would appreciate it if you collected any interesting gear, took some photos with your drone, and sent logs to the mothership. The caves supposedly have a lot of interesting things going on, but it's probably dangerous.
-
-      Also, you probably had a good reason to come here (boredom?) and your friends thought you were cr*aaa*zy! Coming here? Where you could die?! Back home, almost no one dies, ever. Everything is just very safe.
-
-      You have one (!) gadget — an autonomous, sentient flying drone with a supercomputer for a brain. It's disguised as a bird and has a strong personality. It likes to fly and look around the forest. It's harmless.
-
-      If anything goes wrong, the General Contact Vessel *Helpless Is The Face Of Your Beauty* will teleport you on board. It'll take your message three minutes to reach them.
+      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however—and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
   treasurer:
     name: Treasurer
     public: true

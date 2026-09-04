@@ -1315,9 +1315,9 @@ tags:
     purchasableAfterStart: false
     removable: false
     # The seats with nobody to be loyal to. Migrant and Mercenary are
-    # literally Unaffiliated; Bum, Outsider and Pusher sit inside a faction
-    # on paper and owe it nothing.
-    excludedRoles: [migrant, mercenary, bum, outsider, pusher]
+    # literally Unaffiliated; Bum and Pusher sit inside a faction on paper
+    # and owe it nothing.
+    excludedRoles: [migrant, mercenary, bum, pusher]
     # The own-faction carve-out is prose above (F-11), not data — the lock
     # below reads plain faction-success, since the game has no per-desire
     # "your side vs. any side" distinction to encode.
@@ -3743,8 +3743,8 @@ tags:
   # `tradeable` decides what can be handed over OR lifted off a body, so every
   # entry here states it outright (db/lib/syncTags.js enforces that). Mounts,
   # vehicles and ordinary animals travel: they are standing right there and
-  # anyone can lead them away. Real property does not — you cannot carry a house
-  # off a corpse — and neither does the Drone, which belongs to itself.
+  # anyone can lead them away. Real property does not — you cannot carry a boat
+  # off a corpse.
   horse:
     name: Horse
     category: assets
@@ -3794,16 +3794,18 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  manor:
-    name: Manor
+  fishing-boat:
+    name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A household of your own within the Fortress."
-    pointCost: 7
-    requiredTag: courtier
+    description: "A flat-bottomed boat you pole yourself. While it's equipped you get one extra free zone crossing each turn, but only between the Forest, the Black Hills and the Marshes — the boat follows the water and nothing else. Adds +1 to your Fishing labor. You can't have it out at the same time as a {tag:horse} or a {tag:cart}, and it waits outside indoors. ‡"
+    pointCost: 4
+    visible: true
     tradeable: true
+    equippable: true
+    laborBonus: { kind: fishing, amount: 1 }
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     removable: true
 
   cart:
@@ -3838,48 +3840,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
-
-  drone:
-    name: Drone
-    category: assets
-    group: assets-companions
-    description: "Normally, it fits in the palm of your hand, but lately it's taken the disguise of a bird and spends most of its time in the forest. Neither of you like each other—it seems to wish it was back with the other Minds. It is relatively human, but its intelligence and abilities are completely beyond you. It doesn't seem to have any combat abilities. You could assign it to collect information or similar, but it might not always listen."
-    pointCost: 0
-    # Its own creature, and it doesn't much like you as it is. Killing the
-    # holder doesn't hand you the leash — the Drone just goes back to the Minds.
-    tradeable: false
-    purchasable: false
-    visible: false
-    removable: true
-
-  house:
-    name: House
-    category: assets
-    group: assets-property
-    description: "You own a small, one-story house in town."
-    pointCost: 2
-    requiredTag: ravenhearter
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-
-  shack:
-    name: Shack
-    category: assets
-    group: assets-property
-    description: "You own a shanty house in the Underquarter."
-    pointCost: 0
-    requiredTag: ravenhearter
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-
-  # --- Items --------------------------------------------------------------
-  # Portable things a character owns, carries, hands over, and (where
-  # stackable) holds several of. Standing property and companions live in
-  # Assets below, not here.
 
   graga-sac:
     name: Graga Sac
@@ -4379,6 +4339,57 @@ tags:
   # YAML stash cannot name — so the one that is simply THERE at the start is
   # an ordinary authored consumable, the same shape as Starting Wares above.
   # Heavy, because it is a crate: carrying one off is a decision.
+  # --- Commoner kits ------------------------------------------------------
+  # A Commoner starts skilled at labor and nothing else. These are the three
+  # trades, sold as a crate you consume rather than as loose tags, so the
+  # picker offers one decision instead of four. Same shape as starting-wares
+  # above. Ungated on purpose: there is no `commoner` tag to hang a
+  # requiredTag on, and a Courtier who wants a hunting kit is welcome to it.
+  commoner-fisherman:
+    name: "Commoner: Fisherman"
+    category: items
+    group: items-gear
+    description: "Everything a fisherman owns, waiting at the waterline. Unpacks into a {tag:fishing-boat} and {tag:laboring-fishing}. ‡"
+    pointCost: 1
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - fishing-boat
+      - laboring-fishing
+
+  commoner-farmer:
+    name: "Commoner: Farmer"
+    category: items
+    group: items-gear
+    description: "Everything a farmer owns, which is not much. Unpacks into a {tag:work-knife} and {tag:laboring-farming}. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - work-knife
+      - laboring-farming
+
+  commoner-hunter:
+    name: "Commoner: Hunter"
+    category: items
+    group: items-gear
+    description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting} and {tag:forester}. ‡"
+    pointCost: 2
+    tradeable: true
+    weight: 2
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - laboring-hunting
+      - forester
+
   cargo-crate:
     name: Cargo Crate
     category: items
@@ -4464,6 +4475,20 @@ tags:
   # and a role that hands out three of them needs a stack to put them in.
   # Invisible on the sheet, so carrying one is not something a stranger reads
   # off you.
+  manor-key:
+    name: Manor Key
+    category: items
+    group: items-keys
+    description: "A key to the manor. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   armory-key:
     name: Armory Key
     category: items
@@ -5899,6 +5924,19 @@ tags:
     category: items
     group: items-keys
     description: "A elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
+    pointCost: 0
+    equippable: true
+    visible: worn
+    tradeable: true
+    weight: 0
+    purchasable: false
+    purchasableAfterStart: false
+
+  majors-insignia:
+    name: Major's Insignia
+    category: items
+    group: items-special
+    description: "Three chevrons pointing up, two down, and a clover leaf in the middle. The God-King's army wears it; nobody in Ravenheart does. ‡"
     pointCost: 0
     equippable: true
     visible: worn

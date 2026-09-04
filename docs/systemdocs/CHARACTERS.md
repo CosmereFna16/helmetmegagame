@@ -178,7 +178,7 @@ to be styled.
 Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a Bishop
 may style themselves Father, Mother or Reverend instead. Same for Captain
 (grants `watchman`) and the Baron's family (grant `nobility`). **Most of
-Ravenheart is untitled** — a peasant earns nothing, and the picker says so
+Ravenheart is untitled** — a Commoner earns nothing, and the picker says so
 rather than showing an empty control.
 
 Three titles hang off *purchasable* tags (`sergeant`, `knighted`,
@@ -364,11 +364,11 @@ Baron in a 300-player game.
 living character, normally — the holder dies and the role is offered again,
 which is right for a Bum or a Watchman. The roles in
 `PERMANENT_SEAT_ROLE_SLUGS` — Gunboat's list: Baron, Baroness, Heir,
-Successor, Hand, Meister, Diplomat, Captain, Incarn, Bishop, Esculap,
+Successor, Hand, Meister, Arbiter, Captain, Incarn, Bishop, Esculap,
 Inquisitor, Headman, Sheriff, Innkeeper and both Brigand roles — count DEAD
 holders too, so once taken they stay taken for the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
 Merchant are unique and deliberately absent) nor a faction — read the
-constant, not a rule. A single-seat role on the list (Diplomat, Sheriff,
+constant, not a rule. A single-seat role on the list (Sheriff,
 Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
 means "a Character row still points at this Role": a GM deleting the dead
 row from the dev panel, or moving the dead holder to another role, frees the

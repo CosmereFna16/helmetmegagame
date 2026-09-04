@@ -15,8 +15,8 @@
 # EVERY tag in it must be held (butcher-a-human wants Cruel and Butcher
 # both). It is always AND and can never carry `combine: or` — the sync
 # refuses that pairing. So `anyTags: [dancer]` + `anyRoles: [minstrel,
-# diplomat]` reads "holds Dancer, AND holds Minstrel or Diplomat" — not
-# "Dancer or Minstrel or Diplomat". Omit a sub-key entirely rather than
+# courtier]` reads "holds Dancer, AND holds Minstrel or Courtier" — not
+# "Dancer or Minstrel or Courtier". Omit a sub-key entirely rather than
 # writing an empty list.
 #
 # The one opt-out is `requires.combine: or`, which joins anyTags with
@@ -970,19 +970,12 @@ desires:
     requires:
       anyRoles: [sheriff]
 
-  tidings-of-an-army:
-    name: Bring tidings of an approaching army the day before it arrives
-    tier: 5
-    families: [duty]
-    requires:
-      anyRoles: [herald]
-
   deliver-a-message:
     name: Deliver an important message
     tier: 1
     families: [duty]
     requires:
-      anyRoles: [herald]
+      anyTags: [literate]
 
   protection-racket:
     name: Start a protection racket
@@ -1041,7 +1034,7 @@ desires:
     tier: 2
     families: [food]
     requires:
-      anyRoles: [incarn, diplomat]
+      anyRoles: [incarn, arbiter]
 
   sibling-in-trouble:
     name: Get your sibling in trouble
@@ -1108,41 +1101,19 @@ desires:
       anyTags: [musician, artist]
       combine: or
 
-  convince-the-baron:
-    name: Convince the Baron to join the Culture
-    tier: 7
-    families: [faction-success]
-    requires:
-      anyRoles: [diplomat]
-
-  saved-by-your-drone:
-    name: Be saved by your {tag:drone} in the last moment
-    tier: 4
-    families: [adventure]
-    requires:
-      anyRoles: [diplomat]
-
-  mingle-locally:
-    name: Romantically mingle with the local populace
-    tier: 2
-    families: [romance]
-    requires:
-      anyRoles: [diplomat]
-    cooldownTurns: 4
-
   defuse-a-situation:
     name: Defuse a difficult political situation
     tier: 2
     families: [scheming, faction-success]
     requires:
-      anyRoles: [diplomat]
+      anyRoles: [arbiter]
 
   stop-a-battle:
     name: Stop a battle through diplomacy
     tier: 4
     families: [scheming, bravery]
     requires:
-      anyRoles: [diplomat]
+      anyRoles: [arbiter]
 
   save-a-life-medical:
     name: Save a life
@@ -1270,14 +1241,14 @@ desires:
     tier: 7
     families: [faction-success, status]
     requires:
-      anyRoles: [peasant]
+      anyRoles: [commoner]
 
   peasant-higher-rank:
     name: Acquire a higher rank
     tier: 5
     families: [status]
     requires:
-      anyRoles: [peasant]
+      anyRoles: [commoner]
 
   # User gave no tier for this one.
   minstrel-joke-at-baron:
@@ -1350,7 +1321,7 @@ desires:
     families: [esoterica, adventure]
     requires:
       anyTags: [esoteric, adventurer]
-      anyRoles: [diplomat, scholastic]
+      anyRoles: [scholastic]
       combine: or
 
   forbidden-knowledge:
@@ -1765,20 +1736,22 @@ desires:
     requires:
       anyRoles: [metalsmith]
 
-  # --- Role-flavoured: the Outsider -----------------------------------------
+  # --- Role-flavoured: the woods ---------------------------------------------
+  # These were the Outsider's, gated on that seat. The seat is gone; Forester
+  # is what it actually meant, and the Hunter kit hands that to any Commoner.
   scare-off-a-trespasser:
     name: Scare somebody away from your territory
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [outsider]
+      anyTags: [forester]
 
   warn-the-town:
     name: Alert the town to a threat coming through the woods
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [outsider]
+      anyTags: [forester]
 
   renovate-the-inn:
     name: "Renovate the inn with a skilled builder's help"

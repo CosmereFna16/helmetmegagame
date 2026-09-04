@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
+import { STOWABLE_SLUGS, WATER_TRAVEL_SLUGS, BOAT_CONFLICT_SLUGS } from "@lifeweb/db/lib/mounts";
 import { describeSlotClash, findSlotClash } from "@lifeweb/db/lib/equipSlots";
 import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -26,7 +26,9 @@ export async function toggleEquip(characterTagId) {
     select: {
       id: true,
       location: { select: { indoors: true, name: true } },
-      tags: { select: { tag: { select: { slug: true } } } },
+      // `equipped` and the tag NAME are both read by the boat/mount clash
+      // below, which has to name the thing already out loud.
+      tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
     },
   });
   if (!character) return { error: "No living character." };
@@ -52,6 +54,26 @@ export async function toggleEquip(characterTagId) {
   // ways.
   if (!held.equipped && STOWABLE_SLUGS.has(held.tag.slug) && character.location?.indoors) {
     return { error: `You can't set up ${held.tag.name} inside ${character.location.name}. ‡` };
+  }
+
+  // You are either riding or poling. The boat and the road kit compete for the
+  // same free crossing, and having both out would stack two of them, so each
+  // refuses while the other is equipped. Checked in both directions — the
+  // player may reach this from either tag.
+  if (!held.equipped) {
+    const conflicting = WATER_TRAVEL_SLUGS.has(held.tag.slug)
+      ? BOAT_CONFLICT_SLUGS
+      : BOAT_CONFLICT_SLUGS.has(held.tag.slug)
+        ? WATER_TRAVEL_SLUGS
+        : null;
+    if (conflicting) {
+      const other = character.tags.find((ct) => ct.equipped && conflicting.has(ct.tag.slug));
+      if (other) {
+        return {
+          error: `Put ${other.tag.name} away first — you can't have that and ${held.tag.name} out at once. ‡`,
+        };
+      }
+    }
   }
 
   if (held.equipped) {

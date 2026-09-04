@@ -12,9 +12,26 @@
 // held-slug set by mistake.
 const FAST_TRAVEL_SLUGS = new Set(["horse", "steam-automobile"]);
 
+// The boat is deliberately NOT a fast-travel mount. It buys the same extra
+// crossing, but only between the three zones the water actually connects, and
+// it does none of the other things that set does: no passengers, no cancelling
+// a ruined leg, no passing a mounted-only gate. Keeping it out of
+// FAST_TRAVEL_SLUGS is what holds all three of those true for free.
+const WATER_TRAVEL_SLUGS = new Set(["fishing-boat"]);
+
+// Where a boat is any use. Zone SLUGS, not names — `east-forests` is the Black
+// Hills (docs/zones.yaml keeps the old id on purpose).
+const WATER_ZONE_SLUGS = new Set(["forest", "east-forests", "marshes"]);
+
 // Tags that stop working the moment they leave your hands. Cart is here for
-// its carry multiplier and its extra seats; the mounts for their free move.
-const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
+// its carry multiplier and its extra seats; the mounts and the boat for their
+// free move.
+const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, ...WATER_TRAVEL_SLUGS, "cart"]);
+
+// A boat and a horse are the same slot in fiction — you are either riding or
+// poling — so equipping one refuses while the other is out
+// (web/app/(app)/character/equipActions.js).
+const BOAT_CONFLICT_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
 
 // The slugs a character currently has in play: everything they hold, minus any
 // stowable that is not equipped.
@@ -42,6 +59,21 @@ function isMounted(activeSlugs) {
   return false;
 }
 
+function isBoated(activeSlugs) {
+  for (const slug of WATER_TRAVEL_SLUGS) if (activeSlugs.has(slug)) return true;
+  return false;
+}
+
+// Whether a boat helps with THIS crossing. Both ends have to be on the water,
+// so Forest -> Marshes is free and Forest -> Town is not. A caller that does
+// not know the crossing (the sheet, which shows an allowance before anyone has
+// picked a destination) passes nothing and gets false, which is the honest
+// answer: the boat's extra move is not banked, it is earned per crossing.
+function boatCrossing(fromZoneSlug, toZoneSlug) {
+  if (!fromZoneSlug || !toZoneSlug) return false;
+  return WATER_ZONE_SLUGS.has(fromZoneSlug) && WATER_ZONE_SLUGS.has(toZoneSlug);
+}
+
 // Holding a mount or a cart but not having it out. Travel asks so it can warn
 // before someone walks a day's road with a horse in their pocket.
 //
@@ -56,9 +88,14 @@ function stowedMounts(characterTags = []) {
 
 module.exports = {
   FAST_TRAVEL_SLUGS,
+  WATER_TRAVEL_SLUGS,
+  WATER_ZONE_SLUGS,
+  BOAT_CONFLICT_SLUGS,
   STOWABLE_SLUGS,
   equippedSlugs,
   fastTravelCapacity,
   isMounted,
+  isBoated,
+  boatCrossing,
   stowedMounts,
 };
