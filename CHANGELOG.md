@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The #info rebuild works again
+
+✎ The command that rebuilds #info from its master file had been broken since the scripts were reorganised; it looked for a docs folder that isn't there, and then choked on the roles list. #info is rebuilt and carries the new turn cadence
+
 ## 2026-09-04 · Turns are a day long now
 
 ✎ A turn is a whole real day and ends at midnight CT, instead of the two 12-hour turns a day it used to be. Dawn and Dusk still alternate, so an in-game day is two turns and takes two real days  
