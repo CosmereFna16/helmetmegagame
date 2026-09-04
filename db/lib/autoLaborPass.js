@@ -23,6 +23,7 @@ const {
 } = require("./laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
+const { isRefinery, loadRefineryStashes, refineryInputFor } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 
 // What the filed Move says it was. A player who wasn't there didn't narrate
@@ -41,7 +42,7 @@ async function runAutoLaborPass(prisma, turn) {
       discordUserId: true,
       zoneId: true,
       locationId: true,
-      location: { select: { id: true, name: true } },
+      location: { select: { id: true, name: true, attributes: true } },
     },
   });
   // An object, not null: db/index.js gates markDone on truthiness and treats
@@ -88,6 +89,14 @@ async function runAutoLaborPass(prisma, turn) {
     yieldsByLocation.get(row.locationId).push(row);
   }
 
+  // Two more bulk queries, and only when somebody is actually standing on a
+  // Factory floor: which Rooms there are holding Godflesh, and who has been
+  // let into them. Per-character this would be two round trips each.
+  const refineryLocationIds = [
+    ...new Set(characters.filter((c) => isRefinery(c.location)).map((c) => c.locationId).filter(Boolean)),
+  ];
+  const stashes = await loadRefineryStashes(prisma, refineryLocationIds);
+
   const filed = [];
   let skipped = 0;
 
@@ -114,11 +123,19 @@ async function runAutoLaborPass(prisma, turn) {
       continue;
     }
 
+    const refinery = isRefinery(character.location);
     const ctx = {
       tagSlugs,
       tools: toolsFrom(rows),
       yields: yieldMap(yieldsByLocation.get(character.locationId) ?? []),
       locationName: character.location?.name ?? null,
+      refinery,
+      refineryInput: refinery
+        ? refineryInputFor(
+            { characterId: character.id, locationId: character.locationId, heldSlugs: tagSlugs },
+            stashes,
+          )
+        : null,
     };
 
     const rate = resolveLaborRateFrom(ctx, coefficient, { lifewebFailing });

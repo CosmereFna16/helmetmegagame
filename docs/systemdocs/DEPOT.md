@@ -358,6 +358,7 @@ buying one mid-game is still a real decision.
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
 | `silver-sword` | 150 | 66 | |
+| `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
 | `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
 | `ml-23` | 182 | 80 | A 9mm pistol |
@@ -415,14 +416,18 @@ Four bands, about 106 tags in total:
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
-| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **40** |
+| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
+| Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **48** |
 
 **Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
-off the bands above on purpose. `skinless-brain` went 10 → **40**: the old
-price read the Skinless as a slightly harder Graga, and they are not — they are
-the only ingredient in the catalog that has to be talked out of being a person
-first, and the number says so. `dreamers-draught` went 16 → **60**, staying
+off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**
+when the Godard Factory opened: the 10 read the Skinless as a slightly harder
+Graga, which they are not — they are the only ingredient in the catalog that has
+to be talked out of being a person first — but at 40 a single organ stood level
+with a whole day of industry, and read as a shortcut past it. 25 keeps it well
+clear of a Graga Sac without competing with a wagon.
+`dreamers-draught` went 16 → **60**, staying
 above its own ingredient, because the point of that recipe is that the brain is
 the cheap part. `painting` went 60 → **48**, a flat 20% nerf; over its 4 turns
 that is 12 ⬢/turn, still the best rate a craftable pays.

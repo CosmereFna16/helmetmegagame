@@ -27,6 +27,7 @@ const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
+const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
@@ -140,6 +141,10 @@ const TURN_PASSES = [
   "lessons",
   "stagedPush",
   "tagExpiry",
+  // Counts Damaged Vision stacks and turns 5 of them into Blind. After
+  // tagExpiry so a stack that grew this turn is counted, before the sweep so
+  // the rows it deletes are its own. See db/lib/visionDecayPass.js.
+  "visionDecay",
   "dyingDeath",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
   // is a blind deleteMany over expiresTurn, so a body that reached its clock
@@ -295,6 +300,29 @@ async function resolveNeeds(turn, config) {
         data: { actorDiscordUserId: "system", actionType: "tag_expiry_resolved", details: tagExpirySummary },
       })
       .catch((err) => console.error("Tag expiry audit log failed:", err));
+  }
+
+  // Moonshine's slow bill. Rides the tagExpiry DM channel rather than
+  // threading a variable of its own through runSideEffects — it is the same
+  // kind of notice, "a tag on your sheet became a different tag".
+  let visionDecay = null;
+  if (!done.has("visionDecay")) {
+    visionDecay = await runVisionDecayPass(prisma, turn).catch(async (err) => {
+      await passFailed("Vision decay", err);
+      return null;
+    });
+    if (visionDecay) await markDone("visionDecay");
+  }
+  if (visionDecay) {
+    tagExpiryDms.push(...(visionDecay.dms ?? []));
+    if (visionDecay.blinded > 0) {
+      const { dms: _visionDms, ...visionSummary } = visionDecay;
+      await prisma.auditLog
+        .create({
+          data: { actorDiscordUserId: "system", actionType: "vision_decay_resolved", details: visionSummary },
+        })
+        .catch((err) => console.error("Vision decay audit log failed:", err));
+    }
   }
 
   // Dying death — the engine's second auto-kill, run down from the Dying

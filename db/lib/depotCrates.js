@@ -29,7 +29,21 @@ const { DEPOT_KEYCARD_SLUG } = require("./depotState");
 
 // Moderate. You can carry a couple; clearing a real shipment is several trips
 // or several people. See docs/systemdocs/CARRY.md for the ladder this sits on.
-const CRATE_WEIGHT_LBS = 15;
+// A crate weighs HALF what is in it. It used to be a flat 15 lb, which made a
+// crate of obols heavier than the obols and a crate of armor lighter than one
+// piece of it. Halving is what packaging is FOR — it is the same rule the
+// player-facing Package button applies (docs/systemdocs/FACTORY.md), so a
+// Depot shipment and a Banneret's wagon load obey one arithmetic.
+//
+// Rounded UP, and never below 1: an empty-ish crate of weightless things is
+// still a wooden box.
+function crateWeight(contents, weightByTagId) {
+  const inner = (contents ?? []).reduce(
+    (sum, line) => sum + (weightByTagId?.get?.(line.tagId) ?? 0) * (line.quantity ?? 1),
+    0,
+  );
+  return Math.max(1, Math.ceil(inner / 2));
+}
 
 // How many units of goods go in one crate, before the random split. Small
 // enough that a big order arrives as a genuine pallet of work.
@@ -154,7 +168,7 @@ function crateName(shipment, index) {
 // opening it needs no shipment lookup — the crate is self-describing, which is
 // also what lets one be carried off, traded, and opened somewhere else
 // entirely. groupId is the caller's, since db/lib/ must not read the catalog.
-function crateTagData(shipment, crates, { groupId = null } = {}) {
+function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Map() } = {}) {
   return crates.map((crate, index) => ({
     slug: crateSlug(shipment, index),
     name: crateName(shipment, index),
@@ -165,7 +179,7 @@ function crateTagData(shipment, crates, { groupId = null } = {}) {
     pointCost: 0,
     tradeable: true,
     stackable: false,
-    weightLbs: CRATE_WEIGHT_LBS,
+    weightLbs: crateWeight(crate.contents, weightByTagId),
     removable: true,
     sealedShipping: crate.sealed,
     // What falls out when it is opened. Read by the crate-open action; nothing
@@ -178,5 +192,6 @@ module.exports = {
   shipmentId,
   splitIntoCrates,
   crateTagData,
+  crateWeight,
   canOpenCrate,
 };

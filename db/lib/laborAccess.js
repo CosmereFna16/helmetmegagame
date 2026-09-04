@@ -15,6 +15,7 @@
 // context the caller already has in hand rather than each one costing its own
 // round trip.
 const { computeRate, SPECIALISATION_KINDS } = require("./production");
+const { isRefinery, REFINERY_YIELD } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const {
   EXHAUSTED_SLUG,
@@ -63,13 +64,13 @@ const SPECIALISATIONS = [
 
 // Loads everything the rules need for one character: the tags they hold, where
 // they stand, and what that place yields.
-async function buildLaborContext(prisma, characterId) {
+async function buildLaborContext(prisma, characterId, { refineryInput = undefined } = {}) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },
     select: {
       locationId: true,
       location: {
-        select: { name: true, yields: { select: { kind: true, current: true } } },
+        select: { name: true, attributes: true, yields: { select: { kind: true, current: true } } },
       },
     },
   });
@@ -81,12 +82,29 @@ async function buildLaborContext(prisma, characterId) {
     },
   });
 
-  return {
+  const ctx = {
     locationName: character?.location?.name ?? null,
     yields: yieldMap(character?.location?.yields ?? []),
+    refinery: isRefinery(character?.location),
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
     tools: toolsFrom(tags),
   };
+  // Only asked when it matters. The caller may hand it in already resolved —
+  // the auto-labor pass does, off one bulk query for the whole roster.
+  if (ctx.refinery) {
+    ctx.refineryInput =
+      refineryInput !== undefined
+        ? refineryInput
+        : await loadRefineryInput(prisma, characterId, character?.locationId ?? null);
+  }
+  return ctx;
+}
+
+// The single-character lookup, kept behind a lazy require so this module does
+// not pull db/lib/refinery.js in for the 55 Locations that are not a refinery.
+async function loadRefineryInput(prisma, characterId, locationId) {
+  const { refineryInput } = require("./refinery");
+  return refineryInput(prisma, { id: characterId, locationId });
 }
 
 // LocationYield rows -> { HUNTING: 0.5, ... }. A kind absent from the map is a
@@ -183,6 +201,32 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
   const access = computeLaborAccess(ctx);
   if (!access.ok) return access;
 
+  // A refinery pays in goods, not ⬢, and it is the one place a Labor resolves
+  // with no LocationYield row behind it. It still wants a Laboring tag: the
+  // Factory floor is work, not a vending machine. The range is a real 0-0 so
+  // db/lib/resourceDelta.js#rollResourceRange still parses it — everything
+  // downstream assumes an expression, and "" would silently pay nothing while
+  // looking like a bug. See docs/systemdocs/FACTORY.md.
+  if (ctx.refinery) {
+    if (!canLaborAtAll(ctx)) return { ok: false, reason: "You don't know how to labor." };
+    if (!ctx.refineryInput) {
+      return { ok: false, reason: "There's no Godflesh here to refine." };
+    }
+    return {
+      ok: true,
+      tier: "refining",
+      min: 0,
+      max: 0,
+      bonus: 0,
+      tools: [],
+      halved: false,
+      lifewebFailing,
+      locationCoefficient: 1,
+      refinery: true,
+      expression: "0-0",
+    };
+  }
+
   const candidates = [];
   for (const { slug, tier } of GENERAL_TIERS) {
     if (!ctx.tagSlugs.has(slug)) continue;
@@ -262,6 +306,7 @@ const TIER_LABELS = {
   hunting: "Hunting",
   farming: "Farming",
   fishing: "Fishing",
+  refining: "Refining",
 };
 
 function laborTierLabel(tier) {
@@ -273,7 +318,12 @@ function laborTierLabel(tier) {
 // Discord `-#` subtext: it explains a number rather than competing with it.
 // Returns null when there is nothing to explain, so a caller can spread it
 // straight into a lines array.
-function formatLaborBonusNote({ tools = [], halved = false, lifewebFailing = false } = {}) {
+function formatLaborBonusNote({ tools = [], halved = false, lifewebFailing = false, refinery = false } = {}) {
+  // A refining shift has no tools and no dials — what it made is the whole
+  // story, and describeMoveEffects has already said it.
+  if (refinery) {
+    return `-# One Godflesh in, ${REFINERY_YIELD} cubes out. Do not eat them. ‡`;
+  }
   const parts = [];
   for (const tool of tools) {
     if (tool.amount) parts.push(`+${tool.amount} ⬢ from ${tool.name}`);
@@ -304,6 +354,7 @@ async function resolveLaborRate(prisma, characterId) {
 module.exports = {
   LIFEWEB_FAILURE_MULTIPLIER,
   buildLaborContext,
+  loadRefineryInput,
   canLaborAtAll,
   computeLaborAccess,
   formatLaborBonusNote,

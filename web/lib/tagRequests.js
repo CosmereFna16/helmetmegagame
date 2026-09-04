@@ -68,6 +68,16 @@ export function transferableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
+// What may go into a crate: anything tradeable, minus crates. Nesting one
+// crate inside another would compound the halving into a free carry exploit,
+// and would nest a consumesInto chain arbitrarily deep besides —
+// packageItemsRequest refuses it server-side too.
+export function packableTags(characterTags = []) {
+  return characterTags
+    .filter((ct) => isTradeable(ct.tag) && !(ct.tag?.custom && ct.tag?.crateContents))
+    .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
+}
+
 // Consuming always takes exactly one unit, so the held count here is shown,
 // never a cap.
 export function consumableTags(characterTags = []) {

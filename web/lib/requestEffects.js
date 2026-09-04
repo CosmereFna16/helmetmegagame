@@ -102,6 +102,10 @@ export async function takeTagFrom(tx, party, tagId, quantity) {
 export async function giveTagTo(tx, party, snapshot) {
   if (!party?.id || !snapshot?.tagId) return;
   if (party.kind === "room") {
+    // The Spillway. Nothing is written, so nothing can be fished back out —
+    // which is also why the TRANSFER_TAG undo below skips its `takeTagFrom`
+    // on a destroyed line rather than throwing "no longer holds that".
+    if (party.destroysContents) return;
     await addToRoomStack(tx, party.id, snapshot.tagId, snapshot.quantity ?? 1, {
       expiresTurn: snapshot.expiresTurn ?? null,
     });
@@ -301,11 +305,16 @@ export const REQUEST_EFFECTS = {
   TRANSFER_RESOURCES: {
     editableFields: [],
     async undo(tx, request, ctx) {
-      const { from, to, amount } = request.effect;
+      const { from, to, amount, destroyed } = request.effect;
       const noteCtx = { ...ctx, note: `Undo of transfer request ${request.id}` };
-      await debitResources(tx, to, amount, noteCtx);
+      // Poured into the Spillway: the room's balance never moved, so debiting
+      // it would fail the conditional write and wedge the Undo. Only the
+      // sender's end is real, and only the sender's end is reversed.
+      if (!destroyed) await debitResources(tx, to, amount, noteCtx);
       await creditResources(tx, from, amount, noteCtx);
-      return `Reversed ${amount} ⬢ from ${to?.name ?? "recipient"} back to ${from?.name ?? "source"}.`;
+      return destroyed
+        ? `Returned ${amount} ⬢ to ${from?.name ?? "source"}.`
+        : `Reversed ${amount} ⬢ from ${to?.name ?? "recipient"} back to ${from?.name ?? "source"}.`;
     },
   },
 
@@ -319,9 +328,15 @@ export const REQUEST_EFFECTS = {
       const n = e.quantity ?? 1;
       const from = e.from ?? (e.fromCharacterId ? { kind: "character", id: e.fromCharacterId, name: e.fromName } : null);
       const to = e.to ?? (e.toCharacterId ? { kind: "character", id: e.toCharacterId, name: e.toName } : null);
-      if (to && e.tagId) await takeTagFrom(tx, to, e.tagId, n);
+      // A line that went into a destroying room (the Spillway) was never
+      // written anywhere, so there is nothing to take back off the `to` end
+      // and the ordinary path would throw "no longer holds that" and wedge
+      // the whole Undo. Giving it back to the sender is the honest inverse.
+      if (to && e.tagId && !e.destroyed) await takeTagFrom(tx, to, e.tagId, n);
       if (from && e.tagId) await giveTagTo(tx, from, { tagId: e.tagId, ...(e.restore ?? {}), quantity: n });
-      return `Moved ${formatStack(e.tagName, e.quantity)} back to ${from?.name ?? "its original holder"}.`;
+      return e.destroyed
+        ? `Fished ${formatStack(e.tagName, e.quantity)} back out for ${from?.name ?? "its original holder"}.`
+        : `Moved ${formatStack(e.tagName, e.quantity)} back to ${from?.name ?? "its original holder"}.`;
     },
   },
 
@@ -709,6 +724,49 @@ export const REQUEST_EFFECTS = {
         });
       }
       return `Took ${yieldTagName ?? "the yield"} back, and ${corpseTagName ?? "the body"} is in ${source?.name ?? "their hands"} again.`;
+    },
+  },
+
+  // The Godard Factory's two. Both are ordinary inside-the-database moves, so
+  // both invert exactly. Neither is editable: the die was rolled and the crate
+  // was nailed shut, and nudging a number afterwards would leave the sheet
+  // saying something the roll never said.
+  EXTRACT_GODFLESH: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, quantity, injuryTagId, injuryTagName } = request.effect;
+      if (tagId) await dropCharacterTag(tx, request.characterId, tagId, quantity ?? 1);
+      // The wound goes too. A GM undoing the extraction is saying it never
+      // happened, and leaving the hand off would be half an answer.
+      if (injuryTagId) await dropCharacterTag(tx, request.characterId, injuryTagId, 1);
+      return `Took back ${formatStack(tagName ?? "Godflesh", quantity)}${
+        injuryTagName ? `, and healed ${injuryTagName}` : ""
+      }. The Move stays spent.`;
+    },
+  },
+
+  // Undo unpacks the crate by hand rather than by consuming it: the crate Tag
+  // row itself is deleted, which is the only way the runtime row does not
+  // linger in the catalog forever. CharacterTag.tagId is RESTRICT, so the
+  // holding has to come off first (CARRY.md §6).
+  PACKAGE_ITEMS: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { crateTagId, contents = [], label } = request.effect;
+      for (const c of contents) {
+        await restoreCharacterTag(tx, request.characterId, {
+          tagId: c.tagId,
+          quantity: c.quantity ?? 1,
+          source: "EVENT",
+          expiresTurn: null,
+        });
+      }
+      if (crateTagId) {
+        await tx.characterTag.deleteMany({ where: { tagId: crateTagId } });
+        await tx.roomTag.deleteMany({ where: { tagId: crateTagId } });
+        await tx.tag.delete({ where: { id: crateTagId } }).catch(() => {});
+      }
+      return `Prised the crate open${label ? ` ("${label}")` : ""} and gave back what was in it.`;
     },
   },
 

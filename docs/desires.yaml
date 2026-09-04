@@ -248,6 +248,14 @@ families:
     group: demoness
     color: "#d98ad0"
     # Predation, domination, enslavement, terror.
+  stupidity:
+    name: Stupidity
+    group: mind
+    color: "#b6a98f"
+    # The one family {tag:stupid} does not lock. It exists precisely so that
+    # tag's `desires.locks` has something to except besides alcohol — a
+    # character with no reachable Desire at all has been benched rather than
+    # changed. Nothing but Squeeze puts anybody in it. ‡
   # Deliberate adjacencies (not bugs — see content-spec.md §1):
   #   - violence and bravery overlap on duels/tournaments/battles (both
   #     keys on the same desire), so Craven and Pacifist bite differently.
@@ -2145,3 +2153,87 @@ desires:
     requires:
       anyRoles: [bum]
     cooldownTurns: 5
+
+  # --- The Godard Factory ------------------------------------------------
+  # docs/systemdocs/FACTORY.md. The universal one is Moonshine; the rest are
+  # the three Marshes seats, and the last is what is left to somebody who ate
+  # a cube.
+  drink-moonshine:
+    name: Drink moonshine
+    tier: 2
+    families: [alcohol]
+    # Not the bare tier: the cooldown ladder for a Desire whose cost is real
+    # but small, and this one costs your eyes a notch at a time.
+    cooldownTurns: 3
+  get-a-manor-near-the-keep:
+    name: Get a manor near the keep
+    tier: 4
+    families: [wealth, status]
+    requires:
+      anyRoles: [banneret]
+    oncePerLife: true
+  buy-yourself-an-automobile:
+    name: Buy yourself an automobile
+    tier: 4
+    families: [wealth]
+    requires:
+      anyRoles: [banneret]
+    oncePerLife: true
+  sell-squeeze-to-the-merchant:
+    name: Sell squeeze to the merchant
+    tier: 1
+    families: [wealth]
+    requires:
+      anyRoles: [banneret]
+  hire-someone:
+    name: Hire someone
+    tier: 1
+    families: [status]
+    requires:
+      anyRoles: [banneret]
+  throw-someone-in-the-boiling-vats:
+    name: Let loose your anger by throwing someone in the boiling vats
+    tier: 4
+    families: [cruelty, violence]
+    requires:
+      allTags: [cruel]
+      anyRoles: [geschef]
+    oncePerLife: true
+  become-the-banneret:
+    name: Become the Banneret
+    tier: 4
+    families: [status]
+    requires:
+      anyRoles: [geschef]
+    oncePerLife: true
+  make-the-banneret-happy:
+    name: Make the Banneret happy
+    tier: 1
+    families: [social]
+    requires:
+      anyRoles: [geschef]
+  hit-a-refugee-with-your-cudgel:
+    name: Hit a refugee with your cudgel
+    tier: 1
+    families: [cruelty]
+    requires:
+      anyRoles: [geschef]
+  become-the-geschef:
+    name: Become the Geschef
+    tier: 3
+    families: [status]
+    requires:
+      anyRoles: [refugee]
+    oncePerLife: true
+  argue-with-the-geschef:
+    name: Argue with the Geschef
+    tier: 1
+    families: [social]
+    requires:
+      anyRoles: [refugee]
+  look-at-the-pretty-statues:
+    name: Go into the Keep and look at the pretty statues
+    tier: 3
+    families: [stupidity]
+    requires:
+      anyTags: [stupid]

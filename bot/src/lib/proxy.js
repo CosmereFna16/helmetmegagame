@@ -4,6 +4,7 @@ const { presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
+const { babble, speaksBabble, STUPID_SLUG } = require("@lifeweb/db/lib/babble");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
@@ -105,9 +106,27 @@ async function postAsCharacterTo(channel, character, { content, files = [], disc
   const threadId = channel.isThread() ? channel.id : undefined;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const text = config?.tupperAutocorrectEnabled
-    ? capitalizeSentences(fixContractions(content ?? ""))
-    : (content ?? "");
+
+  // Stupid (docs/systemdocs/FACTORY.md) is the one thing that reads off the
+  // SPEAKER rather than off GameConfig, and it wins over the autocorrect below
+  // — there is nothing left to capitalise. Most callers already have the tags
+  // loaded; the findFirst is the fallback, and it only fires for a caller that
+  // doesn't, on a path that is already making one query.
+  const babbling = Array.isArray(character?.tags)
+    ? speaksBabble(character.tags)
+    : Boolean(
+        character?.id &&
+          (await prisma.characterTag.findFirst({
+            where: { characterId: character.id, quantity: { gt: 0 }, tag: { slug: STUPID_SLUG } },
+            select: { id: true },
+          })),
+      );
+
+  const text = babbling
+    ? babble(content ?? "")
+    : config?.tupperAutocorrectEnabled
+      ? capitalizeSentences(fixContractions(content ?? ""))
+      : (content ?? "");
 
   const payload = {
     content: text,

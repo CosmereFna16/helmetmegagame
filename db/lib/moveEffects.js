@@ -104,6 +104,36 @@ const MOVE_EFFECTS = {
       }
     },
   },
+
+  // A day spent on the Godard Factory floor: one Godflesh becomes eight
+  // Squeeze (db/lib/refinery.js). `read` can only say "this was a Labor" —
+  // whether it was a REFINING one depends on where the character was standing,
+  // which is a database question, so applyRefinery decides and returns null at
+  // every other Location. That is what lets this work from a bare Action row:
+  // the hand-filed path (db/lib/stagedPush.js) applies at turn close with
+  // nothing in memory but the row itself.
+  //
+  // Nothing is recorded for an ordinary Labor, so old rows and every other
+  // location are untouched.
+  refined: {
+    read: (action) => (action.resourceRollExpression ? 1 : 0),
+    apply: async (tx, action) => {
+      const { applyRefinery } = require("./refinery");
+      const character = await tx.character.findUnique({
+        where: { id: action.characterId },
+        select: { locationId: true },
+      });
+      // 0, not null: applyMoveEffects falls back to the READ value when apply
+      // reports nothing, so a null here would stamp `refined: 1` on every
+      // ordinary Labor in the game.
+      if (!character?.locationId) return 0;
+      return (await applyRefinery(tx, action.characterId, character.locationId)) ?? 0;
+    },
+    revert: async (tx, action, snapshot) => {
+      const { revertRefinery } = require("./refinery");
+      await revertRefinery(tx, action.characterId, snapshot);
+    },
+  },
 };
 
 // Pushes everything this Move is worth and returns the blob to stamp on
@@ -144,6 +174,7 @@ function describeMoveEffects(applied) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     else if (key === "exhausted") parts.push("Exhausted");
+    else if (key === "refined") parts.push(`+${value.produced?.quantity ?? 0} Squeeze, −1 Godflesh`);
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

@@ -434,6 +434,45 @@ export const SECTIONS = {
     ),
   },
 
+  EXTRACT_GODFLESH: {
+    heading: "Extract ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Rolled">{`${effect.die ?? "—"} on 1d6`}</Line>
+        <Line label="Cut with">{effect.tool ?? "—"}</Line>
+        <Line label="Where">{effect.locationName ?? "—"}</Line>
+        <Line label="Got">{`${effect.quantity ?? 0} × ${effect.tagName ?? "Godflesh"}`}</Line>
+        <Line label="Cost them">{effect.injuryTagName ?? "Nothing"}</Line>
+        <p className="text-xs text-muted">
+          A day in the marsh, and it spends the filer&apos;s Move. A 1 rolls the injury table:
+          without Armored Gloves that is fingers or a hand, with them a wound that heals. A 6 is a
+          good seam and pays one extra. Undo takes the Godflesh back and heals whatever it cost
+          them, but the Move stays spent. ‡
+        </p>
+      </>
+    ),
+  },
+
+  PACKAGE_ITEMS: {
+    heading: "Package ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Marked">{effect.label ?? "—"}</Line>
+        <Line label="Holds">
+          {(effect.contents ?? []).map((c) => `${c.name} ×${c.quantity}`).join(", ") || "—"}
+        </Line>
+        <Line label="Weight">{`${effect.innerLbs ?? 0} lb → ${effect.weightLbs ?? 0} lb`}</Line>
+        <p className="text-xs text-muted">
+          Packing halves what a load weighs, which is the only way a wagon of Squeeze reaches the
+          Depot. It needs Packaging Equipment in reach and costs no Move. The crate is an ordinary
+          consumable, so anyone holding it can open it from their own sheet — the line on the side
+          is whatever the packer typed, and it is <strong>not</strong> checked against what is
+          actually in there. Undo prises it open and deletes the crate. ‡
+        </p>
+      </>
+    ),
+  },
+
   ENGRAVE_HEADSTONE: {
     heading: "Engrave ‡",
     render: ({ effect }) => (

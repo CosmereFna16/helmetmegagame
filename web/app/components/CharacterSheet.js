@@ -73,6 +73,10 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   corpses = [],
   canButcher = false,
+  canSeeExtract = false,
+  canExtract = false,
+  extractBlocked = null,
+  canSeePackage = false,
   lootTargets = [],
   moveTargets = [],
   moveLocations = [],
@@ -156,6 +160,10 @@ export default function CharacterSheet({
             healParties={healParties}
             corpses={corpses}
             canButcher={canButcher}
+            canSeeExtract={canSeeExtract}
+            canExtract={canExtract}
+            extractBlocked={extractBlocked}
+            canSeePackage={canSeePackage}
             lootTargets={lootTargets}
             moveTargets={moveTargets}
             moveLocations={moveLocations}

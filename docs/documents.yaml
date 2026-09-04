@@ -536,3 +536,23 @@ documents:
       The Pusher sells drugs and runs the town's gambling den and, well, er, informal drug pub. It's his job to keep the peasants satisfied and not rebelling.
 
       He is exempted from the usual capital punishment for drug possession — completely above the law. But he owes the Baron a cut, directly.
+  squeeze:
+    name: Squeeze
+    public: false
+    tags: []
+    roles: [banneret, baron, merchant, hand, meister]
+    description: |-
+      A pink substance with similar but less exotic properties to the {tag:skinless-brain}. These are very valuable across Earth.
+
+      The Baron highly values the Banneret’s work on the Squeeze, as it singlehandedly funds Ravenheart’s warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn’t be able to grow at all. Its production is very dangerous.
+  godardfactory:
+    name: Godard Factory
+    public: false
+    tags: []
+    factions: [the-factory]
+    description: |-
+      Godard’s beauty days are over, but it still functions. The Banneret’s lineage, one of the Baron’s cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it’s so valuable. Unfortunately, due to the working conditions, most refugees don’t stay for long and usually try to make it to the town. They’re easily replaced, so it doesn’t matter.
+
+      Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Extract button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, simply labor while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
+
+      Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility—a good Banneret will pay you much more than the average commoner would make, if only to keep you around.

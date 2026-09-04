@@ -458,6 +458,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         sortOrder: roomIndex,
         kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
         accessTagSlugs: access,
+        destroysContents: room.destroys === true,
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,
       });
@@ -994,6 +995,7 @@ async function syncZonesFromYaml(prisma) {
       sortOrder: entry.sortOrder,
       kind: entry.kind,
       accessTagSlugs: entry.accessTagSlugs,
+      destroysContents: entry.destroysContents,
       locationId: location.id,
     };
     let room = await prisma.room.findUnique({ where: { slug: entry.slug } });

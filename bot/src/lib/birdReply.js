@@ -6,7 +6,7 @@ const {
   BIRD_REPLY_INPUT_ID,
   MAX_BIRD_BODY,
   TOO_LATE_REPLY,
-  LITERATE_SLUG,
+  canReadLetters,
   replyDm,
 } = require("@lifeweb/db/lib/bird");
 const { ack, respond } = require("./respond");
@@ -72,7 +72,7 @@ async function windowState(birdMessageId) {
     where: { id: message.recipientId },
     include: { tags: { include: { tag: true } } },
   });
-  if (!replier?.tags.some((ct) => ct.tag.slug === LITERATE_SLUG)) {
+  if (!replier || !canReadLetters(replier.tags)) {
     return { ok: false, reason: "You cannot write. The bird leaves without an answer." };
   }
 
@@ -121,9 +121,7 @@ async function handleBirdReplySubmit(interaction, birdMessageId) {
     where: { id: message.senderId },
     include: { tags: { include: { tag: true } } },
   });
-  const senderIsLiterate = sender
-    ? sender.tags.some((ct) => ct.tag.slug === LITERATE_SLUG)
-    : true;
+  const senderIsLiterate = sender ? canReadLetters(sender.tags) : true;
 
   const text = replyDm({ replierName: message.recipientName, body, senderIsLiterate });
 

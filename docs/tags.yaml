@@ -3868,14 +3868,14 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    # 40, up from 10, and now the second-most-valuable thing in the game
-    # behind the one brew that needs it. The old price sat it just above a
-    # Graga Sac, which read the Skinless as a slightly harder monster; they
-    # are not. They are the only ingredient in the catalog that has to be
-    # talked out of being a person first, and the number is the game saying
-    # so out loud. It is also the only enforced ingredient beside a corpse
-    # (Tag.requirementItems), so it can no longer be hand-waved.
-    sellablePrice: 40
+    # 25, down from 40, and no longer the second-most-valuable thing in the
+    # game — the Godard Factory now sells the Merchant a wagon of {tag:squeeze}
+    # instead, and a single organ standing near a whole day's industry was
+    # reading the Skinless as a shortcut past it. Still well above a Graga Sac:
+    # they are the only ingredient in the catalog that has to be talked out of
+    # being a person first, and they are one of only two enforced ingredients
+    # (Tag.requirementItems), so it can never be hand-waved. ‡
+    sellablePrice: 25
 
   # --- Corpses -----------------------------------------------------------
   # Bodies as real, carryable objects. These three are what a monster leaves;
@@ -7818,3 +7818,225 @@ tags:
     requirement:
       resourceCost: 2
       skills: [medical-basic]
+
+  # --- The Godard Factory --------------------------------------------------
+  # The marsh production chain: Godflesh comes out of the wet ground, refines
+  # into Squeeze on the Factory floor, and gets crated for the Merchant. See
+  # docs/systemdocs/FACTORY.md.
+  godflesh:
+    name: Godflesh
+    category: items
+    group: items-gear
+    description: "A fibrous, pink substance harvested from the waterlogged marshes. It previously squirmed and tried to eat your hands off, but now it's dead. Labor at the Godard Factory to refine it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 28
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [vomiting]
+
+  squeeze:
+    name: Squeeze
+    category: items
+    group: items-gear
+    description: "A gelatinous pink substance. The machines made it into a cube. Do not eat."
+    pointCost: 0
+    tradeable: true
+    weight: 20
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [seizure]
+    # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
+    # which is the whole reason the Factory exists — 8 cubes is a day's work
+    # and pays about 2.2 times a good farming day. ‡
+    sellable: true
+    sellablePrice: 4
+
+  packaging-equipment:
+    name: Packaging Equipment
+    category: items
+    group: items-gear
+    description: "Allows you to package things into crates."
+    pointCost: 0
+    tradeable: true
+    weight: 100
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  armored-gloves:
+    name: Armored Gloves
+    category: items
+    group: items-armor
+    description: "Thick leather gloves with chainmail, essential for handling the dangerous Godflesh."
+    pointCost: 2
+    equippable: true
+    tradeable: true
+    weight: 2
+    visible: worn
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 4
+
+  factory-key:
+    name: Factory Key
+    category: items
+    group: items-keys
+    description: "A key to Godard factory."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  bannerets-key:
+    name: Banneret's Key
+    category: items
+    group: items-keys
+    description: "A key to the overseer box."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  flooded-crate:
+    name: Flooded Crate
+    category: items
+    group: items-gear
+    description: "A crate somebody left in a cellar that has been underwater for years. The boards have swollen shut. Whatever is inside kept. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [moonshine, moonshine]
+
+  moonshine:
+    name: Moonshine
+    category: items
+    group: items-drink
+    description: "Freebase alcohol. Not good for your vision."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto: [tipsy, blind-drunk, damaged-vision]
+    # Costs no ⬢ at all — the marsh gives you the ingredient. Holding one
+    # {tag:godflesh} is the check; it is not consumed, the same as every other
+    # enforced recipe (docs/systemdocs/BREWING.md). ‡
+    requirement:
+      turnsCost: 1
+      resourceCost: 0
+      skills: [brewing-basic]
+      gambit: false
+      items: [godflesh]
+    sellable: true
+    sellablePrice: 3
+
+  blind-drunk:
+    name: Blind Drunk
+    category: status
+    group: status-debuffs
+    description: "You can barely see. That drink is shit!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
+  # Permanent, stackable, and the only tag in the catalog a turn pass counts.
+  # At 5 the whole stack is swept and {tag:blind} lands in its place —
+  # db/lib/visionDecayPass.js. ‡
+  damaged-vision:
+    name: Damaged Vision
+    category: health
+    group: health-mind
+    description: "Your vision is slowly getting worse. Don't let it get to 5."
+    pointCost: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Tier 0 on the cure ladder: it runs its course in a turn, and what it runs
+  # its course INTO is the actual punishment. ‡
+  seizure:
+    name: Seizure
+    category: health
+    group: health-mind
+    description: "That was a bad idea."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    expiresInto: [stupid]
+
+  # No requirement block on purpose — Tier 0, and permanent. Nobody in
+  # Ravenheart knows what a Squeeze cube does to a brain, so nobody can undo
+  # it. Its desire lock leaves exactly two goals standing. ‡
+  stupid:
+    name: Stupid
+    category: health
+    group: health-mind
+    description: "Gghhhh?"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [alcohol, stupidity]
+
+  chainsaw:
+    name: Chainsaw
+    category: items
+    group: items-special
+    description: "BRRRR! Produces two Godflesh per extraction."
+    laborBonus: { kind: farming, amount: 2 }
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    weight: 12
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
+    sellable: true
+    sellablePrice: 68
+    depotPrice: 154

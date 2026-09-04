@@ -39,6 +39,8 @@ import {
   EyeIcon,
   DocumentsIcon,
   SpeakerIcon,
+  ExtractIcon,
+  CrateIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -76,6 +78,10 @@ export const ACTION_HELP = {
     "Put a body in the ground. You have to be holding their corpse, or be somewhere you can reach it. Takes your turn. Allows their soul to respawn. ‡",
   engrave:
     "Memorialize someone's name, in case you can't find their body. Frees their soul to respawn. ‡",
+  extract:
+    "Cut Godflesh out of the marsh. Takes your turn, and you need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves. ‡",
+  package:
+    "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again. ‡",
   bird: "Send a bird to someone. You have to guess their zone. If they are illiterate, they'll need help reading it.",
   read: "Decode a letter someone showed you. Paste the script and it turns back into words. Nobody is told you read it.",
 };
@@ -94,6 +100,13 @@ export const ACTION_SECTIONS = [
       // YOU (or whom you could teach) — a fact about your own sheet.
       { mode: "learn", icon: DocumentsIcon, label: "Learn Skill ‡", gate: "canLearn" },
       { mode: "teach", icon: SpeakerIcon, label: "Teach Skill ‡", gate: "canTeach" },
+      // The two Godard Factory verbs. Both HIDE rather than grey when the
+      // place is wrong, which is a different thing from the rule at the top of
+      // this file: that rule forbids leaking who is standing near you, and
+      // where YOU are standing is not somebody else's fact. An Extract button
+      // greyed out in the Fortress would just be furniture.
+      { mode: "extract", icon: ExtractIcon, label: "Extract ‡", show: "canSeeExtract", gate: "canExtract" },
+      { mode: "package", icon: CrateIcon, label: "Package ‡", show: "canSeePackage" },
     ],
   },
   {

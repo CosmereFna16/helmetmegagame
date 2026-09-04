@@ -30,6 +30,20 @@ const ATTRIBUTES = {
   depot: {
     describe: () => "A shuttle berth, and the only door Ravenheart has to anywhere else. ‡",
   },
+
+  // Marsh open enough that the Godflesh is in reach of a blade. What the
+  // Extract button matches on, so no marsh tile has to be named by slug.
+  // See docs/systemdocs/FACTORY.md.
+  godflesh: {
+    describe: () => "Something under the water moves when you step, and keeps moving after you stop. ‡",
+  },
+
+  // The Godard Factory floor. Laboring here refines Godflesh into Squeeze
+  // instead of paying ⬢, and it is the one place in the game where labor is
+  // legal with no LocationYield row at all.
+  refinery: {
+    describe: () => "Vats, hooks and a press. Work a day here and whatever you brought comes out in cubes. ‡",
+  },
 };
 
 // The authored half: whatever is in Location.attributes, in registry order so

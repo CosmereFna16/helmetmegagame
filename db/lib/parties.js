@@ -68,6 +68,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
         resources: true,
         locationId: true,
         accessTagSlugs: true,
+        destroysContents: true,
         discordThreadId: true,
         location: { select: { name: true, zoneId: true } },
       },
@@ -83,6 +84,10 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
           locationName: r.location.name,
           roomKind: r.kind,
           accessTagSlugs: r.accessTagSlugs,
+          // The Godard Factory's Spillway, and nothing else. Carried on the
+          // party rather than looked up again by every writer, so the one
+          // place that puts things into a room can see it.
+          destroysContents: r.destroysContents === true,
           discordThreadId: r.discordThreadId,
         }
       : null;

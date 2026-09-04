@@ -515,3 +515,30 @@ export function SendIcon(props) {
     </svg>
   );
 }
+
+// Extract — a blade going into something that is pushing back. The three short
+// strokes are the thing closing on the hand, which is the half of the action
+// worth reading at 16px; a plain axe would have been indistinguishable from
+// the Hammer used by Craft.
+export function ExtractIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M14 3.5l6.5 6.5-3 3-6.5-6.5z" strokeLinejoin="round" />
+      <path d="M11 6.5L3.5 14v6.5H10L17.5 13" strokeLinejoin="round" strokeLinecap="round" />
+      <path d="M6 10.5l1.5 1.5M9 8l1.5 1.5M3.5 13l1.5 1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Package — a crate with its lid banded shut. Deliberately not a plain box:
+// the two bands are what distinguish it from every other rectangle in the set
+// at the size the action grid renders.
+export function CrateIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 7.5h17v13h-17z" strokeLinejoin="round" />
+      <path d="M3.5 7.5L6 3.5h12l2.5 4" strokeLinejoin="round" />
+      <path d="M9 11.5v5M15 11.5v5M3.5 12h17" strokeLinecap="round" />
+    </svg>
+  );
+}

@@ -256,7 +256,7 @@ zones:
             stash:
               resources: 24
               items:
-                obol: 3
+                obol: 15
                 cleaning-powder: 1
                 surgical-equipment: 2
           garden:
@@ -677,23 +677,83 @@ zones:
     description: >-
       Standing water from horizon to horizon, threaded by channels somebody dug and reeds nobody planted. The ground here is a rumour. What lives on it has built out of what the water gives up, and what the water gives up is not from around here. ‡
     locations:
+      # The `village` id is kept although the name changed: a new id would
+      # delete the channel and provision a fresh one. Same for `factory`.
       village:
-        name: Village
+        name: Fishing Village
         description: >-
-          Houses on stilts, joined by walkways, with boats tied under every doorstep. They pay the Baron nothing and he sends nobody to collect it. The people are courteous, incurious about you, and extremely curious about what you brought. ‡
-        rooms: {}
+          Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
+        yield: { fishing: 1.2 }
+        attributes:
+          godflesh: true
+        rooms:
+          bridges:
+            name: Bridges
+            description: >-
+              Algae clings to the bridges, connecting flooded homes.
+          bighook-maw:
+            name: Bighook Maw
+            description: >-
+              An abandoned pub. The cellar's still there, but it's flooded. You'd have to be a good swimmer to get in there.
+          # Private, so the thread itself is invisible to anyone who can't
+          # swim — the nearest thing the schema has to a hidden room.
+          flooded-cellar:
+            name: Cellar
+            description: >-
+              A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
+            access: [strong-swimmer]
+            stash: [flooded-crate]
       factory:
-        name: Factory
+        name: Godard Factory
         indoors: true
         description: >-
-          A hall of rusted frames standing in six inches of water, roofed where the roof has held. Something in it still turns — you can feel it through the boards before you hear it. The village will not say who keeps it running, only that it has always been running. ‡
-        rooms: {}
+          A huge, wooden warehouse elevated above a shallow lake. Rickety bridges connect the various sheds, barrels, and winches. Electric lamps hang overhead, holding back the darkness. You can hear the insects and frogs every night. `GODARD FACTORY` is printed in white. Raven banners hang over the entrance.
+        # No `yield:` — refining is not a labor coefficient. `refinery` is what
+        # makes laboring legal here at all, and what it pays in.
+        attributes:
+          refinery: true
+        rooms:
+          logistics-room:
+            name: Logistics Room
+            description: >-
+              The Godflesh is prepared for production here while Squeeze is stacked into neat little crates. There's a ramp leading down to dry ground, where the cart is usually staged.
+            access: [factory-key]
+            stash:
+              items:
+                packaging-equipment: 1
+                armored-gloves: 2
+          main-floor:
+            name: Main Floor
+            description: >-
+              The production room. Godflesh, suspended by hooks, slowly boils in big, wood-fired vats. Hydraulic pistons then senselessly compress it into cubes. Outside, the bridges have a few tables for people to kick their feet and relax. The Days Since Last Incident ticker is covered over by a hastily painted sign saying: "DO NOT EAT THE CUBES." A level up, the overseer box looks out onto the working floor.
+          factory-pub:
+            name: Pub
+            description: >-
+              An old barge converted into a pub for the factory workers. When the nearby village was more active, there was an actual bar. Well, at least you have moonshine, and some interesting folks still pass by.
+          # `destroys` is the only room in the game with it. See CARRY.md.
+          spillway:
+            name: Spillway
+            description: >-
+              An open-air wooden trough where acidic, pink-stained wastewater cascades into the lake. Anything you drop here is gone for good.
+            destroys: true
+          overseer-box:
+            name: Overseer Box
+            description: >-
+              Clear sightways into the factory and out to the surrounding marsh, leading to a walkway that wraps around the factory's upper levels.
+            access: [bannerets-key]
+            stash:
+              items:
+                obol: 5
+                cleaning-powder: 1
+                military-autoinjector: 1
       # map node 31
       marshes-31:
         name: Marshes 1
         description: >-
           Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 32
       marshes-32:
@@ -701,6 +761,8 @@ zones:
         description: >-
           Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 33
       marshes-33:
@@ -708,6 +770,8 @@ zones:
         description: >-
           Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 34
       marshes-34:
@@ -715,6 +779,8 @@ zones:
         description: >-
           Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 35
       marshes-35:
@@ -722,6 +788,8 @@ zones:
         description: >-
           The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
 
   # --- Underground (group) ---
@@ -775,7 +843,7 @@ zones:
                 stash:
                   resources: 4
                   items:
-                    obol: 2
+                    obol: 10
                     cargo-crate: 1
           # map node 14
           caves-14:

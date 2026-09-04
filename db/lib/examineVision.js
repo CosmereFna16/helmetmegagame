@@ -15,6 +15,11 @@
 const NEARSIGHTED_SLUG = "nearsighted";
 const SPECTACLES_SLUG = "spectacles";
 const SUN_SENSITIVITY_SLUG = "sun-sensitivity";
+// Blind stops looking at anything, with no corrective and no schedule — it is
+// the one impairment nothing works around. Blind Drunk is the same block for
+// two turns, bought a mouthful at a time (docs/systemdocs/FACTORY.md).
+const BLIND_SLUG = "blind";
+const BLIND_DRUNK_SLUG = "blind-drunk";
 
 // Accepts the CharacterTag[] shape used everywhere else (`{ tag: { slug } }`),
 // and tolerates a bare Tag[] as well. Same as inspectVision.js#slugSet.
@@ -44,6 +49,15 @@ function examineBlock(characterTags = [], where = {}) {
   const { phase = null, indoors = true } = where;
   const slugs = slugSet(characterTags);
 
+  // First, because nothing below can rescue it.
+  if (slugs.has(BLIND_SLUG)) {
+    return "You can't see. ‡";
+  }
+
+  if (slugs.has(BLIND_DRUNK_SLUG)) {
+    return "The room will not hold still. You can barely see. ‡";
+  }
+
   if (slugs.has(NEARSIGHTED_SLUG) && !equippedSet(characterTags).has(SPECTACLES_SLUG)) {
     return "Everything past arm's length is a blur. Put your spectacles on. ‡";
   }
@@ -57,4 +71,11 @@ function examineBlock(characterTags = [], where = {}) {
   return null;
 }
 
-module.exports = { examineBlock, NEARSIGHTED_SLUG, SPECTACLES_SLUG, SUN_SENSITIVITY_SLUG };
+module.exports = {
+  examineBlock,
+  BLIND_SLUG,
+  BLIND_DRUNK_SLUG,
+  NEARSIGHTED_SLUG,
+  SPECTACLES_SLUG,
+  SUN_SENSITIVITY_SLUG,
+};

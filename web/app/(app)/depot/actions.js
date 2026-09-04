@@ -277,8 +277,16 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
   // gear group is the catch-all the catalog already uses for carried objects.
   const group = await prisma.tagGroup.findUnique({ where: { slug: "items-gear" } });
 
+  // A crate now weighs half what is in it, so the split needs the wares' own
+  // weights (db/lib/depotCrates.js#crateWeight).
+  const innerWeights = await prisma.tag.findMany({
+    where: { id: { in: [...new Set(manifest.map((m) => m.tagId).filter(Boolean))] } },
+    select: { id: true, weightLbs: true },
+  });
+  const weightByTagId = new Map(innerWeights.map((t) => [t.id, t.weightLbs ?? 0]));
+
   await prisma.$transaction(async (tx) => {
-    for (const data of crateTagData(shipment, crates, { groupId: group?.id ?? null })) {
+    for (const data of crateTagData(shipment, crates, { groupId: group?.id ?? null, weightByTagId })) {
       const { crateContents, ...tagFields } = data;
       const tag = await tx.tag.create({ data: { ...tagFields, crateContents } });
       await addToRoomStack(tx, room.id, tag.id, 1);

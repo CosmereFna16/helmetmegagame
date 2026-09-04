@@ -29,6 +29,8 @@ export const REQUEST_TYPE_LABELS = {
   HARM_CHARACTER: "Harm Character",
   BURY_CHARACTER: "Bury Person",
   BUTCHER_CORPSE: "Butcher ‡",
+  EXTRACT_GODFLESH: "Extract ‡",
+  PACKAGE_ITEMS: "Package ‡",
   ENGRAVE_HEADSTONE: "Engrave ‡",
   BIRD_MESSAGE: "Bird Message",
   DEPOT_BUY: "Depot Purchase",

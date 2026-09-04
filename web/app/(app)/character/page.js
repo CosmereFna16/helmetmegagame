@@ -4,7 +4,9 @@ import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/l
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity, startingTagNames } from "@lifeweb/db";
 import { accessibleRooms, guestRoomIds as roomGuestIds } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
-import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG, PACKAGING_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { hasAttribute } from "@lifeweb/db/lib/locationAttributes";
+import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
@@ -46,7 +48,7 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { isTradeable } from "@/lib/tagRequests";
-import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf, LITERATE_SLUG } from "@lifeweb/db/lib/bird";
+import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf, canReadLetters } from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
@@ -492,6 +494,17 @@ export default async function CharacterPage() {
   // Is a forge within reach? Resolved server-side so the Craft dialog can say
   // so before a player commits, and re-checked by craftRequest either way.
   const hasWorkshop = await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG);
+  // The Godard Factory's two buttons (docs/systemdocs/FACTORY.md). Both HIDE
+  // where the place is wrong rather than greying — a fact about where this
+  // character is standing, which is theirs already, so nothing about the room
+  // leaks the way the metagaming rule in actionRegistry.js guards against.
+  const canSeeExtract = hasAttribute(character.location, "godflesh");
+  const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
+  const canExtract = Boolean(extractTool);
+  const extractBlocked = canSeeExtract && !canExtract
+    ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
+    : null;
+  const canSeePackage = await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG);
   const carry = carryStatus(character, gameConfig);
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so
   // no allowance math reaches the client bundle.
@@ -552,7 +565,9 @@ export default async function CharacterPage() {
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const hasBird = holdsBirdAndLetters(character.tags);
-  const isLiterate = heldSlugs.has(LITERATE_SLUG);
+  // Literate AND not blind — the Read button decodes nothing for eyes that
+  // cannot see it (db/lib/bird.js#canReadLetters).
+  const isLiterate = canReadLetters(character.tags);
   // Compared against the in-game DAY (birdTurnId stores the day), not the
   // turn. Advisory only — the server's conditional claim is the real gate.
   const birdSentToday =
@@ -866,6 +881,10 @@ export default async function CharacterPage() {
       healParties={healParties}
       corpses={corpses}
       canButcher={canButcher}
+      canSeeExtract={canSeeExtract}
+      canExtract={canExtract}
+      extractBlocked={extractBlocked}
+      canSeePackage={canSeePackage}
       lootTargets={lootTargets}
       moveTargets={moveTargets}
       moveLocations={moveLocations}

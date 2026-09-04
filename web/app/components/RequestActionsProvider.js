@@ -24,6 +24,7 @@ import {
   craftableTags,
   destroyableTags,
   transferableTags,
+  packableTags,
   consumableTags,
   addRequirementSatisfied,
 } from "@/lib/tagRequests";
@@ -63,7 +64,13 @@ import {
   butcherCorpseRequest,
   engraveHeadstoneRequest,
   birdMessageRequest,
+  extractGodfleshRequest,
+  packageItemsRequest,
 } from "../(app)/character/requestActions";
+// Safe from a client component: db/lib/constants.js is a leaf of bare strings
+// and numbers with no requires at all, so importing it drags no part of the
+// @lifeweb/db barrel into the bundle.
+import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
 
 // Every player action on the character sheet: mode state, the menus each
 // mode draws from, and one RequestDialog per mode. Renders no chrome of its
@@ -351,6 +358,13 @@ export default function RequestActionsProvider({
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
+  // The Godard Factory (docs/systemdocs/FACTORY.md). All three are facts about
+  // where this character is standing and what is in their hands, resolved
+  // server-side in character/page.js — the actions re-check every one.
+  canSeeExtract = false,
+  canExtract = false,
+  extractBlocked = null,
+  canSeePackage = false,
 }) {
   const [mode, setMode] = useState(null);
   const [tagId, setTagId] = useState(null);
@@ -380,6 +394,10 @@ export default function RequestActionsProvider({
   // Butcher and Bury both act on one corpse, identified by BOTH its tag and
   // where it is standing — the same body can be in two places for two people.
   const [corpseKey, setCorpseKey] = useState("");
+  // Package: what goes in the crate, and the line printed on its side.
+  // tagId -> quantity, replaced wholesale like `picks` above.
+  const [packed, setPacked] = useState({});
+  const [crateLabel, setCrateLabel] = useState("");
   const [birdBody, setBirdBody] = useState("");
   const [birdQuery, setBirdQuery] = useState("");
   const [error, setError] = useState(null);
@@ -420,6 +438,20 @@ export default function RequestActionsProvider({
   const consumable = useMemo(
     () => consumableTags(characterTags),
     [characterTags],
+  );
+  const packable = useMemo(() => packableTags(characterTags), [characterTags]);
+  // What the current selection weighs, against the 150 lb a crate holds. The
+  // server recomputes it — this is the readout that stops somebody filling a
+  // form they can't submit.
+  const packedLbs = useMemo(
+    () =>
+      Object.entries(packed).reduce((sum, [id, q]) => {
+        const row = packable.find((t) => t.id === id);
+        // QuantityField keeps its value as a STRING, and a half-typed box is
+        // "" — Number("") is 0, which is the right answer for a blank one.
+        return sum + (row?.weightLbs ?? 0) * (Number(q) || 0);
+      }, 0),
+    [packed, packable],
   );
 
   // Heal's menus are per-patient, not per-tag, so they sit outside `chosen`
@@ -511,6 +543,18 @@ export default function RequestActionsProvider({
   function setPickQuantity(id, value) {
     setPicks((prev) => ({ ...prev, [id]: value }));
   }
+  // Package's selection, same shape as `picks` above and for the same reason.
+  function togglePacked(id, held) {
+    setPacked((prev) => {
+      const next = { ...prev };
+      if (id in next) delete next[id];
+      else next[id] = String(Math.min(1, held) || 1);
+      return next;
+    });
+  }
+  function setPackedQuantity(id, value) {
+    setPacked((prev) => ({ ...prev, [id]: value }));
+  }
 
   // `presetTagId` lets a sheet-chip click open this dialog pre-selected.
   const open = useCallback(
@@ -529,6 +573,8 @@ export default function RequestActionsProvider({
       // Transfer's ⬢ is optional, so it starts at nothing rather than one.
       setAmount(next === "transfer" ? "0" : "1");
       setPicks({});
+      setPacked({});
+      setCrateLabel("");
       setZoneId("");
       setLocationId("");
       setLethal(false);
@@ -626,6 +672,14 @@ export default function RequestActionsProvider({
         return teachRequest({ learnerId: targetId, tagId, reason });
       case "consume":
         return consumeTagRequest({ tagId, reason });
+      case "extract":
+        return extractGodfleshRequest({ reason });
+      case "package":
+        return packageItemsRequest({
+          lines: Object.entries(packed).map(([id, q]) => ({ tagId: id, quantity: q })),
+          label: crateLabel,
+          reason,
+        });
       case "heal":
         return healCharacterRequest({
           targetCharacterId: patientId,
@@ -732,6 +786,10 @@ export default function RequestActionsProvider({
       case "learn":
       case "teach":
         return Boolean(targetId && tagId);
+      case "extract":
+        return canExtract;
+      case "package":
+        return Object.keys(packed).length > 0 && crateLabel.trim().length > 0 && packedLbs <= PACKAGE_MAX_LBS;
       default:
         return Boolean(tagId);
     }
@@ -747,7 +805,7 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked },
+      gateReason: { examine: examineBlocked, extract: extractBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
@@ -756,6 +814,9 @@ export default function RequestActionsProvider({
       isLiterate,
       canSendBirdToday: !birdSentToday,
       canButcher,
+      canSeeExtract,
+      canExtract,
+      canSeePackage,
     }),
     [
       craftable,
@@ -764,12 +825,16 @@ export default function RequestActionsProvider({
       consumable,
       canHeal,
       examineBlocked,
+      extractBlocked,
       teachers,
       canTeach,
       hasBird,
       isLiterate,
       birdSentToday,
       canButcher,
+      canSeeExtract,
+      canExtract,
+      canSeePackage,
     ],
   );
 
@@ -1193,6 +1258,80 @@ export default function RequestActionsProvider({
                       or a body — anyone standing where you are. It does not
                       spend their turn, and it does not move you, so go there
                       yourself afterwards. ‡
+                    </p>
+                  </>
+                )}
+              </>
+            )}
+
+            {mode === "extract" && (
+              <>
+                <p className="text-sm">
+                  You wade out and cut. A day of it. ‡
+                </p>
+                {extractBlocked ? (
+                  <p className="text-sm text-accent">{extractBlocked}</p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Rolls 1d6, and you&apos;ll be told what it came up. A 6 pays an extra. A 1 means
+                    it had hold of you first — Armored Gloves are the difference between a cut and a
+                    hand. ‡
+                  </p>
+                )}
+              </>
+            )}
+
+            {mode === "package" && (
+              <>
+                {packable.length === 0 ? (
+                  <NobodyHere>You aren&apos;t carrying anything that could go in a crate. ‡</NobodyHere>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <span className="field-label">What goes in? ‡</span>
+                      {sortTagsForMenu(packable).map((tag) => {
+                        const checked = tag.id in packed;
+                        return (
+                          <div key={tag.id} className="flex flex-wrap items-center gap-3">
+                            <CheckField checked={checked} onChange={() => togglePacked(tag.id, tag.quantity)}>
+                              {tag.name}
+                              {tag.quantity > 1 ? ` ×${tag.quantity}` : ""}
+                              <span className="mono ml-2 text-xs text-muted">{`${tag.weightLbs ?? 0} lb`}</span>
+                            </CheckField>
+                            {checked && tag.stackable && tag.quantity > 1 && (
+                              <QuantityField
+                                label="How many? ‡"
+                                max={tag.quantity}
+                                value={packed[tag.id]}
+                                onChange={(v) => setPackedQuantity(tag.id, v)}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <label className="field">
+                      <span className="field-label">What does the crate say? ‡</span>
+                      <input
+                        type="text"
+                        value={crateLabel}
+                        onChange={(e) => setCrateLabel(e.target.value)}
+                        placeholder="Squeeze, 7 cubes"
+                        autoComplete="off"
+                        maxLength={PACKAGE_LABEL_MAX}
+                        required
+                      />
+                    </label>
+
+                    <p className={packedLbs > PACKAGE_MAX_LBS ? "text-sm text-accent" : "text-xs text-muted"}>
+                      {`${packedLbs} / ${PACKAGE_MAX_LBS} lb packed. The crate will weigh ${Math.max(
+                        1,
+                        Math.ceil(packedLbs / 2),
+                      )} lb. `}
+                      {packedLbs > PACKAGE_MAX_LBS
+                        ? "That won't go in one crate. ‡"
+                        : "Nobody checks the line on the side against what's actually in there. ‡"}
                     </p>
                   </>
                 )}

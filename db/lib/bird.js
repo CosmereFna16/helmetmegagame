@@ -16,6 +16,11 @@ const { encodeGribble } = require("./gribble");
 
 const BIRD_SLUG = "bird";
 const LITERATE_SLUG = "literate";
+// Blind reads nothing, whatever else is on the sheet. Letters were the last
+// door still open to somebody who cannot see: the cipher already existed for
+// illiteracy, so a blind recipient gets exactly what an illiterate one does —
+// the real letter, unreadable, and something to do about it.
+const BLIND_SLUG = "blind";
 
 // A bird will not fly underground, and will not carry a letter out either.
 // Both directions, on purpose: one-way would let someone sitting in the
@@ -59,9 +64,16 @@ function hasSlug(tags, slug) {
   return Array.isArray(tags) && tags.some((ct) => (ct.tag ? ct.tag.slug : ct.slug) === slug);
 }
 
+// Whether written words reach this character at all. Literate and not blind:
+// the one place in the game those two facts have to be asked as one question,
+// so a caller can never check half of it.
+function canReadLetters(tags) {
+  return hasSlug(tags, LITERATE_SLUG) && !hasSlug(tags, BLIND_SLUG);
+}
+
 // Holding the bird is not enough — you have to be able to write the letter.
 function canSendBird(tags) {
-  return hasSlug(tags, BIRD_SLUG) && hasSlug(tags, LITERATE_SLUG);
+  return hasSlug(tags, BIRD_SLUG) && canReadLetters(tags);
 }
 
 // The letter as the recipient sees it.
@@ -79,7 +91,7 @@ function deliveryDm({ senderName, body, recipientIsLiterate }) {
     return `A bird finds you, and there is a letter tied to its leg. It is from **${senderName}**.\n\n> ${body.replace(/\n/g, "\n> ")}`;
   }
   return (
-    `A bird brings you a letter. You can’t read it because you’re illiterate.\n\n` +
+    `A bird brings you a letter. You can’t read it.\n\n` +
     `${encodeGribble(body)}\n\n` +
     `-# Show this to someone with the Literate tag. They can decode it with the Read button.`
   );
@@ -126,6 +138,8 @@ function replyButtonRow(birdMessageId) {
 }
 
 module.exports = {
+  BLIND_SLUG,
+  canReadLetters,
   BIRD_SLUG,
   LITERATE_SLUG,
   UNREACHABLE_ZONE_SLUGS,

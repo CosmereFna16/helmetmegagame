@@ -263,6 +263,16 @@ enum RequestType {
   // hands back the day and says so. See BIRD.md.
   BIRD_MESSAGE
 
+  // The Godard Factory's two verbs (docs/systemdocs/FACTORY.md).
+  //   EXTRACT_GODFLESH — cutting Godflesh out of a marsh tile. Spends the
+  //                      Routine, rolls a d6, and on a 1 rolls again on an
+  //                      injury table that Armored Gloves dominate.
+  //   PACKAGE_ITEMS    — packing up to 150 lb of held goods into one crate,
+  //                      halving their weight. The crate is a runtime Tag,
+  //                      the same shape db/lib/depotCrates.js mints.
+  EXTRACT_GODFLESH
+  PACKAGE_ITEMS
+
   // RETIRED, and kept only because Postgres cannot drop an enum value in
   // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
   // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
@@ -1122,6 +1132,13 @@ model Room {
   // FKs, because the room is authored against docs/tags.yaml's fixed
   // identifiers and the two syncs run independently. Empty for PUBLIC.
   accessTagSlugs String[] @default([])
+
+  // A room that eats what is put into it. Set from `destroys: true` in
+  // docs/zones.yaml; the Godard Factory's Spillway is the only one. A
+  // Transfer whose destination carries this never writes a RoomTag or touches
+  // Room.resources — the lines are recorded on the request's effect instead,
+  // so a GM can still Undo. See docs/systemdocs/CARRY.md.
+  destroysContents Boolean @default(false)
 
   // The thread, its starter message (a thread in a text channel has an
   // ordinary first message with its own id — only a forum post's starter

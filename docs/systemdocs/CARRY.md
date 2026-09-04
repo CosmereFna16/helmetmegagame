@@ -286,6 +286,13 @@ Every Room, public or private, holds unlimited ⬢ (`Room.resources`) and
 unlimited tag stacks (`RoomTag`, one row per tag, `@@unique([roomId, tagId])`).
 A room is where you put what you can't carry.
 
+**One room holds nothing at all.** `Room.destroysContents` — the Godard
+Factory's Spillway, and only that — makes both writers into a room
+(`giveTagTo`, `moveParty`) no-ops, so what goes in is gone. Undo can still hand
+it back to the sender, because the effect records `destroyed: true` and skips
+the receiving half; without that the ordinary path throws on a stash that never
+held anything. See `FACTORY.md` §9.
+
 Two things a stash does differently from a pocket, both in
 `db/lib/tagWrites.js`:
 
@@ -427,11 +434,25 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 
 ## Crates
 
-A Depot shipment lands as crates — runtime `Tag` rows, **15 lb each**, one row
-per crate. They are ordinary cargo for every purpose here: they count against
-the cap, they can be transferred, stashed and stolen, and they are why a real
-shipment takes several trips or several people. Opening one replaces its weight
-with whatever was inside, which can easily be heavier.
+A crate weighs **half what is in it**, rounded up, never under 1 lb
+(`db/lib/depotCrates.js#crateWeight`). That is the whole point of packing
+something, and it is why a wagon of Squeeze reaches the Depot at all
+(`FACTORY.md` §5). It was a flat 15 lb until 9/2026, which made a crate of obols
+heavier than the obols and a crate of armour lighter than one piece of it.
+
+Two things make crates now, on one arithmetic:
+
+- **A Depot shipment** lands as several, split by `splitIntoCrates`.
+- **The Package button**, from anywhere with Packaging Equipment in reach: up to
+  150 lb of what you are carrying, plus a line you type yourself, which is
+  **not** checked against the contents.
+
+Both are runtime `Tag` rows, `custom: true`. They are ordinary cargo for every
+purpose here: they count against the cap, they can be transferred, stashed and
+stolen. Opening one replaces its weight with whatever was inside, which is
+always heavier. A player-packed crate is an ordinary `consumable`, so the
+Consume button opens it; the Depot's own sealed ones want the keycard and the
+`/depot` panel.
 
 Obols are the other end of the ladder: `weight: 0`, the Negligible band, the
 same as a key or a letter. Compressing ⬢ into something you can actually carry
