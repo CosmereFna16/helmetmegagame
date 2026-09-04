@@ -145,6 +145,27 @@ otherwise serialize writers. That matters more here than in most repos, because
 several sessions share this one checkout — see the local verification note under
 **Commands** for how quickly it moves underneath you.
 
+### When Bascinet says "verify"
+
+"Verify" is a specific request, not a vague one. Dispatch **two Opus subagents
+in parallel**, both read-only, both pointed at the work just finished. Keep each
+one small and quick — a bounded look, not a full audit. Then read both returns,
+resolve any conflict yourself, and report.
+
+**Subagent A — REVIEW.** Three questions:
+
+1. What would a player find weird, annoying, or confusing about this?
+2. Does this break any other system we might not have noticed?
+3. Does it hold up at the edges — 100+ players, a dead or Catatonic character, an
+   empty zone, a turn already open, a GM mid-adjudication?
+
+**Subagent B — SIMPLIFY.** One question: is anything here unnecessary? This
+codebase grows by accretion, so look for the duplicated helper, the flag nobody
+reads, the state that could be derived, the abstraction with one caller. Say what
+could be deleted outright.
+
+Both return findings with `file:line` evidence, not impressions. Neither writes.
+
 ## What this file is
 
 This file is the map, plus the rules that apply everywhere. Each game system

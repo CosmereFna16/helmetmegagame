@@ -232,7 +232,7 @@ async function buyTagsImpl({ tagIds }) {
     });
   });
 
-  // A bought tag can open a narrowcast channel (#watch) or a
+  // A bought tag can open a narrowcast channel (#cerberon) or a
   // private room the same way a granted one does.
   await afterInventoryChange(character.id);
   revalidatePath("/store");

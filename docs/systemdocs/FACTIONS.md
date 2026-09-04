@@ -138,8 +138,8 @@ Ravine Camp. A member without the key **can still deposit** from across the
 zone. They cannot withdraw, and they cannot see what is inside.
 
 This is deliberate: refusing the deposit would make a locked silo useless to
-everybody but the key-holder, and a Watchman handing in loot should not need
-the Captain present. Both surfaces say it out loud rather than letting a
+everybody but the key-holder, and a Cerberus handing in loot should not need
+the Censor present. Both surfaces say it out loud rather than letting a
 player post goods into a hole — the Silo tab's banner, and the Transfer
 dialog's footnote when the silo is the destination.
 

@@ -249,23 +249,25 @@ documents:
     public: false
     tags: []
     description: |-
-      The Baron's rule is absolute. He has a small council including the Hand, the Meister, the Captain, and any other courtier he might assign.
+      The Baron's rule is absolute. He has a small council including the Hand, the Meister, the Censor, and any other courtier he might assign.
 
       The Hand's the voice, the organizer, the executor, the Hand. He outranks everyone except the Baron.
       The Meister collects taxes and provides medical attention.
-      The Captain commands the Watch. ‡
+      The Censor commands the Cerberon. ‡
 
       The rest of the court, the Baron's family included, live their lives.
-  watchman:
-    name: The Watch
+  cerberon:
+    name: Cerberon
     public: false
     tags: []
     description: |-
-      The Watch is Ravenheart's single line of defense along with its few Knights and Sheriffs. It's led by the Captain.
+      The Cerberon, along with the sheriff and the Order of the Silver Cross, is Ravenheart's single line of defense. It's led by the Censor.
 
-      Every member of the Watch has a {tag:disabler} (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory — which has a good supply of Simple weapons and a decent supply of Moderate weapons (see {document:smithing}). The Fortress's yard also has an automated turret, which can't tell the difference between hostiles and friendlies. The switch to enable it is in the Captain's office.
+      Every Cerberus has a {tag:disabler} (takes several shots; useful against unarmed people, but not someone who can run up to you and take it out of your hands), but otherwise relies on their armory. The Censor and the Incarn both have a key. The Fortress's yard also has an automated machine-gun turret. It shoots anything that moves. The switch to enable it is in the Censor's office.
 
-      Watchmen also carry a {tag:radio-bracelet-watch}, which connects to the Captain's {tag:radio-system-watch}.
+      All Cerberi are expected to be, at minimum, functioning men. They are all loyal to the Baron. The Censor can freely fire, hire, and equip more Cerberi. Consider buying firearms from the Merchant.
+
+      Cerberi also carry a {tag:radio-bracelet-cerberon}, which connects to the Censor's {tag:radio-system-cerberon}.
 
       **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**
   postchristianity:
@@ -521,7 +523,7 @@ documents:
     public: true
     tags: []
     roles:
-      - captain
+      - censor
       - pusher
     description: |-
       The Pusher sells drugs and runs the town's gambling den and, well, er, informal drug pub. It's his job to keep the peasants satisfied and not rebelling.

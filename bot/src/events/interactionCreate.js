@@ -1543,7 +1543,7 @@ async function handleHealPick(interaction, characterId) {
 
   // Clearing an affliction can change both narrowcast access and which
   // private Rooms this character belongs in — a key tag is a tag like any
-  // other, and #watch is gated on tags too.
+  // other, and #cerberon is gated on tags too.
   await reconcileNarrowcastAccess(prisma, target.id, target.discordUserId).catch((err) =>
     console.error(`Heal: narrowcast reconcile failed for ${target.name}:`, err.message ?? err),
   );

@@ -91,13 +91,13 @@ map's palette rather than an invented one:
 | Fortress | the castle's red roofs | `#9c4132` terracotta ruby |
 | Town | the timber cluster's thatch | `#998d6b` brown linen |
 | Forest | the olive scrub the retired Windlands wore | `#7f8c64` desaturated lime |
-| Black Hills | the blue-grey of its region on the drawing | `#79899b` slate (token is still `--zone-east-forests`, the slug) |
+| Black Hills | the blue-grey of its region on the drawing | `#79899b` slate (`--zone-hills`, after the slug) |
 | Marshes | the drab grey-green of the wet ground | `#8d9384` reed |
 | Caves | mountain rock | `#939d9e` stone grey |
 | Depths | the mauve band along the map's edge and floor | `#8f7f9c` bruise |
 
 They are `--zone-fortress` / `--zone-town` / `--zone-forest` /
-`--zone-east-forests` / `--zone-marshes` / `--zone-caves` / `--zone-depths`,
+`--zone-hills` / `--zone-marshes` / `--zone-caves` / `--zone-depths`,
 declared **inside each `[data-theme]` block** in `globals.css` (not on `:root`)
 so `audit-contrast.js` picks them up with no parser change. There is no
 `--zone-underground`: that zone is a category and a seat, never a place, so

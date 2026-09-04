@@ -317,7 +317,7 @@ tags:
     purchasable: false
 
   # The Court — general-court is gated behind `courtier` at the group level,
-  # same idiom as general-watch/general-brigand, so none of these need their
+  # same idiom as general-cerberon/general-brigand, so none of these need their
   # own requiredTag.
   knighted:
     name: Knighted
@@ -332,7 +332,7 @@ tags:
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
   # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
   # widens one Routine to three students; the Drill Instructor rung lives in
-  # general-watch. Bascinet's words, unmarked.
+  # general-cerberon. Bascinet's words, unmarked.
   teaching:
     name: Teaching
     category: general
@@ -846,7 +846,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Granted as a starting tag to the Captain. Left purchasable so anyone
+  # Granted as a starting tag to the Censor. Left purchasable so anyone
   # else can buy their way into the trait too.
   tactician:
     name: Tactician
@@ -1558,19 +1558,19 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # --- The Watch ------------------------------------------------------------
-  watchman:
-    name: Watchman
+  # --- The Cerberon ---------------------------------------------------------
+  cerberon:
+    name: Cerberon
     category: general
     group: general-traits
-    description: "Sworn to the Watch. You guard access to the Fortress and protect order."
+    description: "Sworn to the Cerberon. You guard access to the Fortress and protect order."
     pointCost: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false
 
-  # Sign flip 2026-08-31 (Desires rework); moves OUT of general-watch into
-  # general-interests, ungated — the watchman/sheriff OR-gate lives on its
+  # Sign flip 2026-08-31 (Desires rework); moves OUT of general-cerberon into
+  # general-interests, ungated — the cerberon/sheriff OR-gate lives on its
   # Desires (take-a-bribe), not on the tag itself. Text unchanged.
   # Grandfathered — see Superstitious.
   corrupt:
@@ -1586,8 +1586,8 @@ tags:
   kennelmaster:
     name: Kennelmaster
     category: general
-    group: general-watch
-    description: "You have access to the Watch's dogs and know how to command them."
+    group: general-cerberon
+    description: "You have access to the Cerberon's dogs and know how to command them."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1595,7 +1595,7 @@ tags:
   sergeant:
     name: Sergeant
     category: general
-    group: general-watch
+    group: general-cerberon
     description: "You have rank, which doesn't necessarily mean much."
     pointCost: 5
     visible: false
@@ -1605,11 +1605,11 @@ tags:
   # Reads against the Teaching Skills document (docs/documents.yaml), which
   # sets the teaching baseline at a 6. Change one and change the other.
   # Teaching (Drill Instructor) replaced the old Drillmaster here in 9/2026.
-  # The tree itself sits under general-traits; this rung is the Watch's.
+  # The tree itself sits under general-traits; this rung is the Cerberon's.
   teaching-drill-instructor:
     name: Teaching (Drill Instructor)
     category: general
-    group: general-watch
+    group: general-cerberon
     requiredTag: teaching
     description: "When someone tries to learn a fighting skill from you, they succeed on a 4, 5, or a 6. Stacks with Lecturing."
     pointCost: 3
@@ -1620,7 +1620,7 @@ tags:
   green:
     name: Green
     category: general
-    group: general-watch
+    group: general-cerberon
     description: "Your Fighting skill counts as 1 tier lower in your first real fight. Remove the tag afterwards."
     pointCost: -2
     visible: false
@@ -1672,7 +1672,7 @@ tags:
     name: Wanted
     category: general
     group: general-brigand
-    description: "The Watch know your face and have a reward on your head."
+    description: "The Cerberon know your face and have a reward on your head."
     pointCost: -5
     visible: true
     purchasable: true
@@ -3982,13 +3982,13 @@ tags:
 
   # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
   # See docs/systemdocs/CAVING.md.
-  radio-system-watch:
-    name: Radio System (Watch)
+  radio-system-cerberon:
+    name: Radio System (Cerberon)
     category: items
     group: items-gear
-    description: "It sends a message to all its paired Systems and Bracelets. Tuned to the Watch's frequency."
+    description: "It sends a message to all its paired Systems and Bracelets. Tuned to the Cerberon's frequency."
     pointCost: 14
-    requiredTag: watchman
+    requiredTag: cerberon
     tradeable: true
     weight: 2
     stackable: true
@@ -3996,11 +3996,11 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  radio-bracelet-watch:
-    name: Radio Bracelet (Watch)
+  radio-bracelet-cerberon:
+    name: Radio Bracelet (Cerberon)
     category: items
     group: items-gear
-    description: "A bracelet. It receives only. Tuned to the Watch's frequency."
+    description: "A bracelet. It receives only. Tuned to the Cerberon's frequency."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -4343,11 +4343,17 @@ tags:
   # A Commoner starts skilled at labor and nothing else. These are the three
   # trades, sold as a crate you consume rather than as loose tags, so the
   # picker offers one decision instead of four. Same shape as starting-wares
-  # above. Ungated on purpose: there is no `commoner` tag to hang a
-  # requiredTag on, and a Courtier who wants a hunting kit is welcome to it.
+  # above.
+  #
+  # `onlyRoles: [commoner]` is load-bearing, not flavour. Each kit holds far
+  # more than it costs — the Fisherman is 11 points of tags for 1, the Farmer 9
+  # for 0, the Hunter 14 for 2 — because a Commoner picking a trade should be
+  # nearly free. Ungated, that is a faucet every seat could pull at creation for
+  # most of a second build.
   commoner-fisherman:
     name: "Commoner: Fisherman"
     category: items
+    onlyRoles: [commoner]
     group: items-gear
     description: "Everything a fisherman owns, waiting at the waterline. Unpacks into a {tag:fishing-boat} and {tag:laboring-fishing}. ‡"
     pointCost: 1
@@ -4363,6 +4369,7 @@ tags:
   commoner-farmer:
     name: "Commoner: Farmer"
     category: items
+    onlyRoles: [commoner]
     group: items-gear
     description: "Everything a farmer owns, which is not much. Unpacks into a {tag:work-knife} and {tag:laboring-farming}. ‡"
     pointCost: 0
@@ -4378,8 +4385,9 @@ tags:
   commoner-hunter:
     name: "Commoner: Hunter"
     category: items
+    onlyRoles: [commoner]
     group: items-gear
-    description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting} and {tag:forester}. ‡"
+    description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting}, {tag:forester} and a {tag:shortbow}. ‡"
     pointCost: 2
     tradeable: true
     weight: 2
@@ -4389,6 +4397,7 @@ tags:
     consumesInto:
       - laboring-hunting
       - forester
+      - shortbow
 
   cargo-crate:
     name: Cargo Crate
@@ -5451,7 +5460,7 @@ tags:
     sellable: true
     sellablePrice: 12
 
-  # A Watch-issued sidearm — the Captain and every Watchman start with one.
+  # A Cerberon-issued sidearm — the Censor and every Cerberus start with one.
   # Never bought or built: the batteries are shipped in by the Baron, so
   # there's no smithing cost to write, and no requiredTag either, matching
   # the other found-not-bought weapons above (Cracked Bone Club, Neoclassic
@@ -5843,19 +5852,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  watch-badge:
-    name: Watch Badge
-    category: items
-    group: items-special
-    description: "A badge of your service in the Watch, emblazoned with the image of a swooping raven. Technically, you are supposed to display this at all times."
-    pointCost: 0
-    equippable: true
-    visible: worn
-    tradeable: true
-    weight: 0
-    purchasable: false
-    purchasableAfterStart: false
-
   mortus-rags:
     name: Mortus Rags
     category: items
@@ -5949,7 +5945,7 @@ tags:
     name: Sheriff's Badge
     category: items
     group: items-special
-    description: "The icon of the town's Sheriff: a badge shaped like a six-pointed star. Don't confuse this with a {tag:watch-badge}."
+    description: "The icon of the town's Sheriff: a badge shaped like a six-pointed star."
     pointCost: 0
     equippable: true
     visible: worn
@@ -6201,7 +6197,7 @@ tags:
   #
   # NOT `exclusive`, unlike the six above. A stamp is an object attached to a
   # seat rather than a signature you chose, so holding the Bishop's and the
-  # Captain's at once is a real and interesting situation — you took one of
+  # Censor's at once is a real and interesting situation — you took one of
   # them off somebody. `exclusive` is also only enforced on the purchase paths,
   # and nothing here is purchasable, so setting it would be inert as well as
   # wrong.
@@ -6258,11 +6254,11 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  captains-wax-stamp:
-    name: Captain's Wax Stamp
+  censors-wax-stamp:
+    name: Censor's Wax Stamp
     category: items
     group: items-paper
-    sealOffice: Captain
+    sealOffice: Censor
     sealMark: "A shield with a sword."
     pointCost: 0
     tradeable: true

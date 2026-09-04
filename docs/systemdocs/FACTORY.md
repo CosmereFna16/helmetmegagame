@@ -38,8 +38,8 @@ so about half their days are producing days — which is where the
 The server action is `extractGodfleshRequest` in
 `web/app/(app)/character/requestActions.js`.
 
-- **Where.** Any Location carrying the `godflesh: true` attribute: Marshes 1–5
-  and the Fishing Village. The attribute is the match, so no tile is named by
+- **Where.** Any Location carrying the `godflesh: true` attribute: the five
+  open Marshes and the marsh Village. The attribute is the match, so no tile is named by
   slug anywhere in code (`db/lib/locationAttributes.js`).
 - **What it costs.** The turn's Routine, filed through `fileAutoRoutine` like
   Craft, Bury and Engrave. Once per turn falls out of
@@ -145,7 +145,7 @@ A crate cannot go inside a crate. Halving twice is a free carry exploit, and it
 would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.
 
 **The line on the side is not checked.** `[CONTAINS]: whatever they typed`. That
-is the feature — it is how you smuggle something past a Watchman, and the GM
+is the feature — it is how you smuggle something past a Cerberus, and the GM
 desk says so out loud on the request row.
 
 There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`.

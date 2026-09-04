@@ -226,7 +226,7 @@ async function runLaborYieldPass(prisma, turn) {
 // The player-facing scale. A coefficient is never shown as a number — a place
 // is Barren or Bountiful, and working out that Bountiful means 1.6 is the
 // player's job. Bountiful is deliberately hard to reach: at base, only
-// depths-19 and depths-23 wear it.
+// depths-runnel and depths-saltrise wear it.
 const QUALITY_WORDS = [
   { below: 0.3, word: "Barren" },
   { below: 0.6, word: "Scarce" },

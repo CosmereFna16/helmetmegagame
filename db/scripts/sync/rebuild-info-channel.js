@@ -47,7 +47,7 @@ const DOCS_DIR = docsPath();
 // default italics.
 const BOLD_ROLE_NAMES = new Set([
   "Courtier",
-  "Watchman",
+  "Cerberus",
   "Commoner",
   "Follower",
   "Clansman (Broken Spears Clan)",

@@ -155,7 +155,7 @@ Off the ladder — no recipe, no smithing gate:
 | Neoclassic R&W10 | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
-| Disabler | 0 | Watch-issued. |
+| Disabler | 0 | Cerberon-issued. |
 
 ### The Plow
 

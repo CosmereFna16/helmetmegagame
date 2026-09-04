@@ -7,7 +7,7 @@
 // Access rules stay CODE: they're real logic over tags and zones, not data a
 // YAML mini-language could express cleanly.
 //
-// #watch is the only entry left. #intercom used to be the second: a standing
+// #cerberon is the only entry left. #intercom used to be the second: a standing
 // channel a tag-holder typed into, viewable by every above-ground zone role.
 // It is now a button on the table in the Council Room (db/lib/intercom.js),
 // which broadcasts into each zone's own #summary — so the PA is a thing in a
@@ -16,19 +16,19 @@
 
 const SPECIAL_CHANNELS = [
   {
-    slug: "watch",
-    configKey: "watchChannelId",
+    slug: "cerberon",
+    configKey: "cerberonChannelId",
     categoryConfigKey: "radioCategoryId",
-    topic: "The Watch's radio net. Bracelets receive; the Captain's system speaks.",
+    topic: "The Cerberon's radio net. Bracelets receive; the Censor's system speaks.",
     tupper: true,
     wipe: "clear",
     ghostsMaySee: true,
     roleViewZones: [],
-    // Possession is what matters — a bracelet transferred to a non-Watch
-    // character still opens the channel.
+    // Possession is what matters — a bracelet transferred to a character
+    // outside the Cerberon still opens the channel.
     member: (ctx) => {
-      if (ctx.tagSlugs.has("radio-system-watch")) return { view: true, send: true };
-      if (ctx.tagSlugs.has("radio-bracelet-watch")) return { view: true, send: false };
+      if (ctx.tagSlugs.has("radio-system-cerberon")) return { view: true, send: true };
+      if (ctx.tagSlugs.has("radio-bracelet-cerberon")) return { view: true, send: false };
       return null;
     },
   },
@@ -63,7 +63,7 @@ async function buildNarrowcastContext(prisma, characterId) {
   };
 }
 
-// Returns { watch: {view,send}|null, ... } — null means the character gets no
+// Returns { cerberon: {view,send}|null, ... } — null means the character gets no
 // member overwrite on that channel.
 function computeNarrowcastAccess(ctx) {
   return Object.fromEntries(SPECIAL_CHANNELS.map((entry) => [entry.slug, entry.member(ctx)]));

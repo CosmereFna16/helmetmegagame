@@ -135,7 +135,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 
 | Survives | Consequence |
 |---|---|
-| `#watch`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
+| `#cerberon`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic stays readable — clear it by hand if that matters. |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GmAssignment` zone seats | GMs keep their seats across a restart — which also means they keep *losing* the Secret tab (§1). |
@@ -197,7 +197,7 @@ around that or add a second superadmin before the game opens.
 - [ ] The role tree on step 2 is populated — empty means the role sync failed
 - [ ] The point-buy menu on step 3 has tags
 - [ ] `/documents` is populated
-- [ ] `#watch` exists under a `radio` category, and the old `#radio` and
+- [ ] `#cerberon` exists under a `radio` category, and the old `#radio` and
       `#intercom` are gone
 - [ ] The Council Room's starter post carries an **Intercom** button, and
       pressing it reaches every `#summary` but the Black Hills'

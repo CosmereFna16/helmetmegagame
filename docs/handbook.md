@@ -178,7 +178,7 @@ There are seven Zones in Bascinet:
 
 Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move. ‡
 
-Out in the wild, Locations are named after their Zone and a number — Forest 7, Depths 3. That is deliberate. One stretch of woods is not signposted differently from the next, and learning which is which is something you do by walking them. ‡
+Out in the wild, a Location carries its Zone in its name — the Ravine in the Black Hills is hills-ravine, the Village in the Marshes is marshes-village. Every zone has a ravine and a river of its own, so the Zone is part of the name. Built places need no such help and go by what they are: the Keep, the Cathedral, the Factory. ‡
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all. ‡
 

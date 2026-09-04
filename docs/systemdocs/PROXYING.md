@@ -18,7 +18,7 @@ provisioned channels, or a special channel whose registry entry says
 |---|---|---|
 | A zone's `#summary` (text) | yes | **yes** |
 | A Location's channel (text), and every Room or Conversation thread under it | yes | no |
-| `#watch` | yes | no |
+| `#cerberon` | yes | no |
 
 The special channels aren't tied to a place, so they're never summary.
 
@@ -293,7 +293,7 @@ The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
   Person.
 
 **This used to be inferred from the title**, which meant an untitled character
-was always "Person" however they present, and so was a Captain. Gender is a
+was always "Person" however they present, and so was a Censor. Gender is a
 real column now (`CHARACTERS.md` §1c), so the alias simply says it: an untitled
 woman conceals as "a young woman". Concealing hides the name, the face and the
 faction — it was never meant to hide how someone presents, which is what the

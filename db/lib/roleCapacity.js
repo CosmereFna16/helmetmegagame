@@ -26,7 +26,7 @@ function formatCapacity(cap) {
 
 // Seats that never reopen. A seat is normally held only by a LIVING character
 // — the holder dies and the picker offers the role again, which is right for
-// a Bum or a Watchman. These roles are the exception: once someone has held
+// a Bum or a Cerberus. These roles are the exception: once someone has held
 // the seat it stays taken for the rest of the run, dead holder or not, so
 // there is never a second Baron, a second Sheriff. That includes the roles
 // with a single seat at 100 players (Diplomat, Sheriff) — Gunboat confirmed
@@ -47,8 +47,8 @@ const PERMANENT_SEAT_ROLE_SLUGS = [
   "hand",
   "meister",
   "arbiter",
-  // The Watch
-  "captain",
+  // The Cerberon
+  "censor",
   "incarn",
   // Town
   "bishop",

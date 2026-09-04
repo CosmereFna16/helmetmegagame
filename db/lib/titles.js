@@ -15,8 +15,8 @@ const GENDERS = Object.freeze(["MAN", "WOMAN", "NEUTRAL"]);
 const TITLES = Object.freeze([
   // Martial
   { words: "Sergeant", tags: ["sergeant"] },
-  { words: "Constable", tags: ["watchman"] },
-  { words: "Captain", roles: ["captain"] },
+  { words: "Constable", tags: ["cerberon"] },
+  { words: "Censor", roles: ["censor"] },
 
   // Noble. The baron/baroness roles also grant the `nobility` tag, so whoever
   // holds one of those seats is offered Lord/Lady/Noble as well — deliberate,

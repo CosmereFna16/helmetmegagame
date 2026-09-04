@@ -123,7 +123,7 @@ zones:
               - >-
                 Stay happy. An unhappy Baron is an unproductive, dangerous baron.
               - >-
-                The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground hears — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Captain's office. It can't tell hostiles or friendlies apart. ‡
+                The Council Room has an intercom. Anyone standing at that table can speak into it, and everyone above ground hears — except the Black Hills, which no speaker was ever strung out to. The yard also has an automated machine gun turret which can be turned on from the Censor's office. It can't tell hostiles or friendlies apart. ‡
               - >-
                 You have three missions:
               - >-
@@ -164,7 +164,7 @@ zones:
               - courtstructure
               - lifewebbasic
               - fortressstarting
-              - watchman
+              - cerberon
               - armory
               - ravenhearteconomy
               - charon
@@ -294,7 +294,7 @@ zones:
               - lifewebbasic
               - fortressstarting
               - courtier
-              - watchman
+              - cerberon
               - armory
               - ravenhearteconomy
               - charon
@@ -372,7 +372,7 @@ zones:
               Live life indulgently or honorably — there is not much binding you except your own decisions. What freedom!
             description:
               - >-
-                For whatever reason, the Baron keeps you around in his court. Convince the Captain to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor's affection. It is your day to make of it what you will.
+                For whatever reason, the Baron keeps you around in his court. Convince the Censor to launch an expedition into the caves, host marvelous feasts, and duel your fellow courtiers for the Successor's affection. It is your day to make of it what you will.
               - >-
                 As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
             difficulty: easy
@@ -431,28 +431,22 @@ zones:
               - courtier
               - courtstructure
               - fortressstarting
-      the-watch:
-        name: The Watch
+      cerberon:
+        name: Cerberon
         silo: mess-hall
         parent: The Court
         roles:
-          captain:
-            name: Captain
+          censor:
+            name: Censor
             intro: >-
-              Bravely lead  and hold back the darkness, you goddamn hero.
+              Bravely lead the Cerberi against the enemies of Ravenheart.
             description:
               - >-
-                Ravenheart is an ancient bastion of humanity, a beacon of light. It is your solemn duty — at least on paper — to uphold that. Do you understand the gravity of your situation? Oh, enough waxing, Captain — you will either solve the problem or you won't.
+                Ravenheart is an ancient bastion of humanity and a beacon of light. It is your solemn duty — at least on paper — to uphold that.
               - >-
-                You win through leadership, proactivity, communication, and organization. Think carefully. Always be a step ahead of the Dark. If the Watch loves you, the people inform you — if you have eyes everywhere, plans, if you know and see, nothing can stop you.
+                You win through leadership, proactivity, communication, and organization. Think carefully. Speak with the Baron. Do not ride into battle unless necessary—be a tactician first, a footsoldier second. Always be a step ahead of the darkness. If you have eyes everywhere, plans, if you know and see, nothing can stop you.
               - >-
-                You are, unfortunately, a man of the bottle. Can you kick your addiction before people find out? (Get the tag removed, somehow).
-              - >-
-                Or just don't bother.
-              - >-
-                You know, the Watch is a fine group of men. It's ran this way for a few centuries now. Yes, it's corrupt, technically, but really it's just a good group of boys making money.
-              - >-
-                And… quitting? Really? That doesn't sound fun…
+                The Cerberi are men, but they are also dogs. Remind them that in service of Ravenheart, they should be capable of the savagery their position demands.
             difficulty: hard
             multiple: false
             starting_resources: 1
@@ -461,27 +455,26 @@ zones:
             whitelist: true
             treasurer: true
             starting_tags:
+              - Censor's Helmet
               - Armory Key
               - Ravenhearter
-              - Watchman
+              - Cerberon
               - Tactician
               - Melee (Trained)
+              - Melee (Shield Wall)
+              - Ranged (Basic)
               - Disabler
-              - Radio System (Watch)
-              - Radio Bracelet (Watch)
-              - Alcoholic
-              - Watch Badge
               - Broadsword
-              - Simple Helm
-              - Buckler
-              - Mail Coif
-              - Mail Shirt
+              - Shield
+              - Radio System (Cerberon)
+              - Radio Bracelet (Cerberon)
+              - Obol x2
               - Post-Christian
             doc_elements:
               - godking
               - courtstructure
               - fortressstarting
-              - watchman
+              - cerberon
               - armory
               - combat
           incarn:
@@ -494,7 +487,7 @@ zones:
               - >-
                 Your job is to guard the dungeon, process migrants, and protect the Silver Cross, Ravenheart's only relic. The Silver Cross is an ancient artifact. It terrifies and burns demonic creatures.
               - >-
-                Your role is as organizational as it is combat-like — you should assist the Captain in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger — always be a step ahead of the darkness.
+                Your role is as organizational as it is combat-like — you should assist the Censor in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger — always be a step ahead of the darkness.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -503,12 +496,13 @@ zones:
             starting_tags:
               - Armory Key
               - Ravenhearter
-              - Melee (Basic)
-              - Radio Bracelet (Watch)
+              - Melee (Trained)
+              - Ranged (Basic)
+              - Cerberon
+              - Melee (Shield Wall)
               - Pious
               - Incarn's Key
               - Cudgel
-              - Watch Badge
               - Disabler
               - Mail Coif
               - Mail Shirt
@@ -516,45 +510,42 @@ zones:
             doc_elements:
               - courtstructure
               - fortressstarting
-              - watchman
+              - cerberon
               - postchristianity
               - armory
               - combat
-          watchman:
-            name: Watchman
+          cerberus:
+            name: Cerberus
             intro: >-
               Serve the Baron and defend Ravenheart. You are the man of the hour.
             description:
               - >-
-                Serve the Baron, salute your Captain. Darkness is coming — do you heed the call, or frolic about?
+                You are the Cerberon, the prowling dog of the Keep. Armed with your disabler, cudgel, and optionally any weapons from the armory, execute the Censor's will.
               - >-
-                Or — alright, we got the optics out of the way. Truth is, being a Watchman is mostly bribes, racketeering, and gambling. Consider taking protection money from the town businesses. That's what usually works the most.
-
-              - >-
-                Your job is simple. **Live a comfortable life. Drink. Make money. Play cards.** Yes, there are bandits about, but it's nothing the townsfolk can't deal with.
-              - >-
-                Or you can try to be a good man. It's up to you.
+                You are loyal to the Censor and the Baron, although extreme circumstances could change that.
             difficulty: easy
             multiple: true
             weight: 6
             starting_resources: 1
             starting_zone: fortress
             starting_tags:
+              - Cerberus Helmet
               - Ravenhearter
-              - Watchman
+              - Cerberon
               - Melee (Basic)
+              - Ranged (Basic)
+              - Melee (Shield Wall)
               - Disabler
-              - Radio Bracelet (Watch)
-              - Watch Badge
+              - Radio Bracelet (Cerberon)
               - Cudgel
-              - Simple Helm
               - Mail Coif
               - Mail Shirt
               - Post-Christian
+              - Obol x1
             doc_elements:
               - courtstructure
               - fortressstarting
-              - watchman
+              - cerberon
               - armory
               - combat
           squire:
@@ -571,7 +562,7 @@ zones:
             starting_zone: fortress
             starting_tags:
               - Ravenhearter
-              - Watch Badge
+              - Cerberon
               - Cudgel
               - Simple Helm
               - Buckler
@@ -581,7 +572,7 @@ zones:
             doc_elements:
               - courtstructure
               - fortressstarting
-              - watchman
+              - cerberon
               - armory
               - combat
   - name: Town
@@ -1352,8 +1343,8 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 3
-            starting_zone: east-forests
-            starting_location: east-forests-26
+            starting_zone: hills
+            starting_location: hills-ravine
             leader: true
             whitelist: true
             starting_tags:
@@ -1387,8 +1378,8 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
-            starting_zone: east-forests
-            starting_location: east-forests-26
+            starting_zone: hills
+            starting_location: hills-ravine
             starting_tags:
               - Hills Camp
               - Brigand

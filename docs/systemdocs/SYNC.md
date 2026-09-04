@@ -52,8 +52,13 @@ is unchanged.
 `slug` everywhere except `Document`, which uses `key`. **Zones, Locations and
 Rooms share one slug namespace** — a Location named like its own zone would
 make "which thing is `town`?" ambiguous everywhere slugs are read, so the sync
-rejects a duplicate across all three lists. (This is why Town's own Square is
-`town-square`, not `town`.)
+rejects a duplicate across all three lists.
+
+Locations follow one naming rule, split between built places and open country.
+A built place takes a bare slug — `keep`, `factory`, `cathedral`, `depot`.
+Open country takes its zone as a prefix — `forest-river`, `hills-ravine`,
+`marshes-village` — because every zone has a ravine and a river, and the slug
+is also the Discord channel name.
 
 A changed `id` is not a rename: the old entry is pruned and a new one
 provisioned from scratch, losing its Discord objects. Rename by editing `name`.
@@ -117,7 +122,7 @@ zones:
       polygon: [[50, 30], [95, 30], ...]   # dormant — see MAP.md
       label: { x: 74, y: 50 }
     locations:             # → Location rows → one text channel + role each
-      town-square:          # zones/locations/rooms share ONE slug namespace
+      square:               # zones/locations/rooms share ONE slug namespace
         name: Square
         description: >-     # the anchor's -# subtext and the channel topic
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
@@ -136,18 +141,18 @@ zones:
 
 connections:              # the whole travel graph. ONE entry per edge — it is
                           # undirected, and listing it twice is an error.
-  - [town/town-square, fortress/gatehouse]   # crosses zones: costs the Move
-  - [town/town-square, town/cathedral]       # same zone: free, on the cooldown
+  - [town/square, fortress/gatehouse]        # crosses zones: costs the Move
+  - [town/square, town/cathedral]            # same zone: free, on the cooldown
 
   - pair: [fortress/gatehouse, fortress/road]   # the mapping form, for an
     announce: true_name                         #   edge that is not a plain
     modular:                                    #   open road
-      roles: [watchman]
-      tags: [watch-badge]
+      roles: [cerberus]
+      tags: [cerberon]
       open: true
-  - pair: [fortress/undercroft, forest/forest-2]
+  - pair: [fortress/undercroft, forest/forest-cliffs]
     hidden: elevator-key
-  - pair: [fortress/road, east-forests/east-forests-12]
+  - pair: [fortress/road, hills/hills-descent]
     locked: mountaineering
     on_foot: true
 ```
@@ -369,7 +374,7 @@ pre-launch wipe rebuilds everything else from YAML.
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |
 | `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more. `db:sync-zones` cannot reach these: it only prunes a Zone/Location row that left `docs/zones.yaml` while the DB still holds its Discord ids, and the doctor never deletes a channel at all. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |
 | `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
-| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#watch` channel from the special-channels registry. Run after `db:sync-zones`. |
+| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#cerberon` channel from the special-channels registry. Run after `db:sync-zones`. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
 | `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. `db:sync-zones` re-walls them. |

@@ -15,7 +15,7 @@
 //   * --accent vs --accent-text. Text and outlines must use --accent-text;
 //     --accent is a fill. Collapsing them back into one token is what made
 //     every button in the app fail AA.
-//   * The zone code, --zone-fortress/town/forest/east-forests/marshes/caves/
+//   * The zone code, --zone-fortress/town/forest/hills/marshes/caves/
 //     depths. These are fills
 //     only -- the rule down the side of a .zone-chip -- and are gated at 3.0
 //     against --surface, not AA. Spending one as a text colour ships a 2.x
@@ -37,7 +37,7 @@ const NEAR_WHITE = 0.85; // relative luminance above which raised is shadow-carr
 // would ever clear 4.5 -- gating them there would just force them off the
 // palette. See the dusk block in globals.css.
 const ZONE_MARK_MIN = 3.0;
-const ZONE_KEYS = ["fortress", "town", "forest", "east-forests", "marshes", "caves", "depths"];
+const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "depths"];
 
 function parseColor(value) {
   if (value.startsWith("#")) {

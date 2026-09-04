@@ -16,7 +16,7 @@ const OLD_FROM = 55;
 // Straight off Character.gender. This used to be inferred from the title —
 // first from two hardcoded MAN/WOMAN arrays here, then from a `gender` on each
 // word — which meant an untitled character was always "Person" however they
-// present, and that a Captain was too. A character carries their own gender
+// present, and that a Censor was too. A character carries their own gender
 // now, so the alias can simply say it.
 function genderWord(gender) {
   if (gender === "MAN") return "Man";

@@ -28,7 +28,7 @@
 # notTags/notRoles are never part of the OR. AND remains the default and the
 # common case — the five Lifeweb feed-* entries and all five corrupt ones keep
 # it deliberately (corrupt is visible: false and promises no unlocks, so it
-# reads as a Watch tag rather than a broad purchase).
+# reads as a Cerberon tag rather than a broad purchase).
 #
 # TIER: one of 1, 2, 3, 4, 5, 7. Tier 6 is deliberately absent from the
 # whitelist — don't invent it. Tier doubles as the default Tag Point award
@@ -860,8 +860,8 @@ desires:
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [watchman, sheriff]
-      anyTags: [watchman]
+      anyRoles: [cerberus, sheriff]
+      anyTags: [cerberon]
       combine: or
 
   arrest-a-criminal:
@@ -869,7 +869,7 @@ desires:
     tier: 2
     families: [duty]
     requires:
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   execute-someone:
     name: Execute someone
@@ -991,27 +991,27 @@ desires:
     requires:
       anyRoles: [pusher]
 
-  promoted-to-watchman:
-    name: Be promoted to Watchman
+  promoted-to-cerberus:
+    name: Be promoted to Cerberus
     tier: 4
     families: [status, duty]
     requires:
       anyRoles: [squire]
     oncePerLife: true
 
-  promoted-to-captain-squire:
-    name: Be promoted to Captain
+  promoted-to-censor-squire:
+    name: Be promoted to Censor
     tier: 7
     families: [status, duty]
     requires:
       anyRoles: [squire]
 
-  promoted-to-captain-watchman:
-    name: Be promoted to Captain
+  promoted-to-censor-cerberus:
+    name: Be promoted to Censor
     tier: 3
     families: [status, duty]
     requires:
-      anyRoles: [watchman]
+      anyRoles: [cerberus]
     oncePerLife: true
 
   coronate-a-baron:
@@ -1101,17 +1101,26 @@ desires:
       anyTags: [musician, artist]
       combine: or
 
-  defuse-a-situation:
-    name: Defuse a difficult political situation
-    tier: 2
-    families: [scheming, faction-success]
+  baron-restates-allegiance:
+    name: Get the Baron to explicitly restate his allegiance to the God-King
+    tier: 1
+    cooldownTurns: 4
+    families: [duty, scheming]
     requires:
       anyRoles: [arbiter]
 
-  stop-a-battle:
-    name: Stop a battle through diplomacy
+  shake-hands-with-the-ordinator:
+    name: Shake hands with the Tribunal Ordinator
     tier: 4
-    families: [scheming, bravery]
+    oncePerLife: true
+    families: [duty, status]
+    requires:
+      anyRoles: [arbiter]
+
+  process-a-criminal:
+    name: Process a criminal
+    tier: 2
+    families: [duty]
     requires:
       anyRoles: [arbiter]
 
@@ -1172,12 +1181,12 @@ desires:
     requires:
       anyRoles: [baron]
 
-  captain-turret-multikill:
+  censor-turret-multikill:
     name: Get a multi-kill with the automated turret without killing friendlies
     tier: 3
     families: [violence, duty]
     requires:
-      anyRoles: [captain]
+      anyRoles: [censor]
 
   incarn-process-prisoner:
     name: Process a prisoner
@@ -1455,7 +1464,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   cook-a-lavish-meal:
     name: Cook a {tag:lavish-meal}
@@ -1507,22 +1516,22 @@ desires:
       anyTags: [death-wish]
 
   # === 4e. ‡ drafted fill-ins ===============================================
-  # Corrupt (T: corrupt, R: watchman/sheriff)
+  # Corrupt (T: corrupt, R: cerberus/sheriff)
   look-the-other-way:
     name: Look the other way for a friend
     tier: 1
     families: [duty, theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
-  sell-a-watch-secret:
-    name: "Sell Watch information or equipment"
+  sell-a-cerberon-secret:
+    name: "Sell Cerberon information or equipment"
     tier: 1
     families: [betrayal, theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   shake-down-a-merchant:
     name: Shake down someone with more to lose than you
@@ -1530,7 +1539,7 @@ desires:
     families: [theft, cruelty]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   pocket-60:
     name: Hold 60 ⬢ that was never yours
@@ -1539,7 +1548,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [watchman, sheriff]
+      anyRoles: [cerberus, sheriff]
 
   # Brave (T: brave)
   stand-your-ground-alone:
@@ -1807,8 +1816,8 @@ desires:
     requires:
       anyRoles: [brigand, brigand-leader]
 
-  escape-the-watch:
-    name: Be chased by the Watch or the Sheriff, and escape
+  escape-the-cerberon:
+    name: Be chased by the Cerberon or the Sheriff, and escape
     tier: 3
     families: [adventure, theft]
     requires:
