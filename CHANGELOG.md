@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Vow of Silence is a Minstrel's, and nobody else's
+
+Vow of Silence can only be taken by a Minstrel now  
+Tags can be whitelisted to a seat, not just blacklisted away from one, so a role-only tag no longer means listing the other 38 roles
+
 ## 2026-09-04 · Nearsighted tells you to go and get spectacles
 
 Nearsighted's description now points at Spectacles, since the tag is what unlocks Look at again
