@@ -1050,7 +1050,7 @@ tags:
     name: Nearsighted
     category: general
     group: general-traits
-    description: "Things get blurry past arm's length. Forget aiming!"
+    description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}. ‡"
     pointCost: -5
     conflictsWith: [eagle-eyes]
     purchasable: true
