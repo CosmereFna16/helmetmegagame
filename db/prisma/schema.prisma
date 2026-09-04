@@ -136,6 +136,19 @@ enum TagVisibility {
   WORN
 }
 
+// Where on the body an equippable tag sits. Only three, because these are the
+// places where wearing two things at once is nonsense: you get one helmet, one
+// cuirass, one shield. Everything else equippable — a sword, a lantern, a cart
+// — has no slot and is limited only by GameConfig.equipSlots, the flat count.
+//
+// HEAD and BODY additionally carry Tag.equipLayer 1-4, so a coif can go under
+// a helm; SHIELD has no layers and admits exactly one. See TAGS.md.
+enum EquipSlot {
+  HEAD
+  BODY
+  SHIELD
+}
+
 enum TagSource {
   POINT_BUY
   DESIRE_REWARD
@@ -1832,12 +1845,36 @@ model Tag {
   equippable Boolean @default(false)
 
   // Marks gear that hides who the wearer is — a mask, hood or closed helm.
-  // Currently INERT: /conceal is open to every character with nothing
-  // equipped, and nothing reads this field. Kept so the gate can be restored
-  // without a migration. Only meaningful together with equippable, and
+  // This is the gate on /conceal: without one of these EQUIPPED, a character
+  // cannot go unnamed at all. Only meaningful together with equippable, and
   // db/lib/syncTags.js throws if it is set without it, since a mask nobody can
   // equip could never conceal anything. See docs/systemdocs/TAGS.md.
   concealsIdentity Boolean @default(false)
+
+  // Concealment with no say in it — a sack tied over the head, a plague mask
+  // whose whole point is that the wearer is nobody. While one of these is
+  // equipped the character is concealed whatever Character.concealed says, and
+  // both /conceal toggles refuse to turn it off. Requires concealsIdentity;
+  // syncTags.js throws otherwise, since forcing a concealment the catalog does
+  // not grant is a contradiction rather than a stricter setting.
+  forcesConceal Boolean @default(false)
+
+  // Which plated 256px avatar a concealed wearer shows, as a basename under
+  // web/public/assets/helms (built by web/scripts/generate-helms.js). Required
+  // alongside concealsIdentity — a hood nobody can see is not concealment,
+  // it is a missing image — and syncTags.js checks the file is really there,
+  // because a typo here would otherwise surface as a broken avatar in Discord
+  // rather than as a failed sync.
+  concealSprite String?
+
+  // Where this sits on the body, and how deep. Two equipped tags may not share
+  // a slot, nor a layer within HEAD/BODY: layer 1 is against the skin and 4 is
+  // outermost, so a mail coif (1) goes under a knight's helm (3) but two helms
+  // do not go together. The OUTERMOST equipped concealing piece is the one
+  // whose concealSprite the room sees. Enforced in both places that flip
+  // CharacterTag.equipped — equipActions.js and db/lib/tagOps.js.
+  equipSlot  EquipSlot?
+  equipLayer Int?
 
   // The opposite of hiding: a tag that FIXES how the character presents. While
   // any held tag carries this, the character posts under this name with the

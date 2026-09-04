@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
+import { describeSlotClash, findSlotClash } from "@lifeweb/db/lib/equipSlots";
+import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
 
@@ -21,9 +23,20 @@ export async function toggleEquip(characterTagId) {
   // anyone equip things on someone else's sheet.
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, location: { select: { indoors: true, name: true } } },
+    select: {
+      id: true,
+      location: { select: { indoors: true, name: true } },
+      tags: { select: { tag: { select: { slug: true } } } },
+    },
   });
   if (!character) return { error: "No living character." };
+
+  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure — no hands to do this
+  // with. Both directions, which is the point: a hostage who could take the
+  // sack off their own head would not be much of a hostage.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    return { error: "You can't work your hands right now. ‡" };
+  }
 
   const held = await prisma.characterTag.findFirst({
     where: { id: characterTagId ?? "", characterId: character.id },
@@ -33,8 +46,10 @@ export async function toggleEquip(characterTagId) {
   if (!held.tag.equippable) return { error: `${held.tag.name} isn't something you can equip.` };
 
   // A cart does not come into a chapel (docs/systemdocs/CARRY.md §3). Arriving
-  // already unequipped it; this stops it going straight back on. Unequipping
-  // is always allowed — only the equip direction is gated.
+  // already unequipped it; this stops it going straight back on. This one gates
+  // the equip direction only — taking the cart off at the door is the whole
+  // point of it. The incapacitation check above is the gate that runs both
+  // ways.
   if (!held.equipped && STOWABLE_SLUGS.has(held.tag.slug) && character.location?.indoors) {
     return { error: `You can't set up ${held.tag.name} inside ${character.location.name}. ‡` };
   }
@@ -64,9 +79,22 @@ export async function toggleEquip(characterTagId) {
       const inUse = await tx.characterTag.count({ where: { characterId: character.id, equipped: true } });
       if (inUse >= slots) throw new Error("NO_SLOTS");
       await tx.characterTag.update({ where: { id: held.id }, data: { equipped: true } });
+
+      // Written first, then checked, so this asks the same question the GM
+      // batch path asks: "is the resulting set wearable?". Inside the same
+      // transaction and behind the same row lock as the slot count, so a
+      // double-tap cannot slip a second helmet past it; the throw rolls the
+      // write back.
+      const worn = await tx.characterTag.findMany({
+        where: { characterId: character.id, equipped: true },
+        select: { tag: { select: { name: true, equipSlot: true, equipLayer: true } } },
+      });
+      const clash = findSlotClash(worn);
+      if (clash) throw new Error(`CLASH:${describeSlotClash(clash)}`);
     });
   } catch (err) {
     if (err.message === "NO_SLOTS") return { error: "You have no free equipment slots." };
+    if (err.message?.startsWith("CLASH:")) return { error: err.message.slice("CLASH:".length) };
     throw err;
   }
 

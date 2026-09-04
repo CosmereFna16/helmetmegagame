@@ -123,6 +123,15 @@ export default function TagChip({
         {tag.inspectVisibility && tag.inspectVisibility !== "HIDDEN" && (
           <Meta label="Seen by others">{tag.inspectVisibility === "WORN" ? "Only while worn" : "Yes"}</Meta>
         )}
+        {/* Tag.concealsIdentity / Tag.forcesConceal. Three states, and the
+            difference between the last two is the whole reason this row
+            exists: "Always" means the wearer cannot choose to be seen, which
+            is a very different thing to own than a mask you can take off.
+            Nothing renders for gear that doesn't conceal, same posture as the
+            visibility row above. */}
+        {tag.concealsIdentity && (
+          <Meta label="Conceals you">{tag.forcesConceal ? "Always, while worn" : "Optional, while worn"}</Meta>
+        )}
         {/* The prerequisite gate (requiredTag, or the group's) — what marks
             role/faction kit as designed-for-you. Reads straight off the tag
             prop, no hooks, so the chip keeps rendering on the server; a

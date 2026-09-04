@@ -608,6 +608,19 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # Costed at -1 rather than the scale's -2 (docs/systemdocs/TAGS.md §4a): it
+  # is nearly all flavour, and it is the gate on the Leper's Hood, which is a
+  # 0-point item. At -2 the pair would have PAID a player to take a free hood.
+  leper:
+    name: Leper
+    category: general
+    group: general-traits
+    description: "Covered in sores."
+    pointCost: -1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+
   frail:
     name: Frail
     category: general
@@ -4267,21 +4280,6 @@ tags:
       - alcohol
     consumesIntoResources: 8
 
-  gas-mask:
-    name: Gas Mask
-    category: items
-    group: items-gear
-    description: "This could protect you from fumes, but mostly it looks cool."
-    pointCost: 0
-    equippable: true
-    tradeable: true
-    weight: 2
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
-
   smoke-grenade:
     name: Smoke Grenade
     category: items
@@ -4388,27 +4386,6 @@ tags:
       - coffee
       - alcohol
       - work-knife
-
-  ridiculous-hat:
-    name: Ridiculous Hat
-    category: items
-    group: items-gear
-    description: "What were you thinking?"
-    pointCost: 7
-    equippable: true
-    tradeable: true
-    weight: 2
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      skills: [crafting]
-      gambit: false
 
   spectacles:
     name: Spectacles
@@ -5817,19 +5794,6 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  bishops-mitre:
-    name: Bishop's Mitre
-    category: items
-    group: items-special
-    description: "The holy headwear of Ravenheart's Bishop. Recognizable from a distance."
-    pointCost: 0
-    equippable: true
-    visible: worn
-    tradeable: true
-    weight: 2
-    purchasable: false
-    purchasableAfterStart: false
-
   barons-scepter:
     name: Baron's Scepter
     category: items
@@ -5942,19 +5906,6 @@ tags:
     visible: worn
     tradeable: true
     weight: 0
-    purchasable: false
-    purchasableAfterStart: false
-
-  headmans-cap:
-    name: Headman's Cap
-    category: items
-    group: items-special
-    description: "A feathered cap for the head of the Headman."
-    pointCost: 0
-    equippable: true
-    visible: worn
-    tradeable: true
-    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -7574,16 +7525,372 @@ tags:
   # --- Armor -------------------------------------------------------------
 
   # ─── Dead Simple (1 pt / 3 ⬢ / 0 turns) ───
-  padded-armor:
-    name: Padded Armor
+  # --- Headgear ----------------------------------------------------------
+  # Split out of Armor because these decide what a character's FACE is, not
+  # just what stops a blade. Anything with `concealsIdentity` replaces the
+  # wearer's name and avatar for as long as it is EQUIPPED — see
+  # docs/systemdocs/PROXYING.md §5 — and `concealSprite` names the image the
+  # room sees instead, built by `npm run assets:helms --workspace=web`.
+  #
+  # `forcesConceal` is the difference between a hood and a sack: with it, the
+  # wearer has no say and /conceal refuses in both directions.
+  #
+  # equipLayer runs 1 (against the skin) to 4 (outermost), and the OUTERMOST
+  # equipped piece is the one whose sprite shows. Two things cannot share a
+  # layer, which is what stops a character wearing three helmets at once.
+
+  soulbreaker-helm:
+    name: Soulbreaker Helm
     category: items
-    group: items-armor
-    description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
-    pointCost: 2
+    group: items-headgear
+    description: "An opaque steel cage with a HUD display inside the iridescent visor, aiding targeting. It has lights on the front."
+    pointCost: 9
     equippable: true
-    visible: worn
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: soulbreaker1
+    visible: true
     tradeable: true
     weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+
+  cerberus-helmet:
+    name: Cerberus Helmet
+    category: items
+    group: items-headgear
+    description: "A new design, shaped like a wolf's head. Slightly more reliable than your average bucketcap."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: cerberus
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+
+  censors-helmet:
+    name: Censor's Helmet
+    category: items
+    group: items-headgear
+    description: "A brutal helmet to aid in your noble task."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: hero0
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 26
+      skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 42
+
+  gladiator-helmet:
+    name: Gladiator Helmet
+    category: items
+    group: items-headgear
+    description: "A cage for a visor. Dramatic."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: fighterhelmet
+    visible: true
+    tradeable: true
+    weight: 8
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 14
+      skills: [smithing-skilled]
+    depotPrice: 45
+    sellable: true
+    sellablePrice: 18
+
+  tribunal-helmet:
+    name: Tribunal Helmet
+    category: items
+    group: items-headgear
+    description: "A thick flak helmet, concealing your identity."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: tribhelm
+    visible: true
+    tradeable: true
+    weight: 8
+    purchasable: false
+    purchasableAfterStart: false
+
+  tribunal-ordinator-helmet:
+    name: Tribunal Ordinator Helmet
+    category: items
+    group: items-headgear
+    description: "A thick flak helmet, concealing your identity. It has a band around on top with playing cards stuffed in."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: vietnamordinator
+    visible: true
+    tradeable: true
+    weight: 8
+    purchasable: false
+    purchasableAfterStart: false
+
+  spacesuit-helmet:
+    name: Spacesuit Helmet
+    category: items
+    group: items-headgear
+    description: "An old helmet with a reflective visor. It has a pipe connecting it to the suit's internal systems."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: tspacehelmet
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+
+  pumpkin:
+    name: Pumpkin
+    category: items
+    group: items-headgear
+    description: "Put it on your head!"
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: pumpkin
+    visible: true
+    tradeable: true
+    weight: 5
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+
+  thanati-mask:
+    name: Thanati Mask
+    category: items
+    group: items-headgear
+    description: "A bold declaration of your faith, wrought out of iron. Offers some protection."
+    pointCost: 5
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: silvermask
+    visible: true
+    tradeable: true
+    weight: 4
+    purchasable: false
+    purchasableAfterStart: false
+
+  plague-doctor-mask:
+    name: Plague Doctor Mask
+    category: items
+    group: items-headgear
+    description: "The long beak is elegant."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: plaguedoctor
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
+  rat-mask:
+    name: Rat Mask
+    category: items
+    group: items-headgear
+    description: "A mask in the shape of a rat's face."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: rat
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+    depotPrice: 15
+    sellable: true
+    sellablePrice: 6
+
+  bone-mask:
+    name: Bone Mask
+    category: items
+    group: items-headgear
+    description: "A mask cut out of a human skull."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: bone
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [butcher]
+      items:
+        - group: items-corpse
+
+  balaclava:
+    name: Balaclava
+    category: items
+    group: items-headgear
+    description: "A sock for your head."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: balaclava
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+
+  hood:
+    name: Hood
+    category: items
+    group: items-headgear
+    description: "A bag with eyes cut out. Terrifying."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: hood
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+
+  bag:
+    name: Bag
+    category: items
+    group: items-headgear
+    description: "A bag for hostages."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: bag
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+
+  plebeian-hood:
+    name: Plebeian Hood
+    category: items
+    group: items-headgear
+    description: "A peasant's hood, can be drawn down."
+    pointCost: 1
+    requiredTag: laboring-basic
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    concealSprite: plebhood
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  lepers-hood:
+    name: Leper's Hood
+    category: items
+    group: items-headgear
+    description: "A hood that masks the worst of your wounds."
+    pointCost: 0
+    requiredTag: leper
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    concealSprite: leper
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  padded-cap:
+    name: Padded Cap
+    category: items
+    group: items-headgear
+    description: "Cushioned. Turns away blows."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    visible: true
+    tradeable: true
+    weight: 2
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -7594,16 +7901,141 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  padded-cap:
-    name: Padded Cap
+  mail-coif:
+    name: Mail Coif
     category: items
-    group: items-armor
-    description: "Cushioned. Turns away blows."
-    pointCost: 2
+    group: items-headgear
+    description: "A mail hood covering the head and neck, worn under a helmet."
+    pointCost: 5
     equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    concealsIdentity: true
+    concealSprite: hauberkhood
     visible: true
     tradeable: true
+    weight: 5
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  gas-mask:
+    name: Gas Mask
+    category: items
+    group: items-headgear
+    description: "This could protect you from fumes, but mostly it looks cool."
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: gas_mask
+    tradeable: true
     weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  simple-helm:
+    name: Simple Helm
+    category: items
+    group: items-headgear
+    description: "An open helmet."
+    pointCost: 5
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: paladin1
+    visible: true
+    tradeable: true
+    weight: 5
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  knights-helmet:
+    name: Knight's Helmet
+    category: items
+    group: items-headgear
+    description: "A closed helmet. Vision is obscured."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: knight0
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 26
+      skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 42
+
+  bishops-mitre:
+    name: Bishop's Mitre
+    category: items
+    group: items-headgear
+    description: "The holy headwear of Ravenheart's Bishop. Recognizable from a distance."
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    visible: worn
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
+  headmans-cap:
+    name: Headman's Cap
+    category: items
+    group: items-headgear
+    description: "A feathered cap for the head of the Headman."
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    visible: worn
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
+  padded-armor:
+    name: Padded Armor
+    category: items
+    group: items-armor
+    description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
+    pointCost: 2
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 1
+    visible: worn
+    tradeable: true
+    weight: 12
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -7621,6 +8053,7 @@ tags:
     description: "A small shield held in the fist, used for blocking attacks or making your own."
     pointCost: 2
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: true
     weight: 5
@@ -7635,46 +8068,6 @@ tags:
     sellablePrice: 4
 
   # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
-  simple-helm:
-    name: Simple Helm
-    category: items
-    group: items-armor
-    description: "An open helmet."
-    pointCost: 5
-    equippable: true
-    visible: true
-    tradeable: true
-    weight: 5
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [smithing]
-    sellable: true
-    sellablePrice: 9
-
-  mail-coif:
-    name: Mail Coif
-    category: items
-    group: items-armor
-    description: "A mail hood covering the head and neck, worn under a helmet."
-    pointCost: 5
-    equippable: true
-    visible: true
-    tradeable: true
-    weight: 5
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [smithing]
-    sellable: true
-    sellablePrice: 9
-
   shield:
     name: Shield
     category: items
@@ -7682,6 +8075,7 @@ tags:
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
     pointCost: 5
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: true
     weight: 12
@@ -7703,6 +8097,7 @@ tags:
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
     pointCost: 5
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: true
     weight: 28
@@ -7724,6 +8119,8 @@ tags:
     description: "Interlocking rings. It cannot be cut, but blunt force or thrusts can still be deadly."
     pointCost: 7
     equippable: true
+    equipSlot: BODY
+    equipLayer: 2
     visible: true
     tradeable: true
     weight: 28
@@ -7738,26 +8135,6 @@ tags:
     sellablePrice: 22
 
   # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
-  knights-helmet:
-    name: Knight's Helmet
-    category: items
-    group: items-armor
-    description: "A closed helmet. Vision is obscured."
-    pointCost: 9
-    equippable: true
-    visible: true
-    tradeable: true
-    weight: 12
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 2
-      resourceCost: 26
-      skills: [smithing-skilled]
-    sellable: true
-    sellablePrice: 42
-
   brigandine:
     name: Brigandine
     category: items
@@ -7765,6 +8142,8 @@ tags:
     description: "Small steel plates riveted inside a fabric coat. Protection is similar to plate without the visibility of plate."
     pointCost: 9
     equippable: true
+    equipSlot: BODY
+    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 28
@@ -7785,6 +8164,8 @@ tags:
     description: "A plate over the chest. Offers some protection of full plate while permitting mobility, and it's easy to don."
     pointCost: 9
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     visible: true
     tradeable: true
     weight: 28
@@ -7799,6 +8180,21 @@ tags:
     sellablePrice: 42
 
   # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
+  spacesuit:
+    name: Spacesuit
+    category: items
+    group: items-armor
+    description: "Thick, bulky, painted with orange stripes. Has an internal oxygen system."
+    pointCost: 9
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 4
+    visible: true
+    tradeable: true
+    weight: 40
+    purchasable: false
+    purchasableAfterStart: false
+
   plate-armor:
     name: Plate Armor
     category: items
@@ -7806,6 +8202,8 @@ tags:
     description: "Steel over the whole body. Requires a second person and time to don."
     pointCost: 14
     equippable: true
+    equipSlot: BODY
+    equipLayer: 4
     visible: true
     tradeable: true
     weight: 55
@@ -7828,6 +8226,8 @@ tags:
     description: "Scrap metal strapped over the body."
     pointCost: 2
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     visible: true
     tradeable: true
     weight: 12
@@ -7847,6 +8247,7 @@ tags:
     description: "A projected field. It stops bullets, arrows and blasts, and softens a melee blow. A slow needle passes through it. Any liquid touching it destroys it. GM-granted only."
     pointCost: 0
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: false
     purchasable: false

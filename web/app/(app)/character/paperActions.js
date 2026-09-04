@@ -6,7 +6,12 @@ import { prisma } from "@lifeweb/db";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { PAPER_SLUG, isPaper, isSeal, paperDescription } from "@lifeweb/db/lib/paper";
 import { writeNewPaper, appendToPaper, sealPaper } from "@lifeweb/db/lib/paperMint";
-import { forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} from "@lifeweb/db/lib/presentedIdentity";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { guarded, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
@@ -59,6 +64,7 @@ async function requireWriter() {
               paperAuthor: true,
               sealMark: true,
               forcedName: true,
+              ...CONCEALMENT_TAG_FIELDS,
             },
           },
         },
@@ -92,7 +98,10 @@ function revalidateAll() {
 // (db/lib/paper.js#paperName). Read off the tags already loaded rather than
 // through loadForcedName, so this costs no second query.
 function writerName(character) {
-  return presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) }).name;
+  return presentedIdentity(character, {
+    forcedName: forcedNameFrom(character.tags),
+    concealment: concealmentFrom(character.tags),
+  }).name;
 }
 
 async function writePaperImpl({ tagId: rawTagId, text: rawText }) {

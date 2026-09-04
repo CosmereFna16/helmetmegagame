@@ -1,7 +1,14 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
 const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
-const { forcedNameFrom, loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  loadConcealment,
+  loadForcedName,
+  presentedIdentity,
+} = require("@lifeweb/db/lib/presentedIdentity");
 const {
   MENU_OPTION_LIMIT,
   PICK_ID,
@@ -837,8 +844,10 @@ async function handleWhosHere(interaction, locationId) {
         gender: true,
         faction: { select: { name: true, slug: true } },
         tags: {
-          where: { tag: { forcedName: { not: null } } },
-          select: { tag: { select: { forcedName: true } } },
+          where: {
+            OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+          },
+          select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
         },
       },
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -850,7 +859,14 @@ async function handleWhosHere(interaction, locationId) {
     return;
   }
 
-  const rows = present.map((c) => ({ ...c, forcedName: forcedNameFrom(c.tags) }));
+  // Concealed the same way the proxy decides it, not straight off the column:
+  // a row still flagged concealed after the mask came off is speaking under its
+  // own name, and listing it here as a stranger would be a lie the room can
+  // check.
+  const rows = present.map((c) => {
+    const piece = concealmentFrom(c.tags);
+    return { ...c, forcedName: forcedNameFrom(c.tags), concealed: Boolean(piece && (piece.forced || c.concealed)) };
+  });
   const named = rows
     .filter((c) => !c.concealed || c.forcedName)
     .map((c) => {
@@ -1145,6 +1161,21 @@ async function handleConcealCommand(interaction) {
     return;
   }
 
+  // Concealment is a property of what you are wearing, not a free action. With
+  // a bare face there is nothing to toggle; under something that forces it,
+  // there is no choice to make in either direction. The column is left alone in
+  // that second case, so whatever the player last chose is what they go back to
+  // when the thing comes off.
+  const concealment = await loadConcealment(prisma, character.id);
+  if (!concealment) {
+    await respond(interaction, "» *Your face is bare. Put something over it first.* ‡");
+    return;
+  }
+  if (concealment.forced) {
+    await respond(interaction, "» *Not while you are wearing that. Take it off first.* ‡");
+    return;
+  }
+
   const concealed = !character.concealed;
   await prisma.character.update({ where: { id: character.id }, data: { concealed } });
   await prisma.auditLog
@@ -1391,7 +1422,8 @@ async function handleSpeakSubmit(interaction, channelId) {
   // forcesName tag) are standing state, and a checkbox here would be a
   // second answer to a settled question.
   const forcedName = await loadForcedName(prisma, character.id);
-  const identity = presentedIdentity(character, { forcedName });
+  const concealment = await loadConcealment(prisma, character.id);
+  const identity = presentedIdentity(character, { forcedName, concealment });
 
   let posted;
   try {

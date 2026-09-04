@@ -218,6 +218,16 @@ before any write, so a typo fails cleanly instead of half-applying. It also
 throws on `concealsIdentity` without `equippable` — a mask nobody can equip
 could never conceal anything.
 
+The rest of the headgear family throws the same way: `concealsIdentity` with no
+`concealSprite`, a `concealSprite` naming a file that isn't in
+`web/public/assets/helms/`, `forcesConceal` without `concealsIdentity`, an
+`equipSlot` on something not `equippable`, an `equipLayer` outside 1–4 or with
+no slot, a `HEAD`/`BODY` slot with no layer, and a layer on a `SHIELD`. The
+sprite check is the interesting one: it is the only validation here that
+touches the filesystem outside `docs/`, and it deliberately treats a missing
+directory as "cannot check" rather than as a failure, since `web/public` may
+not be laid out the same way inside a Next standalone build.
+
 ### Pass structure
 
 `syncTags` runs **five passes**, because tags and groups reference each other

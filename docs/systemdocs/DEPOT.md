@@ -354,6 +354,7 @@ buying one mid-game is still a real decision.
 | `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
 | `firecracker` | 4 | 1 | |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
+| `rat-mask` | 15 | 6 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
 | `sweets` | 5 | 2 | Consumes into `ate-meal` |
 | `honey` | 5 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 5 | 2 | |

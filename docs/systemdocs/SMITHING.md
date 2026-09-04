@@ -179,7 +179,9 @@ bonus in the game, because two tags and a smith stand behind it
 | Shield | Simple | `crafting` |
 | Pavise | Simple | `crafting` |
 | Mail Shirt | Moderate | |
-| Knight's Helmet | High Quality | |
+| Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
+| Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
+| Censor's Helmet | High Quality | Force conceal |
 | Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. |
 | Breastplate | High Quality | |
 | Plate Armor | Exceptional | |

@@ -1,6 +1,11 @@
 const { MessageType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} = require("@lifeweb/db/lib/presentedIdentity");
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
@@ -92,12 +97,15 @@ module.exports = {
 
     const character = await prisma.character.findFirst({
       where: { discordUserId: message.author.id, status: "ALIVE" },
-      // The forced-name tag rides along on the busiest query the bot runs,
-      // rather than costing a second round trip per message.
+      // The identity tags ride along on the busiest query the bot runs, rather
+      // than costing a second round trip per message. Two kinds: the one that
+      // dictates a name, and the equipped gear that hides one.
       include: {
         tags: {
-          where: { tag: { forcedName: { not: null } } },
-          select: { tag: { select: { forcedName: true } } },
+          where: {
+            OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+          },
+          select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
         },
       },
     });
@@ -105,10 +113,13 @@ module.exports = {
 
     // Which name and face this post goes out under. Precedence is forced >
     // concealed > own (db/lib/presentedIdentity.js): a held forcesName tag
-    // overrides the standing Character.concealed state (toggled by /conceal
-    // or the switch on /character), which itself lets a player go unnamed
-    // without remembering a per-message prefix.
-    const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
+    // overrides concealment, which itself needs something concealing actually
+    // EQUIPPED — either forcing it, or letting the standing Character.concealed
+    // toggle (/conceal, or the switch on /character) take effect.
+    const identity = presentedIdentity(character, {
+      forcedName: forcedNameFrom(character.tags),
+      concealment: concealmentFrom(character.tags),
+    });
 
     // Captured BEFORE proxying: sendAsCharacter deletes the original message,
     // and the mention list goes with it.

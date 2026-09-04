@@ -455,6 +455,12 @@ async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
+  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
+  // get to keep working; the same reasoning as the Extract gate below.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be working. ‡");
+  }
+
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
   await requireWorkshop(character, tag);
@@ -695,6 +701,12 @@ async function teachRequestImpl({ learnerId, tagId, reason }) {
 async function destroyTagRequestImpl({ tagId, quantity: rawQuantity, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
+
+  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
+  // get to keep working; the same reasoning as the Extract gate below.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be working. ‡");
+  }
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");

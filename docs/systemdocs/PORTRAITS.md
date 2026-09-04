@@ -218,3 +218,47 @@ Discord dashboard*. Two things keep it fast:
 The tint cache is passed down as a **ref**, never as `ref.current` — reading a
 ref during render is a `react-hooks/refs` error in this repo, and the whole
 thumbnail grid shares one cache.
+
+## 7. Helm avatars — the face a concealed character wears
+
+Nothing above applies to concealment. A character wearing a mask does not get a
+portrait with a mask layered on top; they get a **different image entirely**,
+one shared by every wearer of that item. That is the point — a per-character
+concealed avatar would be a fingerprint (`PROXYING.md` §5) — and it means these
+need no catalog, no layers, no palette, and no render at request time. They are
+21 flat files.
+
+- **Source** — `web/assets/helms/<sprite>.png`, 32×32, sitting beside
+  `web/assets/fonts/` for the same reason: build inputs, not served assets.
+- **Output** — `web/public/assets/helms/<sprite>.webp`, 256px on the same
+  `plate.webp` a built portrait uses.
+- **Build** — `npm run assets:helms --workspace=web`
+  (`web/scripts/generate-helms.js`). One-off with committed output, exactly the
+  posture `generate-letters.js` takes.
+- **Wiring** — `Tag.concealSprite` holds the basename; `db:sync-tags` refuses a
+  name with no file behind it.
+
+### Why the scaling rule is what it is
+
+The source sprites all sit in a 32×32 cell, but the **art inside** ranges from
+11×11 to 30×17. Scaling by the cell reproduces that spread on screen, which is
+what made a wide hood fill the frame while a skull mask floated in the middle
+of it looking like a mistake.
+
+Both obvious fixes are worse:
+
+- **Fit** (scale by the larger side) — a wide brim hits the edges while the
+  crown is still tiny, so the raggedness stays, just inverted.
+- **Fill** (scale by the smaller side) — the same brim overshoots to 335px on a
+  256px canvas and most of the hat is cropped away.
+
+So the generator normalises the **geometric mean** of the tight bounding box:
+`scale = 190 / sqrt(w * h)`. That holds apparent visual *mass* constant rather
+than any one edge, which is what the eye actually compares between two icons.
+Across the current 21 it needs no clipping at all — the widest lands at 252px
+and the tallest at 238px, both inside the 256px canvas.
+
+Two smaller decisions in the same file: the box is measured from **alpha, not
+the cell**, since every sprite is padded differently inside its 32×32; and the
+resize is `kernel: "nearest"` like everything else here, because this is pixel
+art and any other kernel turns its hard edges to mush.

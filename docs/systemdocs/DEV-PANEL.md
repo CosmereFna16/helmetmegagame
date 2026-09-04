@@ -356,7 +356,17 @@ on a duration, since the removal chain is fired by the removal itself.
 
 Three pairings are mirrored as disabled controls and re-checked on the server:
 `concealsIdentity` and `WORN` visibility need `equippable`, `sellablePrice`
-needs `sellable`, and an `expiresInto` chain needs a duration. The chain itself
+needs `sellable`, and an `expiresInto` chain needs a duration.
+
+`concealsIdentity` is then **refused outright** on a GM-authored tag, pairing
+notwithstanding. Concealing gear also needs a `Tag.concealSprite`, and that has
+to be a real file under `web/public/assets/helms/` built by
+`npm run assets:helms` — nothing a GM can add from here. Left half-set the flag
+would do nothing at all, so the form says so rather than silently producing a
+mask that conceals nobody. Headgear is authored in `docs/tags.yaml`
+(`TAGS.md`, `PROXYING.md` §5). The read-only chips on the detail sheet still
+show `Conceals by force`, `Conceal sprite:` and the `Worn: head · layer 3`
+pair for catalog tags. The chain itself
 is a list of outcome rows, each a multi-pick — one tag means "becomes this",
 two or more an even coin-flip, the `{ oneOf: [...] }` shape
 `db/lib/tagExpiryPass.js` reads.

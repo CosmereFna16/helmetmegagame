@@ -175,6 +175,15 @@ groups:
     name: Armor
     category: items
     color: "#8faab7"
+  # Split out of Armor once headgear started deciding what a character's FACE
+  # is (Tag.concealSprite, docs/systemdocs/PROXYING.md §5). A helm is no longer
+  # just plate that happens to sit high up: a mask with no armour value at all
+  # belongs here, and a breastplate does not, so grouping by body part reads
+  # better on a sheet than grouping by what stops a blade.
+  items-headgear:
+    name: Headgear
+    category: items
+    color: "#9db8c4"
   # The exotic tier: relics, grafts and machinery that don't belong to the
   # low-fantasy surface of the game. Kept apart from Gear so a player reading
   # their sheet can tell at a glance which of their possessions are ordinary.

@@ -26,7 +26,12 @@ const {
   medicallyVisibleTags,
   seenByBystander,
 } = require("./medicalVision");
-const { forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 
 // The subject `select` both callers load. Kept here beside the reader so a
@@ -53,6 +58,7 @@ const EXAMINE_SUBJECT_SELECT = {
           category: true,
           inspectVisibility: true,
           forcedName: true,
+          ...CONCEALMENT_TAG_FIELDS,
           // The five formatTagRequirement() reads. It renders no ingredient
           // line rather than throwing when requirementItems is missing, which
           // is the quiet failure this shared select exists to prevent.
@@ -126,7 +132,10 @@ function examineReadout({
   viewerFactionId = null,
   viewerIsOfficer = false,
 }) {
-  const identity = presentedIdentity(subject, { forcedName: forcedNameFrom(subject.tags) });
+  const identity = presentedIdentity(subject, {
+    forcedName: forcedNameFrom(subject.tags),
+    concealment: concealmentFrom(subject.tags),
+  });
   // `concealed` is false for a forced name (Apex Form): a Beast is not hiding,
   // it is being something else, so it gets the ordinary read under its own
   // presented name. presentedIdentity.js carries that distinction.

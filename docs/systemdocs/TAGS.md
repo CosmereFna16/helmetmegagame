@@ -436,12 +436,15 @@ reason to price one at 5.
 without a deliberate decision recorded here. **Pilgrim is the one deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
-the carry caps landed (`CARRY.md`). **Fast Metabolism is a fourth, at −6** —
-between the −5 and −7 bands, Bascinet's call; it is the only tag that changes
-the *size* of the per-turn upkeep rather than exempting somebody from it
-(`TURN-ENGINE.md` §2 step 8). **Teaching (Drill Instructor) is a third,
+the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of
-deliberate outlier as Pack Mule; don't read a pattern into it. Teaching and
+deliberate outlier as Pack Mule; don't read a pattern into it. **Fast
+Metabolism is a fourth, at −6** — between the −5 and −7 bands, Bascinet's
+call; it is the only tag that changes the *size* of the per-turn upkeep rather
+than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper is a
+fifth, at −1** — below the −2 band, and the reason is arithmetic rather than
+taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at −2 the
+pair would have *paid* a player to take a free hood. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 
@@ -1544,12 +1547,56 @@ have moved. It also keeps the loot panel (`CHARACTERS.md` §5) from rendering
 an item as if it's still worn.
 
 `concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
-hood, a closed helm. It is currently **inert**: `/conceal` is open to every
-character with nothing equipped (`PROXYING.md` §5), and the field is kept only
-so that gate can be restored without a migration. It is only meaningful
-alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
-it rather than syncing a tag that could never do anything — the kind of quiet
-failure that is miserable to debug from inside the game.
+hood, a closed helm. It is **the gate on `/conceal`**: without one of these
+equipped, a character cannot go unnamed at all (`PROXYING.md` §5). It is only
+meaningful alongside `equippable`, and `syncTagsFromYaml` **throws** if it is
+set without it rather than syncing a tag that could never do anything — the
+kind of quiet failure that is miserable to debug from inside the game.
+
+`forcesConceal: true` is the stricter form: concealed with no say in it, and
+both `/conceal` toggles refuse in either direction. It requires
+`concealsIdentity` — forcing a concealment the catalog does not grant is a
+contradiction, not a stricter setting — and sync throws otherwise.
+
+`concealSprite:` names the plated 256px avatar the room sees instead of the
+wearer's face, a basename under `web/public/assets/helms/`. It is **required**
+alongside `concealsIdentity`, and sync checks the file really exists: a hood
+nobody can see is not concealment, it is a missing image. Build the files with
+`npm run assets:helms --workspace=web` after adding a source sprite to
+`web/assets/helms/`.
+
+### `equipSlot` / `equipLayer`
+
+`GameConfig.equipSlots` is a flat **count** — six things, whatever they are —
+and for a long time it was the only limit, so a character with free slots could
+wear three helmets and two shields at once.
+
+`equipSlot:` is the other half. `HEAD`, `BODY` and `SHIELD` are the only three,
+because they are the only places where wearing two things at once is nonsense;
+a sword or a lantern has no slot and is limited by the count alone. **Two
+equipped tags may not share a slot.**
+
+`equipLayer:` 1–4 subdivides `HEAD` and `BODY`, 1 against the skin and 4
+outermost, and **two equipped tags may not share a layer** either. So a mail
+coif (`HEAD` 1) goes under a knight's helm (`HEAD` 3), but two helms do not go
+together. `SHIELD` carries no layer — there is only ever one shield — and sync
+throws if one is set on it. Sync also throws on a layer outside 1–4, a layer
+with no slot, a `HEAD`/`BODY` slot with no layer, and a slot on a tag that is
+not `equippable`.
+
+The layer also decides **which face shows**: the outermost equipped concealing
+piece is the one whose `concealSprite` the room sees.
+
+The rule lives in `db/lib/equipSlots.js` because **two** independent paths flip
+`CharacterTag.equipped` — the player's toggle (`equipActions.js`) and the
+GM/staged batch (`db/lib/tagOps.js`) — and a rule in only one of them is a rule
+a GM can walk straight through. Both write first and then ask "is the resulting
+set wearable?", which is the only form that lets a batch stage "unequip A,
+equip B" without rejecting B for a conflict with an A that is already gone.
+
+**Bound blocks equipping in both directions**, along with Craft and Destroy
+(`INCAPACITATING_SLUGS`, `db/lib/incapacitation.js`). A hostage who could take
+the sack off their own head would not be much of a hostage.
 
 `equippable` **does** interact with `visible`, through its third state. A tag
 authored `visible: worn` is shown to a bystander's 🔍 only while

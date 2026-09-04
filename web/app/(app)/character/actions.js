@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, loadForcedName } from "@lifeweb/db";
+import { prisma, loadConcealment, loadForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
@@ -44,13 +44,20 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  // The conceal toggle. No Discord side effect: the proxy pipeline reads
-  // Character.concealed at send time (PROXYING.md). A forced identity
-  // (Tag.forcedName — Apex Form's "Beast") locks it off: the switch renders
-  // disabled, and this is the lock behind it. The same tag fixes the face, so
-  // an upload is dropped too.
+  // The conceal toggle. No Discord side effect: the proxy pipeline resolves
+  // concealment at send time (PROXYING.md). A forced identity (Tag.forcedName
+  // — Apex Form's "Beast") locks it off: the switch renders disabled, and this
+  // is the lock behind it. The same tag fixes the face, so an upload is
+  // dropped too.
   const forcedName = await loadForcedName(prisma, character.id);
-  const concealed = !forcedName && formData.get("concealed") === "on";
+  // And the gear gate, the same one /conceal applies. Without something
+  // concealing EQUIPPED there is nothing to turn on; under something that
+  // forces it there is no choice either way, so the stored preference is left
+  // exactly as it was rather than being quietly rewritten by a form post.
+  const concealment = forcedName ? null : await loadConcealment(prisma, character.id);
+  const concealed = concealment?.forced
+    ? character.concealed
+    : Boolean(concealment) && formData.get("concealed") === "on";
   const avatar = forcedName ? null : formData.get("avatar");
 
   // Age is set once and then fixed. The input renders `disabled` after the

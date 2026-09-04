@@ -58,6 +58,11 @@ export const TAG_CHIP_FIELDS = {
   expiresInto: true,
   // Drives TagChip's "Seen by others" line (Tag.inspectVisibility).
   inspectVisibility: true,
+  // Drives TagChip's "Conceals you" line. Both, not just the first: the row
+  // has to say whether the wearer keeps a choice, and concealsIdentity alone
+  // cannot tell you that.
+  concealsIdentity: true,
+  forcesConceal: true,
 };
 
 // Session-dependent, so it must never be cached across callers.

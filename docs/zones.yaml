@@ -468,7 +468,8 @@ zones:
                 shield: 3
                 longbow: 2
                 breastplate: 2
-                simple-helm: 6
+                simple-helm: 4
+                cerberus-helmet: 4
                 mail-coif: 3
                 mail-shirt: 4
                 padded-armor: 5

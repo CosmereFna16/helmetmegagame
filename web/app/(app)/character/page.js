@@ -892,6 +892,16 @@ export default async function CharacterPage() {
   // what the room sees: the forced name's letter plaque, not their own face.
   const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
   const forcedIdentity = forcedTag ? { name: forcedTag.forcedName, tagName: forcedTag.name } : null;
+  // And what is over their face, which decides whether the conceal switch is
+  // usable at all (PROXYING.md §5). Named here rather than in AvatarField so
+  // the refusal can say WHICH thing is doing it.
+  const concealingTag =
+    character.tags
+      .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
+      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]?.tag ?? null;
+  const concealGear = concealingTag
+    ? { tagName: concealingTag.name, forced: Boolean(concealingTag.forcesConceal) }
+    : null;
   const avatarSrc = forcedIdentity
     ? presentedIdentity(character, { forcedName: forcedIdentity.name }).avatarPath
     : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
@@ -915,6 +925,7 @@ export default async function CharacterPage() {
       currentAction={sheetAction}
       avatarSrc={avatarSrc}
       forcedIdentity={forcedIdentity}
+      concealGear={concealGear}
       transferParties={transferParties}
       transferSilo={transferSilo}
       carry={carry}

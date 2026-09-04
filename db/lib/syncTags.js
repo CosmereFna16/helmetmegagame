@@ -7,7 +7,7 @@
 const { settleCarry } = require("./carry");
 const fs = require("node:fs");
 const yaml = require("js-yaml");
-const { docsPath } = require("./repoPaths");
+const { docsPath, repoPath } = require("./repoPaths");
 const { CORPSE_GROUP_SLUG } = require("./constants");
 const {
   normalizeRequirementItems,
@@ -23,6 +23,17 @@ const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
 const { entriesOf } = require("./yamlEntries");
 const { NAME_LIMITS } = require("./characterName");
+
+// `equipSlot:` in docs/tags.yaml -> Tag.equipSlot. HEAD and BODY take a layer
+// 1-4; SHIELD refuses one, because there is only ever one shield.
+const EQUIP_SLOTS = new Set(["HEAD", "BODY", "SHIELD"]);
+const LAYERED_SLOTS = new Set(["HEAD", "BODY"]);
+const MAX_EQUIP_LAYER = 4;
+
+// Where generate-helms.js writes the concealed-identity avatars. Null, or a
+// directory that isn't there, means "cannot check" rather than "invalid" —
+// see repoPaths.js#repoPath.
+const HELM_DIR = repoPath("web/public/assets/helms");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility, a real enum rather
 // than a truthy string.
@@ -226,6 +237,63 @@ async function syncTagsFromYaml(prisma) {
       if (t.concealsIdentity) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both forcesName and concealsIdentity — a tag can't hide who you are and dictate it`);
       }
+    }
+    // A concealing tag has to have a face to show. Checking the file is really
+    // there matters more than it looks: a typo in concealSprite would
+    // otherwise stay invisible until somebody equipped the thing in play and
+    // Discord served a broken image, which is a miserable way to find out.
+    if (t.concealsIdentity && !t.concealSprite) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but no concealSprite — concealing gear is what the room sees instead of a face, so it needs one`,
+      );
+    }
+    if (t.concealSprite !== undefined) {
+      if (typeof t.concealSprite !== "string" || !t.concealSprite.trim()) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets concealSprite but it is empty — name a sprite in web/public/assets/helms`);
+      }
+      if (!t.concealsIdentity) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets concealSprite but not concealsIdentity — nothing would ever show it`,
+        );
+      }
+      if (HELM_DIR && fs.existsSync(HELM_DIR) && !fs.existsSync(`${HELM_DIR}/${t.concealSprite.trim()}.webp`)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets concealSprite "${t.concealSprite}" but web/public/assets/helms/${t.concealSprite}.webp does not exist — add the source sprite and run \`npm run assets:helms --workspace=web\``,
+        );
+      }
+    }
+    // forcesConceal is a stricter concealsIdentity, never a substitute for it:
+    // forcing a concealment the catalog does not grant is a contradiction.
+    if (t.forcesConceal && !t.concealsIdentity) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets forcesConceal but not concealsIdentity — it can't take away a choice it never gave`,
+      );
+    }
+    // equipSlot/equipLayer: the pair that stops two helmets going on one head.
+    if (t.equipSlot !== undefined) {
+      if (!EQUIP_SLOTS.has(t.equipSlot)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" has equipSlot: ${JSON.stringify(t.equipSlot)} — say ${[...EQUIP_SLOTS].join(", ")}`,
+        );
+      }
+      if (!t.equippable) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets equipSlot but not equippable — a slot only means anything once something can occupy it`,
+        );
+      }
+      if (LAYERED_SLOTS.has(t.equipSlot)) {
+        if (!Number.isInteger(t.equipLayer) || t.equipLayer < 1 || t.equipLayer > MAX_EQUIP_LAYER) {
+          throw new Error(
+            `docs/tags.yaml: tag "${t.slug}" is equipSlot ${t.equipSlot}, so it needs equipLayer 1-${MAX_EQUIP_LAYER} — 1 against the skin, ${MAX_EQUIP_LAYER} outermost`,
+          );
+        }
+      } else if (t.equipLayer !== undefined) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is equipSlot ${t.equipSlot} and sets equipLayer — that slot holds exactly one thing, so there is nothing to layer`,
+        );
+      }
+    } else if (t.equipLayer !== undefined) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets equipLayer but no equipSlot — a layer of what?`);
     }
     // `visible` is three-state: true, false, or "worn".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
@@ -459,6 +527,10 @@ async function syncTagsFromYaml(prisma) {
       carryBonus: entry.carryBonus ?? null,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,
+      forcesConceal: entry.forcesConceal ?? false,
+      concealSprite: entry.concealSprite?.trim() ?? null,
+      equipSlot: entry.equipSlot ?? null,
+      equipLayer: entry.equipLayer ?? null,
       forcedName: entry.forcesName?.trim() ?? null,
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
