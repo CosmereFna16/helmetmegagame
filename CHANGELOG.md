@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Merchant starts with 20 obols, not 30
+
+✎ The Merchant starts with 20 ¢ instead of 30, so his first order leans harder on the Company's line  
+✎ The cast starts with 80 ¢ between them rather than 90; nobody else's purse changed
+
 ## 2026-09-04 · Adds the Godard Factory, the Banneret, and the Squeeze production chain
 
 
