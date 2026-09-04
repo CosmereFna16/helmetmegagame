@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Black Hills hunt evenly, and the Forest fishes better
+
+✎ Hunting is the same everywhere in the Black Hills now, at 1.0. It was 0.8 across most of the zone with two richer spots; those are gone  
+✎ Fishing in the Forest went from 0.7 to 0.9 at all six waterside places
+
 ## 2026-09-04 · Five more guns and blades on the Merchant's counter
 
 ✚ The Merchant now imports a CTT4&3 Rifle, a Kpfw-6 Avtomat, an Adamantium Sword, a Silver Sword and a BB Pistol  
