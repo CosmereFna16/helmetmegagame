@@ -6,6 +6,38 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · A dead faction Leader hands the seat on, and a founded faction survives a sync
+
+✚ A Leader who dies gives up the seat; it passes on, skipping anyone Catatonic  
+✚ db:sync-roles no longer deletes a faction a player founded once it empties  
+✚ A Restart Game wipe clears silos and the factions players founded  
+✎ A locked silo no longer shows its ⬢ to somebody who cannot open it  
+✎ You can hand goods into a locked silo while standing at its door, not just from across the zone  
+✎ Accepting an invitation hands over the silo keys; the invitee can no longer pick which  
+✎ A silo has to be in the faction's own zone, and the pickers only offer those rooms  
+✎ Faction rosters and member counts no longer include the dead  
+✎ Two factions can no longer share a name  
+✎ Anyone can found a faction from inside one, without leaving first  
+✎ The faction directory is searchable and paged  
+✎ Nobody is an officer of Unaffiliated, and its Leader cannot drag anybody  
+✎ Hills Camp can't be destroyed — it was untradeable, so it was unrecoverable  
+− Two application columns nothing read; the audit log already carried both facts
+
+## 2026-09-04 · Factions secede, apply, and keep their silo in a room
+
+✚ Leave a faction, apply to another, invite somebody, accept or decline  
+✚ A Leader can secede from a parent faction, or rename their own  
+✚ Anyone can found a new faction and become its Leader  
+✚ A faction's silo is a Room now, storing tags and goods like any other stash  
+✚ Deposit into your silo from anywhere in its zone; withdraw only in the room  
+✚ A locked silo still takes deposits, and says it is one-way before you commit  
+✚ /faction is a tabbed console; players with no faction get a directory  
+✚ /gm/dev/factions gains a silo picker, a member mover and a pending list  
+✚ Nine storerooms, the Armory restocked, a Baron's Study and a Ravine Camp  
+✚ Six keys, a Keys tag group, and a Location group for the Brigands' camp  
+✎ Brigands start in the Ravine now, not the town  
+✎ Nothing branches on a faction's name any more, only its slug
+
 ## 2026-09-04 · Soft Hands has never done a day's labor, and cannot be taught otherwise
 
 Soft Hands can no longer be held with any Laboring skill  
