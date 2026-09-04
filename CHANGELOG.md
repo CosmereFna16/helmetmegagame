@@ -6,6 +6,21 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Commoner and her kits, the Arbiter, and four seats retired
+
+✎ The Peasant is now the Commoner, and starts skilled at labor and nothing else — no default farm, no shack  
+✚ Three Commoner kits at creation, each one crate you unpack when you like: Fisherman (1 pt, a boat and the fishing skill), Farmer (0 pt, a work knife and the farming skill), Hunter (2 pt, the hunting skill and Forester)  
+✚ The Fishing Boat: one extra free zone crossing a turn, but only between the Forest, the Black Hills and the Marshes, plus +1 to fishing labor. It can't be out at the same time as a horse or a cart, and it waits at the door indoors  
+✚ The Arbiter, a new Court seat standing in the Keep — the God-King's man in Ravenheart, behind the whitelist, starting with a sabre, a Major's Insignia and 4 obols  
+✚ A God-King document explaining who Enoch II is and why the Arbiter is here. Every Court seat gets it, plus the Captain, the Merchant and the Banneret  
+✚ The Meister now needs the whitelist too  
+− The Diplomat. The seat is retired and its material is filed away rather than deleted, so it can come back whole. Three of its Desires are now the Arbiter's and one is the Scholastic's  
+− The Herald and the Outsider. Their two woods Desires now ask for Forester, so a Commoner with the Hunter kit can reach them, and "Deliver an important message" now asks only that you can read  
+− The Manor, House and Shack tags. A Manor Key replaces the Manor  
+✎ Everyone in the Fortress now starts Post-Christian — the Baron's family, the Incarn, the Captain, the Watchmen and the Squire. That spends their one belief slot, so those seats can no longer pick Atheist or an Old Ways at creation without dropping it first  
+✎ The Brigands are their own group now, in the Black Hills where they already camped, instead of sitting under the Town  
+✎ Bum 5 → 4 seats per 100 players, Inn Staff 3 → 2, Watchman 7 → 6
+
 ## 2026-09-04 · The Leader Whitelist is now just a whitelist
 
 ✎ Whitelisting a role no longer means making its holder a faction Leader. The two are separate settings now, so a seat can be gated without leading anything — the Hand is the first one
