@@ -172,13 +172,24 @@ export function conflictingTag(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
-// --- Role-gated tags (Tag.excludedRoleSlugs) ---
+// --- Role-gated tags (Tag.excludedRoleSlugs / Tag.onlyRoleSlugs) ---
 // A seat that can never take this tag: Devoted Follower isn't for a Migrant,
 // a Mercenary or a Bum, who have nobody to be devoted to. Unlike the gates
 // above this one never depends on what else is held, so it filters the menu
 // outright rather than dimming a row. Enforced server-side too; a GM grant
 // bypasses it.
+//
+// Two spellings, and a tag uses at most one of them (syncTags.js throws on
+// both). `excludedRoleSlugs` names the seats shut out; `onlyRoleSlugs` names
+// the only seats let in — Mime's Vow is a Minstrel's, and nobody else's.
+// Both funnel through this one function so the menu, createCharacter and the
+// store's buyTags cannot drift on which gate they honour.
 export function roleExcluded(tag, roleSlug) {
+  const only = tag.onlyRoleSlugs ?? [];
+  // No seat resolved yet: an open tag stays open, a whitelisted one stays
+  // shut. Guessing the other way would flash a Minstrel-only row at everybody
+  // before the role picker has been touched.
+  if (only.length > 0) return !roleSlug || !only.includes(roleSlug);
   if (!roleSlug) return false;
   return (tag.excludedRoleSlugs ?? []).includes(roleSlug);
 }

@@ -1601,6 +1601,21 @@ model Tag {
   // A GM grant ignores it, like every other gate here.
   excludedRoleSlugs String[] @default([])
 
+  // The other direction: role slugs that are the ONLY seats which may buy this
+  // tag, authored in docs/tags.yaml as `onlyRoles:`. Vow of Silence is the
+  // first user — a Minstrel who will not sing is a character, anybody else
+  // choosing it is just a free tag. Empty means "open to every seat", which is
+  // the overwhelmingly common case, so the default is the permissive one.
+  //
+  // A whitelist rather than listing the other 38 seats in excludedRoleSlugs:
+  // that spelling would silently open the tag every time a new role is added
+  // to docs/roles.yaml. Same plain-slug reasoning as above.
+  //
+  // Read by the same roleExcluded() (web/lib/characterCreation.js), so the
+  // menu, createCharacter and the store's buyTags all inherit it at once. A GM
+  // grant ignores it, like every other gate here.
+  onlyRoleSlugs String[] @default([])
+
   // The other side of purchasable: whether the Merchant's Depot will buy
   // this off him, and for how many ⬢. Live as of the Merchant Update — read
   // by the Sell counter on /depot (DEPOT_SELL). syncTags.js requires the two

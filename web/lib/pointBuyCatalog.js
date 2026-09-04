@@ -55,6 +55,9 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     // roleExcluded() reads this off the projection — drop it and Devoted
     // Follower reappears in a Migrant's menu.
     excludedRoleSlugs: t.excludedRoleSlugs,
+    // The whitelist half of the same gate — drop it and Mime's Vow shows
+    // up in every seat's menu.
+    onlyRoleSlugs: t.onlyRoleSlugs,
     parentTagId: t.parentTagId,
     requiredTagId: t.requiredTagId,
     requiredTag: t.requiredTag,

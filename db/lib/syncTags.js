@@ -319,6 +319,17 @@ async function syncTagsFromYaml(prisma) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" excludedRoles references unknown role "${roleSlug}"`);
       }
     }
+    // onlyRoles — the whitelist half, same validation. A typo here would
+    // silently close the tag to EVERY seat rather than open it to one, which
+    // is the worse failure of the two.
+    for (const roleSlug of t.onlyRoles ?? []) {
+      if (!allRoleSlugs.has(roleSlug)) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" onlyRoles references unknown role "${roleSlug}"`);
+      }
+    }
+    if ((t.onlyRoles ?? []).length > 0 && (t.excludedRoles ?? []).length > 0) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both onlyRoles and excludedRoles; pick one`);
+    }
     // conflictsWith — a tag cannot conflict with itself.
     for (const other of t.conflictsWith ?? []) {
       if (other === t.slug) {
@@ -386,6 +397,7 @@ async function syncTagsFromYaml(prisma) {
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
       excludedRoleSlugs: entry.excludedRoles ?? [],
+      onlyRoleSlugs: entry.onlyRoles ?? [],
       sellable: entry.sellable ?? false,
       sellablePrice: entry.sellablePrice ?? null,
       depotPrice: entry.depotPrice ?? null,

@@ -1196,12 +1196,17 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Slug kept deliberately (see this file's header) — renamed Mime's Vow.
+  #
+  # Minstrel-only. A singer who has sworn off singing is a character; anybody
+  # else taking it is picking up a free tag with no cost to it.
   vow-of-silence:
-    name: Vow of Silence
+    name: "Mime's Vow"
     category: general
     group: general-traits
     description: "You can't speak. You mean, you really shouldn't."
     pointCost: 0
+    onlyRoles: [minstrel]
     conflictsWith: [stutter]
     visible: true
     purchasable: true
