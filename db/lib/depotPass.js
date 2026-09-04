@@ -8,19 +8,13 @@
 //
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
 const { loadDepot, bumpFuel, depotPowered, LANDING_PAD_SLUG } = require("./depotState");
-const { rollTurret, turretSpares } = require("./depotTurret");
-const {
-  CONCEALMENT_TAG_FIELDS,
-  concealmentFrom,
-  forcedNameFrom,
-  presentedIdentity,
-} = require("./presentedIdentity");
+const { turretSpares } = require("./depotTurret");
 const { DEPOT_LOCATION_SLUG } = require("./depot");
-const { expiryFrom } = require("./turnFormat");
-// Death is decided in one place so the two existing death paths and this one
-// cannot drift on what it means — the corpse, the archive row, the unequip,
-// the voided offers. Required by path: it is deliberately off the barrel.
-const { applyDeathToRow } = require("./characterDeath");
+// The sweep, the arrival roll and what a bullet does are shared with the
+// Gatehouse turret (db/lib/gatehouseTurret.js). Everything left in this file is
+// what makes THIS gun the Merchant's: it needs the generator running, and it
+// reads faces against Depot.merchantFace.
+const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt } = require("./turretPass");
 
 // What the world says when the generator finally coughs out. Bascinet's
 // register: a thing that happens TO the room, not an announcement about it.
@@ -87,135 +81,38 @@ async function runShuttleClock(prisma, depot, turn) {
 //
 // Powered and armed, or it does nothing — an unpowered turret is a lump of
 // metal in the ceiling, which is the whole reason the generator matters.
-async function sweepTurret(prisma, depot, turn) {
+async function sweepTurret(prisma, depot) {
   if (!depotPowered(depot) || !depot.turretArmed) return { shots: [] };
 
-  const location = await prisma.location.findUnique({
-    where: { slug: DEPOT_LOCATION_SLUG },
-    select: { id: true },
+  return sweepTurretAt(prisma, {
+    locationSlug: DEPOT_LOCATION_SLUG,
+    tableSource: depot,
+    spares: (name) => turretSpares(name, depot),
   });
-  if (!location) return { shots: [] };
-
-  const present = await prisma.character.findMany({
-    where: { status: "ALIVE", locationId: location.id },
-    select: {
-      id: true,
-      name: true,
-      discordUserId: true,
-      concealed: true,
-      tags: {
-        select: { equipped: true, tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
-      },
-    },
-  });
-
-  const shots = [];
-  for (const character of present) {
-    const forcedName = forcedNameFrom(character.tags);
-    const { name } = presentedIdentity(character, {
-      forcedName,
-      concealment: concealmentFrom(character.tags),
-    });
-    if (turretSpares(name, depot)) continue;
-
-    shots.push({ character, ...rollTurret(character.tags, depot) });
-  }
-
-  return { shots, locationId: location.id };
 }
 
-// Turn a roll into an actual wound. Split out because the on-arrival trigger
-// (db/lib/locationMove.js) applies exactly the same consequence, and two
-// copies of "what a bullet does" would drift.
-async function applyTurretShot(prisma, shot, turn) {
-  const { character, severity, tagSlug } = shot;
+const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling. \u2021";
 
-  if (severity === "dead") {
-    // The full death, not a status flip: a corpse on the depot floor, the
-    // archive line, the Discord role owed back. `claimed` is false if
-    // something else already killed them this turn, which a resumed pass can
-    // legitimately hit.
-    const { claimed } = await applyDeathToRow(prisma, character, {
-      turn,
-      content: "Shot dead by the turret in the depot ceiling. \u2021",
-    });
-    return { kind: claimed ? "dead" : "graze", discordUserId: character.discordUserId };
-  }
-
-  if (!tagSlug) return { kind: "graze", discordUserId: character.discordUserId };
-
-  const tag = await prisma.tag.findUnique({
-    where: { slug: tagSlug },
-    select: { id: true, defaultDurationTurns: true, stackable: true },
-  });
-  if (!tag) return { kind: "graze", discordUserId: character.discordUserId };
-
-  const expiresTurn = tag.defaultDurationTurns
-    ? expiryFrom(turn.number, tag.defaultDurationTurns)
-    : null;
-
-  // The wound ladder is non-stackable, so a second bullet on the same turn
-  // does not become "Deep Wound x2" — the existing row stands.
-  await prisma.characterTag.upsert({
-    where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
-    update: {},
-    create: { characterId: character.id, tagId: tag.id, source: "EVENT", expiresTurn },
-  });
-
-  return { kind: "hit", severity, discordUserId: character.discordUserId };
-}
-
-// The turret's OTHER trigger: walking in while it is hot.
-//
-// Called from db/lib/locationMove.js on every arrival, the way
-// rollCavingOnArrival is, and deliberately BEFORE that function's
-// DISCORD_TOKEN guard — being shot is a database fact and must not depend on
-// there being a token to announce it with.
-//
-// Loads the character itself rather than taking the one the caller already
-// has, because the turret needs `equipped` and `forcedName` off the tags and
-// the mover's select carries neither.
-async function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
-  // The location check comes FIRST and is deliberately the cheapest thing
-  // here. loadDepot is an upsert — a write — and this runs on every arrival
-  // anywhere in the game; at 100+ players that had every move in Ravenheart
-  // contending on the one row bumpColumn takes a FOR UPDATE lock on.
-  const location = await prisma.location.findUnique({
-    where: { id: toLocationId },
-    select: { slug: true },
-  });
-  if (location?.slug !== DEPOT_LOCATION_SLUG) return null;
-
-  const depot = await loadDepot(prisma);
-  if (!depotPowered(depot) || !depot.turretArmed) return null;
-
-  const character = await prisma.character.findUnique({
-    where: { id: characterId },
-    select: {
-      id: true,
-      name: true,
-      discordUserId: true,
-      status: true,
-      concealed: true,
-      tags: {
-        select: { equipped: true, tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
-      },
+// Walking in while it is hot. `armed` is a thunk so loadDepot — an upsert, and
+// therefore a write on one contended row — never runs for the thousands of
+// arrivals that are not the Depot.
+function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
+  return rollTurretOnArrivalAt(prisma, {
+    characterId,
+    toLocationId,
+    turn,
+    locationSlug: DEPOT_LOCATION_SLUG,
+    armed: async () => {
+      const depot = await loadDepot(prisma);
+      return {
+        armed: depotPowered(depot) && Boolean(depot.turretArmed),
+        tableSource: depot,
+        depot,
+      };
     },
+    spares: (name, state) => turretSpares(name, state.depot),
+    deathContent: DEATH_CONTENT,
   });
-  if (!character || character.status !== "ALIVE") return null;
-
-  const { name } = presentedIdentity(character, {
-    forcedName: forcedNameFrom(character.tags),
-    concealment: concealmentFrom(character.tags),
-  });
-  if (turretSpares(name, depot)) return null;
-
-  const shot = { character, ...rollTurret(character.tags, depot) };
-  // null, not a { number: null } stand-in: that object is truthy, so
-  // corpseMint's `turn ? expiryFrom(turn.number + 1, …)` would take it and
-  // rot the body off turn 1.
-  const outcome = await applyTurretShot(prisma, shot, turn ?? null);
-  return { ...outcome, severity: shot.severity, tier: shot.tier };
 }
 
 async function runDepotPass(prisma, turn) {
@@ -227,7 +124,7 @@ async function runDepotPass(prisma, turn) {
   const afterBurn = await loadDepot(prisma);
 
   const shuttle = await runShuttleClock(prisma, afterBurn, turn);
-  const { shots } = await sweepTurret(prisma, afterBurn, turn);
+  const { shots } = await sweepTurret(prisma, afterBurn);
 
   // Loaded here rather than taken from sweepTurret's return. It used to come
   // from there, which meant an unpowered Depot produced no locationId — and a
@@ -241,7 +138,7 @@ async function runDepotPass(prisma, turn) {
   const dms = [];
   const outcomes = [];
   for (const shot of shots) {
-    const outcome = await applyTurretShot(prisma, shot, turn);
+    const outcome = await applyTurretShot(prisma, shot, turn, { deathContent: DEATH_CONTENT });
     outcomes.push({ ...outcome, severity: shot.severity, tier: shot.tier });
     if (outcome.discordUserId) {
       dms.push({

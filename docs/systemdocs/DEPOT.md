@@ -178,6 +178,14 @@ narrative Gambit outcome — so there was no armour model to extend. What it
 borrows instead is the *shape* of `db/lib/cavingLoot.js`: a weighted draw whose
 columns must sum to 1.
 
+**There are two turrets now.** This one, and the gun on the rotor in the
+Gatehouse yard (`db/lib/gatehouseTurret.js`, §0g below). They share everything
+except where they stand, what turns them on and who they spare, so the sweep,
+the arrival roll and what a bullet does to a sheet live once in
+`db/lib/turretPass.js`. The ballistics — the severity ladder, the armour
+columns, the weighted draw — stay in `db/lib/depotTurret.js`, which is the file
+both of them roll against.
+
 **It reads faces, not papers.** The turret spares exactly one thing: a
 character whose **presented** name matches `Depot.merchantFace`. Not the
 licence, not the keycard, not the role. So:
@@ -238,6 +246,50 @@ restored backup) is ignored at roll time in favour of the shipped one.
 A `dead` result goes through `db/lib/characterDeath.js#applyDeathToRow`, so it
 gets a corpse, an archive line and the Discord role owed back like any other
 death.
+
+## 0g. The other turret, in the Gatehouse
+
+The triple-barrelled gun on the rotor in the fortress yard, which the Baron's
+charter has described as "off" since before anything could switch it on.
+`db/lib/gatehouseTurret.js`.
+
+It is this turret's opposite in the one way that matters: **it spares nobody.**
+No face, no keycard, no rank. Armed, it fires on whoever is standing in the
+Gatehouse — the Cerberon, the Baron, the person who armed it. Armour still picks
+a column, which is the point of the Cerberon's mail: the gun is survivable if
+you are dressed for it, and not otherwise.
+
+It carries no tunable table and no Dev Panel section. `rollTurret(tags, source)`
+reads only `source.turretTable`, so passing `null` gets the shipped table for
+free — that is the whole reason a second gun needed no new config.
+
+Its entire state is `GameConfig.gatehouseTurretArmed`, off by default.
+
+**The switch is a physical thing in a room.** A red *Toggle Turret* button on
+the Censor's Office starter post (`db/lib/roomStarterRow.js`), answered by
+`handleTurretOpen` / `handleTurretSubmit` in the bot. It is the only red button
+in the game, on purpose. Two guards, and neither is a permission check:
+
+- You have to be **standing in the Censor's Office**, re-checked at *submit*,
+  never at open — an ephemeral modal outlives somebody walking out of the
+  Garrison. Reaching the wall is the safeguard.
+- You have to **type `ARM` or `DISARM`** into the modal. Discord has no confirm
+  dialog and a misclick on a red button should not be able to shoot the Keep.
+  Case and stray spaces are forgiven; it is a speed bump, not a password. The
+  state is re-read at submit, so two people in the office at once cannot both
+  flip it the same way.
+
+Flipping it speaks one `-#` line into the Gatehouse through
+`db/lib/ambientLine.js` — the machine spinning up is the only warning anybody in
+the yard gets — and writes one `gatehouse_turret_toggled` audit row naming the
+character who pressed it.
+
+It fires on the same two triggers as the Merchant's: on entry
+(`db/lib/locationMove.js`, which now asks both guns; each checks the destination
+slug first and costs one indexed read to say no) and at the end of every turn,
+as its own `gatehouseTurret` pass. Separate from `depot` in `TURN_PASSES` so a
+failed Depot pass cannot swallow it and a resume re-runs only the one that did
+not finish.
 
 ## 0g. The bank
 

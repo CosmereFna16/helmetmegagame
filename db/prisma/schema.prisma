@@ -488,6 +488,18 @@ model GameConfig {
   // gate fails closed, and the reservation is the normal state of the game.
   leaderWhitelistEnabled Boolean @default(true)
 
+  // The triple-barrelled gun on the rotor in the fortress yard. Unlike the
+  // Depot's, it carries no tunable table and no face to spare: armed, it fires
+  // on everyone standing in the Gatehouse (db/lib/gatehouseTurret.js). It lives
+  // here rather than on a model of its own because there is exactly one of it
+  // and its whole state is this boolean. Flipped from the red button in the
+  // Censor's Office thread, never from a web page — the only safeguard on it is
+  // that somebody has to walk up to the wall.
+  //
+  // OFF by default, which is also what the Baron's charter has always claimed:
+  // "It seems to be off."
+  gatehouseTurretArmed Boolean @default(false)
+
   // Playtest lever: locks every role in the Windlands out of character
   // creation, without removing them from docs/roles.yaml — flip it back off
   // and the full roster returns. (It used to hold the Merchant back too; the

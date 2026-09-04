@@ -29,6 +29,10 @@ const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
 const { sendDm } = require("./dm");
 const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
+const {
+  rollGatehouseTurretOnArrival,
+  GATEHOUSE_TURRET_DM,
+} = require("./gatehouseTurret");
 
 // Mirrors web/lib/discordGuild.js's PERM_VIEW_CHANNEL / PERM_SEND_MESSAGES —
 // duplicated rather than imported because db/ cannot reach into web/.
@@ -183,18 +187,28 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   // early return, for the same reason parking a mount is: being shot is a
   // database fact and must not depend on there being a token to announce it
   // with. Wrapped, because a gun malfunctioning must never wedge a move.
-  const shot = await rollTurretOnArrival(prisma, {
-    characterId,
-    toLocationId,
-    turn: await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, id: true } }),
-  }).catch((err) => {
-    console.error(`Move: depot turret failed for ${characterId}:`, err.message ?? err);
-    return null;
+  //
+  // Both guns are asked, because a move only ever arrives in one place: each
+  // one checks the destination slug first and costs a single indexed read to
+  // say no. See db/lib/turretPass.js on why the armed check is a thunk.
+  const openTurn = await prisma.turn.findFirst({
+    where: { status: "OPEN" },
+    select: { number: true, id: true },
   });
-  if (shot?.discordUserId && shot.kind !== "graze") {
-    await sendDm(prisma, shot.discordUserId, TURRET_DM[shot.kind] ?? TURRET_DM.hit).catch((err) =>
-      console.error(`Move: turret DM failed for ${characterId}:`, err.message ?? err),
-    );
+  const turrets = [
+    { roll: rollTurretOnArrival, dms: TURRET_DM, label: "depot" },
+    { roll: rollGatehouseTurretOnArrival, dms: GATEHOUSE_TURRET_DM, label: "gatehouse" },
+  ];
+  for (const turret of turrets) {
+    const shot = await turret.roll(prisma, { characterId, toLocationId, turn: openTurn }).catch((err) => {
+      console.error(`Move: ${turret.label} turret failed for ${characterId}:`, err.message ?? err);
+      return null;
+    });
+    if (shot?.discordUserId && shot.kind !== "graze") {
+      await sendDm(prisma, shot.discordUserId, turret.dms[shot.kind] ?? turret.dms.hit).catch((err) =>
+        console.error(`Move: turret DM failed for ${characterId}:`, err.message ?? err),
+      );
+    }
   }
 
   if (!process.env.DISCORD_TOKEN) return;

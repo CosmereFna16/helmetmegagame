@@ -23,6 +23,7 @@ const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
 const { runDepotPass } = require("./lib/depotPass");
+const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
@@ -172,6 +173,10 @@ const TURN_PASSES = [
   // room. Last, so the turret fires on the sheet everything else left behind —
   // in particular the armour the carry pass may have made someone drop.
   "depot",
+  // The Gatehouse gun, for the same reason and in the same breath. Separate
+  // from "depot" so a failed Depot pass cannot swallow it, and so a resume
+  // re-runs exactly the one that did not finish.
+  "gatehouseTurret",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -590,6 +595,26 @@ async function resolveNeeds(turn, config) {
     });
     if (depot) await markDone("depot");
   }
+  let gatehouse = null;
+  if (!done.has("gatehouseTurret")) {
+    gatehouse = await runGatehouseTurretPass(prisma, turn).catch(async (err) => {
+      await passFailed("Gatehouse turret", err);
+      return null;
+    });
+    if (gatehouse) await markDone("gatehouseTurret");
+  }
+  if (gatehouse?.turretShots) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "gatehouse_turret_fired",
+          details: { turretShots: gatehouse.turretShots, turretOutcomes: gatehouse.turretOutcomes },
+        },
+      })
+      .catch((err) => console.error("Gatehouse turret audit log failed:", err));
+  }
+
   if (depot && (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)) {
     await prisma.auditLog
       .create({
@@ -647,7 +672,9 @@ async function resolveNeeds(turn, config) {
     routineNotices,
     gambitRollNotices,
     depotLines: depot?.lines ?? [],
-    depotDms: depot?.dms ?? [],
+    // Both guns' DMs, delivered by one loop. It was `depotDms` when there was
+    // only the one turret.
+    turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
     depotLocationId: depot?.locationId ?? null,
   };
 }
@@ -676,7 +703,7 @@ async function advanceTurn() {
   let lessonDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
-  let depotDms = [];
+  let turretDms = [];
   let depotLocationId = null;
   let catatonicDms = [];
   let catatonicRoleUpdates = [];
@@ -711,7 +738,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, depotDms, depotLocationId } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, turretDms, depotLocationId } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
@@ -761,7 +788,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, depotDms, depotLocationId } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, turretDms, depotLocationId } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -863,9 +890,9 @@ async function advanceTurn() {
       }
     }
 
-    for (const dm of depotDms) {
+    for (const dm of turretDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Depot turret DM to ${dm.discordUserId} failed:`, err),
+        console.error(`Turret DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

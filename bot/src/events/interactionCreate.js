@@ -73,9 +73,28 @@ const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
 const { structuresAt, HOLDS_EDGE } = require("@lifeweb/db/lib/structures");
-const { ROOM_STORAGE_PREFIX, ROOM_INTERCOM_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
+const {
+  ROOM_STORAGE_PREFIX,
+  ROOM_INTERCOM_PREFIX,
+  ROOM_TURRET_PREFIX,
+  CENSOR_OFFICE_ROOM_SLUG,
+} = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
+const {
+  TURRET_MODAL_PREFIX,
+  TURRET_WORD_FIELD,
+  buildTurretModal,
+  turretWordMatches,
+} = require("../lib/turretModal");
+const {
+  GATEHOUSE_LOCATION_SLUG,
+  TURRET_ARMED_LINE,
+  TURRET_DISARMED_LINE,
+  gatehouseTurretArmed,
+} = require("@lifeweb/db/lib/gatehouseTurret");
+const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
+const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
   buildConverseModal,
@@ -390,6 +409,83 @@ async function handleRoomGuestCommand(interaction, action, room) {
 // submit anyway.
 async function handleIntercomOpen(interaction, roomId) {
   await interaction.showModal(buildIntercomModal(roomId));
+}
+
+// The big red button in the Censor's Office. Opening the modal is not the act
+// — the typed word is — so this only has to find out which way the switch is
+// currently thrown. showModal IS the acknowledgement, so no ack() here.
+async function handleTurretOpen(interaction, roomId) {
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
+  if (room?.slug !== CENSOR_OFFICE_ROOM_SLUG) {
+    await interaction.reply({ content: "» *There's no button here.* ‡", ephemeral: true });
+    return;
+  }
+  await interaction.showModal(buildTurretModal(roomId, await gatehouseTurretArmed(prisma)));
+}
+
+async function handleTurretSubmit(interaction, roomId) {
+  await ack(interaction);
+
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, slug: true, locationId: true },
+  });
+  if (!room || room.slug !== CENSOR_OFFICE_ROOM_SLUG) {
+    await respond(interaction, "» *There's no button here.* ‡");
+    return;
+  }
+  // Decided at submit, never at open: the modal outlives somebody walking out
+  // of the Garrison, and reaching the switch is the only safeguard on it.
+  if (character.locationId !== room.locationId) {
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    return;
+  }
+
+  // Re-read rather than trusting what the modal was built against — two people
+  // in the office can open it at the same moment, and the word they were asked
+  // to type is what says which way they meant to throw it.
+  const armed = await gatehouseTurretArmed(prisma);
+  if (!turretWordMatches(interaction.fields.getTextInputValue(TURRET_WORD_FIELD), armed)) {
+    await respond(interaction, "» *You leave the button alone.* ‡");
+    return;
+  }
+
+  const next = !armed;
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
+
+  // The yard hears it, and that is the only warning anybody in it gets. Best
+  // effort — the switch is thrown either way.
+  const gatehouse = await prisma.location
+    .findUnique({ where: { slug: GATEHOUSE_LOCATION_SLUG }, select: { discordChannelId: true } })
+    .catch(() => null);
+  if (gatehouse?.discordChannelId) {
+    const line = next ? TURRET_ARMED_LINE : TURRET_DISARMED_LINE;
+    await postMessage(gatehouse.discordChannelId, ambientLine(line.text, [], { signed: line.signed })).catch(
+      (err) => console.error("Gatehouse turret line failed:", err),
+    );
+  }
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: interaction.user.id,
+        actionType: "gatehouse_turret_toggled",
+        details: { armed: next, characterId: character.id, characterName: character.name },
+      },
+    })
+    .catch((err) => console.error("Gatehouse turret audit log failed:", err));
+
+  await respond(
+    interaction,
+    next
+      ? "» *The button clicks down. Somewhere below, the rotor comes alive.* ‡"
+      : "» *The button clicks up, and the yard goes quiet.* ‡",
+  );
 }
 
 async function handleIntercomSubmit(interaction, roomId) {
@@ -1651,6 +1747,9 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_INTERCOM_PREFIX)) {
           return void (await handleIntercomOpen(interaction, interaction.customId.slice(ROOM_INTERCOM_PREFIX.length)));
         }
+        if (interaction.customId.startsWith(ROOM_TURRET_PREFIX)) {
+          return void (await handleTurretOpen(interaction, interaction.customId.slice(ROOM_TURRET_PREFIX.length)));
+        }
         if (interaction.customId.startsWith(SECRET_ROOMS_PREFIX)) {
           return void (await handleSecretRooms(interaction, interaction.customId.slice(SECRET_ROOMS_PREFIX.length)));
         }
@@ -1742,6 +1841,12 @@ module.exports = {
           return void (await handleIntercomSubmit(
             interaction,
             interaction.customId.slice(INTERCOM_MODAL_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(TURRET_MODAL_PREFIX)) {
+          return void (await handleTurretSubmit(
+            interaction,
+            interaction.customId.slice(TURRET_MODAL_PREFIX.length),
           ));
         }
         if (interaction.customId.startsWith("say:send:")) {
