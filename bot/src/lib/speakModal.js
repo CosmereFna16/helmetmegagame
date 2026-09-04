@@ -24,7 +24,7 @@ const {
 // character (Character.concealed, toggled by /conceal or the switch on
 // /character), so a modal checkbox would be a second, contradictable answer
 // to a question already settled.
-const SPEAK_HELP = "-# Sent as your character. Nobody sees you typing. ‡";
+const SPEAK_HELP = "-# Will be sent as your character without people seeing you type.";
 
 function buildSpeakPicker(options, truncated) {
   const menu = new StringSelectMenuBuilder()

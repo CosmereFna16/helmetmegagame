@@ -429,7 +429,7 @@ zones:
           chrome-city:
             name: Chrome City
             description: >-
-              The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome rise ahead — a city within the deep, and nobody to say who built it. ‡
+              The stone curves into strange, meandering passageways, but ceramite catches your torchlight. Monuments of chrome rise ahead — a city within the deep, whose builders are unknown to all. 
             rooms: {}
 
 # The whole travel graph, as `zone/location` pairs. A pair inside one zone

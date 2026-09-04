@@ -245,7 +245,7 @@ async function handleTravelOpen(interaction) {
   await respond(interaction, {
     content: [
       "Where would you like to go? ‡",
-      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25. ‡` : null,
+      truncated > 0 ? `-# ${truncated} More options not shown.` : null,
     ]
       .filter(Boolean)
       .join("\n"),
@@ -281,7 +281,7 @@ async function handleTravelPick(interaction) {
   const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
 
   const cost = !character.locationId
-    ? "-# Arriving costs you nothing. ‡"
+    ? "-# Arriving costs no Move."
     : character.zoneId === target.zoneId
       ? "-# A step inside the zone is free. ‡"
       : `-# Crossing into ${target.zone.name} spends your Move for this turn. ‡`;
@@ -292,7 +292,7 @@ async function handleTravelPick(interaction) {
       content: [
         `Move to **${target.name}**?`,
         cost,
-        overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25. ‡` : null,
+        overflow > 0 ? `-# ${overflow} More options not shown.` : null,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -467,7 +467,7 @@ async function handleSecretRooms(interaction, locationId) {
     lines.push(`**Conversations:** ${conversations.map((c) => `<#${c.threadId}>`).join(" | ")}`);
   }
   if (lines.length === 0) {
-    await respond(interaction, "» *No secret rooms for you here.* ‡");
+    await respond(interaction, "» *No secrets found here.* ");
     return;
   }
   await respond(interaction, `${lines.join("\n")} ‡`);
@@ -486,7 +486,7 @@ async function handleConverseOpen(interaction, locationId) {
     return;
   }
   if (character.locationId !== locationId) {
-    await respond(interaction, "» *You're not there any more.* ‡");
+    await respond(interaction, "» *You're not at that location any more.*");
     return;
   }
 
@@ -516,7 +516,7 @@ async function handleConverseOpen(interaction, locationId) {
     );
 
   await respond(interaction, {
-    content: "Which room is this linked to? ‡\n-# That room hears that someone is whispering, never who. ‡",
+    content: "Which room is this linked to? ‡\n-# People in that room will hear anonymous whispering.",
     components: [new ActionRowBuilder().addComponents(menu)],
   });
 }
@@ -626,7 +626,7 @@ async function handleConcealCommand(interaction) {
   await respond(
     interaction,
     concealed
-      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody sees your name until you run /conceal again.* ‡`
+      ? `» *You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**. Nobody will see your real name until you use /conceal again.*`
       : "» *You speak under your own name again.* ‡",
   );
 }

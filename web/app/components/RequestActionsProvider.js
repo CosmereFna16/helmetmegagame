@@ -294,8 +294,8 @@ export const ACTION_HELP = {
     "Use something up. You can also just click on the tag on your sheet.",
   loot: "Search someone. Only works on Bound, Dying, or Catatonic people.",
   move:
-    "Forcibly move someone with the Bound tag, from anywhere in your zone to " +
-    "somewhere next door to you. Use this before moving yourself. If you're a " +
+    "Forcibly move someone with the Bound tag between locations in your zone " +
+    ". Use this before moving yourself. If you're a " +
     "Leader, you can also move people within your own faction. It does not " +
     "spend their turn. Bodies can be dragged by anyone. ‡",
   bind: "Tie up anyone standing where you are. Once they're Bound you can loot them or march them somewhere.",
@@ -1162,9 +1162,9 @@ export default function RequestActionsProvider({
                     </label>
                     <p className="text-xs text-muted">
                       You can move someone you lead, someone you&apos;ve bound,
-                      or a body — anyone standing anywhere in your zone. It does
+                      or a body in your Zone. It does
                       not spend their turn, and it does not move you, so go
-                      there yourself afterwards. ‡
+                      there yourself afterwards.
                     </p>
                   </>
                 )}
