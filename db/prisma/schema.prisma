@@ -1047,7 +1047,8 @@ model Location {
   updatedAt DateTime @updatedAt
 
   // Moves filed while standing here (Action.locationId).
-  actions Action[]
+  actions      Action[]
+  threatSpawns ThreatSpawn[]
 
   @@index([zoneId])
 }
@@ -1629,7 +1630,7 @@ model Character {
   // player-editable afterwards; updateCharacterProfile not reading the key is
   // the lock, same posture as the GM-granted `title` above.
   //
-  // A String[] of slugs validated against db/lib/antagonists.js rather than a
+  // A String[] of slugs validated against db/lib/threats.js rather than a
   // relation: eleven fixed values that can never differ per environment, so a
   // table would only add a join and a way to drift.
   antagonistOptIns String[] @default([])
@@ -2292,8 +2293,8 @@ model CharacterTag {
 // A playable seat, master-sourced from docs/roles.yaml's
 // zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).
 // Threats are deliberately not in that YAML at all — they live in
-// docs/threats.md as prose, hand-assigned by a GM, and never appear in the
-// player-facing picker.
+// db/lib/threats.js, hand-assigned by a GM, and never appear in the
+// player-facing picker. See docs/systemdocs/THREATS.md.
 model Role {
   id          String   @id @default(cuid())
   slug        String   @unique
@@ -2349,6 +2350,7 @@ model Role {
 
   characters   Character[]
   reservations RoleReservation[]
+  threatSpawns ThreatSpawn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3294,4 +3296,58 @@ model GmCharacterNote {
   createdAt           DateTime  @default(now())
 
   @@index([characterId, createdAt])
+}
+
+// A threat seat offered to somebody who has no character yet: the GM presses
+// SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
+// DM carrying Accept / Decline. Accepting creates the character
+// (db/lib/threatSpawn.js). See docs/systemdocs/THREATS.md.
+//
+// The offer is a row rather than state on a DM because the DM is Discord's and
+// can be deleted: the row is what says an offer is live, what seat and role it
+// was for, and -- once answered -- what became of it.
+model ThreatSpawn {
+  id String @id @default(cuid())
+
+  // The target. Not a Character relation on purpose: the whole point is that
+  // they have no character yet, and after accepting they own the one below.
+  discordUserId String
+
+  // A slug in db/lib/threats.js, not a table -- the catalog is code, same
+  // posture as antagonistOptIns above.
+  threatSlug String
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  // Null only for a role with no starting location; every offer the UI writes
+  // names one.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  status ThreatSpawnStatus @default(PENDING)
+
+  // The GM who offered. A Discord user id rather than a relation, same as
+  // AuditLog.actorDiscordUserId -- there is no user table.
+  offeredBy String
+
+  // Set on accept. Unique, so one offer can never mint two characters.
+  characterId String? @unique
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  // One live offer per player is enforced by a PARTIAL unique index
+  // (WHERE status = 'PENDING') that lives only in the migration SQL, because
+  // Prisma's schema language cannot express one. `prisma migrate diff` will
+  // propose dropping it -- decline, same as FactionApplication_pending_unique.
+  @@index([discordUserId, status])
+  @@index([status])
+}
+
+enum ThreatSpawnStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
 }

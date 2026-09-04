@@ -6,7 +6,9 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
 import { listGuildMembers } from "@/lib/discordGuild";
-import { antagonistNames } from "@/lib/antagonists";
+import { OPT_IN_THREATS, ASSIGNABLE_THREATS, SEAT_TAG_SLUGS, antagonistNames, threatBySeatTag, threatBySlug } from "@/lib/threats";
+import { PLAYER_ROLE_ID } from "@lifeweb/db/lib/roleIds";
+import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
 import {
   updateGameConfig,
   updateDepot,
@@ -17,7 +19,8 @@ import {
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
-import AntagonistRosterButton from "@/app/(app)/gm/dev/AntagonistRosterButton";
+import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
+import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import { CONFIG_HELP, DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
@@ -50,7 +53,23 @@ function DepotField({ name, label, value, help }) {
   );
 }
 
-const SECTIONS = new Set(["turn", "config", "depot", "move", "reports", "antagonists", "danger"]);
+// The catalog as the two tables need it. Flattened here rather than passed
+// whole: a client component gets plain data, and the blurbs belong in the DM
+// rather than in a table's props.
+// The union of both, not just the opt-ins: a seat can be assignable without
+// ever having been a checkbox (the Tribunal will be), and the table needs it
+// in the Assign dropdown regardless.
+const THREAT_SUMMARY = [...new Set([...OPT_IN_THREATS, ...ASSIGNABLE_THREATS])].map((t) => ({
+  slug: t.slug,
+  name: t.name,
+  optIn: Boolean(t.optIn),
+  assignable: Boolean(t.assignable),
+  tagPoints: t.assign?.tagPoints ?? 0,
+  spawnRoleSlug: t.spawn?.roleSlug ?? null,
+}));
+const ASSIGNABLE_SUMMARY = ASSIGNABLE_THREATS.map((t) => ({ slug: t.slug, name: t.name }));
+
+const SECTIONS = new Set(["turn", "config", "depot", "move", "reports", "assignments", "antagonists", "danger"]);
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
@@ -105,8 +124,13 @@ export default async function DevPanelPage({ searchParams }) {
   let locations = [];
   let livingCharacters = [];
   let latestByKind = new Map();
-  let antagonistRoster = [];
-  let tags = [];
+  // The two threat sections. Each fetches only its own data, same as every
+  // other section here.
+  let assignmentRows = [];
+  let spawnRoles = [];
+  let spawnLocations = [];
+  let seatRows = [];
+  let pendingSpawns = [];
 
   switch (section) {
     case "move":
@@ -131,40 +155,158 @@ export default async function DevPanelPage({ searchParams }) {
       }
       break;
     }
-    case "antagonists": {
-      const [antagonistCharacters, tagRows, members] = await Promise.all([
-        // Written once at creation, never edited — see the antagonistOptIns
-        // comment on the Character model. Nothing else in the app reads this,
-        // so this popup is the only place a GM can see who wants a seat.
+    case "assignments": {
+      // Rows are every APPROVED PLAYER in the guild, not every character:
+      // a SPAWN is aimed precisely at the people who are not in the game, so
+      // a player with no character is a real row rather than a gap.
+      const [members, characters, roles, locationRows] = await Promise.all([
+        listGuildMembers(),
+        // ALIVE only: Catatonic is a TAG on a living character, not a status,
+        // and a dead one is not somebody you hand a seat to.
         prisma.character.findMany({
-          where: { antagonistOptIns: { isEmpty: false } },
+          where: { status: "ALIVE" },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, discordUserId: true, antagonistOptIns: true },
-        }),
-        // Same shape as /gm/players' bulk-tag catalog — the popup's per-row
-        // grant reuses that picker.
-        prisma.tag.findMany({
-          orderBy: [{ category: "asc" }, { name: "asc" }],
           select: {
             id: true,
             name: true,
-            category: true,
-            description: true,
-            pointCost: true,
-            parentTagId: true,
-            group: { select: { name: true } },
+            discordUserId: true,
+            status: true,
+            roleTitle: true,
+            antagonistOptIns: true,
+            zone: { select: { name: true } },
+            tags: { select: { tag: { select: { slug: true } } } },
+          },
+        }),
+        prisma.role.findMany({
+          orderBy: [{ name: "asc" }],
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            isUnique: true,
+            unlimited: true,
+            weight: true,
+            startingLocationId: true,
+          },
+        }),
+        prisma.location.findMany({
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, zone: { select: { name: true } } },
+        }),
+      ]);
+
+      const byUser = new Map(characters.map((c) => [c.discordUserId, c]));
+      assignmentRows = members
+        .filter((m) => m.roles.includes(PLAYER_ROLE_ID))
+        .map((m) => {
+          const c = byUser.get(m.id) ?? null;
+          // The seat is DERIVED from the held tag, so a GM who granted it by
+          // hand from the character panel still shows up as holding it.
+          const heldSlugs = new Set((c?.tags ?? []).map((t) => t.tag.slug));
+          const seat = SEAT_TAG_SLUGS.map(threatBySeatTag).find((t) => t && heldSlugs.has(t.seatTagSlug));
+          return {
+            discordUserId: m.id,
+            handle: m.globalName || m.username,
+            characterId: c?.id ?? null,
+            characterName: c?.name ?? null,
+            roleTitle: c?.roleTitle ?? null,
+            zoneName: c?.zone?.name ?? null,
+            statusLabel: c ? c.status : "Not in game",
+            optInNames: antagonistNames(c?.antagonistOptIns ?? []),
+            seatName: seat?.name ?? null,
+          };
+        });
+
+      // Seats left per role, so the spawn dialog says which are open rather
+      // than letting an accept fail on a full one.
+      const taken = await prisma.character.groupBy({
+        by: ["roleId", "status"],
+        _count: { _all: true },
+      });
+      spawnRoles = roles.map((role) => {
+        const holders = seatHolderStatuses(role);
+        const used = taken
+          .filter((t) => t.roleId === role.id && holders.includes(t.status))
+          .reduce((n, t) => n + t._count._all, 0);
+        const cap = roleCapacity(role, config?.playerCount ?? 100);
+        return {
+          id: role.id,
+          slug: role.slug,
+          name: role.name,
+          startingLocationId: role.startingLocationId,
+          seatsLeft: cap === Infinity ? "\u221e" : Math.max(0, cap - used),
+        };
+      });
+
+      spawnLocations = locationRows.map((l) => ({ id: l.id, name: l.name, zoneName: l.zone?.name ?? "" }));
+      break;
+    }
+    case "antagonists": {
+      const [heldSeats, offers, members] = await Promise.all([
+        // Who holds a seat, read off the seat tag itself. No column to keep in
+        // sync, and it stays right however the tag was granted.
+        prisma.characterTag.findMany({
+          where: { tag: { slug: { in: SEAT_TAG_SLUGS } } },
+          select: {
+            acquiredAt: true,
+            tag: { select: { slug: true } },
+            character: {
+              select: {
+                id: true,
+                name: true,
+                discordUserId: true,
+                status: true,
+                resources: true,
+                tagPoints: true,
+                location: { select: { name: true } },
+                zone: { select: { name: true } },
+              },
+            },
+          },
+        }),
+        prisma.threatSpawn.findMany({
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            discordUserId: true,
+            threatSlug: true,
+            createdAt: true,
+            role: { select: { name: true } },
+            location: { select: { name: true } },
           },
         }),
         listGuildMembers(),
       ]);
-      tags = tagRows;
-      const memberById = new Map(members.map((m) => [m.id, m]));
-      antagonistRoster = antagonistCharacters.map((c) => ({
-        id: c.id,
-        name: c.name,
-        username: memberById.get(c.discordUserId)?.username ?? "",
-        globalName: memberById.get(c.discordUserId)?.globalName ?? "",
-        roleNames: antagonistNames(c.antagonistOptIns),
+
+      const handleFor = new Map(members.map((m) => [m.id, m.globalName || m.username]));
+      seatRows = heldSeats
+        .map((row) => {
+          const threat = threatBySeatTag(row.tag.slug);
+          if (!threat || !row.character) return null;
+          return {
+            threatSlug: threat.slug,
+            threatName: threat.name,
+            characterId: row.character.id,
+            characterName: row.character.name,
+            handle: handleFor.get(row.character.discordUserId) ?? "left the guild",
+            status: row.character.status,
+            locationName: row.character.location?.name ?? null,
+            zoneName: row.character.zone?.name ?? "",
+            resources: row.character.resources,
+            tagPoints: row.character.tagPoints,
+            acquiredAt: row.acquiredAt.toISOString().slice(0, 10),
+          };
+        })
+        .filter(Boolean);
+
+      pendingSpawns = offers.map((o) => ({
+        id: o.id,
+        threatName: threatBySlug(o.threatSlug)?.name ?? o.threatSlug,
+        handle: handleFor.get(o.discordUserId) ?? o.discordUserId,
+        roleName: o.role?.name ?? "",
+        locationName: o.location?.name ?? null,
+        createdAt: o.createdAt.toISOString().slice(0, 16).replace("T", " "),
       }));
       break;
     }
@@ -724,15 +866,39 @@ export default async function DevPanelPage({ searchParams }) {
             </section>
           ) : null}
 
+          {section === "assignments" ? (
+            <section className="ops-section">
+              <div className="ops-section-head">
+                <h2 className="section-title">Assignments</h2>
+                <p className="ops-lede">
+                  Every player on the roster, in the game or not. Assign hands a seat to a character
+                  who already exists; Spawn offers a whole new one over DM. Most opt-ins are decoys,
+                  so what somebody ticked is context, not a gate. ‡
+                </p>
+              </div>
+              <ThreatAssignmentsTable
+                rows={assignmentRows}
+                threats={THREAT_SUMMARY}
+                roles={spawnRoles}
+                locations={spawnLocations}
+              />
+            </section>
+          ) : null}
+
           {section === "antagonists" ? (
             <section className="ops-section">
               <div className="ops-section-head">
-                <h2 className="section-title">Antagonist Roster</h2>
+                <h2 className="section-title">Antagonists</h2>
                 <p className="ops-lede">
-                  Who opted into an antagonist seat at creation — the only place this is visible.
+                  Who holds a seat right now, read off the seat tag itself — so a tag granted by hand
+                  from a character panel shows up here too. ‡
                 </p>
               </div>
-              <AntagonistRosterButton characters={antagonistRoster} tags={tags} />
+              <ThreatRosterTable
+                rows={seatRows}
+                pending={pendingSpawns}
+                threats={ASSIGNABLE_SUMMARY}
+              />
             </section>
           ) : null}
 

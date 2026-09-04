@@ -30,7 +30,7 @@ signed off yet, and it stays there until Bascinet replaces the words.
 **Where it goes.** At the very end of the string, after the final punctuation.
 **One per string, not one per sentence** — a three-sentence tag description gets
 exactly one ‡, at the end. A multi-block document marks per rendered block, the
-way `docs/threats.md` already does. It sits *after* the other glyph
+way `docs/handbook.md` already does. It sits *after* the other glyph
 conventions rather than displacing them: a line ending in `3 ⬢` becomes
 `3 ⬢ ‡`, and a `»` quote line keeps its prefix.
 
@@ -229,13 +229,12 @@ you pick the right doc — they are never enough to change code with.
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
+| [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
 | [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
 
 Other reference docs, outside `systemdocs/`:
 
 - `docs/lore.md` — the setting.
-- `docs/threats.md` — the antagonist seats. It briefs 6 of them, while
-  `db/lib/antagonists.js` ships 11 opt-in entries.
 - `docs/handbook.md` — the player handbook, read at runtime by the web app
   (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
   live surfaces: the pinned "Player Handbook" card on `/documents` and the
@@ -746,9 +745,9 @@ starting with a glyph, a `-` or a `*`.
   `--secret`) and nothing is written and nothing is posted. There is no partial
   version — a heading alone still tells the GMs something happened.
 - **Lore and antagonists, by default.** A push touching `docs/lore.md`,
-  `docs/threats.md`, `docs/archive/` or `db/lib/antagonists.js` is held back on
-  its own, with a line printed saying so. The GMs get briefed on that material
-  deliberately and in order, not by changelog. `--tell-gms` overrides it for the
+  `docs/archive/`, `db/lib/threats.js` or `docs/systemdocs/THREATS.md` is held
+  back on its own, with a line printed saying so. The GMs get briefed on that
+  material deliberately and in order, not by changelog. `--tell-gms` overrides it for the
   odd case where the change really is theirs to see. The same applies to your
   own wording: don't describe a secret in a note about some other file.
 
@@ -860,7 +859,9 @@ global CLIs. To make one able to build, run, and deploy:
   `FactionApplication_pending_unique` is the same shape of ghost: a PARTIAL
   unique index (`WHERE status = 'PENDING'`), which Prisma's schema language
   cannot express. Decline that drop too — without it a character could hold
-  two live applications to one faction.
+  two live applications to one faction. `ThreatSpawn_pending_unique` is the
+  third of these, and the same answer: without it a player could hold two live
+  spawn offers (`THREATS.md` §4).
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

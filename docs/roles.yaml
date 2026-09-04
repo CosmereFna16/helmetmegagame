@@ -24,7 +24,7 @@
 # Threats — Sympathizer, the Demoness, the Judge — are
 # NOT in this file. They were never read by any sync (a GM hands those seats
 # out by hand and they never appear in the player-facing picker), so the whole
-# brief lives in docs/threats.md as prose instead.
+# brief lives in db/lib/threats.js instead (docs/systemdocs/THREATS.md).
 #
 # The Brigands are the exception, and used to be listed here as a threat too:
 # they ARE in this file, with weights, so they sync like any other faction and

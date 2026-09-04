@@ -1126,7 +1126,7 @@ module.exports = {
   ...require("./lib/dynasty"),
   ...require("./lib/concealedIdentity"),
   ...require("./lib/presentedIdentity"),
-  ...require("./lib/antagonists"),
+  ...require("./lib/threats"),
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/depot"),

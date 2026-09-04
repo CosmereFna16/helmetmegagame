@@ -485,9 +485,9 @@ character panel. It is the fourth page in the `(desk)` family (`DESIGN-
 SYSTEM.md` §6): a two-column settings workspace, `OpsNav.js` picking one
 section down the left over a validated `?s=` param (`turn` when absent or
 unrecognised), one settings surface on the right. Each section fetches only
-its own data — `listGuildMembers()` and the whole tag catalog only load for
-`?s=antagonists`, instead of on every visit regardless of which section a GM
-actually opens.
+its own data — `listGuildMembers()` and the role/seat maths only load for the
+two Threats sections, instead of on every visit regardless of which section a
+GM actually opens.
 
 The split across two route groups is deliberate. `page.js` and `OpsNav.js`
 live in `(desk)/gm/dev/`, because the `(app)` layout's fixed `TurnChip` would
@@ -498,11 +498,12 @@ superadmin gate lives in `page.js` itself rather than the layout, because
 `(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
 share that layout and are meant to stay GM-open.
 
-Six sections: **Turn** and **Configuration** under "Game"; **Bulk move**,
-**System reports** and **Antagonist roster** under "Operations"; **Restart
-game** on its own under "Danger". The last three are the ones that arrived
-with the zone rework, and this is the only doc that lists them. `LAUNCH.md`
-covers Restart Game itself.
+Eight sections: **Turn**, **Configuration** and **The Depot** under "Game";
+**Bulk move** and **System reports** under "Operations"; **Assignments** and
+**Antagonists** under "Threats"; **Restart game** on its own under "Danger".
+The two Threats sections replaced the old Antagonist Roster popup and have
+their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game itself, and the
+Depot section is this doc's appendix.
 
 **Game Config knobs documented nowhere else**, all reset by a wipe:
 

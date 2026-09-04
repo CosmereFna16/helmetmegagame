@@ -479,7 +479,7 @@ documents:
 
       Horrors. Drop Aberrant Hearts.
 
-  # The Demoness threat's own brief (docs/threats.md). Assigned by the
+  # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.
   demoness:

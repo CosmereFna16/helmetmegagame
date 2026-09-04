@@ -91,6 +91,11 @@ const {
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
 const {
+  THREAT_SPAWN_ACCEPT_PREFIX,
+  THREAT_SPAWN_DECLINE_PREFIX,
+} = require("@lifeweb/db/lib/threats");
+const { handleThreatSpawnAccept, handleThreatSpawnDecline } = require("../lib/threatSpawn");
+const {
   OPEN_PREFIX: EDIT_OPEN_PREFIX,
   MODAL_PREFIX: EDIT_MODAL_PREFIX,
   handleEditOpen,
@@ -1594,6 +1599,21 @@ module.exports = {
         }
         if (interaction.customId.startsWith(OFFER_DECLINE_PREFIX)) {
           return void (await handleOfferDecline(interaction, interaction.customId.slice(OFFER_DECLINE_PREFIX.length)));
+        }
+        // Arrives in a DM on a threat spawn offer (docs/systemdocs/THREATS.md),
+        // so guild/member are null — and the clicker has no character yet,
+        // which is the whole point. Not acked: interaction.update() is the ack.
+        if (interaction.customId.startsWith(THREAT_SPAWN_ACCEPT_PREFIX)) {
+          return void (await handleThreatSpawnAccept(
+            interaction,
+            interaction.customId.slice(THREAT_SPAWN_ACCEPT_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(THREAT_SPAWN_DECLINE_PREFIX)) {
+          return void (await handleThreatSpawnDecline(
+            interaction,
+            interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
+          ));
         }
         // Arrives in a DM on a Bird's letter, so guild/member are null.
         if (interaction.customId.startsWith(BIRD_REPLY_PREFIX)) {

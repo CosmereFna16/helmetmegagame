@@ -2,7 +2,7 @@
 // db/scripts/sync/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
 // "Restart Game" flow (web/app/(app)/gm/dev/actions.js). Must run AFTER
 // syncLocationsFromYaml and syncTagsFromYaml (starting_zone/starting_tags are
-// validated against them). Threats live in docs/threats.md, not here.
+// validated against them). Threats live in db/lib/threats.js, not here.
 //
 // A faction's parentFactionId is live game state once created, so it is
 // only written on CREATE.

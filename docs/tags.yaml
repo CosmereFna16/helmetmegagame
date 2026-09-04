@@ -250,6 +250,17 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # The Judge's seat tag (db/lib/threats.js). Like `demoness` above it is
+  # role-granted, never bought, and carries no group — the point cost is
+  # cosmetic. It exists so the threat roster can find who holds the seat
+  # without a column to keep in sync.
+  judge:
+    name: Judge
+    category: general
+    description: "You are the Judge."
+    pointCost: 0
+    purchasable: false
+
   demoness:
     name: Demoness
     category: general
