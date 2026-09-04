@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Nearsighted tells you to go and get spectacles
+
+Nearsighted's description now points at Spectacles, since the tag is what unlocks Look at again
+
 ## 2026-09-03 · A body decides what it can carry, and bad eyes cannot look anyone over
 
 Carry caps now ADD their bonuses instead of multiplying them, so a frail body costs everyone the same pounds whether or not they happen to be pulling a cart  
