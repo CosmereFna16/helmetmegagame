@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Turns are a day long now
+
+✎ A turn is a whole real day and ends at midnight CT, instead of the two 12-hour turns a day it used to be. Dawn and Dusk still alternate, so an in-game day is two turns and takes two real days  
+✎ Everything measured in turns — hunger, the Catatonic clock, corpse rot, crafting, Depot fuel, Desire locks — now takes twice as long in real time  
+✎ Moves are due at 9 PM CT, and the #turns message says so in everyone's own timezone  
+− The ghost wind reaction. A dead player has no voice; their unburied body is what tells the room, and it now does so every 4-10 hours instead of every 2-5  
+✎ The game runs 30 real days, reaching in-game Day 15
+
 ## 2026-09-04 · The Merchant's own till, and seven things the Depot got wrong
 
 ✚ A ⬢ counter at the Depot: Resources to obols and back at one flat rate with  
