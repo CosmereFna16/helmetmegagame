@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Tag Catalog opens on /documents, and the building system lands
+
+✚ A Tags tab on /documents — the whole tag catalog, searchable, each card showing what a tag costs and what it asks for  
+✎ Every tag now says who may read its card: public, GMs plus whoever it already concerns, or nobody at all  
+✚ Building: structures raised over several turns by a crew, standing in a Location and lending their kit to whoever works there  
+✚ Fourteen things to build — a forge, a palisade, a bridge, a library, a gallows, a jailhouse, a lazarette, a trebuchet and more  
+✚ A structure can hold a crossing open: a ford or a gateway nobody can open by hand until somebody builds it  
+✚ A rulings desk on /gm/turns for the calls building throws up, and a /gm/structures page listing everything standing  
+✎ Structures pay into Laboring, so a good workshop makes the work behind it better
+
 ## 2026-09-04 · The Watch is now the Cerberon
 
 ✎ The Watch is the Cerberon, the Captain is the Censor, and a Watchman is a Cerberus. The radio channel, the radio tags, the wax stamp, the office and the handbook page all moved with them  
