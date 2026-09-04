@@ -1358,7 +1358,7 @@ tags:
     group: general-traits
     description: "People wonder if you were dropped on your face as a child."
     pointCost: -1
-    conflictsWith: [pretty, beautiful]
+    conflictsWith: [pretty, beautiful, disfigured]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3516,6 +3516,10 @@ tags:
     # depths — holding both would be paying twice for one pair of eyes.
     conflictsWith: [blind]
 
+  # Not purchasable: this is what the burn and pox chains HEAL INTO
+  # (docs/systemdocs/TAGS.md §5c), not a face you can turn up with. Buying it
+  # was also the cheap way around Ugly and Leper conflicting with each other —
+  # same fiction, no cost, no edge.
   scarred:
     name: Scarred
     category: health
@@ -3523,7 +3527,7 @@ tags:
     description: "You are badly scarred. Off-putting to some, attractive to others."
     pointCost: 0
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     removable: false
 
