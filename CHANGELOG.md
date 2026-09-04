@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Merchant runs a station now, not a shop
+
+✚ Obols (¢), a weightless coin worth 5 ⬢ at the Depot and nothing anywhere else  
+✚ The account belongs to the station, not the Merchant — the licence carries it  
+✚ Order into a manifest, call the shuttle, goods land as crates on a landing pad  
+✚ Crates print their own manifest; dangerous wares ship SEALED behind a keycard  
+✚ A generator that burns coal every turn and takes the Depot down when it empties  
+✚ An indoor turret that reads faces, not papers — armour moves the whole table  
+✚ A cockpit console with six tabs, a full price list, and a ledger  
+✚ A Depot section on the Dev Panel for every number above  
+− Character.depotDebt; the line lives on the station now
+
 ## 2026-09-04 · Mime's Vow, and a tag can be whitelisted to one seat
 
 Vow of Silence is renamed Mime's Vow, and only a Minstrel can take it  
