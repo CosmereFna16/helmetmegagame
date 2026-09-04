@@ -16,10 +16,9 @@
 // would resolve to a partial exports object (the db/lib/dm.js convention).
 const { accessibleRooms } = require("./roomAccess");
 const { addToStack, dropCharacterTag, dropRoomTag, addToRoomStack } = require("./tagWrites");
-const { hasAttribute } = require("./locationAttributes");
+const { hasAttribute, REFINERY_ATTRIBUTE } = require("./locationAttributes");
+const { GODFLESH_SLUG } = require("./godflesh");
 
-const REFINERY_ATTRIBUTE = "refinery";
-const REFINERY_INPUT_SLUG = "godflesh";
 const REFINERY_OUTPUT_SLUG = "squeeze";
 // Eight cubes is a day's work, and the number the economy is balanced on:
 // docs/systemdocs/FACTORY.md carries the arithmetic.
@@ -48,7 +47,7 @@ async function loadRefineryStashes(prisma, locationIds) {
   const rooms = await prisma.room.findMany({
     where: {
       locationId: { in: locationIds },
-      tags: { some: { quantity: { gt: 0 }, tag: { slug: REFINERY_INPUT_SLUG } } },
+      tags: { some: { quantity: { gt: 0 }, tag: { slug: GODFLESH_SLUG } } },
     },
     select: { id: true, kind: true, accessTagSlugs: true, locationId: true },
   });
@@ -75,7 +74,7 @@ async function loadRefineryStashes(prisma, locationIds) {
 // Does this worker have anything to refine? Pure, so the auto-labor pass can
 // ask it once per character off state it already loaded.
 function refineryInputFor({ characterId, locationId, heldSlugs }, stashes) {
-  const holdsInput = heldSlugs.has(REFINERY_INPUT_SLUG);
+  const holdsInput = heldSlugs.has(GODFLESH_SLUG);
   const rooms = accessibleRooms(
     stashes?.roomsByLocation?.get(locationId) ?? [],
     heldSlugs,
@@ -118,12 +117,12 @@ async function applyRefinery(tx, characterId, locationId) {
   if (!isRefinery(location)) return null;
 
   const [input, output] = await Promise.all([
-    tx.tag.findUnique({ where: { slug: REFINERY_INPUT_SLUG }, select: { id: true } }),
+    tx.tag.findUnique({ where: { slug: GODFLESH_SLUG }, select: { id: true } }),
     tx.tag.findUnique({ where: { slug: REFINERY_OUTPUT_SLUG }, select: { id: true, stackable: true } }),
   ]);
   if (!input || !output) {
     console.error(
-      `Refinery: missing "${REFINERY_INPUT_SLUG}" or "${REFINERY_OUTPUT_SLUG}" tag — run npm run db:sync-tags.`,
+      `Refinery: missing "${GODFLESH_SLUG}" or "${REFINERY_OUTPUT_SLUG}" tag — run npm run db:sync-tags.`,
     );
     return null;
   }
@@ -141,17 +140,24 @@ async function applyRefinery(tx, characterId, locationId) {
   ]);
   const heldSlugs = new Set(held.map((h) => h.tag.slug));
   const source = inputSource({
-    holdsInput: heldSlugs.has(REFINERY_INPUT_SLUG),
+    holdsInput: heldSlugs.has(GODFLESH_SLUG),
     rooms: accessibleRooms(rooms, heldSlugs, new Set(guests.map((g) => g.roomId))),
   });
-  if (!source) return null;
+  // `{ empty: true }` rather than null, and the difference matters: null means
+  // "this was not a refinery at all" and stamps nothing, while this means "you
+  // spent your day on the Factory floor and there was nothing to work". Three
+  // refugees and one lump is the NORMAL case whenever the stash runs thin, and
+  // two of them going quietly Exhausted with no explanation is the worst thing
+  // the whole feature could do to a player.
+  if (!source) return { empty: true };
 
   if (source.kind === "held") {
     await dropCharacterTag(tx, characterId, input.id, 1);
   } else if (!(await dropRoomTag(tx, source.roomId, input.id, 1))) {
-    // Somebody else's shift took the last lump between the read and the
-    // write. Refuse cleanly rather than minting cubes out of nothing.
-    return null;
+    // Somebody else's shift took the last lump between the bulk read and this
+    // write — the auto-labor pass resolves everyone against one snapshot, so
+    // this is a race the design invites rather than an anomaly.
+    return { empty: true };
   }
 
   await addToStack(tx, characterId, output.id, REFINERY_YIELD, {
@@ -160,7 +166,7 @@ async function applyRefinery(tx, characterId, locationId) {
   });
 
   return {
-    consumed: { tagId: input.id, slug: REFINERY_INPUT_SLUG, quantity: 1, ...source },
+    consumed: { tagId: input.id, slug: GODFLESH_SLUG, quantity: 1, ...source },
     produced: { tagId: output.id, slug: REFINERY_OUTPUT_SLUG, quantity: REFINERY_YIELD },
   };
 }
@@ -168,6 +174,8 @@ async function applyRefinery(tx, characterId, locationId) {
 // The exact inverse of the snapshot: the cubes come off, and the lump goes
 // back where it was taken from — the worker's hands or the room's floor.
 async function revertRefinery(tx, characterId, snapshot) {
+  // A shift that found nothing moved nothing; there is no inverse to run.
+  if (!snapshot || snapshot.empty) return;
   const consumed = snapshot?.consumed;
   const produced = snapshot?.produced;
   if (produced?.tagId) {
@@ -185,9 +193,6 @@ async function revertRefinery(tx, characterId, snapshot) {
 }
 
 module.exports = {
-  REFINERY_ATTRIBUTE,
-  REFINERY_INPUT_SLUG,
-  REFINERY_OUTPUT_SLUG,
   REFINERY_YIELD,
   isRefinery,
   loadRefineryStashes,

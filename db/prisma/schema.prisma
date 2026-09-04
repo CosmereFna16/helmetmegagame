@@ -1030,6 +1030,9 @@ model Location {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Moves filed while standing here (Action.locationId).
+  actions Action[]
+
   @@index([zoneId])
 }
 
@@ -2353,6 +2356,16 @@ model Action {
   description            String
   zoneId                 String?
   zone                   Zone?       @relation(fields: [zoneId], references: [id])
+  // WHERE this Move happened, stamped at filing time. zoneId above is not
+  // enough: a free zone move (CARRY.md §2a) costs no Action, so a character
+  // can file a Labor on the Factory floor and walk out before the turn closes,
+  // and the payout runs at turn close. db/lib/moveEffects.js#refined reads
+  // this to decide whether a Labor was a REFINING one; without it, it asked
+  // where the character is standing NOW and paid for the wrong room.
+  // Nullable, and readers fall back to the live location, so rows filed
+  // before this existed still resolve.
+  locationId             String?
+  location               Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
   resourceDelta          Int?
   // A range like "5-12", rolled at ⚜ confirm. @map keeps the original column
   // names: this used to hold dice notation ("1d6*2"), which the labor

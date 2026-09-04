@@ -118,16 +118,24 @@ const MOVE_EFFECTS = {
   refined: {
     read: (action) => (action.resourceRollExpression ? 1 : 0),
     apply: async (tx, action) => {
-      const { applyRefinery } = require("./refinery");
-      const character = await tx.character.findUnique({
-        where: { id: action.characterId },
-        select: { locationId: true },
-      });
+      // WHERE THE LABOR WAS FILED, not where they are standing now. A free
+      // zone move costs no Action (CARRY.md §2a), so the two can differ by the
+      // time this runs at turn close. Older rows carry no locationId and fall
+      // back to the live one, which is what they always did.
+      let locationId = action.locationId ?? null;
+      if (!locationId) {
+        const character = await tx.character.findUnique({
+          where: { id: action.characterId },
+          select: { locationId: true },
+        });
+        locationId = character?.locationId ?? null;
+      }
       // 0, not null: applyMoveEffects falls back to the READ value when apply
       // reports nothing, so a null here would stamp `refined: 1` on every
       // ordinary Labor in the game.
-      if (!character?.locationId) return 0;
-      return (await applyRefinery(tx, action.characterId, character.locationId)) ?? 0;
+      if (!locationId) return 0;
+      const { applyRefinery } = require("./refinery");
+      return (await applyRefinery(tx, action.characterId, locationId)) ?? 0;
     },
     revert: async (tx, action, snapshot) => {
       const { revertRefinery } = require("./refinery");
@@ -174,7 +182,13 @@ function describeMoveEffects(applied) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     else if (key === "exhausted") parts.push("Exhausted");
-    else if (key === "refined") parts.push(`+${value.produced?.quantity ?? 0} Squeeze, −1 Godflesh`);
+    else if (key === "refined") {
+      parts.push(
+        value.empty
+          ? "nothing to refine — no Godflesh here"
+          : `+${value.produced?.quantity ?? 0} Squeeze, −1 Godflesh`,
+      );
+    }
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

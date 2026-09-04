@@ -7860,14 +7860,20 @@ tags:
     sellable: true
     sellablePrice: 4
 
+  # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
+  # `removable: false` blocks the Destroy menu and nothing else, so while this
+  # was tradeable anyone holding a Factory Key could pick the crating bench up,
+  # walk it into the Spillway, and delete the Factory's whole reason to exist —
+  # there are exactly two in the world and neither is craftable. Untradeable
+  # also means it carries no weight, which is right for a fixture: nobody is
+  # hauling it anywhere. ‡
   packaging-equipment:
     name: Packaging Equipment
     category: items
     group: items-gear
-    description: "Allows you to package things into crates."
+    description: "Allows you to package things into crates. It is bolted down. ‡"
     pointCost: 0
-    tradeable: true
-    weight: 100
+    tradeable: false
     visible: true
     purchasable: false
     purchasableAfterStart: false

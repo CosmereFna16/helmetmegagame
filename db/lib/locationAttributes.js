@@ -18,6 +18,13 @@
 // a key that is not in it, so a typo in the YAML is a loud problem at sync
 // time rather than a line that silently never prints.
 
+// The two keys code matches on rather than merely prints. Exported so the web
+// layer stops writing them as bare literals — a typo in one of those is a
+// button that silently never appears, which is exactly the failure the sync's
+// unknown-key check exists to prevent on the YAML side.
+const GODFLESH_ATTRIBUTE = "godflesh";
+const REFINERY_ATTRIBUTE = "refinery";
+
 // key -> { describe(value, ctx) -> string|null }
 //
 // `describe` returning null means "true, but nothing worth saying here" —
@@ -157,6 +164,8 @@ function hasAttribute(location, key) {
 }
 
 module.exports = {
+  GODFLESH_ATTRIBUTE,
+  REFINERY_ATTRIBUTE,
   depotLines,
   ATTRIBUTES,
   authoredLines,

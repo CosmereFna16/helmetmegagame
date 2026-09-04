@@ -5,7 +5,7 @@ import { prisma, roleCapacity, isDynastyMember, presentedIdentity, startingTagNa
 import { accessibleRooms, guestRoomIds as roomGuestIds } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG, PACKAGING_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
-import { hasAttribute } from "@lifeweb/db/lib/locationAttributes";
+import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
@@ -498,7 +498,7 @@ export default async function CharacterPage() {
   // where the place is wrong rather than greying — a fact about where this
   // character is standing, which is theirs already, so nothing about the room
   // leaks the way the metagaming rule in actionRegistry.js guards against.
-  const canSeeExtract = hasAttribute(character.location, "godflesh");
+  const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
   const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
   const canExtract = Boolean(extractTool);
   const extractBlocked = canSeeExtract && !canExtract

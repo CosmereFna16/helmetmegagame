@@ -65,4 +65,4 @@ function speaksBabble(characterTags) {
   return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === STUPID_SLUG);
 }
 
-module.exports = { babble, speaksBabble, STUPID_SLUG, SYLLABLES };
+module.exports = { babble, speaksBabble, STUPID_SLUG };

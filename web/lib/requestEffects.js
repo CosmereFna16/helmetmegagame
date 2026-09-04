@@ -753,20 +753,46 @@ export const REQUEST_EFFECTS = {
     editableFields: [],
     async undo(tx, request) {
       const { crateTagId, contents = [], label } = request.effect;
+      const named = label ? ` ("${label}")` : "";
+
+      // The crate has to still exist, unopened, before anything is handed
+      // back. It is an ordinary consumable, so the player may already have
+      // opened it themselves — and the Tag row survives that. Restoring the
+      // contents anyway would MINT a second copy of everything, which for a
+      // 150 lb crate is a lot of free goods.
+      if (!crateTagId) return `Nothing to prise open${named}.`;
+      const holdings = await tx.characterTag.findMany({
+        where: { tagId: crateTagId },
+        select: { characterId: true },
+      });
+      const roomHoldings = await tx.roomTag.findMany({
+        where: { tagId: crateTagId },
+        select: { roomId: true },
+      });
+      if (holdings.length === 0 && roomHoldings.length === 0) {
+        return `That crate${named} was already opened, so there was nothing to take back. The contents stay where they landed.`;
+      }
+
+      // Give the contents back to WHOEVER IS HOLDING THE CRATE, not to the
+      // packer. A crate is cargo: it gets handed over, carted and stolen, and
+      // an Undo that teleported its contents back to whoever nailed it shut
+      // would be a way to rob the person you sold it to.
+      const holder = holdings[0]?.characterId ?? null;
+      const intoRoom = holder ? null : roomHoldings[0]?.roomId ?? null;
       for (const c of contents) {
-        await restoreCharacterTag(tx, request.characterId, {
-          tagId: c.tagId,
-          quantity: c.quantity ?? 1,
-          source: "EVENT",
-          expiresTurn: null,
-        });
+        const snapshot = { tagId: c.tagId, quantity: c.quantity ?? 1, source: "EVENT", expiresTurn: null };
+        if (holder) await restoreCharacterTag(tx, holder, snapshot);
+        else if (intoRoom) await addToRoomStack(tx, intoRoom, c.tagId, snapshot.quantity);
       }
-      if (crateTagId) {
-        await tx.characterTag.deleteMany({ where: { tagId: crateTagId } });
-        await tx.roomTag.deleteMany({ where: { tagId: crateTagId } });
-        await tx.tag.delete({ where: { id: crateTagId } }).catch(() => {});
-      }
-      return `Prised the crate open${label ? ` ("${label}")` : ""} and gave back what was in it.`;
+
+      await tx.characterTag.deleteMany({ where: { tagId: crateTagId } });
+      await tx.roomTag.deleteMany({ where: { tagId: crateTagId } });
+      // The runtime Tag row goes too, or the catalog fills with dead crates.
+      // CharacterTag.tagId is RESTRICT, so the holdings had to come off first.
+      await tx.tag.delete({ where: { id: crateTagId } }).catch(() => {});
+      return `Prised the crate open${named} and gave back what was in it${
+        holder && holder !== request.characterId ? ", to whoever was carrying it" : ""
+      }.`;
     },
   },
 

@@ -33,7 +33,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { isTradeable, addRequirementSatisfied, needsWorkshop } from "@/lib/tagRequests";
+import { isTradeable, isCrate, addRequirementSatisfied, needsWorkshop } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   exclusiveConflict,
@@ -90,9 +90,10 @@ import {
   SURGICAL_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
+  PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
 } from "@lifeweb/db/lib/constants";
-import { hasAttribute } from "@lifeweb/db/lib/locationAttributes";
+import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { crateWeight } from "@lifeweb/db/lib/depotCrates";
 import { GODFLESH_SLUG, extractToolFor, rollExtraction, extractionDm } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
@@ -392,6 +393,7 @@ async function fileAutoRoutine(tx, character, openTurn, description, gmNotes) {
         description,
         appliedEffects: {},
         zoneId: character.zoneId ?? null,
+        locationId: character.locationId ?? null,
         gmNotes,
       },
     });
@@ -2275,11 +2277,18 @@ async function extractGodfleshRequestImpl({ reason: rawReason }) {
         select: { id: true, name: true, attributes: true },
       })
     : null;
-  if (!hasAttribute(location, "godflesh")) {
+  if (!hasAttribute(location, GODFLESH_ATTRIBUTE)) {
     throw new UserError("There's nothing to cut here. ‡");
   }
   if (!extractToolFor(character.tags)) {
     throw new UserError("You need a hatchet, a battle-axe or a chainsaw in your hands. ‡");
+  }
+  // Bound, Dying, Paralyzed, Catatonic — or mid-Seizure from a cube, which is
+  // the one this exists for. requireFreeMove below only checks the turn and
+  // the one-Action rule, so nothing else would stop a man on the floor wading
+  // into the marsh with an axe.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be swinging anything. ‡");
   }
 
   const openTurn = await getOpenTurn();
@@ -2387,7 +2396,7 @@ async function packageItemsRequestImpl({ lines: rawLines, label: rawLabel, reaso
     if (!isTradeable(row.tag)) throw new UserError("That isn't something that can be packed. ‡");
     // A crate of crates would nest a consumesInto chain arbitrarily deep, and
     // halving twice is a free carry exploit besides.
-    if (row.tag.custom && row.tag.crateContents) throw new UserError("You can't crate a crate. ‡");
+    if (isCrate(row.tag)) throw new UserError("You can't crate a crate. ‡");
     const quantity = Math.min(line.quantity, row.quantity);
     return { tagId: row.tagId, slug: row.tag.slug, name: row.tag.name, quantity, weightLbs: row.tag.weightLbs ?? 0 };
   });
@@ -2395,6 +2404,15 @@ async function packageItemsRequestImpl({ lines: rawLines, label: rawLabel, reaso
   const innerLbs = contents.reduce((sum, c) => sum + c.weightLbs * c.quantity, 0);
   if (innerLbs > PACKAGE_MAX_LBS) {
     throw new UserError(`A crate holds ${PACKAGE_MAX_LBS} lb. That's ${Math.round(innerLbs)}. ‡`);
+  }
+  // A second cap, on COUNT rather than weight, because the weight cap does not
+  // bound the weightless: `consumesInto` repeats a slug per unit, so a crate of
+  // obols (0 lb, stackable, no ceiling) would write an array as long as the
+  // pile. The number is generous enough that nobody packing real cargo will
+  // ever see it.
+  const units = contents.reduce((sum, c) => sum + c.quantity, 0);
+  if (units > PACKAGE_MAX_UNITS) {
+    throw new UserError(`A crate holds ${PACKAGE_MAX_UNITS} things. That's ${units}. ‡`);
   }
 
   const weightByTagId = new Map(contents.map((c) => [c.tagId, c.weightLbs]));

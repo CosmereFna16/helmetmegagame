@@ -61,6 +61,11 @@ Gloves cost 3 ⬢ to craft and all three Factory roles start with a pair, so a
 lost hand is nearly always somebody who took them off. That is the intended
 reading, and it is why the DM says which column you were in.
 
+Extract also refuses while Bound, Dying, Paralyzed or Catatonic — or mid
+Seizure, which is the one it exists for. `requireFreeMove` checks only the turn
+and the one-Action rule, so without that gate a man on the floor could wade
+into the marsh with an axe.
+
 The button **hides** off a marsh tile rather than greying. That is not a breach
 of the metagaming rule in `web/app/components/actionRegistry.js` — that rule
 forbids leaking who is standing near you, and where *you* are standing is
@@ -92,14 +97,29 @@ which is what "nonstop production" means, and `db/lib/autoLaborPass.js` pays two
 extra bulk queries for it — only when somebody is actually standing on a Factory
 floor.
 
+**Losing the race is not silent.** Three refugees and one lump in the Logistics
+Room is the NORMAL case whenever the stash runs thin — the auto-labor pass
+resolves everyone against a single bulk snapshot, so all three pass the gate and
+only the first `dropRoomTag` wins. `applyRefinery` returns `{ empty: true }`
+rather than null for exactly this, so the other two get "nothing to refine — no
+Godflesh here" on their sheet and a `-#` line telling them why, instead of an
+Exhausted tag and silence.
+
 **Why it lives in `MOVE_EFFECTS` and not in the pass.** `read` can only see the
 Action row, and whether a Labor was a *refining* one depends on where the
-character stood — a database question. So `refined.apply` decides, and returns
-0 at every other Location. That is what lets it work from a bare row, which the
-hand-filed path (`db/lib/stagedPush.js`, at turn close, nothing in memory)
-needs. Returning `null` there would have been a real bug: `applyMoveEffects`
-falls back to the `read` value when `apply` reports nothing, so every ordinary
-Labor in the game would have been stamped `refined: 1`.
+character stood. So `refined.apply` decides, and returns 0 at every other
+Location. That is what lets it work from a bare row, which the hand-filed path
+(`db/lib/stagedPush.js`, at turn close, nothing in memory) needs. Returning
+`null` there would have been a real bug: `applyMoveEffects` falls back to the
+`read` value when `apply` reports nothing, so every ordinary Labor in the game
+would have been stamped `refined: 1`.
+
+**Where you stood, not where you are.** It reads `Action.locationId`, stamped at
+filing time, and only falls back to the live location for rows filed before that
+column existed. `Action.zoneId` was not enough: a free zone move costs no Action
+(`CARRY.md` §2a) and a Labor pays at turn close, so a character could file on the
+Factory floor and walk out — or file in the marsh and walk in — and collect the
+wrong thing either way.
 
 ## 5. Package
 
@@ -127,6 +147,22 @@ would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.
 **The line on the side is not checked.** `[CONTAINS]: whatever they typed`. That
 is the feature — it is how you smuggle something past a Watchman, and the GM
 desk says so out loud on the request row.
+
+There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`.
+The weight cap does not bound the weightless, and a crate's `consumesInto`
+repeats a slug per unit, so a crate of obols (0 lb, stackable, no ceiling) would
+otherwise write an array as long as the pile.
+
+**Undo goes to whoever is holding the crate**, not to the packer, and refuses
+outright if the crate has already been opened. Both matter: the crate is
+cargo — it gets handed over, carted and stolen — so returning the contents to
+the packer would be a way to rob the person you sold it to, and restoring them
+alongside an already-unpacked crate would mint 150 lb of goods out of nothing.
+
+**Packaging Equipment is `tradeable: false`.** `removable: false` only blocks
+the Destroy menu; while it was tradeable, anyone with a Factory Key could carry
+the bench off or tip it into the Spillway, and there are exactly two in the
+world with no recipe to make a third.
 
 ## 6. The numbers, and where they come from
 
@@ -219,6 +255,14 @@ The seam is deliberately **`web/lib/requestEffects.js#giveTagTo` and
 `db/lib/resourceTransfer.js#moveParty`** — the two choke points for putting
 anything into a Room — rather than a branch in `transferRequest`. Nothing is
 written, so nothing can be fished back out.
+
+**There is a third writer into rooms, and it is excluded rather than routed
+through the same seam:** `db/lib/roomStash.js#pickRandomPublicRoom`, which the
+carry pass and corpse placement use to shed overflow. A destroying room is never
+eligible. That is not a nicety — a refining shift makes 160 lb of Squeeze
+against a 120 lb cap, so the overflow drop fires on the *intended* loop every
+day, and one of the Factory's three public rooms is the trough. Tipping
+something in has to stay a thing you do on purpose.
 
 **Undo is the part that needed care.** A destroyed line records `destroyed:
 true` on the effect, and both undos skip their receiving half: the Spillway

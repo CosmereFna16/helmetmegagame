@@ -64,6 +64,13 @@ function hasSlug(tags, slug) {
   return Array.isArray(tags) && tags.some((ct) => (ct.tag ? ct.tag.slug : ct.slug) === slug);
 }
 
+// Stupid cannot compose a sentence, so it cannot compose a letter either —
+// the Bird is the one place a written message leaves a character without
+// passing through the proxy, so without this it was the loophole that let a
+// Squeeze-eater keep talking. Checked as part of canSendBird below rather than
+// garbling the body: a letter nobody could have written should not arrive.
+const STUPID_SLUG = "stupid";
+
 // Whether written words reach this character at all. Literate and not blind:
 // the one place in the game those two facts have to be asked as one question,
 // so a caller can never check half of it.
@@ -73,7 +80,7 @@ function canReadLetters(tags) {
 
 // Holding the bird is not enough — you have to be able to write the letter.
 function canSendBird(tags) {
-  return hasSlug(tags, BIRD_SLUG) && canReadLetters(tags);
+  return hasSlug(tags, BIRD_SLUG) && canReadLetters(tags) && !hasSlug(tags, STUPID_SLUG);
 }
 
 // The letter as the recipient sees it.
@@ -139,6 +146,7 @@ function replyButtonRow(birdMessageId) {
 
 module.exports = {
   BLIND_SLUG,
+  STUPID_SLUG,
   canReadLetters,
   BIRD_SLUG,
   LITERATE_SLUG,

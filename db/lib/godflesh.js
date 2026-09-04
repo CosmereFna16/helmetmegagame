@@ -119,14 +119,4 @@ function extractionDm(result, { locationName = null } = {}) {
   return lines.join("\n");
 }
 
-module.exports = {
-  EXTRACT_TOOLS,
-  CHAINSAW_SLUG,
-  ARMORED_GLOVES_SLUG,
-  GODFLESH_SLUG,
-  INJURY_TABLE,
-  extractToolFor,
-  injuryColumnFor,
-  rollExtraction,
-  extractionDm,
-};
+module.exports = { GODFLESH_SLUG, extractToolFor, rollExtraction, extractionDm };

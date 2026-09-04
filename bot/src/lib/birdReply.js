@@ -7,6 +7,7 @@ const {
   MAX_BIRD_BODY,
   TOO_LATE_REPLY,
   canReadLetters,
+  STUPID_SLUG,
   replyDm,
 } = require("@lifeweb/db/lib/bird");
 const { ack, respond } = require("./respond");
@@ -72,7 +73,7 @@ async function windowState(birdMessageId) {
     where: { id: message.recipientId },
     include: { tags: { include: { tag: true } } },
   });
-  if (!replier || !canReadLetters(replier.tags)) {
+  if (!replier || !canReadLetters(replier.tags) || replier.tags.some((ct) => ct.tag.slug === STUPID_SLUG)) {
     return { ok: false, reason: "You cannot write. The bird leaves without an answer." };
   }
 

@@ -167,6 +167,9 @@ async function runAutoLaborPass(prisma, turn) {
             resourceRollExpression: rate.expression,
             resourceRollValue: roll?.value ?? null,
             zoneId: character.zoneId ?? null,
+            // Where the work happened, not where they end up — see
+            // Action.locationId in schema.prisma.
+            locationId: character.locationId ?? null,
             gmNotes: "auto:labor",
           },
         });
@@ -190,7 +193,11 @@ async function runAutoLaborPass(prisma, turn) {
   // after the response is already flushed.
   const dms = filed.map(({ character, action, rate }) => {
     const effects = describeMoveEffects(action.appliedEffects);
-    const bonusNote = formatLaborBonusNote(rate);
+    // What actually landed decides the wording, not what the rate promised.
+    const refinedRow = action.appliedEffects?.refined;
+    const bonusNote = formatLaborBonusNote(rate, {
+      refined: Boolean(refinedRow) && refinedRow.empty !== true,
+    });
     const where = character.location?.name ? ` at ${character.location.name}` : "";
     // sendDm applies the `»` prefix to the first line itself — don't write
     // one here or it doubles up.
@@ -198,7 +205,10 @@ async function runAutoLaborPass(prisma, turn) {
       `*You filed nothing for turn ${turn.number}, so you worked${where}.*`,
       `» ${laborTierLabel(rate.tier)}.`,
       ...(effects ? [`**Applied:** ${effects}`] : []),
-      ...(action.resourceRollValue != null
+      // A refining shift pays no ⬢ and its range is a literal 0-0, so this
+      // line would only ever read "+0 ⬢". A range that cannot pay is not
+      // information (docs/systemdocs/FACTORY.md §4).
+      ...(action.resourceRollValue != null && action.resourceRollExpression !== "0-0"
         ? [
             `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
           ]

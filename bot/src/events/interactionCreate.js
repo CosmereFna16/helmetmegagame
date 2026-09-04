@@ -1264,6 +1264,10 @@ async function handleMoveSubmit(interaction) {
         resourceDelta: null,
         resourceRollExpression,
         zoneId: character.zoneId ?? null,
+        // Stamped at filing time. A free zone move costs no Action, so by the
+        // time a Labor pays at turn close they may be standing somewhere else
+        // (Action.locationId in schema.prisma).
+        locationId: character.locationId ?? null,
       },
     });
   } catch (err) {

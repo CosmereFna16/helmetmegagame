@@ -15,7 +15,7 @@
 // context the caller already has in hand rather than each one costing its own
 // round trip.
 const { computeRate, SPECIALISATION_KINDS } = require("./production");
-const { isRefinery, REFINERY_YIELD } = require("./refinery");
+const { isRefinery, refineryInput, REFINERY_YIELD } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const {
   EXHAUSTED_SLUG,
@@ -64,7 +64,7 @@ const SPECIALISATIONS = [
 
 // Loads everything the rules need for one character: the tags they hold, where
 // they stand, and what that place yields.
-async function buildLaborContext(prisma, characterId, { refineryInput = undefined } = {}) {
+async function buildLaborContext(prisma, characterId) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },
     select: {
@@ -89,22 +89,17 @@ async function buildLaborContext(prisma, characterId, { refineryInput = undefine
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
     tools: toolsFrom(tags),
   };
-  // Only asked when it matters. The caller may hand it in already resolved —
-  // the auto-labor pass does, off one bulk query for the whole roster.
+  // Only asked when it matters — 56 of the 57 Locations are not a refinery and
+  // pay nothing for this. The auto-labor pass does not come through here at
+  // all: it hand-builds a ctx off one bulk query for the whole roster
+  // (db/lib/autoLaborPass.js) and calls resolveLaborRateFrom directly.
   if (ctx.refinery) {
-    ctx.refineryInput =
-      refineryInput !== undefined
-        ? refineryInput
-        : await loadRefineryInput(prisma, characterId, character?.locationId ?? null);
+    ctx.refineryInput = await refineryInput(prisma, {
+      id: characterId,
+      locationId: character?.locationId ?? null,
+    });
   }
   return ctx;
-}
-
-// The single-character lookup, kept behind a lazy require so this module does
-// not pull db/lib/refinery.js in for the 55 Locations that are not a refinery.
-async function loadRefineryInput(prisma, characterId, locationId) {
-  const { refineryInput } = require("./refinery");
-  return refineryInput(prisma, { id: characterId, locationId });
 }
 
 // LocationYield rows -> { HUNTING: 0.5, ... }. A kind absent from the map is a
@@ -318,11 +313,20 @@ function laborTierLabel(tier) {
 // Discord `-#` subtext: it explains a number rather than competing with it.
 // Returns null when there is nothing to explain, so a caller can spread it
 // straight into a lines array.
-function formatLaborBonusNote({ tools = [], halved = false, lifewebFailing = false, refinery = false } = {}) {
+function formatLaborBonusNote(
+  { tools = [], halved = false, lifewebFailing = false, refinery = false } = {},
+  { refined = true } = {},
+) {
   // A refining shift has no tools and no dials — what it made is the whole
-  // story, and describeMoveEffects has already said it.
+  // story, and describeMoveEffects has already said it. The second branch is
+  // the one that matters: three refugees sharing one lump is the normal case
+  // whenever the stash runs thin, and the two who lost the race have to be
+  // told why their day came to nothing rather than reading a line about eight
+  // cubes they never got.
   if (refinery) {
-    return `-# One Godflesh in, ${REFINERY_YIELD} cubes out. Do not eat them. ‡`;
+    return refined
+      ? `-# One Godflesh in, ${REFINERY_YIELD} cubes out. Do not eat them. ‡`
+      : "-# There was no Godflesh left on the floor by the time you got to it. Bring one in, or leave one in the room. ‡";
   }
   const parts = [];
   for (const tool of tools) {
@@ -354,7 +358,6 @@ async function resolveLaborRate(prisma, characterId) {
 module.exports = {
   LIFEWEB_FAILURE_MULTIPLIER,
   buildLaborContext,
-  loadRefineryInput,
   canLaborAtAll,
   computeLaborAccess,
   formatLaborBonusNote,

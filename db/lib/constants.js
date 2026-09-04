@@ -42,6 +42,9 @@ const PACKAGING_EQUIPMENT_SLUG = "packaging-equipment";
 // that is 7 to a crate, 70 lb each, and a Horse-and-Cart takes 8 of them.
 // See docs/systemdocs/FACTORY.md.
 const PACKAGE_MAX_LBS = 150;
+// The weight cap does not bound the weightless — obols are 0 lb and stackable
+// without a ceiling — and a crate's consumesInto repeats a slug per unit.
+const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 const HUMAN_FLESH_SLUG = "human-flesh";
@@ -110,6 +113,7 @@ module.exports = {
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
+  PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   SURGICAL_EQUIPMENT_SLUG,
   HUMAN_FLESH_SLUG,

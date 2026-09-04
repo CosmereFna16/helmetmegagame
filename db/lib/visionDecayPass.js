@@ -12,8 +12,9 @@
 // leaving four notches behind would only ask "damaged toward what?"
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
+const { BLIND_SLUG } = require("./examineVision");
+
 const DAMAGED_VISION_SLUG = "damaged-vision";
-const BLIND_SLUG = "blind";
 const BLIND_AT = 5;
 
 const WENT_BLIND_DM =
@@ -78,4 +79,4 @@ async function runVisionDecayPass(prisma, turn) {
   };
 }
 
-module.exports = { runVisionDecayPass, DAMAGED_VISION_SLUG, BLIND_SLUG, BLIND_AT };
+module.exports = { runVisionDecayPass };

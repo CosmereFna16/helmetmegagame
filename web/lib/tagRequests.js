@@ -72,9 +72,15 @@ export function transferableTags(characterTags = []) {
 // crate inside another would compound the halving into a free carry exploit,
 // and would nest a consumesInto chain arbitrarily deep besides —
 // packageItemsRequest refuses it server-side too.
+// A runtime crate, from either maker — a Depot shipment or somebody's Package.
+// One predicate, because the two places that ask were drifting already.
+export function isCrate(tag) {
+  return Boolean(tag?.custom && tag?.crateContents);
+}
+
 export function packableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag) && !(ct.tag?.custom && ct.tag?.crateContents))
+    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 
