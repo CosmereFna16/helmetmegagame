@@ -20,6 +20,7 @@
 
 const { ambientLine } = require("./ambientLine");
 const { hasAttribute } = require("./locationAttributes");
+const { postMessage } = require("./discordRest");
 
 // placement with its defaults applied. Normalisation/validation happen at
 // sync time (db/lib/tagShapes.js); this is the read-side accessor, and the
@@ -173,6 +174,30 @@ function structureClearedLine(structure) {
   return ambientLine(`The remains of the ${structure.typeName} here have been cleared away.`);
 }
 
+// BOTH banks hear a crossing change state. The build or ruling that flipped
+// the edge already speaks at its own site; this is the road's own line,
+// spoken into each endpoint's channel — the far side must not discover a
+// shut way by walking into it (the same reason a gate crossing announces).
+// Caller runs it POST-COMMIT; every send is catch-logged.
+async function announceEdgeState(prisma, endpointIds, nowOpen) {
+  const ids = (endpointIds ?? []).filter(Boolean);
+  if (ids.length < 2) return;
+  const spots = await prisma.location.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, discordChannelId: true },
+  });
+  const byId = new Map(spots.map((s) => [s.id, s]));
+  for (const id of ids) {
+    const here = byId.get(id);
+    const far = byId.get(ids.find((other) => other !== id));
+    if (!here?.discordChannelId || !far) continue;
+    await postMessage(
+      here.discordChannelId,
+      ambientLine(nowOpen ? `The way to ${far.name} stands open.` : `The way to ${far.name} is shut.`),
+    ).catch((err) => console.error("Edge state line failed:", err));
+  }
+}
+
 // The notification list: everyone with a StructureWork row, plus the payer
 // when the payer is a character — a structure has no owner, but the people
 // whose turns raised it hear when something happens to it. Returns
@@ -204,5 +229,6 @@ module.exports = {
   structureRepairedLine,
   structureDestroyedLine,
   structureClearedLine,
+  announceEdgeState,
   stakeholderCharacterIds,
 };

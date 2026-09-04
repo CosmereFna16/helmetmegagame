@@ -152,7 +152,7 @@ function structureLines(ctx = {}) {
       default:
         return [];
     }
-  }).filter(Boolean);
+  });
 }
 
 // Everything true about where you stand, as prose lines. The labor readout is

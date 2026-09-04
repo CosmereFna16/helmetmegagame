@@ -61,7 +61,7 @@ export default async function StructuresPage() {
     <PageShell>
       <PageHeader
         title="Structures ‡"
-        subtitle="Everything built, rising or wrecked, and the rulings on it. Damage and Repair are words on Examine; Destroy reverts any edge the structure held; Clear sweeps a wreck off the map. ‡"
+        subtitle="Everything built, rising or wrecked, and the rulings on it. Damage stops a structure serving — its bonus, its kit — until Repair; Destroy makes a ruin and reverts any edge it held; Clear sweeps a wreck off the map. ‡"
       />
       <StructuresTable structures={structures} />
     </PageShell>

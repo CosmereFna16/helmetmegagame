@@ -199,6 +199,20 @@ export default function CraftDialog({
                 {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
                 {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
               </p>
+              {/* An edge-holding structure is a map edit, and the person
+                  paying 40 ⬢ for one deserves to hear it before the
+                  confirm — even though WHICH way (if any) depends on the
+                  ground, which only the server resolves. */}
+              {chosen.placement?.link === "hold_shut" && (
+                <p className="text-xs text-muted">
+                  Where this ground has a way it can guard, finishing this closes that way — its gate then answers to whoever the map says. ‡
+                </p>
+              )}
+              {chosen.placement?.link === "hold_open" && (
+                <p className="text-xs text-muted">
+                  This spans a crossing: it can only be raised where the map has one waiting, and the way opens when the work is done. ‡
+                </p>
+              )}
               {wantsWorkshop && (
                 <p className={`text-xs ${hasWorkshop ? "text-muted" : "text-accent"}`}>
                   {hasWorkshop

@@ -99,6 +99,7 @@ import {
   siteAdvancedLine,
   siteCompletedLine,
   siteCancelledLine,
+  announceEdgeState,
   stakeholderCharacterIds,
 } from "@lifeweb/db/lib/structures";
 import { refreshLocationAnchor } from "@lifeweb/db/lib/syncZones";
@@ -693,8 +694,10 @@ function speakAtSite(channelId, line) {
 
 // After a completion flipped an edge, both endpoints' pinned anchors must
 // say so — gate state is part of the anchor's content hash, and the gate
-// button handler already reposts both sides on every flip. Post-commit and
-// catch-logged, the speakAtSite rule: Discord must never roll back a build.
+// button handler already reposts both sides on every flip — and both banks
+// hear the road's own line (announceEdgeState): the far side must not
+// discover a shut way by walking into it. Post-commit and catch-logged,
+// the speakAtSite rule: Discord must never roll back a build.
 function refreshFlippedAnchors(linkFlip) {
   if (!linkFlip?.linkEndpointIds?.length) return;
   after(async () => {
@@ -703,6 +706,9 @@ function refreshFlippedAnchors(linkFlip) {
         console.error(`Build anchor refresh failed for ${locationId}:`, err?.message ?? err),
       );
     }
+    await announceEdgeState(prisma, linkFlip.linkEndpointIds, linkFlip.linkNowOpen).catch((err) =>
+      console.error("Build edge announcement failed:", err?.message ?? err),
+    );
   });
 }
 
@@ -731,8 +737,18 @@ async function claimStructuralLink(tx, locationId, intent) {
     where: { structural: true, OR: [{ aId: locationId }, { bId: locationId }] },
     select: { id: true },
   });
+  // Defensive: the sync hard-refuses a location touching two structural
+  // edges, so two candidates means that invariant broke — refuse loudly
+  // rather than bind whichever row the database returned first.
+  if (candidates.length > 1) {
+    throw new UserError("This ground answers to more than one crossing — tell a GM. ‡");
+  }
   for (const candidate of candidates) {
-    await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${candidate.id} FOR UPDATE`;
+    // The lock re-checks `structural` — a sync between the read above and
+    // this lock may have rewritten the edge as an ordinary gate (or deleted
+    // it, in which case nothing comes back) and a build must not claim it.
+    const locked = await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${candidate.id} AND "structural" = true FOR UPDATE`;
+    if (!Array.isArray(locked) || locked.length === 0) continue;
     const taken = await tx.structure.count({
       where: { linkId: candidate.id, status: { in: PRESENT_STATUSES } },
     });
@@ -766,6 +782,14 @@ async function finishStructure(tx, { session, character, site, location, openTur
       select: { placement: true },
     });
     const intent = placementOf({ placement: type?.placement })?.link ?? null;
+    if (!intent) {
+      // The type lost its link intent since the site opened (a catalog
+      // prune or edit mid-build). RELEASE the claim rather than completing
+      // as a holder of an edge this completion will never flip — a
+      // half-held edge would render gate buttons for a mechanism that
+      // does not exist.
+      await tx.structure.update({ where: { id: site.id }, data: { linkId: null } });
+    }
     if (intent) {
       await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${site.linkId} FOR UPDATE`;
       const linkRow = await tx.locationLink.findUnique({

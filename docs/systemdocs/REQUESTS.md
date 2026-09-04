@@ -80,11 +80,14 @@ the sender at −10 and the recipient up 20.
 The throw aborts the surrounding transaction, so the tag grant, the `Request`
 row and the audit entry all roll back with it.
 
-## 3. The twenty types
+## 3. The types
 
-Sixteen live in `web/app/(app)/character/requestActions.js`, the two
-Lifeweb types in `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
-in `web/app/(app)/store/actions.js`, and `CAVING_LOOT` is filed by the turn
+Deliberately uncounted — a stale number outlived two counts here already;
+the table below and the `RequestType` enum are the record. Most live in
+`web/app/(app)/character/requestActions.js`, the two Lifeweb types in
+`web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
+in `web/app/(app)/store/actions.js`, the Depot family in
+`web/app/(app)/depot/`, and `CAVING_LOOT` is filed by the turn
 engine rather than by anybody. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies

@@ -558,11 +558,34 @@ async function handleGateToggle(interaction, linkId) {
   }
 
   const wantOpen = !link.isOpen;
-  const claim = await prisma.locationLink.updateMany({
-    where: { id: link.id, isOpen: link.isOpen },
-    data: { isOpen: wantOpen },
+  // The permission verdict above read a snapshot, and the flip must not
+  // trust it across time: a structural gate's mechanism EXISTS only while a
+  // structure holds it, and a destroy or a build-undo can revert the edge
+  // to the very isOpen the clicker saw — so a bare (id, isOpen) claim would
+  // let a stale button work a gate that is no longer there. Lock the row,
+  // re-read the holder-filtered state, and re-run both predicates.
+  let outcome = "flipped";
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${link.id} FOR UPDATE`;
+    const fresh = await tx.locationLink.findUnique({
+      where: { id: link.id },
+      include: { structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } } },
+    });
+    if (!gateOperable(fresh)) {
+      outcome = "gone";
+      return;
+    }
+    if (fresh.isOpen !== link.isOpen) {
+      outcome = "raced";
+      return;
+    }
+    await tx.locationLink.update({ where: { id: link.id }, data: { isOpen: wantOpen } });
   });
-  if (claim.count === 0) {
+  if (outcome === "gone") {
+    await respond(interaction, "» *There's no gate here to work.* ‡");
+    return;
+  }
+  if (outcome === "raced") {
     await respond(interaction, "» *Somebody just beat you to it.* ‡");
     return;
   }

@@ -2794,6 +2794,8 @@ model Structure {
 
   @@index([locationId, status])
   @@index([typeSlug])
+  // The travel path's holder include and every holders-count on an edge.
+  @@index([linkId])
 }
 
 // ABANDONED and RUINED are different events wearing different words: a site

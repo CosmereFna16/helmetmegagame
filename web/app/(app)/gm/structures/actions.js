@@ -11,6 +11,7 @@ import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
   HOLDS_EDGE,
   PRESENT_STATUSES,
+  announceEdgeState,
   stakeholderCharacterIds,
   structureDamagedLine,
   structureRepairedLine,
@@ -96,7 +97,9 @@ async function logOp(tx, session, actionType, site, extra = {}) {
 
 function refreshViews() {
   revalidatePath("/gm/structures");
-  revalidatePath("/gm/turns", "page");
+  // The dynamic-route form, so a GM parked on /gm/turns/move/<id> is
+  // invalidated too, not just the bare desk URL.
+  revalidatePath("/gm/turns/[[...selection]]", "page");
   revalidatePath("/character");
 }
 
@@ -143,7 +146,14 @@ async function destroyStructureImpl({ structureId }) {
   const session = await requireGm();
   const site = await loadSite(structureId);
   let anchorIds = [];
+  let linkNowOpen = null;
   await prisma.$transaction(async (tx) => {
+    // Lock the row and read the status FRESH — the pre-transaction load is
+    // a snapshot, and the audit detail must not record a state another GM
+    // changed a heartbeat ago.
+    const lockedRows =
+      await tx.$queryRaw`SELECT "status" FROM "Structure" WHERE "id" = ${site.id} FOR UPDATE`;
+    const wasStatus = lockedRows?.[0]?.status ?? site.status;
     const claim = await tx.structure.updateMany({
       where: { id: site.id, status: { in: PRESENT_STATUSES } },
       data: { status: "RUINED" },
@@ -168,16 +178,26 @@ async function destroyStructureImpl({ structureId }) {
             data: { isOpen: link.authoredOpen },
           });
           anchorIds = [link.aId, link.bId];
+          linkNowOpen = link.authoredOpen;
         }
       }
     }
     await logOp(tx, session, "structure_destroyed", site, {
-      wasStatus: site.status,
+      wasStatus,
       linkId: site.linkId ?? null,
       linkReverted: anchorIds.length > 0,
     });
   });
   repostAnchors(anchorIds);
+  if (anchorIds.length > 0) {
+    // Both banks hear the road change — the destruction line below speaks
+    // only at the site, and the far side must not learn by walking into it.
+    after(() =>
+      announceEdgeState(prisma, anchorIds, linkNowOpen).catch((err) =>
+        console.error("Destroy edge announcement failed:", err?.message ?? err),
+      ),
+    );
+  }
   speak(site, structureDestroyedLine(site));
   dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been destroyed. ‡`);
   refreshViews();
@@ -191,11 +211,16 @@ async function clearStructureImpl({ structureId }) {
   const session = await requireGm();
   const site = await loadSite(structureId);
   await prisma.$transaction(async (tx) => {
+    // Same fresh-under-lock read as Destroy: the audit row must record
+    // what the row really said when the ruling landed.
+    const lockedRows =
+      await tx.$queryRaw`SELECT "status" FROM "Structure" WHERE "id" = ${site.id} FOR UPDATE`;
+    const wasStatus = lockedRows?.[0]?.status ?? site.status;
     const gone = await tx.structure.deleteMany({
       where: { id: site.id, status: { in: ["RUINED", "ABANDONED"] } },
     });
     if (gone.count === 0) throw new UserError("Only a wreck can be cleared — reload. ‡");
-    await logOp(tx, session, "structure_cleared", site, { wasStatus: site.status });
+    await logOp(tx, session, "structure_cleared", site, { wasStatus });
   });
   speak(site, structureClearedLine(site));
   refreshViews();

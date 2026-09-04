@@ -4,7 +4,7 @@
 // throws at load. Pure helpers a client component needs go in their own
 // import-free file (see stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
-import { statusWord } from "@lifeweb/db/lib/structures";
+import { statusWord, HOLDS_EDGE } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
@@ -105,11 +105,13 @@ export function paidLabel(applied) {
 
 // "Palisade — standing: A ring of sharpened stakes…" — one line per
 // structure at a Location, in creation order. The defenseNote prints ONLY
-// while the structure actually works (COMPLETE or DAMAGED — the HOLDS_EDGE
-// statuses): a ruined Battering Ram must not hand the desk a siege licence
-// its wreck no longer grants. The status word still prints for every row,
-// so the ruin stays visible as scenery.
-const NOTE_STATUSES = new Set(["COMPLETE", "DAMAGED"]);
+// while the structure actually works (HOLDS_EDGE — COMPLETE or DAMAGED):
+// a ruined Battering Ram must not hand the desk a siege licence its wreck
+// no longer grants. The status word still prints for every row, so the
+// ruin stays visible as scenery. Imported, not mirrored: this module is
+// server-only (it already imports the db barrel), so there is no reason
+// for a second copy of the list that gates the licence.
+const NOTE_STATUSES = new Set(HOLDS_EDGE);
 
 function standingHereLines(structures) {
   if (!structures?.length) return [];

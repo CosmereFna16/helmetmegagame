@@ -174,6 +174,28 @@ function parseZonesYaml(doc) {
     }
   }
 
+  // A structural edge must be SPANNABLE: at least one endpoint has to
+  // accept a build at all (the mirror of db/lib/structures.js#canBuildHere's
+  // derived rule — not indoors, not a cave level, no noBuild attribute), or
+  // nothing could ever claim the edge and it is a crossing shut forever.
+  const zoneKindBySlug = new Map(zoneEntries.map((z) => [z.slug, z.kind]));
+  const buildableEndpoint = (slug) => {
+    const loc = locationEntries.find((l) => l.slug === slug);
+    if (!loc) return false;
+    if (zoneKindBySlug.get(loc.zoneSlug) === "CAVE_LEVEL") return false;
+    if (loc.indoors) return false;
+    if (loc.attributes?.noBuild) return false;
+    return true;
+  };
+  for (const entry of connections) {
+    if (!entry.structural) continue;
+    if (!buildableEndpoint(entry.a) && !buildableEndpoint(entry.b)) {
+      problems.push(
+        `connections ${entry.a} <-> ${entry.b} is structural but neither endpoint can be built on — nothing could ever span it`,
+      );
+    }
+  }
+
   // Two entries for one pair would each try to claim the same unique row,
   // and the later one would silently win. Almost always a copy-paste of a
   // mirrored edge that the format no longer wants stated twice.

@@ -13,7 +13,7 @@ import { damageStructure, repairStructure, destroyStructure, clearStructure } fr
 const DESTROY_CONFIRM = {
   title: "Destroy this structure? ‡",
   message:
-    "It becomes a ruin on Examine and any edge it held reverts. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
+    "It becomes a ruin on Examine and any edge it held reverts. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
   confirmLabel: "Destroy ‡",
 };
 

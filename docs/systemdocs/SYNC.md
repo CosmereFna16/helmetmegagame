@@ -168,7 +168,17 @@ never touches. That split is what lets a destroyed holding structure revert
 its edge to the born state (`ADJUDICATION.md` §6) without needing to know what
 the YAML currently says. A Restart Game wipe resets `isOpen` back to
 `authoredOpen` and clears `openUntil` on every edge, the same as any other
-play state the wipe returns to its authored default.
+play state the wipe returns to its authored default. A structural edge must
+also be **spannable** — at least one endpoint has to accept a build at all
+(not indoors, not a cave level, no `noBuild` attribute) — or the sync refuses
+it: an edge nothing could ever claim would be a crossing shut forever.
+
+**Re-slugging a structural edge orphans the structure holding it.** The sync
+deletes any link absent from the YAML and creates the re-named one fresh, and
+`Structure.linkId` goes `SetNull` with the deletion — so a standing Bridge
+over a renamed ford keeps Examining as a bridge while the crossing reads as
+unbuilt, and nothing can rebind it. The remedy is a GM Destroy + rebuild
+(`/gm/structures`); the real fix is not renaming an edge something stands on.
 
 A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
 belong on its levels), and its own id may never appear in `connections` — it

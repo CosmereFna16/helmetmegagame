@@ -27,12 +27,14 @@ ALTER TYPE "RequestType" ADD VALUE 'DAMAGE_STRUCTURE';
 ALTER TABLE "Tag" ADD COLUMN     "placement" JSONB;
 
 -- AlterTable (milestone C, same unshipped migration): structure-controlled
--- edges. authoredOpen is backfilled from the live isOpen rather than the
--- column default, so a born-closed gate that predates this migration (the
--- Fortress gatehouse) is not silently re-authored open.
+-- edges. authoredOpen deliberately takes the COLUMN DEFAULT rather than a
+-- backfill from the live isOpen: every authored modular edge today is born
+-- open, while isOpen is PLAY state (a gate somebody shut) that must not be
+-- recorded as authoring. The next db:sync-zones re-asserts authoredOpen
+-- from the YAML for every edge; run it after migrating, before any
+-- Restart wipe relies on the value.
 ALTER TABLE "LocationLink" ADD COLUMN "structural" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "LocationLink" ADD COLUMN "authoredOpen" BOOLEAN NOT NULL DEFAULT true;
-UPDATE "LocationLink" SET "authoredOpen" = "isOpen";
 
 -- CreateTable
 CREATE TABLE "Structure" (
@@ -76,6 +78,10 @@ CREATE INDEX "Structure_locationId_status_idx" ON "Structure"("locationId", "sta
 
 -- CreateIndex
 CREATE INDEX "Structure_typeSlug_idx" ON "Structure"("typeSlug");
+
+-- CreateIndex (milestone C): the travel path's holder include and every
+-- holders-count join on the bound edge.
+CREATE INDEX "Structure_linkId_idx" ON "Structure"("linkId");
 
 -- CreateIndex
 CREATE INDEX "StructureWork_characterId_idx" ON "StructureWork"("characterId");

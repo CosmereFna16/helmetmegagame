@@ -811,6 +811,12 @@ export const REQUEST_EFFECTS = {
       // StructureWork cascades off it.
       if (structureId) await tx.structure.deleteMany({ where: { id: structureId } });
       if (linkId && linkWasOpen != null) {
+        // Lock the edge BEFORE counting holders — a new site completing on
+        // this same edge flips it under its own link lock, and this count
+        // must wait for that commit rather than run against a snapshot
+        // from before it (or the restore below would land last and swing
+        // the new holder's gate to the old state).
+        await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${linkId} FOR UPDATE`;
         const holders = await tx.structure.count({
           where: { linkId, status: { in: HOLDS_EDGE } },
         });
