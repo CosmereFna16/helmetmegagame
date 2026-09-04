@@ -611,12 +611,19 @@ tags:
   # Costed at -1 rather than the scale's -2 (docs/systemdocs/TAGS.md §4a): it
   # is nearly all flavour, and it is the gate on the Leper's Hood, which is a
   # 0-point item. At -2 the pair would have PAID a player to take a free hood.
+  #
+  # conflictsWith runs BOTH ways on purpose. Against Pretty and Beautiful it is
+  # the same edge Ugly and Disfigured already carry — you cannot be covered in
+  # sores and divine. Against Ugly and Disfigured it is about points: all three
+  # are the one fiction, "your face is hard to look at", and without the edge a
+  # build could bank -4 of the -12 drawback budget for it three times over.
   leper:
     name: Leper
     category: general
     group: general-traits
     description: "Covered in sores."
     pointCost: -1
+    conflictsWith: [pretty, beautiful, ugly, disfigured]
     visible: true
     purchasable: true
     purchasableAfterStart: false
