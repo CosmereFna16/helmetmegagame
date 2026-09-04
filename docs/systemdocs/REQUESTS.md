@@ -298,15 +298,18 @@ writer of all three, called from `resolveNeeds()` at the close of every turn:
    than the 1 ⬢ it saves. Eating *settles* the turn's upkeep; the streak it
    took several starved turns to climb takes that many fed turns to climb back
    down.
-3. **Check first, then pay**: at `resources === 0` you go Hungry, owe nothing,
-   and the streak **increments**; at 1+ ⬢ you pay 1, stay fed, and the streak
-   drops by **one tick**.
+3. **Check first, then pay**: short of the turn's cost you go Hungry, owe
+   nothing, and the streak **increments**; able to cover it, you pay, stay
+   fed, and the streak drops by **one tick**. The cost is 1 ⬢ for everyone
+   except a holder of `fast-metabolism`, who owes **2** — and at 1 ⬢ that
+   holder keeps their coin and starves rather than half-eating.
 
-So 1 ⬢ always buys a fed turn, and `Character.resources` can never go
+So the upkeep always buys a fed turn, and `Character.resources` can never go
 negative — the clamp is structural, not a `Math.max`, and it lives on step 3,
 the only branch that still pays. Structural means the check and the payment
-are the *same statement*: the decrement carries `resources: { gte: 1 }` in its
-own `where`. Read the balance in one query and decrement in another and a
+are the *same statement*: the decrement carries `resources: { gte: n }` in its
+own `where`, which is why the 1 ⬢ and 2 ⬢ payers are charged in two separate
+batches. Read the balance in one query and decrement in another and a
 player who spends in between goes to −1, which is what used to happen, and
 turn rollover is exactly when players are most active.
 

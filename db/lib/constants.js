@@ -1,5 +1,9 @@
 const HUNGER_SLUG = "hungry";
 const HUNGERLESS_SLUG = "hungerless";
+// Doubles the per-turn upkeep to 2 ⬢ (db/lib/hungerPass.js). The magnitude of
+// the charge is hardcoded by slug the same way hungerless/ate-meal exemptions
+// are — there is no generic upkeep field on Tag.
+const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
 const NOBILITY_SLUG = "nobility";
 const COURTIER_SLUG = "courtier";
@@ -93,6 +97,7 @@ module.exports = {
   LEAVE_ANNOUNCE_CHANNEL_ID,
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
+  FAST_METABOLISM_SLUG,
   DYING_SLUG,
   NOBILITY_SLUG,
   COURTIER_SLUG,

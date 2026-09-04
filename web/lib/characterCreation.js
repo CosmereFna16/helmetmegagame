@@ -14,8 +14,8 @@ export const CURSED_POINT_PENALTY = 6;
 // row yet. The live values are GameConfig.maxDrawbackTags and
 // maxDrawbackPoints, both editable on /gm/dev. A build stops at whichever it
 // reaches first — TAGS.md §4a has the reasoning.
-export const DEFAULT_MAX_DRAWBACK_TAGS = 6;
-export const DEFAULT_MAX_DRAWBACK_POINTS = 12;
+export const DEFAULT_MAX_DRAWBACK_TAGS = 4;
+export const DEFAULT_MAX_DRAWBACK_POINTS = 14;
 
 // A drawback is any tag with a negative pointCost (TAGS.md §4a).
 export function negativeTagCount(tags) {

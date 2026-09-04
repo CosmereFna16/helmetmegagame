@@ -359,13 +359,19 @@ Per character, at the close of every turn:
 | State | Outcome |
 |---|---|
 | Holds `hungerless` | Skipped entirely; streak resets to 0 (immunity, not eating — a full reset). |
+| Holds `fast-metabolism` | Owes **2 ⬢** instead of 1. Everything else below reads against that cost. |
 | Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing**, streak drops by **one tick** — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
-| Has 0 ⬢ | Goes Hungry, owes nothing, streak **+1**. |
-| Has 1+ ⬢ | Pays 1 ⬢, stays fed, streak drops by **one tick**. |
+| Short of the cost | Goes Hungry, owes **nothing**, streak **+1**. A fast metabolism holding 1 ⬢ keeps it rather than half-eating. |
+| Can cover the cost | Pays it, stays fed, streak drops by **one tick**. |
 
-So **1 ⬢ always buys a fed turn**, and `Character.resources` can never go
-negative without a `Math.max` — the clamp is a `resources: { gte: 1 }` on the
-decrement's own `where`, so the check and the payment are one statement. They
+So **the upkeep always buys a fed turn** — 1 ⬢, or 2 with Fast Metabolism —
+and `Character.resources` can never go
+negative without a `Math.max` — the clamp is a `resources: { gte: n }` on the
+decrement's own `where`, so the check and the payment are one statement. That
+pairing is why the two costs are two separate `updateMany` batches (`toPay1` /
+`toPay2`) rather than one: an `updateMany` carries a single decrement, and a
+guard that didn't match its own decrement would be the hole the clamp exists
+to close. They
 used to be two, with the whole pass between them, and anyone who spent their
 last ⬢ in that window went to −1.
 
