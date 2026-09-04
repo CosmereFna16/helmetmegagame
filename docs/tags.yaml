@@ -3920,6 +3920,167 @@ tags:
       examine: "A battering ram stands here under its rough roof. ‡"
       defenseNote: "A battering ram stands here — a shut gate can be stormed."
 
+  # --- Milestone D catalog fill: everything below is pure YAML over the
+  # A-C mechanisms — no new code. Numbers are design-facing placeholders
+  # for Gunboat to reprice; players see words.
+
+  threshing-floor:
+    name: Threshing Floor
+    category: assets
+    group: assets-structures
+    description: "A beaten circle of hard ground for flailing and winnowing grain, so less of the harvest is lost to the straw. Raised where you stand, serving whoever farms this ground. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "A threshing floor of beaten earth lies here. ‡"
+      laborBonus: { kind: farming, amount: 1 }
+
+  lazarette:
+    name: Lazarette
+    category: assets
+    group: assets-structures
+    description: "A clean house for the sick: scrubbed boards, boiled linen, beds that are actually beds. Serious treatment that would be a gamble anywhere else is steady work here. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    # The first builder-expert unlock — the tag's description promises great
+    # works, and shipping the family with zero expert recipes would make it
+    # a trap pick at creation (plan §5).
+    requirement:
+      turnsCost: 5
+      resourceCost: 60
+      skills: [builder-expert]
+      gambit: false
+    # Desk-advisory, near-zero code: the clause below prints on the GM Move
+    # card and Examine while the building stands, which is where the ruling
+    # happens. No fieldwork — a real building wants the workshop kit.
+    placement:
+      examine: "A lazarette stands here, its windows open and its linens boiled. ‡"
+      defenseNote: "A treatment that would be a Gambit elsewhere is Routine work under this roof."
+
+  trebuchet:
+    name: Trebuchet
+    category: assets
+    group: assets-structures
+    description: "A counterweighted engine the height of a house, built where it will stand and aimed at somewhere it can reach. It does not move, and it is not subtle. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    # The most playtest-hungry numbers in the catalog, deliberately YAML.
+    # Expert, workshop-gated, week-scale, in the open — the drama engine.
+    requirement:
+      turnsCost: 6
+      resourceCost: 60
+      skills: [builder-expert]
+      gambit: false
+    placement:
+      examine: "A trebuchet looms here, counterweight hung and arm cocked. ‡"
+      defenseNote: "A trebuchet stands here — a structure at a neighbouring location can be bombarded."
+
+  jailhouse:
+    name: Jailhouse
+    category: assets
+    group: assets-structures
+    description: "A strongroom with a bar on the outside of the door and a cot on the inside. A place to hold someone that does not need a guard awake to mean it. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
+    # The custody advisory (plan §5): extends "the structure is the
+    # compensation for absence" from defense to imprisonment — holding a
+    # bound prisoner credibly no longer ends when the captor logs off.
+    placement:
+      examine: "A jailhouse stands here, its one door barred from the outside. ‡"
+      defenseNote: "A bound prisoner held here stays held, guard awake or not."
+
+  library:
+    name: Library
+    category: assets
+    group: assets-structures
+    description: "Shelves under a sound roof, and somebody's promise to keep them dry. A place for documents to live longer than the people who wrote them. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 4
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
+    # Prose civic structure; a home for GM-planted readable documents.
+    placement:
+      examine: "A small library stands here, shelves stocked and dry. ‡"
+
+  gallows:
+    name: Gallows
+    category: assets
+    group: assets-structures
+    description: "A platform, a beam, and a length of rope. It does nothing at all, and everyone who passes understands it completely. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 10
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "A gallows stands here, rope coiled at the post. ‡"
+
+  bridge:
+    name: Bridge
+    category: assets
+    group: assets-structures
+    description: "Piles, spans and planking enough to carry a cart over water that used to stop one. It can only be raised where a crossing waits for it. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    # Expert — the tag's own description promises bridges — and workshop-
+    # gated: hauling the kit to the ford is the project's first act.
+    requirement:
+      turnsCost: 5
+      resourceCost: 70
+      skills: [builder-expert]
+      gambit: false
+    # hold_open REQUIRES a free structural edge at the ground (the sync's
+    # authored fords, docs/zones.yaml modular.structural) — the build
+    # refuses anywhere else, and the way opens when the work is done.
+    placement:
+      link: hold_open
+      examine: "A bridge spans the crossing here, planked and railed. ‡"
+
   dog:
     name: Dog
     category: assets
@@ -3945,6 +4106,13 @@ tags:
     visible: false
     removable: true
 
+  # House and Shack are now also CRAFTABLE mid-game (building-system plan
+  # §8.11): the deed is raised through the ordinary craft path — they stay
+  # tradeable ASSETS on a sheet, never placed Structures, because their
+  # value is the deed economy and no Room keys on them. requiredTag still
+  # gates who may raise one, same as who may buy one. Prices are
+  # placeholders; reprice at will. The Manor stays creation-only on
+  # purpose — "built a Manor in a week" fights the fiction.
   house:
     name: House
     category: assets
@@ -3956,6 +4124,12 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
 
   shack:
     name: Shack
@@ -3968,6 +4142,12 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [builder-skilled]
+      gambit: false
 
   # --- Items --------------------------------------------------------------
   # Portable things a character owns, carries, hands over, and (where
