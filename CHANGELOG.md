@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Depot can show its prices in obols
+
+✚ A ⬢/¢ toggle beside the balance in the Depot cockpit, remembered per browser. Order, Price List and Hold all follow it  
+✎ Obol prices on a row are exact — an 8 ⬢ ware reads 1.6 ¢ — because the counter converts on the total, not line by line. The order total, the Hold payout and the balance stay in whole obols either way  
+✎ The Merchant now starts with 6 ¢ instead of 20, about 30 ⬢, and the Company will only advance him 15 ¢ instead of 60  
+✚ Silencer, a 90 ⬢ Depot import the Merchant starts holding. Equip to muffle your shots
+
 ## 2026-09-04 · Laboring pays about 7% less
 
 ✎ The production coefficient drops from 1 to 0.93, in the default and in the live game  
