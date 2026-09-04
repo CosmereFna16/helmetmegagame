@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Four drawbacks, worth 14 points, and a Fast Metabolism
+
+✎ A character may now take 4 drawbacks claiming back 14 points, was 6 and 12  
+✚ Fast Metabolism, a -6 drawback: you eat 2 ⬢ a turn instead of 1
+
 ## 2026-09-04 · A courtier has one wax seal, not six
 
 ✎ At most one personal wax seal per courtier, at creation and in the store
