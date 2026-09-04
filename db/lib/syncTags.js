@@ -43,6 +43,18 @@ const VISIBILITY_BY_YAML = new Map([
   ["worn", "WORN"],
 ]);
 
+// `catalog:` in docs/tags.yaml -> Tag.catalogVisibility. Required on every
+// tag, like pointCost: who may see a tag in the /documents Tag Catalog is a
+// deliberate call per tag, and a default here would let a spoiler ship by
+// omission. secret = cave/antagonist content, hidden from everyone (GMs use
+// /gm/dev/tags); gm = GMs, plus players whose character relates to it; all =
+// fully public. Read by web/lib/tagCatalog.js.
+const CATALOG_BY_YAML = new Map([
+  ["secret", "SECRET"],
+  ["gm", "GM"],
+  ["all", "ALL"],
+]);
+
 // Categories whose tags may carry their category as a slug prefix, because a
 // hidden power's name ("Heal", "Seductive") is generic enough to collide with
 // a general tag. Everywhere else the slug is exactly the slugified name.
@@ -295,6 +307,14 @@ async function syncTagsFromYaml(prisma) {
     } else if (t.equipLayer !== undefined) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets equipLayer but no equipSlot — a layer of what?`);
     }
+    // `catalog` must be explicit on every tag — who may see it in the Tag
+    // Catalog is a deliberate call, and a default would let a cave or
+    // antagonist spoiler ship by omission.
+    if (!CATALOG_BY_YAML.has(t.catalog)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" has catalog: ${JSON.stringify(t.catalog)} — say secret (cave/antagonist, nobody sees it), gm (GMs, plus players whose character relates to it), or all (fully public)`,
+      );
+    }
     // `visible` is three-state: true, false, or "worn".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
       throw new Error(
@@ -519,6 +539,7 @@ async function syncTagsFromYaml(prisma) {
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
       inspectVisibility: VISIBILITY_BY_YAML.get(entry.visible ?? false),
+      catalogVisibility: CATALOG_BY_YAML.get(entry.catalog),
       // At most one exclusive tag per character (the Beliefs); rule lives in
       // web/lib/characterCreation.js#exclusiveConflict.
       exclusive: entry.exclusive ?? false,
