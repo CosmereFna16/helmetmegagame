@@ -65,8 +65,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 🔍 Inspect Character  
 ⭐ Save message to Notes  
 ✏️ Edit Message  
-❌ Delete Message  
-🌬️ Ghost Haunt
+❌ Delete Message
 
 #### **Discord Commands:**
 | Command | Effect |
@@ -96,11 +95,10 @@ General questions can be asked in the `#general` channel or by creating a thread
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
-Bascinet takes place over 30 days, with time passing in-game at the same rate. Every day there are two 12-hour turns.  
-- **Dawn:** Begins at noon US Central.  
-- **Dusk:** Begins at midnight US Central.
+Bascinet runs for 30 real days. One turn is one of those days, and turns alternate — Dawn, then Dusk, then Dawn again — so an in-game day is two of them and the game ends somewhere around in-game Day 15. ‡
+- **Every turn begins at midnight US Central.** ‡
 
-At the end of each turn the game resolves what happened during those 12 hours. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
+At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the three main controls:  
 - **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it. ‡  
@@ -109,11 +107,11 @@ You can find information on the current turn in the `#turns` channel, in additio
 
 ### The Dawn Wipe
 
-At Dawn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This helps to keep scenes and threads focused on the current day, rather than long-running conversations.
+At the start of every Dawn turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This helps to keep scenes and threads focused on the day at hand, rather than long-running conversations. Since Dawn comes around every other turn, a scene has two days to run before the wipe reaches it. ‡
 
 What survives:
 - Every Room keeps its thread and its description; the messages in it are archived. ‡
-- Conversations do not survive. Open a new one in the morning. ‡
+- Conversations do not survive. Open a new one after the wipe. ‡
 
 If you want to remember something, use the ⭐ reaction on the message before Dawn to save it to your [Notes](https://ravenheart.quest/notes) page.
 
@@ -144,7 +142,7 @@ At this point there are a few recommended next steps:
 
 ## Playing A Turn
 
-A turn is not simply submitting a Move action and waiting 12 hours. It's a period during which conversations and scenes unfold across all the Zones.
+A turn is not simply submitting a Move action and waiting a day. It's a period during which conversations and scenes unfold across all the Zones.
 
 A typical turn might look something like this:
 - You read the Summary and Public channels and discover a problem.
@@ -254,7 +252,6 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 | ⭐ | Anyone | Saves the message to your personal [Notes](https://ravenheart.quest/notes) page. |
 | ✏️ / 📝 | The author | Edit your message (the bot DMs you). |
 | ❌ | The author | Delete your message. |
-| 🌬️ | Ghosts | Haunt a public roleplay channel once every 12 hours. |
 
 ## Resources & Hunger
 
@@ -284,7 +281,7 @@ After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review
 
 
 ## Submitting A Move
-A Move is your abstracted intent of what your character plans to do during the 12 hours of the turn. It tells the GMs the most important thing your character is attempting to accomplish and how they're going about it.
+A Move is your abstracted intent of what your character plans to do over the turn. It tells the GMs the most important thing your character is attempting to accomplish and how they're going about it.
 
 Moves should be used for lengthy, time-consuming, or difficult activities. If your character could reasonably accomplish something within an hour (bandaging someone, trading, talking), it's likely unsuitable for a Move.
 - **Important:** Never assume the result or effects of your Move, and do not attempt to narrate another character's reaction or outcome.
@@ -486,6 +483,6 @@ When your character dies:
 
 - Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a manor, something grafted into them — stays with them. ‡
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
-- As a ghost, once every 12 real hours you can react 🌬️ to any message in a `#summary`, a Location channel or a public Room and the bot will post a haunting line there. ‡ That's your only voice, and it's a reminder to others that your body remains unburied.
+- As a ghost you have no voice at all. What speaks for you is your body: while it lies unburied it stinks, and every few hours the Location it is in is told so. ‡
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
 - The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you. ‡

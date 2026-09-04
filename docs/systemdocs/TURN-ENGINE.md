@@ -4,10 +4,14 @@ How a turn closes and the next one opens. One function owns it —
 `advanceTurn()` in `db/index.js` — and everything else on this page is either a
 pass it calls or a side effect it hands back.
 
-Turns advance **twice a day, 12:00 and 00:00 America/Chicago**, strictly
-alternating: a DAWN turn opens at midnight and runs to noon, a DUSK turn opens
-at noon and runs to midnight. The schedule lives in `bot/src/events/ready.js`'s
-cron. The advance is also **the push**: everything the GMs staged during the
+Turns advance **once a day, 00:00 America/Chicago**, strictly alternating: a
+DAWN turn opens at midnight and runs to the next midnight, then a DUSK turn
+does the same. So a turn is one real day and an **in-game day is two of them**
+— `Math.ceil(turn.number / 2)` still gives the day, it just takes twice as long
+to get there. The schedule lives in `bot/src/events/ready.js`'s cron, and
+`db/lib/turnClock.js`'s `TURN_BOUNDARY_HOURS` must agree with it. It was two
+turns a day until 2026-09-03, boundaries at 00:00 and 12:00; everything counted
+in turns therefore takes twice as long in real time as it used to. The advance is also **the push**: everything the GMs staged during the
 closing turn — mechanical effects, private messages, public declarations, and
 every Move's own declared payout — applies and delivers here, and nowhere
 else. See `ADJUDICATION.md`.
@@ -438,7 +442,7 @@ Action, no Resources, no DM:
   themselves (`REQUESTS.md` §5b).
 - **No Laboring tag at all.** Labor is a skill now, not a floor — a character
   without one who does nothing has simply done nothing.
-- **Exhausted.** They worked yesterday; one labor per day.
+- **Exhausted.** They worked last turn; one labor per turn, which is one a day.
 - **Standing where none of their skills reach** — no `LocationYield` row of any
   kind they hold. Filing an empty Move to say so would only clutter the desk.
 
@@ -469,17 +473,17 @@ advance from drifting the whole map twice. The full parameter table is in
 ## 6a. The Move cutoff
 
 Moves close **three hours before the turn ends** (`MOVE_LOCK_HOURS` in
-`db/lib/turnClock.js`) — 9:00 AM and 9:00 PM America/Chicago on a normal turn —
-so a GM has a window to adjudicate what was filed before the push runs.
+`db/lib/turnClock.js`) — 9:00 PM America/Chicago on a normal turn — so a GM has
+a window to adjudicate what was filed before the push runs.
 
 Nothing stores a turn's end time, so it is derived: `turnEndsAt(turn)` is the
-first 00:00 / 12:00 Chicago boundary strictly after `turn.startedAt` — whichever
-comes first, regardless of phase, because the cron fires at both (a DUSK turn a GM
-opened by hand at 13:00 really does end at midnight) — and
-`moveCutoffAt(turn)` is that minus three hours. Deriving from `startedAt`
-rather than from *now* is what makes a manually advanced turn come out right —
-and it fixes a live bug in the announcement, which the bot rebuilds on restart
-and which used to say "ends at noon" six hours after noon.
+first `TURN_BOUNDARY_HOURS` Chicago boundary strictly after `turn.startedAt` —
+now just 00:00, regardless of phase (a turn a GM opened by hand at 13:00 really
+does end at the coming midnight, eleven hours later, rather than running a full
+24) — and `moveCutoffAt(turn)` is that minus three hours. Deriving from
+`startedAt` rather than from *now* is what makes a manually advanced turn come
+out right — and it fixes a live bug in the announcement, which the bot rebuilds
+on restart and which used to say "ends at noon" six hours after noon.
 
 `moveWindow(turn, { now, autoTurnAdvanceDisabled })` returns
 `{ endsAt, cutoffAt, locked, hasLock }`. There is **no lock at all**

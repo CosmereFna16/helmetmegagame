@@ -243,7 +243,8 @@ function unlockedBy(template, { heldTagIds, roleSlug }) {
 
 // Per-slot lock: claiming a Desire shuts that slot until
 // maxEnded + lockTurns + 1 (`lockTurns` is GameConfig.desireSlotLockTurns).
-// A turn is 12 hours (DAWN then DUSK). `lastEnded` is the slot's most recent
+// A turn is one real day; the phases still alternate, so an in-game day is two
+// of them. `lastEnded` is the slot's most recent
 // FULFILLED row; a row with null endedTurnNumber counts toward neither.
 function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
   const hist = history || [];

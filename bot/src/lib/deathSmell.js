@@ -18,8 +18,12 @@
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 
-const MIN_DELAY_MS = 2 * 60 * 60 * 1000;
-const MAX_DELAY_MS = 5 * 60 * 60 * 1000;
+// Four to ten real hours, randomized. It was two to five when a turn was half
+// a day; a turn is a whole day now, so the window doubled to keep a body
+// nagging about as often per turn as it always has. Wall-clock rather than a
+// turn pass on purpose — see nextDelay() below.
+const MIN_DELAY_MS = 4 * 60 * 60 * 1000;
+const MAX_DELAY_MS = 10 * 60 * 60 * 1000;
 const LINE = ambientLine("It smells like death…");
 
 function nextDelay() {
@@ -55,7 +59,7 @@ async function locationsThatStink(prisma) {
 }
 
 // One pass. Exported so a GM script or a test can fire it by hand without
-// waiting two hours.
+// waiting for the timer.
 async function runDeathSmell(prisma) {
   const locations = await locationsThatStink(prisma);
   let posted = 0;

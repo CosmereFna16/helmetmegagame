@@ -405,7 +405,7 @@ once per chunk.
 ## 6. Reactions
 
 All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`
-except 🌫️, 🌬️ and ⭐. Each is stripped back off after being processed.
+except 🌫️ and ⭐. Each is stripped back off after being processed.
 
 | Emoji | Who | Does |
 |---|---|---|
@@ -416,18 +416,14 @@ except 🌫️, 🌬️ and ⭐. Each is stripped back off after being processed
 | ⭐ | Anyone | Save a personal `Note` — works on any bot- or webhook-authored message, not just a tracked proxy (`PROXYING.md` §7) |
 | ⚜️ | GM | Full dossier on the speaking character |
 | 🌫️ | GM | Delete and repost as the bot, de-attributing it |
-| 🌬️ | Cursed (a ghost) | Bascinet posts one haunting line in that channel |
 
-🌬️ is the ghost whisper, and the only thing a dead player can do. It works on
-**any** message — proxied or not, the bot's own posts included — where
-`resolveChannelContext` (`bot/src/lib/channels.js`) reports `channelKind`
-`summary` or `location`: a zone's `#summary`, a Location channel, and (since a
-thread's context is its **parent's**) a Room or Conversation thread under one
-too. `#watch` and `#intercom` refuse it, even though ghosts can
-*read* both. Since the rework a ghost sees **every** zone, cave levels
-included (`db/lib/cursedAccess.js`, `CHANNELS.md` §5). One press per ghost per
-**12 real hours**, tracked
-in `GhostWhisper` and enforced by `db/lib/ghostWhisper.js#claimGhostWhisper`.
+There used to be a 🌬️ ghost whisper here — one haunting line a dead player
+could breathe into a channel, on a 12-real-hour cooldown tracked in a
+`GhostWhisper` table. It is **gone**, along with the table and
+`db/lib/ghostWhisper.js`. A ghost has no voice now. The thing that reports an
+unburied body is the body: `bot/src/lib/deathSmell.js` nags the Location it is
+lying in every 4–10 real hours (`CORPSES.md` §5), which says the same thing
+without needing the dead player to be at their keyboard to say it.
 
 Every refusal except the cooldown is silent, on purpose: a visible "you can't
 do that" would tell the living that someone specific is watching. The cooldown

@@ -8,7 +8,6 @@ const { buildSkillAncestry, satisfiedSkillIds } = require("@lifeweb/db/lib/medic
 const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
-const { GHOST_LINE, claimGhostWhisper } = require("@lifeweb/db/lib/ghostWhisper");
 const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 
 // Discord embed limits: a breach rejects the whole embed silently. Trim with
@@ -33,7 +32,6 @@ const EDIT_EMOJIS = ["✏️", "📝"];
 const INSPECT_EMOJIS = ["🔍", "🔎"];
 const STAR_EMOJI = "⭐";
 const FOG_EMOJI = "🌫️";
-const WIND_EMOJI = "🌬️"; // ghost whisper: works on any message, Cursed only
 const DOSSIER_EMOJI = "⚜️"; // GM only
 
 // Saves the message to the reactor's personal Notes list. `proxy` is the
@@ -212,42 +210,6 @@ async function handleFogReaction(reaction, user) {
   await message.channel.send(payload).catch(() => {});
 }
 
-// The wind emoji arrives with or without its U+FE0F variation selector
-// depending on client, so a bare === misses half of them.
-function isWindEmoji(name) {
-  return typeof name === "string" && name.replace(/️/g, "") === WIND_EMOJI.replace(/️/g, "");
-}
-
-// Cursed-only: a ghost breathes one line into the channel as the bot itself,
-// at most once every 12 real hours per ghost (db/lib/ghostWhisper.js).
-// Silence is the failure mode — a non-ghost or a blocked ghost gets nothing
-// visible, so pressing it never outs who's watching. Only the cooldown DMs.
-async function handleWindReaction(reaction, user) {
-  const cursedRoleId = process.env.DISCORD_CURSED_ROLE_ID;
-  if (!cursedRoleId) return;
-
-  const member = await reaction.message.guild.members.fetch(user.id).catch(() => null);
-  if (!member?.roles.cache.has(cursedRoleId)) return;
-
-  // Public ground only: a zone's #summary, a Location's channel, or a Room
-  // under it (a thread reports its parent's kind). A private Room or a
-  // Conversation needs no rule here — a ghost is never a member, so it can't
-  // react there in the first place.
-  const { channelKind } = resolveChannelContext(reaction.message.channel);
-  if (channelKind !== "summary" && channelKind !== "location") return;
-
-  const claim = await claimGhostWhisper(prisma, user.id);
-  if (!claim.ok) {
-    const readyAt = Math.floor(claim.readyAt.getTime() / 1000);
-    await sendDm(user, {
-      content: `The wind won't answer yet. You can blow through again <t:${readyAt}:R>.`,
-    }).catch(() => {});
-    return;
-  }
-
-  await reaction.message.channel.send(GHOST_LINE).catch(() => {});
-}
-
 module.exports = {
   name: "messageReactionAdd",
   async execute(reaction, user) {
@@ -260,14 +222,9 @@ module.exports = {
     // guildId, not guild: a partial message has the former, not always the
     // latter. Nothing is reaction-driven in a DM.
     if (!reaction.message.guildId) return;
-    // 🌬️ and ⭐ work on any guild message; every other reaction needs a
-    // tracked proxy.
-    if (
-      emojiName !== FOG_EMOJI &&
-      !isWindEmoji(emojiName) &&
-      emojiName !== STAR_EMOJI &&
-      !recentProxies.has(reaction.message.id)
-    ) {
+    // ⭐ works on any guild message; every other reaction needs a tracked
+    // proxy.
+    if (emojiName !== FOG_EMOJI && emojiName !== STAR_EMOJI && !recentProxies.has(reaction.message.id)) {
       return;
     }
 
@@ -278,12 +235,6 @@ module.exports = {
     if (reaction.emoji.name === FOG_EMOJI) {
       await handleFogReaction(reaction, user).catch(() => {});
       recentProxies.delete(reaction.message.id);
-      return;
-    }
-
-    if (isWindEmoji(reaction.emoji.name)) {
-      await handleWindReaction(reaction, user).catch((err) => console.error("Wind reaction failed:", err));
-      await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       return;
     }
 

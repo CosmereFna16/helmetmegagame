@@ -44,7 +44,7 @@ banner: assets/info-banner.png
 main_message: |-
   Bascinet is a large-scale, rules-light story generator, 70% roleplay and 30% strategy. It’s intended to be serious, grim, heroic, and occasionally funny.
 
-  The game takes place over a 30-day period both in real life and in game. Twice a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord.
+  The game runs for 30 real days. Once a day, you declare what your character did, making a Move. Based on dice and your character’s Tags, the GMs adjudicate the resulting consequences. Mechanics are handled on the companion web panel while the roleplay takes place on Discord. ‡
 
   Bascinet simultaneously plays out on several levels. Kings win wars and move big pieces around the map while commoners try to fulfill their day-to-day desires.
 
@@ -100,13 +100,13 @@ categories:
           Everyone's a human (?).
   - name: Gameplay
     intro: |-
-      Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated every 12 hours, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon.
+      Bascinet has two layers: the Move layer (strategic) and the Roleplay layer (narrative). Moves are adjudicated once a day, and are where mechanical effects take place. The Roleplay layer is always going on, and takes the results of the Move layer as its canon. ‡
     threads:
       - title: Moves
         body: |-
-          The game is split into two turns a day: Dawn and Dusk. Every turn, you can optionally plan a Move that’ll take effect the next turn.
+          One turn is one real day, beginning at midnight US Central. Turns alternate between Dawn and Dusk, so an in-game day takes two of them. Every turn, you can optionally plan a Move that’ll take effect the next turn. ‡
 
-          Moves are your abstracted intent of what you planned to do during the next 12 hours. Moves are reserved for lengthy, time-consuming, or difficult activities.
+          Moves are your abstracted intent of what you planned to do over the turn. Moves are reserved for lengthy, time-consuming, or difficult activities. ‡
 
           **Examples**:
           - robbing someone;

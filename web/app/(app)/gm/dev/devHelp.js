@@ -9,7 +9,7 @@ export const CONFIG_HELP = {
   playtestModeEnabled:
     "Lock the Merchant and every Windlands role out of character creation. Their cards still show, greyed, so the charters stay readable. Not bypassed for superadmins.",
   autoTurnAdvanceDisabled:
-    "The twice-daily cron skips its advance while this is on. “Advance turn now” on the Turn section still works.",
+    "The nightly cron skips its advance while this is on. “Advance turn now” on the Turn section still works.",
   avatarUploadsEnabled: "Allow players to upload their own profile picture.",
   portraitMakerEnabled: "Show the “Customize Appearance” portrait maker on /character.",
   portraitFantasyPartsEnabled: "Allow the portrait maker's fantasy parts.",
@@ -35,7 +35,7 @@ export const CONFIG_HELP = {
   desireSlots:
     "How many Desire slots every character gets. Each slot cools down independently of the others, and the bottom one is the slot an Addiction binds. Lowering this hides a slot rather than deleting what was claimed in it.",
   desireSlotLockTurns:
-    "Whole turns a slot stays shut after a Desire is claimed into it. At 2, a claim on turn 40 leaves that slot shut through turn 42 and open on 43. Remember a turn is half a day.",
+    "Whole turns a slot stays shut after a Desire is claimed into it. At 2, a claim on turn 40 leaves that slot shut through turn 42 and open on 43. Remember a turn is a whole real day, and an in-game day is two of them.",
   carryWeightLbs:
     "How many POUNDS of gear a character can carry before they're Overburdened. Skills, injuries and Assets — a horse, a cart, a house — never weigh anything. Strong, Pack Mule and an equipped Cart multiply it. Past 1.5× this, goods can't be theirs at all. ‡",
   carryResourceCap:

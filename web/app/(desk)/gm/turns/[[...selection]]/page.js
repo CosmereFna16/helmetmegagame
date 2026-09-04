@@ -397,8 +397,19 @@ export default async function TurnsWorkspacePage({ params }) {
   // History lens can list the open turn in its Turn dropdown alongside them
   // with no second formatting rule to keep in sync (Workspace.js only appends
   // the "· open" suffix).
+  // `endsAtMs` rides along so the desk's push countdown can tick against the
+  // same turnClock derivation everything else uses, instead of the header
+  // re-deriving the cron's boundary hours in the browser (it did, and held the
+  // old two-a-day rule). Present even when there is no Move lock — a short
+  // manual turn still ends at a real time.
   const openTurnDto = openTurn
-    ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase, label: turnLabel(openTurn) }
+    ? {
+        id: openTurn.id,
+        number: openTurn.number,
+        phase: openTurn.phase,
+        label: turnLabel(openTurn),
+        endsAtMs: window_?.endsAt ? window_.endsAt.getTime() : null,
+      }
     : null;
 
   return (

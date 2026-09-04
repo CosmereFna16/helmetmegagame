@@ -7,7 +7,7 @@ rule after the first playtest broke the old flow:
 
 A player locks in a Move; GMs spend the day *staging* — the canonical result,
 private messages, public declarations, mechanical adjustments — all of it
-freely editable until the turn-end cron (12:00/00:00 America/Chicago,
+freely editable until the turn-end cron (00:00 America/Chicago, nightly,
 `TURN-ENGINE.md`) applies and delivers everything in one push. No more
 resolve-a-move, DM-a-player, resolve-the-next drip: the whole turn lands at
 once, for everyone.
@@ -271,7 +271,7 @@ keeps itself current and stays reachable from the keyboard:
   a modal is open, while any panel holds unsaved edits
   (`useDirtyGuard.js#isAnyDirty`), or while the tab is hidden — a GM
   mid-sentence never gets the page yanked out from under them. The header
-  carries an "updated HH:MM" stamp, a **countdown** to the next noon/midnight
+  carries an "updated HH:MM" stamp, a **countdown** to the nightly midnight
   CT push, and an `N/M solved` progress chip.
 - The poll is **version-aware** (`useDeskVersion.js` + `/api/desk-version` +
   `web/lib/deployVersion.js`): it only calls `router.refresh()` after the

@@ -40,26 +40,14 @@ const DESK_STORAGE_DEFAULT = {
   historyTurnId: null,
 };
 
-const CT_PARTS = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/Chicago",
-  hour12: false,
-  hour: "numeric",
-  minute: "numeric",
-});
-
-// Minutes until the next 12:00 or 00:00 America/Chicago. Chicago's "24:00"
-// formatToParts quirk (midnight can render as hour 24) is normalized to 0.
-function minutesUntilNextPush() {
-  const parts = CT_PARTS.formatToParts(new Date());
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
-  const sinceMidnight = h * 60 + m;
-  const sinceLastBoundary = sinceMidnight % (12 * 60);
-  const untilNext = 12 * 60 - sinceLastBoundary;
-  return untilNext === 12 * 60 ? 0 : untilNext;
-}
-
+// The countdown used to re-derive the cron's boundary hours here, in the
+// browser, off the wall clock — a second copy of the rule that lived in
+// db/lib/turnClock.js, and one that went stale the moment the turn stopped
+// being half a day. The open turn now arrives carrying `endsAtMs`, derived
+// server-side by the same moveWindow() the Move cutoff uses, so there is one
+// authority again.
 function formatCountdown(minutes) {
+  if (minutes == null) return "";
   if (minutes <= 0) return "Push imminent";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -541,17 +529,14 @@ export default function Workspace({
 
   useReloadTelemetry("turns", deployVersion);
 
-  // Countdown to the next noon/midnight CT push, ticking every 30s. The move
-  // cutoff rides the same tick.
-  const [pushMinutes, setPushMinutes] = useState(() => minutesUntilNextPush());
+  // Countdown to the nightly CT push, ticking every 30s. The move cutoff rides
+  // the same tick.
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => {
-      setPushMinutes(minutesUntilNextPush());
-      setNowMs(Date.now());
-    }, 30_000);
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
+  const pushMinutes = openTurn?.endsAtMs != null ? Math.round((openTurn.endsAtMs - nowMs) / 60_000) : null;
 
   return (
     // Once a deploy latches `stale`, refreshes under this gate skip instead
@@ -566,7 +551,7 @@ export default function Workspace({
               {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
             </span>
             <span className="chip text-xs text-muted">{solvedCount}/{moves.length} solved</span>
-            <span className="text-xs text-muted" title="Push fires at noon & midnight CT">
+            <span className="text-xs text-muted" title="Push fires at midnight CT">
               {formatCountdown(pushMinutes)}
               {moveLock ? ` · ${formatMoveLock(moveLock.cutoffAtMs, nowMs)}` : ""}
             </span>

@@ -40,7 +40,7 @@ const PERM_SEND_MESSAGES_IN_THREADS = 274877906944n;
 const SUMMARY_SLOWMODE_SECONDS = 300;
 
 const SUMMARY_TOPIC =
-  "What did people in your zone see your character do over the last 12 hours? Abstracted, big-picture play.";
+  "What did people in your zone see your character do over the last day? Abstracted, big-picture play. ‡";
 
 // Discord caps a channel topic at 1024 characters.
 const TOPIC_MAX = 1024;

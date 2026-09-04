@@ -446,7 +446,8 @@ ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 The Cursed role — a dead player, not yet buried or engraved — gets
 `ViewChannel` plus `AddReactions` and a deny on everything else, including
 `ManageThreads`. Reactions are allowed where the spectator seat denies them,
-because the 🌬️ whisper (`COMMANDS.md` §6) is a ghost's only voice.
+so a ghost can still ⭐ a message onto their own `/notes` page. That grant
+predates the removal of the 🌬️ whisper (`COMMANDS.md` §6) and outlived it.
 
 **Ghosts now see every zone**, cave levels included — the Depths blackout and
 its `DEPTHS_SLUGS` exclusion list are gone. They read `#watch` too
@@ -648,7 +649,7 @@ costs the turn announcement that already went out. Its *access* is managed
 though — see §3a.
 
 The Dawn wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk,
-so it fires identically whether Dawn came from the bot's twice-daily cron or a
+so it fires identically whether Dawn came from the bot's nightly cron or a
 GM's "End Turn" button.
 
 **The Dawn wipe only deletes.** The transcript is recorded at *send* time

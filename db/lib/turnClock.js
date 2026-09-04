@@ -1,10 +1,12 @@
 // When the open turn ends, and when Moves stop being accepted.
 //
-// Nothing stores a turn's end time: turns advance at 0:00 and 12:00
-// America/Chicago (bot/src/events/ready.js's cron), strictly alternating
-// DAWN/DUSK, so the end is derivable — a DAWN turn opens at midnight and closes
-// at noon, a DUSK turn opens at noon and closes at midnight (and this module
-// does not even need to know which: the next boundary is the next boundary). The old helper
+// Nothing stores a turn's end time: turns advance at 0:00 America/Chicago
+// (bot/src/events/ready.js's cron), once a real day, strictly alternating
+// DAWN/DUSK, so the end is derivable — every turn opens at midnight and closes
+// at the next midnight (and this module does not even need to know the phase:
+// the next boundary is the next boundary). Turns were 12 hours once, with a
+// second boundary at noon; the phases still alternate, so an in-game day is
+// now two real days. The old helper
 // (weather.js#turnEndEpochSeconds) derived it from *now* and the phase, which
 // is only correct at the instant the turn opens: the bot rebuilds the #turns
 // announcement on restart, so a restart at 18:00 posted "ends at noon, six
@@ -21,6 +23,10 @@ const TIME_ZONE = "America/Chicago";
 const MOVE_LOCK_HOURS = 3;
 
 const MOVE_LOCK_MS = MOVE_LOCK_HOURS * 60 * 60 * 1000;
+
+// The Chicago hours the turn cron fires at, and so the hours a turn can end on.
+// One entry, one turn a day. Must match bot/src/events/ready.js's cron.
+const TURN_BOUNDARY_HOURS = [0];
 
 // DST-safe local-time-in-a-zone -> UTC conversion using only the built-in Intl
 // API (no date library needed for one zone). Lived in db/weather.js, which now
@@ -72,20 +78,21 @@ function zonedParts(date, timeZone) {
     }, {});
 }
 
-// The first 00:00 / 12:00 Chicago boundary strictly after `turn.startedAt`,
-// whichever comes first. The cron fires at both, regardless of phase — so a
-// DUSK turn a GM opened by hand at 13:00 really does end at midnight, not at
-// the noon its phase would "normally" close on. (The phase-based rule was the
-// one db/weather.js used to derive from "now"; it only ever matched the cron
-// for turns the cron itself opened.) "Strictly after" is what keeps a turn
-// opened a second past its own boundary from ending immediately.
+// The first 00:00 Chicago boundary strictly after `turn.startedAt`. The cron
+// fires there regardless of phase — so a turn a GM opened by hand at 13:00
+// really does end at the coming midnight, eleven hours later, rather than
+// running a full 24. (The phase-based rule was the one db/weather.js used to
+// derive from "now"; it only ever matched the cron for turns the cron itself
+// opened.) "Strictly after" is what keeps a turn opened a second past its own
+// boundary from ending immediately. The hour list is the single place the
+// cadence lives: it held [0, 12] when a turn was half a day.
 function turnEndsAt(turn) {
   if (!turn?.startedAt) return null;
   const startedAt = new Date(turn.startedAt).getTime();
   const { year, month, day } = zonedParts(new Date(startedAt), TIME_ZONE);
   const candidates = [];
   for (const dayOffset of [0, 1]) {
-    for (const hour of [0, 12]) {
+    for (const hour of TURN_BOUNDARY_HOURS) {
       candidates.push(zonedTimeToUtc(year, month, day + dayOffset, hour, 0, 0, TIME_ZONE));
     }
   }
@@ -103,8 +110,8 @@ function moveCutoffAt(turn) {
 //   * autoTurnAdvanceDisabled: the cron is off, so there is no real end time
 //     to count back from and the derived one would be a lie.
 //   * a turn shorter than MOVE_LOCK_HOURS: a GM advancing manually at, say,
-//     11:00 opens a one-hour DUSK turn, and counting three hours back from
-//     noon would lock the entire turn the moment it opened.
+//     23:00 opens a one-hour turn, and counting three hours back from midnight
+//     would lock the entire turn the moment it opened.
 //
 // `locked` is only true inside the window between the cutoff and the end, so a
 // turn that has somehow outlived its derived end (the cron missed) reopens
@@ -125,6 +132,7 @@ function epochSeconds(date) {
 
 module.exports = {
   MOVE_LOCK_HOURS,
+  TURN_BOUNDARY_HOURS,
   turnEndsAt,
   moveCutoffAt,
   moveWindow,

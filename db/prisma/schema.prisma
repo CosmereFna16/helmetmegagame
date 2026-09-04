@@ -439,7 +439,7 @@ model GameConfig {
   // so a missing config row means the whole roster is open.
   playtestModeEnabled Boolean @default(false)
 
-  // When true, the twice-daily turn-advance cron (bot/src/events/ready.js)
+  // When true, the nightly turn-advance cron (bot/src/events/ready.js)
   // skips its automatic advance — bot/src/lib/turnEngine.js#advanceTurn
   // checks this before calling into the shared engine. A GM's "Advance turn
   // now" in the Dev Panel calls the shared engine directly and is not gated
@@ -2530,23 +2530,6 @@ model ConversationMeta {
 // on /notes is the only lasting trace, not the Discord reaction itself. Each
 // (message, starrer) pair gets its own row, since a note is personal to
 // whoever starred it — not a shared/aggregate count.
-/// One row per ghost, holding when they last blew through a channel with the
-/// 🌬️ reaction (bot/src/events/messageReactionAdd.js, rules in
-/// db/lib/ghostWhisper.js).
-///
-/// Keyed on discordUserId, not characterId: the whole point of a ghost is
-/// that their character is dead, and they may be between characters entirely.
-/// Same reasoning as DirectMessage and Note, which key on the user for the
-/// same reason.
-///
-/// Persisted rather than held in a module-level Map because the window is 12
-/// REAL hours, far longer than a bot process reliably lives — an in-memory
-/// cooldown would reset to "ready" on every deploy.
-model GhostWhisper {
-  discordUserId String   @id
-  lastUsedAt    DateTime
-}
-
 model Note {
   id               String     @id @default(cuid())
   discordMessageId String
@@ -2568,7 +2551,7 @@ model Note {
 
 // A player's personal journal entry — the /notes page's Journal tab, distinct
 // from Note (a starred Discord message) above. Keyed on discordUserId only,
-// same reasoning as Note and GhostWhisper: it is a player's own writing, never
+// same reasoning as Note: it is a player's own writing, never
 // a shared or GM-visible surface. `body` may embed `{char:<characterId>}`
 // mention tokens (web/app/components/richTokens.js); there is no FK to
 // Character on purpose — a deleted or renamed character just degrades the

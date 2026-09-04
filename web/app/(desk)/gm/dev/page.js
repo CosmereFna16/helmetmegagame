@@ -256,7 +256,7 @@ export default async function DevPanelPage({ searchParams }) {
                   </div>
                 </form>
                 <p className="ops-lede">
-                  Applies on next turn (via End turn above or the bot&apos;s automatic dawn/dusk cron).
+                  Applies on next turn (via End turn above or the bot&apos;s nightly cron).
                 </p>
               </section>
             </div>

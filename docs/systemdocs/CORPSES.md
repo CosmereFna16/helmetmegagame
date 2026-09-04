@@ -100,7 +100,7 @@ the old name is the thing being replaced.
 of every Location holding a rotten corpse — in a Room there, or in the pocket
 of somebody standing there. A body in a bag smells as much as one on the floor.
 
-**Every 2–5 hours, randomized, via a self-rescheduling `setTimeout` chain.**
+**Every 4–10 hours, randomized, via a self-rescheduling `setTimeout` chain.**
 `node-cron` cannot express that, and the randomness is the point: a fixed
 cadence would make the smell a clock players could read, when what it is for is
 nagging unpredictably until somebody buries the body. Each firing schedules the

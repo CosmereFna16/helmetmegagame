@@ -86,7 +86,8 @@ pass:
   income itself, independent of which template is being claimed. It has grown
   twice: the lock was one turn until 2026-09-02, then two, and it is now a live
   `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
-  `Turn.number` increments twice daily, so each turn of lockout is 12 hours.
+  `Turn.number` increments once daily, so each turn of lockout is a real day —
+  and an in-game day, being two turns, is two of them.
 
   A row with `endedTurnNumber: null` is excluded from this **and** from the
   slot's "last claim" readout. That is the one lever the revoke/undo paths
