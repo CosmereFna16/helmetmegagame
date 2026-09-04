@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Five more guns and blades on the Merchant's counter
+
+✚ The Merchant now imports a CTT4&3 Rifle, a Kpfw-6 Avtomat, an Adamantium Sword, a Silver Sword and a BB Pistol  
+The two rifles and the Adamantium Sword ship sealed, so nobody reads the crate on the landing pad before the right person opens it
+
 ## 2026-09-04 · The Depot can show its prices in obols
 
 ✚ A ⬢/¢ toggle beside the balance in the Depot cockpit, remembered per browser. Order, Price List and Hold all follow it  
