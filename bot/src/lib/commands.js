@@ -92,6 +92,13 @@ const commandDefinitions = [
     .setName("message")
     .setDescription("Say something as your character, without anyone seeing you type.")
     .setContexts(ANYWHERE),
+  // Guild-only for the same reason /roll below is: an instrument played into a
+  // DM has no audience, and the audience is the whole feature. The Instrument
+  // tag is the gate; the Musician tag decides which of the two lines it plays.
+  new SlashCommandBuilder()
+    .setName("play")
+    .setDescription("Play your instrument, for the room to hear. ‡")
+    .setContexts(GUILD_ONLY),
   // Guild-only: a die rolled in a DM has no audience, which is the whole
   // point of it. No options either — it is one 1d6 and nothing else.
   new SlashCommandBuilder()

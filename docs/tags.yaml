@@ -4613,6 +4613,24 @@ tags:
     sellable: true
     sellablePrice: 3
 
+  # A lute, a fiddle, a set of pipes — the player decides which. Off the point
+  # scale at 1 (TAGS.md §4a): the tag buys no advantage at all, only /play,
+  # and the Minstrel gets it free with the role. Anyone may buy one at
+  # creation, and a holder without Musician plays badly, which is the point.
+  instrument:
+    catalog: all
+    name: Instrument
+    category: items
+    group: items-gear
+    description: "An instrument of your choice—type /play to play it."
+    pointCost: 1
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+
   # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
   # See docs/systemdocs/CAVING.md.
   radio-system-cerberon:

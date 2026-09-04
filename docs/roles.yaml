@@ -404,6 +404,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Musician
+              - Instrument
             doc_elements:
               - godking
               - courtier

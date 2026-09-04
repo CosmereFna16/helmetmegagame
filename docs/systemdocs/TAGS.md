@@ -433,8 +433,12 @@ reason to price one at 5.
 | −11 | Removes a whole sense or capability, with no realistic cure. |
 
 14 is the ceiling and −11 the floor; nothing should be priced outside them
-without a deliberate decision recorded here. **Pilgrim is the one deliberate
-exception, priced at 1** — off the scale entirely, Gunboat's call. **Pack
+without a deliberate decision recorded here. **Pilgrim is the first deliberate
+exception, priced at 1** — off the scale entirely, Gunboat's call.
+**Instrument is the second, also at 1** — Bascinet's call: it buys no
+advantage whatsoever, only the `/play` line, and the Minstrel gets it free
+with the role, so pricing it at a full band would have made an object nobody
+but a Minstrel would ever own. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of

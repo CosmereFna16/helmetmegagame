@@ -1715,6 +1715,97 @@ async function handleRollCommand(interaction) {
   await respond(interaction, posted ? `» *You rolled a ${value}.*` : "» *Could not post a roll here.*");
 }
 
+// /play: the Instrument tag's one verb. Two lines, and which one you get is
+// decided by whether the player holds Musician — an instrument in the hands of
+// somebody who never learned is the joke the tag exists for.
+//
+// WHY THE ROOM LINE IS FULL SIZE. CLAUDE.md says a line the WORLD says into a
+// channel is `-#` subtext, and the location half below obeys that. The room
+// half deliberately does not, at Bascinet's direction: the room is where the
+// performance is happening, so it is an event in the scene rather than
+// scenery under it. The Location channel only OVERHEARS it, and that half is
+// subtext exactly as the rule says. Don't "fix" the asymmetry — it is the
+// feature.
+const INSTRUMENT_SLUG = "instrument";
+const MUSICIAN_SLUG = "musician";
+const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
+
+// In-memory, keyed by character id, volatile across a bot restart — the same
+// shape as the ticket guard in bot/src/lib/reportChannel.js. A restart
+// clearing a flavour cooldown costs nothing, and the alternative is a schema
+// column and a migration for a joke.
+const PLAY_COOLDOWN_MS = 5 * 60_000;
+const lastPlayed = new Map();
+
+// Three glyphs, repeats allowed — "a random combination of 3", not three
+// distinct ones, so ♩♩♪ is a legal result.
+function noteFlourish() {
+  return Array.from({ length: 3 }, () => NOTE_GLYPHS[Math.floor(Math.random() * NOTE_GLYPHS.length)]).join("");
+}
+
+async function handlePlayCommand(interaction) {
+  await ack(interaction);
+
+  // findAliveCharacter returns a bare row; the tag gate needs the tags, so
+  // this reads them in the one query rather than making a second.
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+
+  const held = (slug) => character.tags.some((ct) => ct.tag?.slug === slug && ct.quantity > 0);
+  if (!held(INSTRUMENT_SLUG)) {
+    await respond(interaction, "» *You have nothing to play.* ‡");
+    return;
+  }
+
+  // Where: a Room or a Conversation is a THREAD under its Location's channel,
+  // so resolveChannelContext resolving to a location covers the open street
+  // and every thread hanging off it in one check — and refuses a zone
+  // #summary or #cerberon, which are not places anyone is standing.
+  const channel = interaction.channel;
+  const context = channel ? resolveChannelContext(channel) : null;
+  if (!channel || context?.channelKind !== "location") {
+    await respond(interaction, "» *There's nobody here to hear it.* ‡");
+    return;
+  }
+
+  const since = Date.now() - (lastPlayed.get(character.id) ?? 0);
+  if (since < PLAY_COOLDOWN_MS) {
+    const minutes = Math.max(1, Math.ceil((PLAY_COOLDOWN_MS - since) / 60_000));
+    await respond(interaction, `» *Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
+    return;
+  }
+
+  const line = held(MUSICIAN_SLUG)
+    ? `You hear an instrument playing, beautifully. ${noteFlourish()}`
+    : `You hear an instrument playing, badly. ${noteFlourish()}`;
+
+  // The room first, and its result is what decides whether this counted. A
+  // failed overhear must not cost the player their cooldown or swallow the
+  // performance.
+  const posted = await channel.send(`${line} ‡`).catch(() => null);
+  if (!posted) {
+    await respond(interaction, "» *Couldn't play here.* ‡");
+    return;
+  }
+  lastPlayed.set(character.id, Date.now());
+
+  // ...and the street outside hears it, small. Only when the room WAS a
+  // thread — run on the open street, the channel above already is the
+  // Location, and a second copy under the first would just be the same line
+  // twice.
+  if (channel.isThread() && channel.parent) {
+    await channel.parent.send(ambientLine(line)).catch(() => null);
+  }
+
+  await respond(interaction, "» *You play.* ‡");
+}
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -1731,6 +1822,7 @@ module.exports = {
         if (interaction.commandName === "conceal") return void (await handleConcealCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
+        if (interaction.commandName === "play") return void (await handlePlayCommand(interaction));
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
