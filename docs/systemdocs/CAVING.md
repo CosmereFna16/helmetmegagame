@@ -274,10 +274,13 @@ Both documented in full in `schema.prisma`'s `Tag` model comments and read by
 
 Unrelated to the die itself but shipped in the same update: `radio-system`
 and `radio-bracelet` were renamed to `radio-system-watch` /
-`radio-bracelet-watch` ("Radio System (Watch)" / "Radio Bracelet (Watch)"),
-both descriptions gaining "Tuned to the Watch's frequency." `syncTags.js`
-upserts by slug and never renames, so the old rows are simply left behind
-for `db:prune-tags` once nothing holds them.
+`radio-bracelet-watch`, both descriptions gaining "Tuned to the Watch's
+frequency." `syncTags.js` upserts by slug and never renames, so the old rows
+are simply left behind for `db:prune-tags` once nothing holds them.
+
+They were renamed a second time when the Watch became the Cerberon, and are
+now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
+(Cerberon)" / "Radio Bracelet (Cerberon)"). Same mechanic, same leftovers.
 
 ## 9. Where the code lives
 

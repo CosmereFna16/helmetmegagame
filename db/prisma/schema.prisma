@@ -593,12 +593,12 @@ model GameConfig {
   // capped role proportionally without touching the YAML.
   playerCount Int @default(100)
 
-  // The narrowcast channels (#watch, #intercom) live under a
+  // The narrowcast channels (#cerberon, #intercom) live under a
   // shared Discord "radio" category — see db/lib/specialChannels.js.
   // Provisioned once by npm run db:sync-narrowcast-channels; never touched
   // again after that.
   radioCategoryId   String?
-  watchChannelId    String?
+  cerberonChannelId String?
   intercomChannelId String?
   // Orphaned: #mindlink went with the Cult of Bacchus (docs/archive/bacchus.yaml).
   // Nothing reads or writes it; kept rather than migrated away.

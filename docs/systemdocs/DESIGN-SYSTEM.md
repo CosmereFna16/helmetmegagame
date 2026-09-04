@@ -64,7 +64,7 @@ Three things about the token set are load-bearing and easy to undo by accident:
   attribute. `--accent` as text measures **2.96** on dusk's `--surface`: under
   not just AA's 4.5 but the 3.0 large-text floor.
 - **The zone code is fills only.** `--zone-fortress` / `--zone-town` /
-  `--zone-forest` / `--zone-east-forests` / `--zone-marshes` / `--zone-caves` /
+  `--zone-forest` / `--zone-hills` / `--zone-marshes` / `--zone-caves` /
   `--zone-depths` are colour-picked from the map and
   declared **inside each `[data-theme]` block**, not on `:root`, so the audit
   script sees them. They are the rule down the side of a `.zone-chip` and

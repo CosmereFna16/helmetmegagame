@@ -273,7 +273,7 @@ Kind switch; the Turn tab links across.
 ## 7a. Resource transfers
 
 The Identity tab's Resources field only mints or burns ⬢ — it has no
-counterparty, because a staged edit is one character's diff. "The Watchmen
+counterparty, because a staged edit is one character's diff. "The Cerberi
 paid Sera 8 ⬢" needs a party on both ends, which is what the **Transfer ⬢**
 button (`ActionBar.js`, `ResourcesIcon`) is for: two Selects, "From" and
 "To", each over the roster of ALIVE characters — with a small ⇄ button to

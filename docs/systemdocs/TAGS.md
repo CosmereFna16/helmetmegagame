@@ -270,12 +270,12 @@ in `docs/archive/bacchus.yaml`, and the mechanism below applies to any future
 hidden category the same way it applied to that one.)
 
 The same field also gates a group **inside a visible category**, which is how
-body membership is modelled: `general-watch` ("The Watch", behind `watchman`)
+body membership is modelled: `general-cerberon` ("Cerberon", behind `cerberon`)
 and `general-brigand` ("Brigands", behind `brigand`) sit in `general`, so the
 General tab stays because `general-traits` and `general-social` are ungated —
 only the group vanishes. Same rule about not repeating the gate on the members.
 
-Note where the two keys live: `watchman` and `brigand` are in
+Note where the two keys live: `cerberon` and `brigand` are in
 `general-traits`, **outside** the groups they open. A gated group cannot hold
 its own key — nobody would ever be able to see it. Both are
 `purchasable: false` and arrive from `roles.yaml` `starting_tags`, which is
@@ -1623,11 +1623,11 @@ out of sight when you aren't using it.
 - **`worn`** — the sidearms and short blades (Dagger, Silver Knife, Work
   Knife, Knuckle Duster, Sling, Sword Cane, Bomb, and every pistol including
   the Sawn-Off), armor that goes under clothes (Padded Armor, Brigandine), and
-  the small worn signals: Watch Badge, Sheriff's Badge, Hand's Pin, Incarn's
+  the small worn signals: Sheriff's Badge, Hand's Pin, Incarn's
   Key, Bishop's Mitre, Headman's Cap, Esculap's Vest, Jewelry, Spectacles,
   Radio Bracelet, Dark-Eye Lenses. The badges are the interesting half — an
   officer can now go about unmarked, and displaying the thing is a choice,
-  which is what the Watch Badge's own description always claimed.
+  which is what the Sheriff's Badge's own description always claimed.
 - **`true`** — everything you cannot hide by not holding it: swords,
   polearms, bows, shields, plate, banners, the Baron's Scepter, the Power
   Fist, the Flamethrower, and all the garb and robes. Carrying one reads the

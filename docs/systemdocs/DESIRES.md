@@ -145,7 +145,7 @@ Scholastic role, so a Serpent who bought it saw nothing change — the rows
 evaluated `locked`, and `/character` drops those server-side. The same shape
 had also quietly killed **role** entries: `bury-a-body` offered `chaplain`,
 who can never hold the role-exclusive `mortus` tag, and `imprison-someone`
-offered `sheriff`, who never holds `watchman`.
+offered `sheriff`, who never holds `cerberon`.
 
 Both lists must be non-empty for `combine: or`; the sync throws otherwise,
 because an OR over one populated list is a silent no-op that still reads
@@ -159,9 +159,9 @@ twenty-three tag+role Desires keep it on purpose:
 - the five Lifeweb `feed-*` ones — the Mortus's sacral job, not something the
   role-exclusive `mortus` tag should carry on its own;
 - all five `corrupt` ones. Unlike Esoteric, `corrupt` is `visible: false` and
-  promises no unlocks, so it reads as a Watch-flavoured tag rather than a
-  broad purchase that disappoints. `sell-a-watch-secret` is the clearest case
-  — you cannot sell Watch equipment you were never issued.
+  promises no unlocks, so it reads as a Cerberon-flavoured tag rather than a
+  broad purchase that disappoints. `sell-a-cerberon-secret` is the clearest
+  case — you cannot sell Cerberon equipment you were never issued.
 
 ### Lock-clause grammar and the union rule
 

@@ -36,7 +36,7 @@ const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
 // Reconciles a character's per-member overwrites on the narrowcast channels
-// (#watch) against their CURRENT zone/tags. Same
+// (#cerberon) against their CURRENT zone/tags. Same
 // computation as web/lib/discordGuild.js#syncCharacterNarrowcastAccess,
 // built on the db/lib REST primitives instead of the web ones.
 async function reconcileNarrowcastAccess(prisma, characterId, discordUserId) {
@@ -110,7 +110,7 @@ async function swapLocationOverwrite(discordUserId, fromChannelId, toChannelId) 
 // name and face would defeat the whole point of the unmanned form.
 //
 // The two forms differ only in who the line names. A manned gate has a
-// watchman on it, so it reads the traveller's papers: their true name, and
+// Cerberus on it, so it reads the traveller's papers: their true name, and
 // /conceal does not help. An unmanned one has nobody to read anything, so it
 // records what a passer-by would have seen — "An old woman" — and never the
 // name behind it.

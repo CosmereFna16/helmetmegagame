@@ -154,8 +154,8 @@ the 10-char cap holds with the catalog as it stands.
 | Title | Earned from | MAN / WOMAN / NEUTRAL |
 |---|---|---|
 | Sergeant | tag `sergeant` | one word |
-| Constable | tag `watchman` | one word |
-| Captain | role `captain` | one word |
+| Constable | tag `cerberon` | one word |
+| Censor | role `censor` | one word |
 | Knighthood | tag `knighted` | Sir / Dame / Ser |
 | Nobility | tag `nobility` | Lord / Lady / Noble |
 | The Baron's seat | roles `baron` `baroness` | Baron / Baroness / Baron |
@@ -171,19 +171,19 @@ that; the dropdown picks between Lord and Sir. So `earnedTitles()` returns one
 word per earned title, never three.
 
 Only five titles are gendered at all. Rank and profession say nothing about
-their wearer, which is why Captain, Doctor and Master sit on the flat side —
+their wearer, which is why Censor, Doctor and Master sit on the flat side —
 and every gendered set carries a neutral third, so nobody has to pick a side
 to be styled.
 
 Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a Bishop
-may style themselves Father, Mother or Reverend instead. Same for Captain
-(grants `watchman`) and the Baron's family (grant `nobility`). **Most of
+may style themselves Father, Mother or Reverend instead. Same for Censor
+(grants `cerberon`) and the Baron's family (grant `nobility`). **Most of
 Ravenheart is untitled** — a Commoner earns nothing, and the picker says so
 rather than showing an empty control.
 
 Three titles hang off *purchasable* tags (`sergeant`, `knighted`,
 `medical-skilled`), so they can be bought with points — but each sits behind a
-membership gate already (`general-watch` needs `watchman`, `general-court`
+membership gate already (`general-cerberon` needs `cerberon`, `general-court`
 needs `courtier`), so nobody buys a title cold.
 
 ### Gender
@@ -362,9 +362,9 @@ Baron in a 300-player game.
 
 **Who occupies a seat** is `roleCapacity.js#seatHolderStatuses(role)`: a
 living character, normally — the holder dies and the role is offered again,
-which is right for a Bum or a Watchman. The roles in
+which is right for a Bum or a Cerberus. The roles in
 `PERMANENT_SEAT_ROLE_SLUGS` — Gunboat's list: Baron, Baroness, Heir,
-Successor, Hand, Meister, Arbiter, Captain, Incarn, Bishop, Esculap,
+Successor, Hand, Meister, Arbiter, Censor, Incarn, Bishop, Esculap,
 Inquisitor, Headman, Sheriff, Innkeeper and both Brigand roles — count DEAD
 holders too, so once taken they stay taken for the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
 Merchant are unique and deliberately absent) nor a faction — read the
@@ -705,7 +705,7 @@ dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.
 
-## 6. Special channels (`#watch`)
+## 6. Special channels (`#cerberon`)
 
 These are the **only** per-member overwrites left in the game: zone access
 rides a role now, but a special channel's grant is still keyed on

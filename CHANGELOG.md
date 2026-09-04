@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The Watch is now the Cerberon
+
+✎ The Watch is the Cerberon, the Captain is the Censor, and a Watchman is a Cerberus. The radio channel, the radio tags, the wax stamp, the office and the handbook page all moved with them  
+✚ The Censor starts with a helmet, a shield, Melee (Shield Wall), Ranged (Basic) and the Cerberon radio system, and drops the bottle — Alcoholic is gone from the seat  
+✚ Every Cerberus, and the Incarn, now start with Melee (Shield Wall). The Squire does not  
+✚ Three Radio Bracelets waiting in the armory, so the Censor can equip new hires without buying any  
+✚ A Merchant's Office in the Depot, behind the Merchant's Licence. A desk, filing cabinets, and a big red button  
+− The Watch Badge. The gate now recognizes the Cerberon itself, plus Knighted, instead of a badge anyone could pocket  
+✎ The Depot's lock moved off the Landing Pad and onto the Cargo Bay — the pad is a hole in the roof, the goods are worth a door  
+✎ The Depot terminal only opens while you are standing at the Depot. Every button on it already refused from anywhere else; now the page does too  
+✎ The Censor's office is described again, and the turret switch is on the wall where the documents say it is
+
 ## 2026-09-04 · The Commoner and her kits, the Arbiter, and four seats retired
 
 ✎ The Peasant is now the Commoner, and starts skilled at labor and nothing else — no default farm, no shack  

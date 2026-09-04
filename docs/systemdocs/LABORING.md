@@ -69,8 +69,8 @@ drifted it, and `current` is the only number a payout or the Examine button
 ever reads.
 
 ```yaml
-    forest-5:
-      name: Forest 5
+    forest-boardwalk:
+      name: Boardwalk
       description: >-
         …
       yield: { hunting: 0.7, farming: 0.3 }
@@ -90,20 +90,22 @@ would disable hunting somewhere and the symptom is nearly invisible in play.
 ### 3a. The authored table
 
 Anything not listed has no row and cannot be worked. Locations are addressed by
-the **numeric suffix of the slug** (the hand-drawn map node number), which for
-Forest is not the number in the display name: `forest-36` shows as "Forest 11".
+slug — open country carries its zone as a prefix, built places do not
+(`docs/zones.yaml`).
 
-**Farming** — Farms 1.0 · Manors 0.6 · `forest-4`/`8`/`9` 0.5 · every other
-Forest tile 0.3 · Keep 0.2.
+**Farming** — Farms 1.0 · Manors 0.6 · `forest-north-road` / `forest-shrine` /
+`forest-terraces` 0.5 · every other Forest place 0.3 · Keep 0.2.
 
-**Fishing** — `forest-1`/`3`/`4`/`6`/`10`/`36` 0.7 · `east-forests-27` 0.8 ·
-`marshes-31`…`35` 1.0.
+**Fishing** — `forest-river` / `forest-crossroads` / `forest-north-road` /
+`forest-charcoal` / `forest-culvert` / `forest-coppice` 0.7 ·
+`hills-black-pines` 0.8 · the five open Marshes 1.0.
 
-**Hunting** — Forest 0.5 except `forest-5` 0.7 · `marshes-31`…`35` 1.0 · East
-Forests 0.8 except `east-forests-30` 1.1 and `east-forests-27` 1.3 ·
-`caves-14`…`17` 0.4 · Depths 0.6 except `depths-19` 1.8 and `depths-23` 1.6.
+**Hunting** — Forest 0.5 except `forest-boardwalk` 0.7 · the five open Marshes
+1.0 · Black Hills 1.0 except `hills-scrub` 1.1 and `hills-black-pines` 1.3 ·
+the four Caves 0.4 · Depths 0.6 except `depths-runnel` 1.8 and `depths-saltrise`
+1.6.
 
-The Fishing Village fishes at 1.2 and does nothing else; the Godard Factory has
+The marsh Village fishes at 1.2 and does nothing else; the Godard Factory has
 no rows at all and is worked anyway (§3b). Town and Fortress have neither
 hunting nor fishing; their only yield is farming. Nothing farms or fishes
 underground.
@@ -333,7 +335,7 @@ job, and the numbers move anyway.
 | < 1.55 | Ample |
 | ≥ 1.55 | Bountiful |
 
-At base, only `depths-19` and `depths-23` wear Bountiful. This button is the
+At base, only `depths-runnel` and `depths-saltrise` wear Bountiful. This button is the
 **only** surface that shows a coefficient — not `#summary`, not the anchor.
 
 ## 10. File map

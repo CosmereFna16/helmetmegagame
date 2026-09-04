@@ -32,7 +32,7 @@ const PERM_SEND_MESSAGES = 2048;
 // Tupper/summary status is channel-ID-based (getLocationChannelIds below).
 // Since Bascinet 2 the tupper set is every Location channel plus each zone's
 // #summary; #summary is also the channel a zone's summaries post to.
-// #watch is tupper-only (no zone to summarize into).
+// #cerberon is tupper-only (no zone to summarize into).
 export function isSummaryChannel(channel, locationChannelIds) {
   if (channel.type !== CHANNEL_TYPE_TEXT) return false;
   return locationChannelIds?.tupperSummary?.has(channel.id) ?? false;
@@ -406,7 +406,7 @@ export async function deleteCharacterRole(discordRoleId) {
   });
 }
 
-// Reconciles per-member overwrites on #watch against current tags
+// Reconciles per-member overwrites on #cerberon against current tags
 // and Zone (see db/lib/specialChannels.js). Every location change goes through
 // db/lib/locationMove.js#applyLocationMoveSideEffects instead, which does this
 // and the two role swaps in one place; this stays for the tag-change callers.

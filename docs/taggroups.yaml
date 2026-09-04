@@ -106,11 +106,11 @@ groups:
   # player who isn't in the body never sees the group at all. Unlike Demoness
   # these sit in the `general` category, which stays visible
   # because general-traits and general-social are ungated.
-  general-watch:
-    name: The Watch
+  general-cerberon:
+    name: Cerberon
     category: general
     color: "#5e84c1"
-    requiredTag: watchman
+    requiredTag: cerberon
   general-brigand:
     name: Brigands
     category: general

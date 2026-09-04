@@ -113,7 +113,7 @@ export async function bulkTagCharacters({ characterIds, tagId, mode }) {
       },
     });
 
-    // A granted or revoked tag may change narrowcast access (#watch) and
+    // A granted or revoked tag may change narrowcast access (#cerberon) and
     // private-room membership — a key tag gained opens a door,
     // a key tag lost shuts it. Sequential and after the writes, per
     // ARCHITECTURE.md §5 — never a fan-out of REST calls at Discord's rate

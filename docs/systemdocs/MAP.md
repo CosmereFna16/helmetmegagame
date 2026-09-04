@@ -19,7 +19,19 @@ channel doctor's `character-place` check flags a mismatch (`CHANNELS.md`
 §6).
 
 `docs/zones.yaml` is the sole master (`SYNC.md` for the sync's destructive
-semantics, including the format). Zones still come in three kinds:
+semantics, including the format).
+
+**How a Location is slugged.** A built place takes a bare slug and a bare
+name — `keep`, `factory`, `cathedral`, `depot`. Open country takes its zone as
+a prefix — `forest-river`, `hills-ravine`, `marshes-village`,
+`depths-runnel` — because a ravine and a river are things every zone has one
+of, and the slug is also the Discord channel name. The wilderness used to be
+numbered instead (`forest-7`, `Depths 3`), with the hand-drawn map's number
+buried in the slug and a different one in the display name; the drawing's
+number now lives in `map_node:`, which nothing but a person reads. The Black
+Hills zone slug is `hills`.
+
+Zones still come in three kinds:
 
 | `kind` | Zones | Standable itself? | Discord |
 |---|---|---|---|
@@ -127,7 +139,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Behaviour | Column | Effect |
 |---|---|---|
 | Open | — | the default |
-| Gate | `announce: TRUE_NAME` | posts the crosser's **real name** into the destination zone's `#summary`. `/conceal` does not help: there is a watchman here reading papers |
+| Gate | `announce: TRUE_NAME` | posts the crosser's **real name** into the destination zone's `#summary`. `/conceal` does not help: there is a Cerberus here reading papers |
 | Unmanned gate | `announce: CONCEALED` | posts only what a passer-by would have seen — "An old woman has entered the Gate" |
 | Locked | `requiredTagSlug` | crossing needs the tag, and the way is **listed**, so a player sees the door and learns what opens it |
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |

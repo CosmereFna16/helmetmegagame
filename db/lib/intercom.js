@@ -20,10 +20,8 @@ const { postMessage } = require("./discordRest");
 // correct value, and a missing env var would have been a silent no-op.
 const INTERCOM_ROOM_SLUG = "council-room";
 
-// Zone slugs the PA does not reach. `east-forests` is the Black Hills — the
-// slug never moved when the zone was renamed (docs/zones.yaml), so this is the
-// right identifier even though nothing calls it that any more.
-const OUT_OF_RANGE_ZONE_SLUGS = ["east-forests"];
+// Zone slugs the PA does not reach. `hills` is the Black Hills.
+const OUT_OF_RANGE_ZONE_SLUGS = ["hills"];
 
 // The body is player-typed, so `parse: ["everyone"]` is doing two jobs: it
 // lets OUR @here through, and it blocks every user and role ping somebody

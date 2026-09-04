@@ -19,9 +19,9 @@ const FAST_TRAVEL_SLUGS = new Set(["horse", "steam-automobile"]);
 // FAST_TRAVEL_SLUGS is what holds all three of those true for free.
 const WATER_TRAVEL_SLUGS = new Set(["fishing-boat"]);
 
-// Where a boat is any use. Zone SLUGS, not names — `east-forests` is the Black
-// Hills (docs/zones.yaml keeps the old id on purpose).
-const WATER_ZONE_SLUGS = new Set(["forest", "east-forests", "marshes"]);
+// Where a boat is any use. Zone SLUGS, not names — `hills` is the Black
+// Hills.
+const WATER_ZONE_SLUGS = new Set(["forest", "hills", "marshes"]);
 
 // Tags that stop working the moment they leave your hands. Cart is here for
 // its carry multiplier and its extra seats; the mounts and the boat for their

@@ -12,7 +12,7 @@ lesson. This is the game's first code-adjudicated Gambit.
   (Hunger, Disappointed; `db/lib/gambitModifier.js`).
 - **Teaching (Lecturing)** (5 pt, upgrade of Teaching): up to **three**
   students on the one Routine.
-- **Teaching (Drill Instructor)** (3 pt, `general-watch`, so Watchman-only;
+- **Teaching (Drill Instructor)** (3 pt, `general-cerberon`, so Cerberus-only;
   requires Teaching): a student learning a **fighting skill** (group
   `skills-fighting`) succeeds on a **4, 5 or 6**. Stacks with Lecturing. It
   replaced the old Drillmaster tag.

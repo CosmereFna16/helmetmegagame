@@ -267,7 +267,7 @@ The thunk performs, in narrative order:
 Everything is sequential and individually `.catch()`'d, so a Discord failure
 never blocks the turn. The Dawn wipe additionally guards **per zone**, so
 one channel a GM deleted by hand costs that room rather than every room after
-it plus `#watch`. **Never `Promise.all` a fan-out here** — sequential
+it plus `#cerberon`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 

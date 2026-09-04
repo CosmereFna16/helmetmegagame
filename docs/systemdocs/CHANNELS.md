@@ -21,7 +21,7 @@ system.
 |---|---|---|
 | A zone's `#summary` | yes | yes — adjudication results and staged public declarations post here |
 | A Location channel (surface or cave level) | yes | no |
-| `#watch` | yes | no — it is tied to no place, so there is no adjudication result to post there |
+| `#cerberon` | yes | no — it is tied to no place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -450,7 +450,7 @@ so a ghost can still ⭐ a message onto their own `/notes` page. That grant
 predates the removal of the 🌬️ whisper (`COMMANDS.md` §6) and outlived it.
 
 **Ghosts now see every zone**, cave levels included — the Depths blackout and
-its `DEPTHS_SLUGS` exclusion list are gone. They read `#watch` too
+its `DEPTHS_SLUGS` exclusion list are gone. They read `#cerberon` too
 (each special-channel entry declares `ghostsMaySee`). Private threads stay
 invisible to them the way they are to any non-member; no overwrite is needed to
 keep that so.
@@ -515,7 +515,7 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#watch`)
+## 7. Special channels (`#cerberon`)
 
 Standing channels outside the zone system, under one `radio` category (id on
 `GameConfig.radioCategoryId`). There is one of them left.
@@ -533,10 +533,10 @@ two access twins and the wipe.
 
 | Channel | Who sees it | Who speaks |
 |---|---|---|
-| `#watch` | **Radio Bracelet (Watch)** or **Radio System (Watch)** holders (per-member overwrite) | Radio System (Watch) holders only |
+| `#cerberon` | **Radio Bracelet (Cerberon)** or **Radio System (Cerberon)** holders (per-member overwrite) | Radio System (Cerberon) holders only |
 
 The Radio tags are transferable, so possession is what matters — a bracelet
-handed to a non-Watch character still opens `#watch`.
+handed to a character outside the Cerberon still opens `#cerberon`.
 
 The sync still enforces `roleViewZones` in both directions: it grants the
 listed zone roles view *and* deletes any zone-role grant the registry no longer
@@ -588,7 +588,7 @@ else.
   and a deferred interaction can no longer open one (`COMMANDS.md`), so the
   button handler does no database work at all.
 - **The Black Hills do not hear it** (`OUT_OF_RANGE_ZONE_SLUGS`, the slug
-  `east-forests` — it never moved when the zone was renamed). The barony's writ
+  `hills`). The barony's writ
   thins out across the river and no speaker was ever strung that far. The cave
   levels need no exclusion: they have no `#summary`, so the rock swallows the
   PA for free.
@@ -688,7 +688,7 @@ Per target, for every zone including cave levels, and per Location in it:
 | a Conversation | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
 | a thread newer than the cutoff | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next Dawn |
 | an untracked thread (no `PlayerThread` row, not a Room) | **adopted**: a `PlayerThread` row is written rather than the thread destroyed, so a GM's hand-made thread gets one full turn and a visible record instead of vanishing |
-| every registry entry with `wipe: "clear"` (`#watch`) | every message deleted |
+| every registry entry with `wipe: "clear"` (`#cerberon`) | every message deleted |
 
 **Each Location is wiped inside its own `try`**, so one stale channel id costs
 one Location rather than every Location after it plus the special channels.
