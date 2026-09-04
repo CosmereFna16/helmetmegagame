@@ -56,6 +56,10 @@ const LESSON_CATALOG_SELECT = {
   parentTagId: true,
   requiredTagId: true,
   group: { select: { slug: true, requiredTagId: true } },
+  // Named conflicts (Tag.conflictsWith). Without this column a lesson is the
+  // way round every conflict pair in the catalog: Soft Hands cannot BUY
+  // Laboring, but could always have been taught it.
+  conflictsWith: { select: { id: true } },
 };
 
 // --- eligibility ---------------------------------------------------------
@@ -96,8 +100,11 @@ function isTeacher(character) {
 
 // The skills `teacher` can teach `learner` right now: teachable, held by the
 // teacher (or a higher tier of it), not yet held by the learner at that tier
-// or above, and with the learner holding its parent tier and any gate. Same
-// gates as buying it — a lesson can't skip a prerequisite the store won't.
+// or above, with the learner holding its parent tier and any gate, and with
+// nothing the learner already holds named as a conflict. Same gates as buying
+// it — a lesson can't skip a prerequisite the store won't, and it can't skip a
+// conflict either. Soft Hands has never done a day's labor, and no amount of
+// being taught changes that.
 function teachableSkills(teacher, learner, catalog) {
   const parentOf = parentMap(catalog);
   const teacherHeld = heldTagIds(teacher);
@@ -109,6 +116,11 @@ function teachableSkills(teacher, learner, catalog) {
     if (tag.parentTagId && !holdsTier(learnerHeld, tag.parentTagId, parentOf)) return false;
     if (tag.requiredTagId && !holdsTier(learnerHeld, tag.requiredTagId, parentOf)) return false;
     if (tag.group?.requiredTagId && !holdsTier(learnerHeld, tag.group.requiredTagId, parentOf)) return false;
+    // Exact ids, not holdsTier: a conflict is with the named tag itself, and
+    // walking the chain would let one conflicting tier shut out its siblings.
+    // db:sync-tags writes conflictsWith both ways, so one direction is enough.
+    const held = new Set(learnerHeld);
+    if ((tag.conflictsWith ?? []).some((c) => held.has(c.id))) return false;
     return true;
   });
 }

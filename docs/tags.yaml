@@ -377,6 +377,10 @@ tags:
     group: general-court
     description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring. ‡"
     pointCost: -4
+    # Every skill in the skills-labor group. Listed rather than derived,
+    # because conflictsWith is a slug pair — add a sixth Laboring skill and it
+    # belongs on this line too.
+    conflictsWith: [laboring-basic, laboring-skilled, laboring-hunting, laboring-farming, laboring-fishing]
     purchasable: true
     purchasableAfterStart: false
 
