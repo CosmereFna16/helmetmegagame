@@ -50,6 +50,7 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { isTradeable } from "@/lib/tagRequests";
+import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf } from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
@@ -182,7 +183,11 @@ export default async function CharacterPage() {
     include: {
       faction: true,
       zone: true,
-      location: true,
+      // The Location's own zone kind rides along so canBuildHere() can judge
+      // this ground without a second round-trip (db/lib/structures.js) — the
+      // character's own `zone` above is their presence zone, not the
+      // Location's, and building is a fact about the ground.
+      location: { include: { zone: { select: { kind: true } } } },
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
@@ -231,6 +236,11 @@ export default async function CharacterPage() {
           // undefined and drops purchasable-only tags from the Add Tag menu.
           purchasableAfterStart: true,
           craftable: true,
+          // A craftable carrying `placement` is raised on the ground instead
+          // of landing in a pocket (db/lib/structures.js). The whole JSON
+          // crosses rather than a boolean: the menu needs `unique` too, and
+          // the column is three or four small keys.
+          placement: true,
           stackable: true,
           parentTagId: true,
           requiredTagId: true,
@@ -567,6 +577,26 @@ export default async function CharacterPage() {
     // Advanced this turn already — Continue greys until the next one.
     workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id),
   }));
+
+  // Building (db/lib/structures.js). EVERY status comes down: the standing-
+  // here panel lists a ruin as readily as a finished wall, and the Craft
+  // dialog narrows to UNDER_CONSTRUCTION itself. Projected rather than passed
+  // whole — the Prisma row carries Dates and a payer key that no client
+  // surface has any business with.
+  const sitesHere = (await structuresAt(prisma, character.locationId)).map((s) => ({
+    id: s.id,
+    typeSlug: s.typeSlug,
+    typeName: s.typeName,
+    status: s.status,
+    turnsDone: s.turnsDone,
+    turnsNeeded: s.turnsNeeded,
+    // Only the opener may call a site off, and cancelBuildSite re-checks it.
+    mine: s.builderCharacterId === character.id,
+  }));
+  // Whether this ground takes a structure at all, so the Craft menu can drop
+  // the placements rather than offer a refusal. craftRequest judges the same
+  // ground again with the same function.
+  const buildable = canBuildHere(character.location).ok;
 
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
@@ -953,6 +983,8 @@ export default async function CharacterPage() {
       canTeach={canTeach}
       knownRecipeIds={knownRecipeIds}
       craftProjects={craftProjects}
+      sitesHere={sitesHere}
+      buildable={buildable}
       teachers={teachers}
       learners={learners}
       pendingOffers={pendingOffers}

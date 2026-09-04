@@ -37,6 +37,13 @@ const ATTRIBUTES = {
   depot: {
     describe: () => "A shuttle berth, and the only door Ravenheart has to anywhere else. ‡",
   },
+  // Ground nothing may be built on, for the handful of one-off places the
+  // DERIVED rules (indoors, a cave level — db/lib/structures.js#canBuildHere)
+  // don't already cover: the Lifeweb's ground is the first. Exists to be
+  // matched on; the place's own description carries whatever there is to say.
+  noBuild: {
+    describe: () => null,
+  },
 
   // Marsh open enough that the Godflesh is in reach of a blade. What the
   // Extract button matches on, so no marsh tile has to be named by slug.
@@ -93,11 +100,16 @@ function gateLines(gates) {
   return (gates ?? [])
     .slice()
     .sort((x, y) => x.farName.localeCompare(y.farName))
-    .map((gate) =>
-      gate.isOpen
+    .map((gate) => {
+      // A shut structural edge nothing holds is not a closed door — it is a
+      // crossing nobody has built, and Examine is where that gets noticed.
+      if (gate.unbuilt) {
+        return `Nothing spans the way to ${gate.farName} — it would have to be built. ‡`;
+      }
+      return gate.isOpen
         ? `The way to ${gate.farName} stands open. ‡`
-        : `The way to ${gate.farName} is closed. ‡`,
-    );
+        : `The way to ${gate.farName} is closed. ‡`;
+    });
 }
 
 // The Depot's machinery, read off live state and handed over as ctx.depot —
@@ -131,6 +143,46 @@ function depotLines(ctx = {}) {
   return lines;
 }
 
+// The structures standing (or rising, or ruined) here, read off live state
+// and handed over as ctx.structures — the db/lib/structures.js#structuresAt
+// output. This module cannot import structures.js itself: that module
+// already imports locationAttributes.js (for hasAttribute), and a back-import
+// would make a cycle out of what is meant to be a one-way layering, caller
+// loads, this module only says.
+//
+// One line per structure, oldest first (structuresAt's own order), and a
+// ruin stays on the list rather than dropping off — a ruin is a standing
+// accusation, not scenery that tidies itself away.
+function structureLines(ctx = {}) {
+  const structures = ctx.structures;
+  if (!structures?.length) return [];
+  return structures.flatMap((structure) => {
+    const typeName = structure.type?.name ?? structure.typeName;
+    // The defenseNote (a defensive clause, or the siege licence) prints
+    // only while the structure WORKS — COMPLETE or DAMAGED — never off a
+    // wreck or a rising site, or a ruined ram would still license a storm.
+    // It is authored as a ‡-free fragment (tagShapes enforces that) because
+    // the GM Move card splices it mid-line; here it stands as its own line
+    // and picks its ‡ up on the way out.
+    const note = structure.placement?.defenseNote;
+    const noteLines = note ? [`${note} ‡`] : [];
+    switch (structure.status) {
+      case "UNDER_CONSTRUCTION":
+        return [`A ${typeName} is going up here (${structure.turnsDone}/${structure.turnsNeeded}). ‡`];
+      case "COMPLETE":
+        return [structure.placement?.examine ?? `A ${typeName} stands here. ‡`, ...noteLines];
+      case "DAMAGED":
+        return [`The ${typeName} here is damaged. ‡`, ...noteLines];
+      case "RUINED":
+        return [`The ruin of a ${typeName} lies here. ‡`];
+      case "ABANDONED":
+        return [`The abandoned groundwork of a ${typeName} sits here, gone nowhere. ‡`];
+      default:
+        return [];
+    }
+  });
+}
+
 // Everything true about where you stand, as prose lines. The labor readout is
 // NOT here: it is a fixed-order table of its own that predates this module
 // (db/lib/laborYield.js#qualityWord), and the caller prints it first.
@@ -139,6 +191,7 @@ function describeLocation(location, ctx = {}) {
     indoorsLine(location),
     ...authoredLines(location, ctx),
     ...depotLines(ctx),
+    ...structureLines(ctx),
     ...gateLines(ctx.gates),
   ].filter(Boolean);
 }
@@ -174,6 +227,7 @@ module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
   depotLines,
+  structureLines,
   ATTRIBUTES,
   authoredLines,
   indoorsLine,

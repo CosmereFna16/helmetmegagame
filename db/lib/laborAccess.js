@@ -17,6 +17,7 @@
 const { computeRate, SPECIALISATION_KINDS } = require("./production");
 const { isRefinery, refineryInput, REFINERY_YIELD } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
+const { structuresAt } = require("./structures");
 const {
   EXHAUSTED_SLUG,
   LABORING_BASIC_SLUG,
@@ -63,7 +64,7 @@ const SPECIALISATIONS = [
 ];
 
 // Loads everything the rules need for one character: the tags they hold, where
-// they stand, and what that place yields.
+// they stand, what that place yields, and what stands built there.
 async function buildLaborContext(prisma, characterId) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },
@@ -74,20 +75,25 @@ async function buildLaborContext(prisma, characterId) {
       },
     },
   });
-  const tags = await prisma.characterTag.findMany({
-    where: { characterId },
-    select: {
-      equipped: true,
-      tag: { select: { slug: true, name: true, group: true, laborBonus: true } },
-    },
-  });
+  const [tags, structures] = await Promise.all([
+    prisma.characterTag.findMany({
+      where: { characterId },
+      select: {
+        equipped: true,
+        tag: { select: { slug: true, name: true, group: true, laborBonus: true } },
+      },
+    }),
+    // COMPLETE only — the same reading equipmentReach.js uses: a half-built
+    // or damaged weir catches nothing, which is what gives Damage teeth.
+    structuresAt(prisma, character?.locationId, { statuses: ["COMPLETE"] }),
+  ]);
 
   const ctx = {
     locationName: character?.location?.name ?? null,
     yields: yieldMap(character?.location?.yields ?? []),
     refinery: isRefinery(character?.location),
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
-    tools: toolsFrom(tags),
+    tools: [...toolsFrom(tags), ...structureTools(structures)],
   };
   // Only asked when it matters — 56 of the 57 Locations are not a refinery and
   // pay nothing for this. The auto-labor pass does not come through here at
@@ -130,6 +136,42 @@ function toolsFrom(tagRows) {
     });
   }
   return tools;
+}
+
+// Structures paying into the labor of everyone standing at their Location, as
+// synthetic tool entries beside toolsFrom's — a Fish Weir is a tool nobody
+// carries. Never equipped (there is nothing to hold), never a weapon (sums on
+// top of the best-weapon rule like every other non-weapon tool), and the DM
+// names it through the same formatLaborBonusNote path for free.
+//
+// NON-STACKING: one bonus per kind, the best one. Two hunting structures on
+// one ground pay like the better of the two — a location-wide bonus is a
+// faucet times occupancy, and the plan's ceiling is enforced here rather
+// than hoped about in catalog pricing. Ties keep the older structure, which
+// is stable because structuresAt orders by (createdAt, id).
+//
+// `structures` is structuresAt output (rows carrying .placement), already
+// filtered to COMPLETE by the caller.
+function structureTools(structures) {
+  const bestByKind = new Map();
+  for (const s of structures ?? []) {
+    const bonus = s.placement?.laborBonus;
+    if (!bonus || !bonus.kind || !bonus.amount) continue;
+    const kind = String(bonus.kind).toLowerCase();
+    const amount = Number(bonus.amount) || 0;
+    const best = bestByKind.get(kind);
+    if (best && best.amount >= amount) continue;
+    bestByKind.set(kind, {
+      name: s.type?.name ?? s.typeName,
+      kind,
+      amount,
+      needsEquipped: false,
+      requiresTag: null,
+      equipped: false,
+      isWeapon: false,
+    });
+  }
+  return [...bestByKind.values()];
 }
 
 // { ok: true } or { ok: false, reason }. One rule left: one Labor per day. The
@@ -364,6 +406,7 @@ module.exports = {
   laborTierLabel,
   resolveLaborRateFrom,
   resolveLaborRate,
+  structureTools,
   toolsFrom,
   yieldMap,
 };

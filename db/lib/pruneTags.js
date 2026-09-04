@@ -50,7 +50,7 @@ function expiresIntoSlugs(entries) {
 // again (its m2m join rows cascade when the tag goes). Counting either would
 // let a retired catalog pin its own gate tag forever.
 async function collectReferences(prisma, liveGroupSlugs) {
-  const [held, parents, required, groupGates, skills, roles, documents, conflicts, desireTags, consumers] =
+  const [held, parents, required, groupGates, skills, roles, documents, conflicts, desireTags, consumers, structures] =
     await Promise.all([
       prisma.characterTag.groupBy({ by: ["tagId"], _count: { tagId: true } }),
       prisma.tag.findMany({ where: { parentTagId: { not: null } }, select: { id: true, parentTagId: true } }),
@@ -95,6 +95,11 @@ async function collectReferences(prisma, liveGroupSlugs) {
           expiresInto: true,
         },
       }),
+      // A Structure names its type by slug (Structure.typeSlug), not an FK —
+      // same reasoning as consumeTargets below. Any status counts: a
+      // half-built or ruined Structure still stands somewhere, matched by the
+      // catalog slug the prune is about to delete.
+      prisma.structure.groupBy({ by: ["typeSlug"], _count: true }),
     ]);
 
   // Tag-to-tag references keep the id of the tag that MAKES the reference, so
@@ -118,6 +123,7 @@ async function collectReferences(prisma, liveGroupSlugs) {
         ...d.requiresNotTags.map((t) => t.id),
       ]),
     ),
+    structureCount: new Map(structures.map((s) => [s.typeSlug, s._count])),
     // Every slug any tag names by slug rather than FK: consumesInto,
     // consumesIntoUnless (targets and blocking slugs), consumesIntoDurations,
     // and expiresInto. None of these is a real DB relation, so this list is
@@ -150,6 +156,7 @@ function blockersFor(tag, refs, survivorIds) {
   if (refs.documentSlugs.has(tag.slug)) blockers.push("a Document is assigned by it");
   if (live(refs.conflictIds, tag.id)) blockers.push("another tag conflicts with it (conflictsWith)");
   if (refs.desireTagIds.has(tag.id)) blockers.push("a DesireTemplate gates on it (requiresAnyTags/requiresNotTags)");
+  if (refs.structureCount.get(tag.slug) > 0) blockers.push("a Structure of this type stands somewhere");
   return blockers;
 }
 

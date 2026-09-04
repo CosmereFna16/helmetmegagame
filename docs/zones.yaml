@@ -349,6 +349,8 @@ zones:
         name: Lifeweb
         description: >-
           A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
+        attributes:
+          noBuild: true
         rooms: {}
       servant-wing:
         name: Servant Wing

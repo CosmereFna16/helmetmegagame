@@ -27,6 +27,7 @@ import {
   packableTags,
   consumableTags,
   addRequirementSatisfied,
+  placementOfferedHere,
 } from "@/lib/tagRequests";
 import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
@@ -47,6 +48,8 @@ import {
   craftRequest,
   continueCraft,
   cancelCraft,
+  joinBuildSite,
+  cancelBuildSite,
   destroyTagRequest,
   learnRequest,
   teachRequest,
@@ -239,6 +242,14 @@ function TagPicker({
                     ‡
                   </span>
                 )}
+                {/* A placement is raised on the ground rather than handed
+                    over, so the row says where it ends up before the recipe
+                    line's turns and ⬢ are read as a pocketable thing. */}
+                {byId && tag.placement && (
+                  <span className="mt-1 block text-xs text-muted">
+                    Built where you stand ‡
+                  </span>
+                )}
               </span>
             </button>
           );
@@ -347,6 +358,12 @@ export default function RequestActionsProvider({
   // server-side, and your projects in progress.
   knownRecipeIds = [],
   craftProjects = [],
+  // Building (db/lib/structures.js). `sitesHere` is every structure at this
+  // Location, all statuses; `buildable` is whether the ground takes anything
+  // new at all. Both decided server-side in character/page.js, and both are
+  // menu hygiene — openBuildSiteImpl re-checks each refusal.
+  sitesHere = [],
+  buildable = false,
   // Lessons (LESSONS.md): who could teach you what, and whom you could teach.
   canTeach = false,
   teachers = [],
@@ -399,6 +416,8 @@ export default function RequestActionsProvider({
   const [quantity, setQuantity] = useState("1");
   // Craft: a project in progress, and what to do with it.
   const [projectId, setProjectId] = useState("");
+  // A build site standing here, picked from the same dropdown as a project.
+  const [siteId, setSiteId] = useState("");
   const [projectChoice, setProjectChoice] = useState("continue");
   const [recipient, setRecipient] = useState("");
   const [patientId, setPatientId] = useState("");
@@ -459,12 +478,20 @@ export default function RequestActionsProvider({
   );
   // heldHigherTiers hides rungs below a held chain tier — craftRequest
   // rejects the same thing server-side.
+  // A site is only joinable while it is going up; the rest of sitesHere is
+  // for the standing-here panel.
+  const buildSites = useMemo(
+    () => sitesHere.filter((s) => s.status === "UNDER_CONSTRUCTION"),
+    [sitesHere],
+  );
   const craftable = useMemo(
     () =>
-      craftableTags(catalog, heldIds, knownRecipeIds).filter(
-        (t) => heldHigherTiers(t, gateById, heldIds).length === 0,
-      ),
-    [catalog, heldIds, knownRecipeIds, gateById],
+      craftableTags(catalog, heldIds, knownRecipeIds)
+        .filter((t) => heldHigherTiers(t, gateById, heldIds).length === 0)
+        // A placement you could not raise on this ground is dropped rather
+        // than offered and refused.
+        .filter((t) => placementOfferedHere(t, { buildable, sites: sitesHere })),
+    [catalog, heldIds, knownRecipeIds, gateById, buildable, sitesHere],
   );
   const removable = useMemo(
     () => destroyableTags(characterTags),
@@ -528,8 +555,11 @@ export default function RequestActionsProvider({
               : transferable;
     return pool.find((t) => t.id === tagId) ?? null;
   }, [mode, tagId, craftable, removable, transferable, consumable]);
-  // Consume always takes one, so it opts out of the quantity field.
-  const stacking = Boolean(chosen?.stackable) && mode !== "consume";
+  // Consume always takes one, so it opts out of the quantity field. So does a
+  // placement: a structure is a place, not a stack, and openBuildSiteImpl
+  // ignores the count anyway.
+  const stacking =
+    Boolean(chosen?.stackable) && mode !== "consume" && !chosen?.placement;
   const heldCount = mode === "craft" ? undefined : (chosen?.quantity ?? 1);
 
   // Lessons: the counterpart picked, and the skills on offer with them.
@@ -602,6 +632,7 @@ export default function RequestActionsProvider({
       setTagId(presetTagId);
       setQuantity("1");
       setProjectId("");
+      setSiteId("");
       setProjectChoice("continue");
       setRecipient("");
       setPatientId("");
@@ -653,7 +684,7 @@ export default function RequestActionsProvider({
   // spends ⬢ or a Move ask twice. Confirm is awaited OUTSIDE
   // startTransition, or the dialog never renders.
   async function submit(reason) {
-    if (mode === "craft" && !projectId && chosen) {
+    if (mode === "craft" && !projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = chosen.stackable ? Math.max(1, Number(quantity) || 1) : 1;
       const cost = (chosen.requirementResources ?? 0) * qty;
@@ -679,6 +710,15 @@ export default function RequestActionsProvider({
       const ok = await confirm({
         title: "Give it up?",
         message: `${name} stays unfinished and whatever you paid for it is gone. ‡`,
+        confirmLabel: "Give it up ‡",
+      });
+      if (!ok) return;
+    }
+    if (mode === "craft" && siteId && projectChoice === "cancel") {
+      const name = buildSites.find((s) => s.id === siteId)?.typeName ?? "the work";
+      const ok = await confirm({
+        title: "Give it up?",
+        message: `The ${name} is left where it stands, and the ⬢ that went into it are gone. Anyone else working on it loses that work too. ‡`,
         confirmLabel: "Give it up ‡",
       });
       if (!ok) return;
@@ -721,6 +761,13 @@ export default function RequestActionsProvider({
   function runAction(reason) {
     switch (mode) {
       case "craft":
+        // A build site takes the same two verbs as a project, against the
+        // structure instead of the CraftProject.
+        if (siteId) {
+          return projectChoice === "cancel"
+            ? cancelBuildSite({ structureId: siteId, reason })
+            : joinBuildSite({ structureId: siteId, reason });
+        }
         if (projectId) {
           return projectChoice === "cancel" ? cancelCraft({ projectId, reason }) : continueCraft({ projectId, reason });
         }
@@ -846,6 +893,13 @@ export default function RequestActionsProvider({
       case "engrave":
         return Boolean(engraveName.trim());
       case "craft": {
+        if (siteId) {
+          const site = buildSites.find((s) => s.id === siteId);
+          if (!site) return false;
+          // Cancelling is the opener's alone and costs no Move; joining is a
+          // Move like any other turn of work.
+          return projectChoice === "cancel" ? Boolean(site.mine) : !hasMoved;
+        }
         if (projectId) {
           const project = craftProjects.find((p) => p.id === projectId);
           if (!project) return false;
@@ -870,7 +924,7 @@ export default function RequestActionsProvider({
   // What the grid needs to grey a button out — this character's sheet only.
   const pools = useMemo(
     () => ({
-      canCraft: craftable.length > 0 || craftProjects.length > 0,
+      canCraft: craftable.length > 0 || craftProjects.length > 0 || buildSites.length > 0,
       canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
@@ -896,6 +950,7 @@ export default function RequestActionsProvider({
     [
       craftable,
       craftProjects,
+      buildSites,
       removable,
       consumable,
       canHeal,
@@ -954,8 +1009,13 @@ export default function RequestActionsProvider({
                 hasWorkshop={hasWorkshop}
                 projects={craftProjects}
                 projectId={projectId}
-                onProject={(id) => {
-                  setProjectId(id);
+                sites={buildSites}
+                siteId={siteId}
+                // One dropdown, two id spaces — the prefix says which.
+                onPick={(key) => {
+                  const [kind, id] = key.split(":");
+                  setProjectId(kind === "project" ? id : "");
+                  setSiteId(kind === "site" ? id : "");
                   setProjectChoice("continue");
                 }}
                 projectChoice={projectChoice}

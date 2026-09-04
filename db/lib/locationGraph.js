@@ -13,6 +13,7 @@
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { heldTagSlugs } = require("./roomAccess");
 const { isMounted, equippedSlugs } = require("./mounts");
+const { HOLDS_EDGE } = require("./structures");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -34,6 +35,10 @@ function orderEndpoints(slugA, idA, slugB, idB) {
 const LINK_INCLUDE = {
   a: { include: { zone: true } },
   b: { include: { zone: true } },
+  // Just "does something hold this edge" for crossingCheck and the gate
+  // rules — a boolean's worth of rows, never the placement (the type is a
+  // slug, not an FK, and the travel path must not pay an N+1 for it).
+  structures: { where: { status: { in: HOLDS_EDGE } }, select: { id: true } },
 };
 
 // Every link touching one location, either side.
@@ -107,9 +112,23 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
   if (!hasTag) {
+    // Deliberately BEFORE the structural branch: a locked structural edge
+    // answers as locked, the same as any other way the key would open.
     return { listed: true, passable: false, refusal: "The way is locked. You don't have what opens it. ‡" };
   }
   if (link.modular && !link.isOpen) {
+    // A shut structural edge nothing holds is not a door somebody closed —
+    // it is a crossing nobody has built. The wording is the discovery hook.
+    // `structures` is the HOLDS_EDGE-filtered include on LINK_INCLUDE; a
+    // caller that didn't load it fails to the unbuilt wording, which is the
+    // honest default for an edge only a structure could ever open.
+    if (link.structural && !(link.structures?.length > 0)) {
+      return {
+        listed: true,
+        passable: false,
+        refusal: "Nothing spans the way here — it would have to be built. ‡",
+      };
+    }
     return { listed: true, passable: false, refusal: "The way is shut. ‡" };
   }
   // Last, because it is the one refusal the traveller can fix on the spot: a
@@ -126,11 +145,25 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
   return { listed: true, passable: true, refusal: null };
 }
 
-// Who may flip a modular gate: anyone holding one of its opener tags, or
-// playing one of its opener Roles. Pure, and re-checked server-side in the
-// button handler — a rendered button is a hint, not a lock.
-function canToggleGate(link, { tagSlugs, roleSlug } = {}) {
+// Does this edge currently have a working mechanism at all? A structural
+// edge has one only while a structure holds it (the HOLDS_EDGE include on
+// LINK_INCLUDE) AND openers are authored — an unheld ford is open water,
+// and a held one with no openers (a bridge) is a fixture, not a gate.
+// Fails closed when `structures` wasn't loaded. Gate buttons render off
+// this, on BOTH endpoints, and canToggleGate re-checks it server-side.
+function gateOperable(link) {
   if (!link?.modular) return false;
+  if (!link.structural) return true;
+  if (!(link.structures?.length > 0)) return false;
+  return (link.openerRoleSlugs ?? []).length > 0 || (link.openerTagSlugs ?? []).length > 0;
+}
+
+// Who may flip a modular gate: anyone holding one of its opener tags, or
+// playing one of its opener Roles — through a mechanism that currently
+// exists (gateOperable). Pure, and re-checked server-side in the button
+// handler — a rendered button is a hint, not a lock.
+function canToggleGate(link, { tagSlugs, roleSlug } = {}) {
+  if (!gateOperable(link)) return false;
   const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
   if ((link.openerTagSlugs ?? []).some((slug) => held.has(slug))) return true;
   return Boolean(roleSlug && (link.openerRoleSlugs ?? []).includes(roleSlug));
@@ -206,6 +239,7 @@ module.exports = {
   linksFor,
   linkBetween,
   crossingCheck,
+  gateOperable,
   canToggleGate,
   isHeldOpen,
   shouldPromptKeyed,

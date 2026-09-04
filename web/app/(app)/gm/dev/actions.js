@@ -325,6 +325,17 @@ export async function wipeGameData(formData) {
       prisma.desire.deleteMany({}),
       prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
+      // Structures: same reasoning as RoomTag below — Structure cascades from
+      // Location, which the wipe never deletes, so it goes explicitly.
+      // StructureWork first, since it has a required FK to Structure.
+      prisma.structureWork.deleteMany({}),
+      prisma.structure.deleteMany({}),
+      // Link state back to its born values: a gate somebody shut, a way a
+      // structure flipped, a keyed door somebody propped — all play state.
+      // Raw SQL because column-to-column isn't expressible in updateMany.
+      // No anchor reposts needed: finishGameWipe re-syncs zones afterwards
+      // and anchors hash their own gate state, so they self-heal there.
+      prisma.$executeRaw`UPDATE "LocationLink" SET "isOpen" = "authoredOpen", "openUntil" = NULL`,
       // Anything pinned to a noticeboard (PAPERWORK.md). Before the tag sweep
       // below, or the FK from NoticePost.tagId blocks it.
       prisma.noticePost.deleteMany({}),

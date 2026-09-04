@@ -15,9 +15,14 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { structuresAt } = require("./structures");
 
-// True when the character holds the tag, or one sits in a Room stash they can
-// get into at the Location they are standing in.
+// True when the character holds the tag, one sits in a Room stash they can
+// get into at the Location they are standing in, or a COMPLETE structure
+// standing there provides it — a Forge declaring `provides:
+// [workshop-equipment]` serves everyone on the ground, permanently, no
+// hauling and no door (db/lib/structures.js). COMPLETE only: a half-built
+// or damaged forge serves nobody, which is what makes Damage worth doing.
 //
 // `character` needs { id, locationId }. Held tags are re-read rather than
 // taken from a passed row: every caller here is a server action re-checking
@@ -34,13 +39,15 @@ async function hasEquipmentInReach(prisma, character, slug) {
   // Nowhere to stand is nowhere to reach from.
   if (!character.locationId) return false;
 
-  const [rooms, keys] = await Promise.all([
+  const [rooms, keys, structures] = await Promise.all([
     prisma.room.findMany({
       where: { locationId: character.locationId, tags: { some: { quantity: { gt: 0 }, tag: { slug } } } },
       select: { id: true, kind: true, accessTagSlugs: true },
     }),
     roomAccessKeys(prisma, character.id),
+    structuresAt(prisma, character.locationId, { statuses: ["COMPLETE"] }),
   ]);
+  if (structures.some((s) => s.placement?.provides?.includes(slug))) return true;
   return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).length > 0;
 }
 

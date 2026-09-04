@@ -162,6 +162,34 @@ export const SECTIONS = {
     ),
   },
 
+  // The one Request a finished build files. Everything renders off the
+  // `effect` snapshot, never live state — the Structure row may already be
+  // gone (undone, torn down) and the card must still say what happened.
+  // Names are snapshots too: a dead contributor still swung the hammer.
+  BUILD_STRUCTURE: {
+    heading: "Build ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Raised ‡">{effect.typeName ?? "—"}</Line>
+        <Line label="Where ‡">{effect.locationName ?? "—"}</Line>
+        {(effect.turnsNeeded ?? 1) > 1 && (
+          <Line label="Work ‡">{effect.turnsNeeded} crew-turns of Moves ‡</Line>
+        )}
+        {(effect.resourcesSpent ?? 0) > 0 && (
+          <Line label="Paid ‡">
+            {effect.resourcesSpent} ⬢{effect.payer?.name ? ` — ${effect.payer.name}` : ""}
+          </Line>
+        )}
+        {(effect.contributors ?? []).length > 0 && (
+          <Line label="Crew ‡">{effect.contributors.map((c) => c.name).join(", ")}</Line>
+        )}
+        <p className="text-xs text-muted">
+          Undo tears it down and refunds the payer. The crew&apos;s spent Moves stay spent. ‡
+        </p>
+      </>
+    ),
+  },
+
   CONSUME_TAG: {
     heading: "Consume Tag",
     render: ({ effect, tagsById }) => (

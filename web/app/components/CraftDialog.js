@@ -8,16 +8,26 @@ import QuantityField from "./QuantityField";
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
 // RequestActionsProvider like every other mode — this is the form.
 //
-// Two jobs in one dialog. Pick a project you already have going and the
+// Two jobs in one dialog. Pick something you already have going and the
 // form becomes Continue / Cancel for it; pick nothing and it's the recipe
 // menu (the provider's TagPicker, passed in as `picker`), a quantity for a
 // stackable, and who pays. A recipe with turns is this turn's Move, and the
 // form says so before the confirm does.
+//
+// "Something you have going" is two lists, not one. A CraftProject is yours
+// alone; a build site standing where you are is anybody's to lend a turn to
+// (db/lib/structures.js), so the two share the one dropdown under separate
+// groups. The pick crosses as a prefixed key because a select has one value
+// and these are two id spaces.
 
 export default function CraftDialog({
   projects,
   projectId,
-  onProject,
+  // Build sites UNDER_CONSTRUCTION at this Location, and which one is picked.
+  sites = [],
+  siteId = "",
+  // Takes "" | "project:<id>" | "site:<id>".
+  onPick,
   projectChoice,
   onProjectChoice,
   picker,
@@ -33,31 +43,85 @@ export default function CraftDialog({
   hasWorkshop = false,
 }) {
   const project = projects.find((p) => p.id === projectId) ?? null;
+  const site = sites.find((s) => s.id === siteId) ?? null;
+  const inProgress = project ? `project:${project.id}` : site ? `site:${site.id}` : "";
+  const projectOptions = projects.map((p) => (
+    <option key={p.id} value={`project:${p.id}`}>
+      {p.quantity > 1 ? `${p.quantity}× ` : ""}
+      {p.tagName} — {p.turnsDone} of {p.turnsNeeded} turns ‡
+    </option>
+  ));
   const turns = chosen?.requirementTurns ?? 1;
   const qty = Math.max(1, Number(quantity) || 1);
   const cost = (chosen?.requirementResources ?? 0) * (chosen?.stackable ? qty : 1);
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
-  // sees it before committing; craftRequest re-checks it regardless.
-  const wantsWorkshop = chosen ? needsWorkshop(chosen) : false;
+  // sees it before committing; craftRequest re-checks it regardless — and
+  // grants the same fieldwork exemption the server does, or the hint would
+  // warn about a kit a drying rack never needed.
+  const wantsWorkshop = chosen ? needsWorkshop(chosen) && !chosen.placement?.fieldwork : false;
 
   return (
     <>
-      {projects.length > 0 && (
+      {(projects.length > 0 || sites.length > 0) && (
         <label className="field">
           <span className="field-label">In progress ‡</span>
-          <Select value={projectId} onChange={(e) => onProject(e.target.value)}>
+          <Select value={inProgress} onChange={(e) => onPick(e.target.value)}>
             <option value="">Start something new… ‡</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.quantity > 1 ? `${p.quantity}× ` : ""}
-                {p.tagName} — {p.turnsDone} of {p.turnsNeeded} turns ‡
-              </option>
-            ))}
+            {/* Grouped only when there is a second group to tell them apart
+                from — one list of your own projects reads better bare. */}
+            {projects.length > 0 &&
+              (sites.length > 0 ? (
+                <optgroup label="Your work ‡">{projectOptions}</optgroup>
+              ) : (
+                projectOptions
+              ))}
+            {sites.length > 0 && (
+              <optgroup label="Build sites here ‡">
+                {sites.map((s) => (
+                  <option key={s.id} value={`site:${s.id}`}>
+                    {s.typeName} ({s.turnsDone}/{s.turnsNeeded}) ‡
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </Select>
         </label>
       )}
 
-      {project ? (
+      {site ? (
+        <>
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name="craft-project"
+                checked={projectChoice === "continue"}
+                onChange={() => onProjectChoice("continue")}
+                disabled={hasMoved}
+              />
+              Keep working on it ‡
+            </label>
+            {/* Only the person who opened the site may call it off, and
+                cancelBuildSite refuses anyone else regardless. */}
+            {site.mine && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="craft-project"
+                  checked={projectChoice === "cancel"}
+                  onChange={() => onProjectChoice("cancel")}
+                />
+                Give it up ‡
+              </label>
+            )}
+          </div>
+          <p className="text-xs text-muted">
+            {hasMoved
+              ? "You've used your Move this turn, so the work waits. ‡"
+              : `One more turn of work — your Move for this turn. ${site.turnsNeeded - site.turnsDone === 1 ? "That finishes it." : `${site.turnsNeeded - site.turnsDone} to go.`} ‡`}
+          </p>
+        </>
+      ) : project ? (
         <>
           <div className="flex flex-wrap gap-3">
             <label className="flex items-center gap-2 text-sm">
@@ -126,14 +190,33 @@ export default function CraftDialog({
                     : "Dead Simple: no Move needed, up to 4 a turn. ‡"
                   : turns === 1
                     ? "One turn of work — this is your Move for the turn. ‡"
-                    : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}
+                    : chosen.placement
+                      ? // The crew-turns pitch, said at the point of decision:
+                        // a build site is anybody's to advance, which is the
+                        // one way it differs from a project of your own.
+                        `${turns} turns of work, and not necessarily yours alone: anyone standing at the site can put their Move into it. This turn is the first. ‡`
+                      : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}
                 {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
                 {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
               </p>
+              {/* An edge-holding structure is a map edit, and the person
+                  paying 40 ⬢ for one deserves to hear it before the
+                  confirm — even though WHICH way (if any) depends on the
+                  ground, which only the server resolves. */}
+              {chosen.placement?.link === "hold_shut" && (
+                <p className="text-xs text-muted">
+                  Where this ground has a way it can guard, finishing this closes that way — its gate then answers to whoever the map says. ‡
+                </p>
+              )}
+              {chosen.placement?.link === "hold_open" && (
+                <p className="text-xs text-muted">
+                  This spans a crossing: it can only be raised where the map has one waiting, and the way opens when the work is done. ‡
+                </p>
+              )}
               {wantsWorkshop && (
                 <p className={`text-xs ${hasWorkshop ? "text-muted" : "text-accent"}`}>
                   {hasWorkshop
-                    ? "Smith's work, and you have Workshop Equipment to hand. ‡"
+                    ? "Smith's work, and the means are in reach — a kit to hand, or one standing where you are. ‡"
                     : "Smith's work: you need Workshop Equipment, held or set up where you're standing. ‡"}
                 </p>
               )}

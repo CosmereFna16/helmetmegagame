@@ -102,6 +102,20 @@ import { rollDie } from "@lifeweb/db/lib/moveEffects";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
+import {
+  placementOf,
+  structuresAt,
+  canBuildHere,
+  PRESENT_STATUSES,
+  siteOpenedLine,
+  siteAdvancedLine,
+  siteCompletedLine,
+  siteCancelledLine,
+  announceEdgeState,
+  stakeholderCharacterIds,
+} from "@lifeweb/db/lib/structures";
+import { refreshLocationAnchor } from "@lifeweb/db/lib/syncZones";
+import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
 import {
@@ -463,8 +477,16 @@ async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
-  await requireWorkshop(character, tag);
+  // Fieldwork is the one exemption from the forge: a recipe naming builder-*
+  // skills otherwise demands Workshop Equipment in reach, which is right for
+  // heavy works and wrong for stakes and drying racks.
+  const placement = placementOf(tag);
+  if (!placement?.fieldwork) await requireWorkshop(character, tag);
   await requireRecipeItems(character, tag);
+  // A `placement:` recipe is BUILT ON SITE and never lands on a sheet, so the
+  // tag-tier gates below — prerequisites, exclusivity, tier replacement,
+  // stacks — have nothing to say about it.
+  if (placement) return openBuildSiteImpl(character, session, tag, { payerKey, reason });
   const replaced = await craftGrantChecks(character, tag);
 
   const quantity = tag.stackable ? parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1 : 1;
@@ -649,6 +671,508 @@ async function cancelCraftImpl({ projectId, reason: rawReason }) {
   });
   revalidateAll();
   return { cancelled: project.tag.name };
+}
+
+// --- Building (db/lib/structures.js) ----------------------------------
+//
+// A craftable whose Tag.placement is non-null is raised ON SITE instead of
+// landing in a pocket. Costs are CREW-TURNS: `turnsCost` is the total number
+// of person-turns, and anyone standing at the site can spend their daily Move
+// advancing it. The recipe's skills gate OPENING a site, never joining one —
+// a mason lays out the work, the labour is anybody's. The opener pays the
+// whole resourceCost up front and never gets it back, the CraftProject rule.
+
+// The ground, with everything canBuildHere() judges plus the channel the
+// site speaks into.
+async function loadBuildGround(locationId) {
+  if (!locationId) return null;
+  return prisma.location.findUnique({
+    where: { id: locationId },
+    select: {
+      id: true,
+      name: true,
+      indoors: true,
+      attributes: true,
+      discordChannelId: true,
+      zone: { select: { kind: true } },
+    },
+  });
+}
+
+// Scenery into the Location's own channel, post-commit and catch-logged: a
+// Discord outage must never roll back work that really happened
+// (ARCHITECTURE.md §5).
+function speakAtSite(channelId, line) {
+  if (!channelId || !line) return;
+  after(() =>
+    postMessage(channelId, line).catch((err) =>
+      console.error("Structure ambient line failed:", err),
+    ),
+  );
+}
+
+// After a completion flipped an edge, both endpoints' pinned anchors must
+// say so — gate state is part of the anchor's content hash, and the gate
+// button handler already reposts both sides on every flip — and both banks
+// hear the road's own line (announceEdgeState): the far side must not
+// discover a shut way by walking into it. Post-commit and catch-logged,
+// the speakAtSite rule: Discord must never roll back a build.
+function refreshFlippedAnchors(linkFlip) {
+  if (!linkFlip?.linkEndpointIds?.length) return;
+  after(async () => {
+    for (const locationId of linkFlip.linkEndpointIds) {
+      await refreshLocationAnchor(prisma, locationId).catch((err) =>
+        console.error(`Build anchor refresh failed for ${locationId}:`, err?.message ?? err),
+      );
+    }
+    await announceEdgeState(prisma, linkFlip.linkEndpointIds, linkFlip.linkNowOpen).catch((err) =>
+      console.error("Build edge announcement failed:", err?.message ?? err),
+    );
+  });
+}
+
+// A structure has no owner, but everyone whose turns raised it hears when it
+// changes state. db/lib/structures.js returns characterIds only, so the DM
+// addresses are looked up here.
+async function notifyStakeholders(structureId, { except = null, payerKey = null }, text) {
+  const ids = await stakeholderCharacterIds(prisma, structureId, { except, payerKey });
+  if (!ids.length) return;
+  const people = await prisma.character.findMany({
+    where: { id: { in: ids }, status: "ALIVE" },
+    select: { id: true, discordUserId: true },
+  });
+  for (const person of people) notifyCharacter(person, text);
+}
+
+// A structure whose type holds an edge (placement.link) claims the ONE
+// structural LocationLink touching its ground at open time — the sync
+// refuses a location with two, so a second candidate here is defensive.
+// The edge is locked FOR UPDATE before the free-check so two sites opened
+// from the edge's two ENDPOINTS (two different Location locks) cannot both
+// bind it. The edge only FLIPS at completion; the claim is the linkId on
+// the site row.
+async function claimStructuralLink(tx, locationId, intent) {
+  const candidates = await tx.locationLink.findMany({
+    where: { structural: true, OR: [{ aId: locationId }, { bId: locationId }] },
+    select: { id: true },
+  });
+  // Defensive: the sync hard-refuses a location touching two structural
+  // edges, so two candidates means that invariant broke — refuse loudly
+  // rather than bind whichever row the database returned first.
+  if (candidates.length > 1) {
+    throw new UserError("This ground answers to more than one crossing — tell a GM. ‡");
+  }
+  for (const candidate of candidates) {
+    // The lock re-checks `structural` — a sync between the read above and
+    // this lock may have rewritten the edge as an ordinary gate (or deleted
+    // it, in which case nothing comes back) and a build must not claim it.
+    const locked = await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${candidate.id} AND "structural" = true FOR UPDATE`;
+    if (!Array.isArray(locked) || locked.length === 0) continue;
+    const taken = await tx.structure.count({
+      where: { linkId: candidate.id, status: { in: PRESENT_STATUSES } },
+    });
+    if (taken === 0) return candidate;
+  }
+  // hold_open exists to span this edge, so no free edge refuses the build;
+  // hold_shut is opportunistic — the structure's prose is its own point,
+  // and it simply builds unbound.
+  if (intent === "hold_open") {
+    throw new UserError("There is nothing here to span. ‡");
+  }
+  return null;
+}
+
+// The finish, recorded inside the SAME transaction that claimed the last
+// crew-turn. The claim is the caller's conditional updateMany — nothing here
+// may re-read status to decide, or there would be two winners.
+//
+// If the site bound an edge at open (site.linkId), completion is what flips
+// it: hold_open opens, hold_shut shuts, and the flip rides the same
+// transaction as the status claim. The pre-flip state is snapshotted into
+// the effect (linkWasOpen) for Undo, with both endpoint ids so the caller
+// and the undo path can repost the anchors AFTER their commits. The intent
+// is re-read off the catalog by typeSlug; a pruned type or a link the sync
+// deleted (SetNull) degrades to completing unbound — never a crash.
+async function finishStructure(tx, { session, character, site, location, openTurn, action, reason }) {
+  let linkFlip = null;
+  if (site.linkId) {
+    const type = await tx.tag.findFirst({
+      where: { slug: site.typeSlug },
+      select: { placement: true },
+    });
+    const intent = placementOf({ placement: type?.placement })?.link ?? null;
+    if (!intent) {
+      // The type lost its link intent since the site opened (a catalog
+      // prune or edit mid-build). RELEASE the claim rather than completing
+      // as a holder of an edge this completion will never flip — a
+      // half-held edge would render gate buttons for a mechanism that
+      // does not exist.
+      await tx.structure.update({ where: { id: site.id }, data: { linkId: null } });
+    }
+    if (intent) {
+      await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${site.linkId} FOR UPDATE`;
+      const linkRow = await tx.locationLink.findUnique({
+        where: { id: site.linkId },
+        select: { isOpen: true, aId: true, bId: true },
+      });
+      if (linkRow) {
+        const nowOpen = intent === "hold_open";
+        await tx.locationLink.update({ where: { id: site.linkId }, data: { isOpen: nowOpen } });
+        linkFlip = {
+          linkId: site.linkId,
+          linkWasOpen: linkRow.isOpen,
+          linkNowOpen: nowOpen,
+          linkEndpointIds: [linkRow.aId, linkRow.bId],
+        };
+      }
+    }
+  }
+  const contributors = await tx.structureWork.findMany({
+    where: { structureId: site.id },
+    select: { characterId: true, characterName: true },
+  });
+  const payerParts = String(site.payerKey ?? "").split(":");
+  const payer = {
+    kind: payerParts[0] || "character",
+    id: payerParts[1] || null,
+    name: site.payerName ?? null,
+  };
+  const effect = {
+    structureId: site.id,
+    typeSlug: site.typeSlug,
+    typeName: site.typeName,
+    locationId: site.locationId,
+    locationName: location?.name ?? null,
+    turnsNeeded: site.turnsNeeded,
+    resourcesSpent: site.resourcesCost ?? 0,
+    payer,
+    contributors: contributors.map((w) => ({ characterId: w.characterId, name: w.characterName })),
+    builderName: site.builderName ?? null,
+    actionId: action?.id ?? null,
+    ...(linkFlip ?? {}),
+  };
+  const request = await createRequest(tx, {
+    characterId: character.id,
+    turnId: openTurn?.id ?? null,
+    type: "BUILD_STRUCTURE",
+    reason,
+    payload: { structureId: site.id },
+    effect,
+  });
+  await tx.structure.update({ where: { id: site.id }, data: { requestId: request.id } });
+  await logRequest(tx, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: "build_completed",
+    targetCharacterId: character.id,
+    reason,
+    details: {
+      structureId: site.id,
+      typeSlug: site.typeSlug,
+      typeName: site.typeName,
+      locationId: site.locationId,
+      turnsNeeded: site.turnsNeeded,
+      resourcesSpent: site.resourcesCost ?? 0,
+      payer,
+      actionId: action?.id ?? null,
+    },
+  });
+  return { request, linkFlip };
+}
+
+// The one-per-place rule. The wreck statuses (RUINED, ABANDONED) are
+// deliberately absent from the list: clearing a wreck and raising a new one
+// on the same ground is what they are for. Runs twice per open, the Dead
+// Simple pattern: once before the transaction for a fast fail, and again
+// inside it under the Location row lock, since two tabs would otherwise
+// both read the same ground and both pass.
+async function refuseSameTypeHere(db, location, tag, placement) {
+  const standing = await structuresAt(db, location.id, {
+    statuses: PRESENT_STATUSES,
+  });
+  const sameType = standing.filter((s) => s.typeSlug === tag.slug);
+  if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) {
+    throw new UserError(`A ${tag.name} is already going up here — lend a hand to that one instead. ‡`);
+  }
+  if (placement.unique && sameType.length) {
+    throw new UserError(`There is already a ${tag.name} here. ‡`);
+  }
+}
+
+// Opening a site: the gates the recipe carries have already run in
+// craftRequestImpl. What is left is the GROUND, the one-per-place rule, and
+// the charge.
+async function openBuildSiteImpl(character, session, tag, { payerKey, reason }) {
+  const placement = placementOf(tag);
+  const location = await loadBuildGround(character.locationId);
+  const ground = canBuildHere(location);
+  if (!ground.ok) throw new UserError(ground.reason);
+
+  await refuseSameTypeHere(prisma, location, tag, placement);
+
+  // Always one. A structure is a place, not a stack.
+  const cost = tag.requirementResources ?? 0;
+  const turns = tag.requirementTurns ?? 1;
+  const payer = await resolveCraftPayer(character, payerKey, cost);
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+
+  const done = turns <= 1;
+  let structureId = null;
+  let linkFlip = null;
+  await prisma.$transaction(async (tx) => {
+    // The ground was judged outside this transaction, so two tabs can both
+    // have passed. The Location row is the lock — every open here serialises
+    // on it — and the re-check against tx sees whatever the winner committed.
+    await tx.$queryRaw`SELECT "id" FROM "Location" WHERE "id" = ${location.id} FOR UPDATE`;
+    await refuseSameTypeHere(tx, location, tag, placement);
+    const boundLink = placement.link
+      ? await claimStructuralLink(tx, location.id, placement.link)
+      : null;
+    if (cost) await moveResources(tx, payer, -cost);
+    // A one-turn build is born finished: the row is created inside this
+    // transaction, so nobody else can be racing for its completion and the
+    // conditional claim join uses would have nothing to guard.
+    const site = await tx.structure.create({
+      data: {
+        locationId: location.id,
+        typeSlug: tag.slug,
+        typeName: tag.name,
+        status: done ? "COMPLETE" : "UNDER_CONSTRUCTION",
+        turnsNeeded: turns,
+        turnsDone: 1,
+        resourcesCost: cost,
+        payerKey: `${payer.kind}:${payer.id}`,
+        payerName: payer.name,
+        builderCharacterId: character.id,
+        builderName: character.name,
+        startedTurnId: openTurn.id,
+        linkId: boundLink?.id ?? null,
+      },
+    });
+    structureId = site.id;
+    const action = await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      done ? `Raised a ${tag.name}. ‡` : `Raising a ${tag.name} (1/${turns}). ‡`,
+      "auto:build",
+    );
+    await tx.structureWork.create({
+      data: {
+        structureId: site.id,
+        characterId: character.id,
+        characterName: character.name,
+        turnId: openTurn.id,
+        actionId: action.id,
+      },
+    });
+    if (done) {
+      ({ linkFlip } = await finishStructure(tx, { session, character, site, location, openTurn, action, reason }));
+    } else {
+      await logRequest(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "build_started",
+        targetCharacterId: character.id,
+        reason,
+        details: {
+          structureId: site.id,
+          tagId: tag.id,
+          tagName: tag.name,
+          turnsNeeded: turns,
+          resourcesCost: cost,
+          payer: { kind: payer.kind, id: payer.id, name: payer.name },
+          actionId: action.id,
+        },
+      });
+    }
+  });
+
+  await afterInventoryChange([character.id, payer.kind === "character" ? payer.id : null]);
+  payerNotice(character, payer, cost, tag);
+  refreshFlippedAnchors(linkFlip);
+  const spoken = { typeName: tag.name, turnsNeeded: turns };
+  speakAtSite(location.discordChannelId, done ? siteCompletedLine(spoken) : siteOpenedLine(spoken));
+  if (done) {
+    await notifyStakeholders(
+      structureId,
+      { except: character.id, payerKey: `${payer.kind}:${payer.id}` },
+      `The ${tag.name} at ${location.name} stands finished. ‡`,
+    );
+  }
+  revalidateAll();
+  // The craft return shape, since the same dialog files both.
+  return done ? { made: tag.name } : { started: tag.name, turns };
+}
+
+// Another crew-turn on somebody's site. No skill check and no payer: the
+// recipe gated the opening, and the ⬢ were all spent then.
+async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  // Read fresh, and matched against the character's OWN locationId rather
+  // than anything posted — a server action is a public endpoint.
+  const site = await prisma.structure.findFirst({
+    where: {
+      id: structureId ?? "",
+      status: "UNDER_CONSTRUCTION",
+      locationId: character.locationId ?? "",
+    },
+  });
+  if (!site) throw new UserError("That site isn't here. ‡");
+
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+  const location = await prisma.location.findUnique({
+    where: { id: site.locationId },
+    select: { name: true, discordChannelId: true },
+  });
+
+  const next = site.turnsDone + 1;
+  const done = next >= site.turnsNeeded;
+
+  let linkFlip = null;
+  await prisma.$transaction(async (tx) => {
+    let work;
+    try {
+      work = await tx.structureWork.create({
+        data: {
+          structureId: site.id,
+          characterId: character.id,
+          characterName: character.name,
+          turnId: openTurn.id,
+        },
+      });
+    } catch (err) {
+      if (err?.code === "P2002") throw new UserError("You've already worked on that this turn. ‡");
+      throw err;
+    }
+    const action = await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      done
+        ? `Raised a ${site.typeName}. ‡`
+        : `Raising a ${site.typeName} (${next}/${site.turnsNeeded}). ‡`,
+      "auto:build",
+    );
+    await tx.structureWork.update({ where: { id: work.id }, data: { actionId: action.id } });
+    // The check IS the write. One conditional statement carries the advance
+    // AND, on the last crew-turn, the completion, so two same-tick finishers
+    // cannot both claim it.
+    const claim = await tx.structure.updateMany({
+      where: { id: site.id, status: "UNDER_CONSTRUCTION", turnsDone: site.turnsDone },
+      data: done ? { turnsDone: next, status: "COMPLETE" } : { turnsDone: next },
+    });
+    if (claim.count === 0) throw new UserError("The work moved on without you — reload. ‡");
+    if (done) {
+      ({ linkFlip } = await finishStructure(tx, {
+        session,
+        character,
+        site: { ...site, turnsDone: next },
+        location,
+        openTurn,
+        action,
+        reason,
+      }));
+    } else {
+      await logRequest(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "build_continued",
+        targetCharacterId: character.id,
+        reason,
+        details: {
+          structureId: site.id,
+          typeSlug: site.typeSlug,
+          typeName: site.typeName,
+          turnsDone: next,
+          turnsNeeded: site.turnsNeeded,
+          actionId: action.id,
+        },
+      });
+    }
+  });
+
+  // No afterInventoryChange: nothing on any sheet moved. A join spends a Move
+  // and nothing else, and finishing moves nothing either — a structure is
+  // never a CharacterTag, and the ⬢ left the payer when the site opened.
+  refreshFlippedAnchors(linkFlip);
+  speakAtSite(
+    location?.discordChannelId,
+    done ? siteCompletedLine(site) : siteAdvancedLine(site, next),
+  );
+  if (done) {
+    await notifyStakeholders(
+      site.id,
+      { except: character.id, payerKey: site.payerKey },
+      `The ${site.typeName} at ${location?.name ?? "the site"} stands finished. ‡`,
+    );
+  }
+  revalidateAll();
+  return done
+    ? { made: site.typeName }
+    : { continued: site.typeName, turnsDone: next, turns: site.turnsNeeded };
+}
+
+// Calling it off. The opener's alone to call, from anywhere — a builder who
+// walked away can still abandon their own site — and it keeps nothing: the ⬢
+// went into materials when the work began, cancelCraftImpl's rule.
+//
+// The plan says "opener or GM"; the GM half is deliberately not here. It
+// arrives with milestone C's Damage/Destroy surface, which subsumes it — a
+// GM pulling a site down is the same desk action as pulling a wall down.
+async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const site = await prisma.structure.findFirst({
+    where: {
+      id: structureId ?? "",
+      status: "UNDER_CONSTRUCTION",
+      builderCharacterId: character.id,
+    },
+  });
+  if (!site) throw new UserError("That isn't your site, or the work is already over. ‡");
+  const location = await prisma.location.findUnique({
+    where: { id: site.locationId },
+    select: { name: true, discordChannelId: true },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    // The status flip is the claim: a site somebody finished a moment ago
+    // must not be pulled down out from under them. ABANDONED, not RUINED —
+    // walked-away-from groundwork and wreckage something made are different
+    // events, and each status wears its own words.
+    const claim = await tx.structure.updateMany({
+      where: { id: site.id, status: "UNDER_CONSTRUCTION" },
+      data: { status: "ABANDONED" },
+    });
+    if (claim.count === 0) throw new UserError("The work moved on without you — reload. ‡");
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "build_cancelled",
+      targetCharacterId: character.id,
+      reason,
+      details: {
+        structureId: site.id,
+        typeSlug: site.typeSlug,
+        typeName: site.typeName,
+        locationId: site.locationId,
+        turnsDone: site.turnsDone,
+        turnsNeeded: site.turnsNeeded,
+        resourcesCost: site.resourcesCost ?? 0,
+      },
+    });
+  });
+
+  speakAtSite(location?.discordChannelId, siteCancelledLine(site));
+  await notifyStakeholders(
+    site.id,
+    { except: character.id, payerKey: site.payerKey },
+    `Work on the ${site.typeName} at ${location?.name ?? "the site"} has been called off. ‡`,
+  );
+  revalidateAll();
+  return { cancelled: site.typeName };
 }
 
 // --- Lessons (docs/systemdocs/LESSONS.md) ------------------------------
@@ -2569,6 +3093,16 @@ export async function continueCraft(input) {
 
 export async function cancelCraft(input) {
   return guarded(() => cancelCraftImpl(input));
+}
+
+// Opening a site has no export of its own: craftRequest() branches into it,
+// because to a player raising a palisade is the same act as making a sword.
+export async function joinBuildSite(input) {
+  return guarded(() => joinBuildSiteImpl(input));
+}
+
+export async function cancelBuildSite(input) {
+  return guarded(() => cancelBuildSiteImpl(input));
 }
 
 export async function destroyTagRequest(input) {

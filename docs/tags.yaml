@@ -26,9 +26,12 @@
 # Serpent" is `true-form-serpent`. db/lib/syncTags.js throws when they
 # disagree, so renaming a tag means renaming its slug — and then every
 # reference to it, since the slug is the match key everywhere else (desires,
-# taggroups, code). The one exception is a hidden category (demoness),
-# where a generic name like "Heal" would collide with a general tag and the
-# slug leads with the category instead: `demoness-heal`.
+# taggroups, code). Two exceptions. A hidden category (demoness), where a
+# generic name like "Heal" would collide with a general tag and the slug
+# leads with the category instead: `demoness-heal`. And `keepSlug: true` on
+# an entry, for a tag RENAMED mid-stream whose old slug is load-bearing —
+# the sync then accepts the mismatch, and throws instead if the flag sits on
+# a slug that already matches, so it can never quietly go stale.
 #
 # This file is hand-edited and is the ONLY thing that writes the catalog.
 # There is deliberately no automated sync from anywhere else — drafted
@@ -4105,6 +4108,351 @@ tags:
       resourceCost: 25
       skills: [builder-skilled]
       gambit: false
+
+  wayside-shrine:
+    catalog: all
+    name: Wayside Shrine
+    category: assets
+    group: assets-structures
+    description: "A small shrine raised where you stand — stacked stones, a niche, whatever the ground gives. It does nothing but stand there, and everyone who passes knows somebody put it up. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "A wayside shrine stands here. ‡"
+
+  drying-racks:
+    catalog: all
+    name: Drying Racks
+    category: assets
+    group: assets-structures
+    description: "Lashed poles and lines for smoking and drying a catch, so less of it spoils on the way home. Raised where you stand, serving whoever works this ground. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      # The plan priced this at 1 crew-turn; it ships at 2 so the catalog has
+      # a real crew build to exercise before the Palisade lands. Reprice at
+      # will — it is one number here.
+      turnsCost: 2
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "Drying racks stand here, lines strung for the catch. ‡"
+      laborBonus: { kind: hunting, amount: 1 }
+
+  fish-weir:
+    catalog: all
+    name: Fish Weir
+    category: assets
+    group: assets-structures
+    description: "Staked wickerwork walling off a stretch of water, funnelling whatever swims into a trap that never sleeps. Raised where you stand, serving whoever fishes this ground. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "A fish weir stands in the water here, its stakes walling the current. ‡"
+      laborBonus: { kind: fishing, amount: 1 }
+
+  forge:
+    catalog: all
+    name: Forge
+    category: assets
+    group: assets-structures
+    description: "A standing hearth, anvil and bellows — a smithy in the open, built to stay. Anyone working this ground can do smith's work here without hauling a kit around. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 4
+      resourceCost: 30
+      skills: [builder-skilled]
+      gambit: false
+    # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
+    # the first one needs Workshop Equipment hauled into reach — the item is
+    # exempt from its own gate (needsWorkshop), which is the bootstrap. Once
+    # it stands, provides: makes every workshop-gated recipe work on site,
+    # for everyone, permanently.
+    placement:
+      examine: "A forge stands here, anvil set and bellows hung. ‡"
+      provides: [workshop-equipment]
+
+  palisade:
+    catalog: all
+    name: Palisade
+    category: assets
+    group: assets-structures
+    description: "A ring of sharpened stakes raised around the ground you stand on. It will not stop a determined assault by itself, but nobody walks through it, and everybody sees who tries. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      # The deliberate crew flagship: the one structure not meant to be
+      # soloed. Six crew-turns is a week alone or two days with friends.
+      turnsCost: 6
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
+    # hold_shut is opportunistic: where the map authors a structural gateway
+    # the finished palisade closes it and its gate answers to the authored
+    # openers; anywhere else it builds unbound and the defense prose is the
+    # whole effect. defenseNote is a spliced fragment — no ‡ (sync enforces).
+    placement:
+      fieldwork: true
+      link: hold_shut
+      examine: "A palisade of sharpened stakes rings this ground. ‡"
+      defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
+
+  barricade:
+    catalog: all
+    name: Barricade
+    category: assets
+    group: assets-structures
+    description: "Carts, timber and furniture heaped into a fighting line. One good fight's worth of cover, raised in an afternoon. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 8
+      skills: [builder-skilled]
+      gambit: false
+    # Deliberately holds NO edge (plan §5): a cheap edge-holder would be a
+    # unilateral map edit for pocket change. Cover prose only.
+    placement:
+      fieldwork: true
+      examine: "A barricade of heaped timber and carts crosses this ground. ‡"
+      defenseNote: "Heaped cover to fight from; whoever holds it meets a charge on their own terms."
+
+  battering-ram:
+    catalog: all
+    name: Battering Ram
+    category: assets
+    group: assets-structures
+    description: "A roofed ram on rollers, built where it will be used — a promise that some gate nearby is going to be opened one way or the other. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 20
+      skills: [builder-skilled]
+      gambit: false
+    # Deliberately NOT fieldwork — the siege-camp logistics beat: raising a
+    # ram outside somebody's gate means hauling Workshop Equipment there
+    # first, or building in reach of a Forge. The defenseNote IS the siege
+    # licence (plan §4f): storming a shut gate is only adjudicable where a
+    # ram stands, and this line prints on Examine and the GM Move card.
+    placement:
+      examine: "A battering ram stands here under its rough roof. ‡"
+      defenseNote: "A battering ram stands here — a shut gate can be stormed."
+
+  # --- Milestone D catalog fill: everything below is pure YAML over the
+  # A-C mechanisms — no new code. Numbers are design-facing placeholders
+  # for Gunboat to reprice; players see words.
+
+  threshing-floor:
+    catalog: all
+    name: Threshing Floor
+    category: assets
+    group: assets-structures
+    description: "A beaten circle of hard ground for flailing and winnowing grain, so less of the harvest is lost to the straw. Raised where you stand, serving whoever farms this ground. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "A threshing floor of beaten earth lies here. ‡"
+      laborBonus: { kind: farming, amount: 1 }
+
+  lazarette:
+    catalog: all
+    name: Lazarette
+    category: assets
+    group: assets-structures
+    description: "A clean house for the sick: scrubbed boards, boiled linen, beds that are actually beds. Serious treatment that would be a gamble anywhere else is steady work here. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    # The first builder-expert unlock — the tag's description promises great
+    # works, and shipping the family with zero expert recipes would make it
+    # a trap pick at creation (plan §5).
+    requirement:
+      turnsCost: 5
+      resourceCost: 60
+      skills: [builder-expert]
+      gambit: false
+    # Desk-advisory, near-zero code: the clause below prints on the GM Move
+    # card and Examine while the building stands, which is where the ruling
+    # happens. No fieldwork — a real building wants the workshop kit.
+    placement:
+      examine: "A lazarette stands here, its windows open and its linens boiled. ‡"
+      defenseNote: "A treatment that would be a Gambit elsewhere is Routine work under this roof."
+
+  trebuchet:
+    catalog: all
+    name: Trebuchet
+    category: assets
+    group: assets-structures
+    description: "A counterweighted engine the height of a house, built where it will stand and aimed at somewhere it can reach. It does not move, and it is not subtle. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    # The most playtest-hungry numbers in the catalog, deliberately YAML.
+    # Expert, workshop-gated, week-scale, in the open — the drama engine.
+    requirement:
+      turnsCost: 6
+      resourceCost: 60
+      skills: [builder-expert]
+      gambit: false
+    placement:
+      examine: "A trebuchet looms here, counterweight hung and arm cocked. ‡"
+      defenseNote: "A trebuchet stands here — a structure at a neighbouring location can be bombarded."
+
+  jailhouse:
+    catalog: all
+    name: Jailhouse
+    category: assets
+    group: assets-structures
+    description: "A strongroom with a bar on the outside of the door and a cot on the inside. A place to hold someone that does not need a guard awake to mean it. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
+    # The custody advisory (plan §5): extends "the structure is the
+    # compensation for absence" from defense to imprisonment — holding a
+    # bound prisoner credibly no longer ends when the captor logs off.
+    placement:
+      examine: "A jailhouse stands here, its one door barred from the outside. ‡"
+      defenseNote: "A bound prisoner held here stays held, guard awake or not."
+
+  library:
+    catalog: all
+    name: Library
+    category: assets
+    group: assets-structures
+    description: "Shelves under a sound roof, and somebody's promise to keep them dry. A place for documents to live longer than the people who wrote them. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 4
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
+    # Prose civic structure; a home for GM-planted readable documents. The
+    # literate/gribble.js tie the plan sketches is deliberately FUTURE work
+    # ("grows only if documents grow") — nothing mechanical here yet.
+    placement:
+      examine: "A small library stands here, shelves stocked and dry. ‡"
+
+  gallows:
+    catalog: all
+    name: Gallows
+    category: assets
+    group: assets-structures
+    description: "A platform, a beam, and a length of rope. It does nothing at all, and everyone who passes understands it completely. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 10
+      skills: [builder-skilled]
+      gambit: false
+    # fieldwork by the Barricade's logic, not the plan's explicit list: a
+    # platform and a beam is rough timber in the open, and demanding a
+    # forge kit for it would be absurd. Reverse at will.
+    placement:
+      fieldwork: true
+      examine: "A gallows stands here, rope coiled at the post. ‡"
+
+  bridge:
+    catalog: all
+    name: Bridge
+    category: assets
+    group: assets-structures
+    description: "Piles, spans and planking enough to carry a cart over water that used to stop one. It can only be raised where a crossing waits for it. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    # Expert — the tag's own description promises bridges — and workshop-
+    # gated: hauling the kit to the ford is the project's first act.
+    requirement:
+      turnsCost: 5
+      resourceCost: 70
+      skills: [builder-expert]
+      gambit: false
+    # hold_open REQUIRES a free structural edge at the ground (the sync's
+    # authored fords, docs/zones.yaml modular.structural) — the build
+    # refuses anywhere else, and the way opens when the work is done.
+    placement:
+      link: hold_open
+      examine: "A bridge spans the crossing here, planked and railed. ‡"
 
   dog:
     catalog: all

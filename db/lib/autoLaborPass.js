@@ -18,9 +18,11 @@ const {
   formatLaborBonusNote,
   laborTierLabel,
   resolveLaborRateFrom,
+  structureTools,
   toolsFrom,
   yieldMap,
 } = require("./laborAccess");
+const { placementOf } = require("./structures");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { isRefinery, loadRefineryStashes, refineryInputFor } = require("./refinery");
@@ -51,10 +53,11 @@ async function runAutoLaborPass(prisma, turn) {
     return { turnNumber: turn.number, filed: 0, skipped: 0, characterIds: [], dms: [] };
   }
 
-  // Three bulk queries for the whole turn rather than three per character.
+  // Four bulk queries for the whole turn rather than four per character.
   // This decides who works and how well, and it has to scale to a full roster.
   const ids = characters.map((c) => c.id);
-  const [acted, tagRows, yieldRows, config] = await Promise.all([
+  const laborLocationIds = [...new Set(characters.map((c) => c.locationId).filter(Boolean))];
+  const [acted, tagRows, yieldRows, config, structureRows] = await Promise.all([
     prisma.action.findMany({ where: { turnId: turn.id, characterId: { in: ids } }, select: { characterId: true } }),
     prisma.characterTag.findMany({
       where: { characterId: { in: ids } },
@@ -70,6 +73,17 @@ async function runAutoLaborPass(prisma, turn) {
     prisma.gameConfig.findUnique({
       where: { id: 1 },
       select: { productionCoefficient: true, lifewebBlood: true },
+    }),
+    // Structures paying into labor where anyone stands — COMPLETE only, the
+    // rule buildLaborContext follows. Bulk rather than structuresAt per
+    // character, the desk's own two-query-joined-in-JS shape.
+    prisma.structure.findMany({
+      where: { locationId: { in: laborLocationIds }, status: "COMPLETE" },
+      select: { locationId: true, typeSlug: true, typeName: true },
+      // structureTools breaks bonus ties by keeping the first row, so the
+      // bulk read wears structuresAt's exact order or the two paths could
+      // name different structures in the payout DM.
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     }),
   ]);
 
@@ -87,6 +101,28 @@ async function runAutoLaborPass(prisma, turn) {
   for (const row of yieldRows) {
     if (!yieldsByLocation.has(row.locationId)) yieldsByLocation.set(row.locationId, []);
     yieldsByLocation.get(row.locationId).push(row);
+  }
+
+  // Each location's structure bonuses, resolved once and shared by everyone
+  // standing there — structureTools applies its per-kind non-stacking within
+  // the location, and toolsFor sums the survivors onto personal tools.
+  const structureTypeSlugs = [...new Set(structureRows.map((s) => s.typeSlug))];
+  const structureTypes = structureTypeSlugs.length
+    ? await prisma.tag.findMany({
+        where: { slug: { in: structureTypeSlugs } },
+        select: { slug: true, name: true, placement: true },
+      })
+    : [];
+  const structureTypeBySlug = new Map(structureTypes.map((t) => [t.slug, t]));
+  const structureRowsByLocation = new Map();
+  for (const row of structureRows) {
+    const type = structureTypeBySlug.get(row.typeSlug) ?? null;
+    if (!structureRowsByLocation.has(row.locationId)) structureRowsByLocation.set(row.locationId, []);
+    structureRowsByLocation.get(row.locationId).push({ ...row, type, placement: type ? placementOf(type) : null });
+  }
+  const structureToolsByLocation = new Map();
+  for (const [locationId, rows] of structureRowsByLocation) {
+    structureToolsByLocation.set(locationId, structureTools(rows));
   }
 
   // Two more bulk queries, and only when somebody is actually standing on a
@@ -126,7 +162,10 @@ async function runAutoLaborPass(prisma, turn) {
     const refinery = isRefinery(character.location);
     const ctx = {
       tagSlugs,
-      tools: toolsFrom(rows),
+      tools: [
+        ...toolsFrom(rows),
+        ...(structureToolsByLocation.get(character.locationId) ?? []),
+      ],
       yields: yieldMap(yieldsByLocation.get(character.locationId) ?? []),
       locationName: character.location?.name ?? null,
       refinery,

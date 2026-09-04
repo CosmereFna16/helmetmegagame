@@ -370,7 +370,51 @@ are otherwise as documented in `REQUESTS.md`, including the `changed`
 field `applyEdit` now returns and how it drives `EDITED` vs. a plain
 `request_reviewed` audit row.
 
-## 6. Where the code lives
+## 6. Structures at the desk
+
+Damage, Repair, Destroy and Clear are a GM's ruling on a built thing — never a
+Request, and never staged for the push. `/gm/structures` is a GM-visible page
+reachable through ⌘K; it carries no rail item of its own.
+
+All four are **immediate microactions**, the Dev Panel posture: a conditional
+`updateMany` claims the row (so two GMs clicking at once land exactly one
+change), each writes one `AuditLog` row (`structure_damaged` /
+`structure_repaired` / `structure_destroyed` / `structure_cleared`), speaks an
+ambient line into the structure's Location channel, and — Damage, Repair and
+Destroy only, not Clear — DMs the structure's contributors and payer
+(`stakeholderCharacterIds`, `db/lib/structures.js`). Clearing a wreck sends no
+DM: the stakeholders already heard about the destruction or abandonment, and
+"the rubble was tidied" is not news anyone needs.
+
+**Destroy** takes any of the three present statuses
+(`UNDER_CONSTRUCTION`/`COMPLETE`/`DAMAGED`) to `RUINED`. Sabotaging a site
+still under construction destroys the work done, never silently — the crew
+still get the destruction DM, same as a finished structure's contributors. If
+the structure held a `LocationLink` edge (`Structure.linkId`) and nothing else
+in `HOLDS_EDGE` still holds it, the edge reverts to its born (`authoredOpen`)
+state and both endpoints' anchors are reposted.
+
+**Player demolition is a GAMBIT adjudicated at the desk, never an apply-first
+Request.** The GM resolves the die, stages the public outcome through the
+ordinary composer (§1), and clicks Destroy (or Damage, for a lesser outcome)
+on `/gm/structures` in the same sitting — the ruling and its mechanical
+consequence happen together, by hand.
+
+**The two-turn siege.** An assault on a structure or a shut gate is staged as
+a PUBLIC declaration into the defenders' `#summary` on turn N; it can only
+resolve turn N+1, never the same turn — Moves lock at 21:00 CT and a sleeping
+defender has to get their hours before the blow lands. The Destroy confirm
+dialog on `/gm/structures` restates the rule at the point of clicking, so the
+GM working the desk sees it again right before committing.
+
+**The Move card's "Standing here:" line**
+(`web/lib/moveRows.js#standingHereLines`) prints each structure's
+`defenseNote` only while it is `COMPLETE` or `DAMAGED` — a ruin never grants
+its clause. This is the siege licence in practice: the Battering Ram's note is
+what makes storming a shut gate adjudicable at all, and it stops being
+adjudicable the moment the Ram is a ruin.
+
+## 7. Where the code lives
 
 | File | Role |
 |---|---|

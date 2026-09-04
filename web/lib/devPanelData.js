@@ -29,6 +29,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
 
   const [
     locations,
+    factions,
     roles,
     allTags,
     heldTags,
@@ -48,6 +49,13 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     prisma.location.findMany({
       orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
       select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
+    }),
+    // The Identity tab's faction picker (IdentityTab.js) — the faction
+    // rework added the prop to DevPanel without adding the load here, which
+    // crashed BOTH Dev Panel mounts on every character.
+    prisma.faction.findMany({
+      orderBy: [{ sortOrder: "asc" }],
+      select: { id: true, name: true },
     }),
     prisma.role.findMany({
       orderBy: [{ sortOrder: "asc" }],
@@ -290,6 +298,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       zoneId: l.zoneId,
       zoneName: l.zone?.name ?? null,
     })),
+    factions: factions.map((f) => ({ id: f.id, name: f.name })),
     roles: roles.map((r) => ({ id: r.id, name: r.name, factionName: r.faction?.name ?? null })),
     tags: allTags.map((t) => ({
       id: t.id,

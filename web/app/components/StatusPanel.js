@@ -5,6 +5,7 @@ import { moveKindLabel, rollLabel } from "@/lib/moves";
 import TagPointsValue from "./TagPointsValue";
 import ActionGrid from "./ActionGrid";
 import ExpandableText from "./ExpandableText";
+import StandingHerePanel from "./StandingHerePanel";
 
 // A labelled row, so Zone / Resources / Gambit line up on one grid instead
 // of each being its own ad-hoc flex line. `stacked` swaps the value cell to a
@@ -149,6 +150,9 @@ export default function StatusPanel({
   zoneMoves = null,
   zoneMovesReason = null,
   pendingOffers = [],
+  // What stands at this Location (db/lib/structures.js), built in
+  // character/page.js. Empty on someone else's sheet.
+  sitesHere = [],
 }) {
   // Hunger is the only Gambit contributor, and this is the same module the bot
   // rolls against (db/lib/gambitModifier.js) — so what a player reads here is
@@ -176,6 +180,7 @@ export default function StatusPanel({
   const missesLeft = DISAPPOINTMENT_THRESHOLD - missedMeals;
 
   return (
+    <>
     <section className="panel p-4">
       <h2 className="panel-header">Status</h2>
 
@@ -291,5 +296,11 @@ export default function StatusPanel({
         {isSelf && <ActionGrid />}
       </div>
     </section>
+
+    {/* Its own panel rather than a row in the <dl> above: what stands on the
+        ground is a fact about the place, not about the person, and it is a
+        list rather than a value. Renders nothing when the ground is bare. */}
+    <StandingHerePanel sites={sitesHere} />
+    </>
   );
 }

@@ -163,6 +163,7 @@ because one real edge is a manned gate *and* a modular one at once:
 | `locked: <tag-slug>` | crossing needs the tag; the way is still **listed** |
 | `hidden: <tag-slug>` | needs the tag **and** is absent from the travel list |
 | `modular: { roles, tags, open }` | an Open/Close button on both anchors, impassable while shut |
+| `modular.structural: true` | a structure-controlled edge: waives the opener requirement above — a ford or a gateway has nobody who can open it by hand until something is built — and the button appears only once a `COMPLETE`/`DAMAGED` structure claims it and openers are authored (`MAP.md` §2a, `db/lib/locationGraph.js#gateOperable`). Forbidden together with `hidden` — the unbuilt way IS the discovery hook, and `hidden` would swallow it. At most **one** structural edge may touch a Location — a hard sync refusal, since the build-site binding (`openBuildSiteImpl`) has no picker to choose between two |
 | `keyed: true` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — needs a `locked` or `hidden` tag, since an open way has nothing to hold |
 | `on_foot: true` | no horse or cart fits: a **mounted** character is refused at the threshold (`MAP.md` §2c) |
 
@@ -175,6 +176,24 @@ re-asserts.** A gate somebody shut in play stays shut across a re-sync;
 otherwise every sync would silently reopen the Gatehouse. `openUntil` is left
 alone for the same reason — a keyed way somebody is holding open keeps standing
 open for its 24 hours.
+
+`modular.open` is now stored as `LocationLink.authoredOpen` and **re-asserted
+on every sync run**, unlike `isOpen` itself, which stays play state the sync
+never touches. That split is what lets a destroyed holding structure revert
+its edge to the born state (`ADJUDICATION.md` §6) without needing to know what
+the YAML currently says. A Restart Game wipe resets `isOpen` back to
+`authoredOpen` and clears `openUntil` on every edge, the same as any other
+play state the wipe returns to its authored default. A structural edge must
+also be **spannable** — at least one endpoint has to accept a build at all
+(not indoors, not a cave level, no `noBuild` attribute) — or the sync refuses
+it: an edge nothing could ever claim would be a crossing shut forever.
+
+**Re-slugging a structural edge orphans the structure holding it.** The sync
+deletes any link absent from the YAML and creates the re-named one fresh, and
+`Structure.linkId` goes `SetNull` with the deletion — so a standing Bridge
+over a renamed ford keeps Examining as a bridge while the crossing reads as
+unbuilt, and nothing can rebind it. The remedy is a GM Destroy + rebuild
+(`/gm/structures`); the real fix is not renaming an edge something stands on.
 
 A `kind: group` zone may carry `levels:` but **not** `locations:` (locations
 belong on its levels), and its own id may never appear in `connections` — it
