@@ -4032,7 +4032,9 @@ tags:
       resourceCost: 40
       skills: [builder-skilled]
       gambit: false
-    # Prose civic structure; a home for GM-planted readable documents.
+    # Prose civic structure; a home for GM-planted readable documents. The
+    # literate/gribble.js tie the plan sketches is deliberately FUTURE work
+    # ("grows only if documents grow") — nothing mechanical here yet.
     placement:
       examine: "A small library stands here, shelves stocked and dry. ‡"
 
@@ -4052,6 +4054,9 @@ tags:
       resourceCost: 10
       skills: [builder-skilled]
       gambit: false
+    # fieldwork by the Barricade's logic, not the plan's explicit list: a
+    # platform and a beam is rough timber in the open, and demanding a
+    # forge kit for it would be absurd. Reverse at will.
     placement:
       fieldwork: true
       examine: "A gallows stands here, rope coiled at the post. ‡"
@@ -4109,10 +4114,15 @@ tags:
   # House and Shack are now also CRAFTABLE mid-game (building-system plan
   # §8.11): the deed is raised through the ordinary craft path — they stay
   # tradeable ASSETS on a sheet, never placed Structures, because their
-  # value is the deed economy and no Room keys on them. requiredTag still
-  # gates who may raise one, same as who may buy one. Prices are
-  # placeholders; reprice at will. The Manor stays creation-only on
-  # purpose — "built a Manor in a week" fights the fiction.
+  # value is the deed economy and no Room keys on them. NOTE the gate:
+  # requiredTag is checked by the CREATION/STORE purchase path only — the
+  # craft path deliberately ignores it (REQUESTS.md §3: a smith with no
+  # combat skill still forges weapons to sell), and the deed was always
+  # tradeable to anyone regardless. So a non-Ravenhearter CAN build one;
+  # if residency should gate the craft bench too, that is a code change to
+  # ask for, not a YAML edit. Prices are placeholders; reprice at will.
+  # The Manor stays creation-only on purpose — "built a Manor in a week"
+  # fights the fiction.
   house:
     name: House
     category: assets
