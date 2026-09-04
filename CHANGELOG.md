@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Adds the Godard Factory, the Banneret, and the Squeeze production chain
+
+
 ## 2026-09-04 · An obol is one Resource, so the Merchant can sell you a cup of tea
 
 ✎ An obol is now worth one Resource instead of five, so the Depot can price a cup of tea  
