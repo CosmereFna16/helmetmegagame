@@ -209,9 +209,10 @@ left is Moonshine and going to look at the statues.
 It also garbles everything they say. `db/lib/babble.js` composes into
 `bot/src/lib/proxy.js` where `textCorrection.js` already sits, and preserves
 length while destroying content — a long anguished paragraph produces a long
-anguished noise. Deliberately **not** `db/lib/gribble.js`: that is a cipher,
-reversible by anyone holding the right tag, which is right for a letter and
-wrong for this. There is nothing to decode.
+anguished noise. Deliberately **not** a cipher: there used to be one for
+letters (`db/lib/gribble.js`, since deleted — paper replaced it,
+`PAPERWORK.md`), and it was reversible by anyone holding the right tag, which
+was right for a letter and wrong for this. There is nothing to decode here.
 
 Worth knowing before you touch that path: `proxy.js` had no per-character tag
 check at all before this, only the global `tupperAutocorrectEnabled` flag.
@@ -239,12 +240,20 @@ clock and knows nothing about quantities.
 |---|---|
 | the Look at button | `db/lib/examineVision.js` |
 | the 🔍 reaction | `bot/src/events/messageReactionAdd.js` |
-| reading a letter | `db/lib/bird.js#canReadLetters` |
+| working the Bird | `db/lib/bird.js#canReadLetters` |
+| reading anything written | `db/lib/reading.js#readBlock` |
 
-That last one is the interesting one. Literacy and blindness are now asked as
-**one question** — `canReadLetters(tags)` is `literate && !blind` — so no caller
-can check half of it. A blind recipient gets exactly what an illiterate one
-does: the real letter, gribbled, and something to do about it.
+The last two are the interesting ones. Literacy and the eyes are asked as **one
+question** so no caller can check half of it — and `readBlock` is the fuller
+form, since it also catches Blind Drunk itself, Nearsighted with the spectacles
+in a sack, and Sun Sensitivity outdoors at Dawn.
+
+A blind recipient gets exactly what an illiterate one gets: the real letter, on
+their sheet, as an object they can carry to somebody who reads
+(`PAPERWORK.md`). **So Moonshine has a second cost now.** Five drinks and you
+cannot read your own mail, your own orders, or the noticeboard in the Square —
+and the game will not tell anybody watching whether it was the drink or the
+letters you never had.
 
 ## 9. The Spillway
 

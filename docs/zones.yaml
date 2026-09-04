@@ -152,6 +152,10 @@ zones:
       # share one namespace) — hence "town-square".
       town-square:
         name: Square
+        # The public board (docs/systemdocs/PAPERWORK.md). The Square is where
+        # everything in Town gets announced, so it is where things get nailed up.
+        attributes:
+          noticeboard: true
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
         rooms:
@@ -218,6 +222,10 @@ zones:
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
             access: [order-key]
+            stash:
+              items:
+                paper: 12
+                inquisitors-wax-stamp: 1
           pantry:
             name: Pantry
             description: >-
@@ -229,6 +237,10 @@ zones:
             name: Scriptorium
             description: >-
               It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
+            stash:
+              items:
+                paper: 20
+                bishops-wax-stamp: 1
       sanctuary:
         name: Sanctuary
         indoors: true
@@ -243,6 +255,10 @@ zones:
             name: Esculap's Office
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
+            stash:
+              items:
+                paper: 15
+                esculaps-wax-stamp: 1
           operating-theater:
             name: Operating Theater
             description: >-
@@ -308,6 +324,8 @@ zones:
     locations:
       gatehouse:
         name: Gatehouse
+        attributes:
+          noticeboard: true
         description: |-
           Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
 
@@ -345,6 +363,8 @@ zones:
               resources: 3
               items:
                 fine-meal: 1
+                paper: 5
+                meisters-wax-stamp: 1
       keep:
         name: Keep
         indoors: true
@@ -368,6 +388,9 @@ zones:
             name: Council Room
             description: >-
               A wide table. There's a holographic map of Ravenheart and a button for the intercom.
+            stash:
+              items:
+                paper: 10
           swimming-pool:
             name: Swimming Pool
             description: >-
@@ -399,8 +422,12 @@ zones:
               items:
                 armory-key: 1
                 elevator-key: 1
+                paper: 20
+                barons-wax-stamp: 1
       garrison:
         name: Garrison
+        attributes:
+          noticeboard: true
         description: >-
           The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
         rooms:
@@ -408,6 +435,10 @@ zones:
             name: Captain's Office
             description: >-
               On the second floor of the tower, the captain's office is a spacious room. A small portrait of the captain's beloved Baron is perched on the wall. A window looks out over the training ground below, perhaps you should let in some air — it smells like alcohol…
+            stash:
+              items:
+                paper: 8
+                captains-wax-stamp: 1
           barracks:
             name: Barracks
             description: >-
@@ -712,6 +743,7 @@ zones:
         # makes laboring legal here at all, and what it pays in.
         attributes:
           refinery: true
+          noticeboard: true
         rooms:
           logistics-room:
             name: Logistics Room
@@ -746,6 +778,8 @@ zones:
                 obol: 5
                 cleaning-powder: 1
                 military-autoinjector: 1
+                paper: 9
+                bannerets-wax-stamp: 1
       # map node 31
       marshes-31:
         name: Marshes 1
@@ -828,6 +862,7 @@ zones:
             indoors: true
             attributes:
               depot: true
+              noticeboard: true
             description: >-
               The merchant's depot: crates of a foreign design scattered around a decayed metal frame, light flowing forth, powered by their own basic generator. Everything imported into Ravenheart comes through this room, and the ledger that says so is the most valuable object in the caves. ‡
             rooms:
@@ -845,6 +880,8 @@ zones:
                   items:
                     obol: 10
                     cargo-crate: 1
+                    paper: 6
+                    merchants-wax-stamp: 1
           # map node 14
           caves-14:
             name: Caves 1

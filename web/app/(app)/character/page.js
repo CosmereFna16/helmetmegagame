@@ -11,6 +11,8 @@ import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { canRead } from "@lifeweb/db/lib/reading";
+import { PAPER_SLUG, isPaper, isSeal, sealLabel, paperDescription } from "@lifeweb/db/lib/paper";
 import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
@@ -48,7 +50,7 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { isTradeable } from "@/lib/tagRequests";
-import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf, canReadLetters } from "@lifeweb/db/lib/bird";
+import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf } from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
@@ -565,9 +567,85 @@ export default async function CharacterPage() {
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const hasBird = holdsBirdAndLetters(character.tags);
-  // Literate AND not blind — the Read button decodes nothing for eyes that
-  // cannot see it (db/lib/bird.js#canReadLetters).
-  const isLiterate = canReadLetters(character.tags);
+  // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
+  // predicate the tag chips, the noticeboard and paperActions.js all use, so
+  // the button, the chip and the server's refusal can never disagree.
+  const canReadNow = canRead(character.tags, {
+    phase: openTurn?.phase ?? null,
+    indoors: character.location?.indoors ?? true,
+  });
+  // Something to write ON: a blank sheet, or a note already started. A sealed
+  // letter does not count — you would have to break the seal first.
+  const writables = character.tags.filter(
+    (ct) => ct.tag.slug === PAPER_SLUG || ct.tag.paperKind === "PAPER",
+  );
+  const canWrite = canReadNow && writables.length > 0;
+  // Wax stamps in hand, and letters worth closing. Both are facts about your
+  // own sheet, so both may hide or grey the button.
+  const seals = character.tags.filter((ct) => isSeal(ct.tag));
+  const hasSeal = seals.length > 0;
+  const sealables = character.tags.filter(
+    (ct) => ct.tag.paperKind === "PAPER" && (ct.tag.paperText ?? "").trim(),
+  );
+  const canSeal = hasSeal && sealables.length > 0;
+
+  // What the two dialogs list. The TEXT is deliberately not sent — the dialog
+  // asks for it on demand (paperActions.js#readMyPaper) so an unreadable sheet
+  // never has its contents sitting in a client payload waiting to be read out
+  // of the page source. The excerpt below is the same one the chip shows and
+  // is already gated by canReadNow.
+  const paperOptions = writables.map((ct) => ({
+    tagId: ct.tagId,
+    name: ct.tag.name,
+    blank: ct.tag.slug === PAPER_SLUG,
+    quantity: ct.quantity,
+    // Enough to tell two notes apart in a dropdown, and only for a reader.
+    excerpt:
+      canReadNow && ct.tag.paperKind === "PAPER"
+        ? (ct.tag.paperText ?? "").trim().slice(0, 60)
+        : null,
+  }));
+  // Everything a bird could carry. Sealed letters included — a courier does
+  // not have to be able to read what they are carrying, which is rather the
+  // use of an illiterate one.
+  const letterOptions = character.tags
+    .filter((ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED")
+    .map((ct) => ({
+      tagId: ct.tagId,
+      name: ct.tag.name,
+      excerpt:
+        canReadNow && ct.tag.paperKind === "PAPER" ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
+    }));
+  const sealOptions = {
+    stamps: seals.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, label: sealLabel(ct.tag) })),
+    letters: sealables.map((ct) => ({
+      tagId: ct.tagId,
+      name: ct.tag.name,
+      excerpt: canReadNow ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
+    })),
+  };
+
+  // The sheet itself goes to a client component, so the raw text of every
+  // paper on it would otherwise sit in the page source — readable straight out
+  // of DevTools by a holder who is blind, drunk or illiterate, which is the
+  // one thing this whole system exists to prevent. Strip it here and compose
+  // the description the same way getVisibleTags does.
+  //
+  // Holding a letter is not the same as being able to read it. That is the
+  // entire point of an illiterate courier.
+  const viewer = {
+    tags: character.tags,
+    phase: openTurn?.phase ?? null,
+    indoors: character.location?.indoors ?? true,
+  };
+  const sheetCharacter = {
+    ...character,
+    tags: character.tags.map((ct) => {
+      if (!isPaper(ct.tag)) return ct;
+      const { paperText, ...tag } = ct.tag;
+      return { ...ct, tag: { ...tag, description: paperDescription(ct.tag, viewer) } };
+    }),
+  };
   // Compared against the in-game DAY (birdTurnId stores the day), not the
   // turn. Advisory only — the server's conditional claim is the real gate.
   const birdSentToday =
@@ -831,7 +909,7 @@ export default async function CharacterPage() {
 
   return (
     <CharacterSheet
-      character={character}
+      character={sheetCharacter}
       mode="self"
       openTurn={openTurnWithWindow}
       currentAction={sheetAction}
@@ -864,7 +942,13 @@ export default async function CharacterPage() {
       learners={learners}
       pendingOffers={pendingOffers}
       hasBird={hasBird}
-      isLiterate={isLiterate}
+      canRead={canReadNow}
+      canWrite={canWrite}
+      hasSeal={hasSeal}
+      canSeal={canSeal}
+      paperOptions={paperOptions}
+      letterOptions={letterOptions}
+      sealOptions={sealOptions}
       birdSentToday={birdSentToday}
       birdTargets={birdTargets}
       birdZones={birdZoneOptions}

@@ -17,6 +17,7 @@ import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
   syncCharacterNickname,
@@ -394,6 +395,11 @@ export async function createCharacter(formData) {
   // him shot, which is the design (DEPOT.md §0f).
   if (isMerchantRole(role.slug)) {
     await setMerchantFace(prisma, created.name).catch(() => {});
+    // ...and his wax stamp bears his own initials, for the same reason: the
+    // catalog cannot know them, and asking a GM to type them in means a
+    // Merchant whose seal is a blank smudge until somebody notices.
+    // See db/lib/merchantSeal.js.
+    await setMerchantSeal(prisma, created.name).catch(() => {});
   }
 
   // A new Baron renames every living family member, including one created

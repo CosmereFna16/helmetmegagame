@@ -695,7 +695,9 @@ async function syncLocationAnchor(prisma, location, rooms) {
   if (!location.discordChannelId) return "skipped";
 
   const body = buildAnchorBody(location, rooms);
-  const components = [locationAnchorRow(location.id), await gatesFor(prisma, location.id).then(locationGateRow)]
+  // The whole row, not just the id: the Noticeboard button is conditional on
+  // this location's `attributes` (db/lib/noticeboard.js).
+  const components = [locationAnchorRow(location), await gatesFor(prisma, location.id).then(locationGateRow)]
     .filter(Boolean);
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 

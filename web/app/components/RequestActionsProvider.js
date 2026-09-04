@@ -36,8 +36,6 @@ import CraftDialog from "./CraftDialog";
 import { titleFor } from "./actionRegistry";
 import Select from "./Select";
 import ChipText from "./ChipText";
-import { MAX_BIRD_BODY } from "@lifeweb/db/lib/bird";
-import ReadDialog from "./ReadDialog";
 import ExamineDialog from "./ExamineDialog";
 import QuantityField from "./QuantityField";
 import { ENGRAVE_RESOURCE_COST } from "@/lib/constants";
@@ -67,6 +65,9 @@ import {
   extractGodfleshRequest,
   packageItemsRequest,
 } from "../(app)/character/requestActions";
+// Writing and sealing file no Request, so they live apart from the rest —
+// see web/app/(app)/character/paperActions.js.
+import { writePaper, sealLetter, readMyPaper } from "../(app)/character/paperActions";
 // Safe from a client component: db/lib/constants.js is a leaf of bare strings
 // and numbers with no requires at all, so importing it drags no part of the
 // @lifeweb/db barrel into the bundle.
@@ -293,7 +294,20 @@ function payerLabel(parties, key) {
 
 // The modes that are not Requests at all, and so never open RequestDialog.
 // Each has its own modal below.
-const NO_REQUEST_MODES = new Set(["read", "examine"]);
+// Look at is the one mode that files no Request AND gets its own plain modal
+// — a local dialog with nothing to review and nothing to undo. Write and Seal
+// file no Request either, but they DO belong in the shared dialog: they have
+// real fields, and reasonRequired={false} is what drops the reason box.
+const NO_REQUEST_MODES = new Set(["examine"]);
+
+// Nothing to adjudicate, so nothing to justify. The letter itself is the
+// record a GM reads (docs/systemdocs/PAPERWORK.md).
+const NO_REASON_MODES = new Set(["bird", "write", "seal"]);
+
+// Mirrors WRITE_MAX in web/app/(app)/character/paperActions.js, which is the
+// real gate — this only stops the counter and the box promising more than the
+// server will take.
+const WRITE_MAX = 2000;
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
@@ -354,10 +368,24 @@ export default function RequestActionsProvider({
   canButcher = false,
   // The Bird. birdTargets is EVERY character, alive or dead, on purpose.
   hasBird = false,
-  isLiterate = false,
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
+  // Paperwork (docs/systemdocs/PAPERWORK.md). `canRead` is letters AND eyes,
+  // resolved server-side so the button, the tag chip and the action's own
+  // refusal all say the same thing. The option lists carry an EXCERPT rather
+  // than the whole text, and only for a reader — the full text is fetched on
+  // demand so an unreadable sheet never sits in the page source.
+  canRead = false,
+  canWrite = false,
+  hasSeal = false,
+  canSeal = false,
+  paperOptions = [],
+  // Everything the bird could carry: written notes AND sealed letters. A
+  // courier does not have to be able to read what they are carrying, so this
+  // is not gated on literacy — only the excerpts inside it are.
+  letterOptions = [],
+  sealOptions = { stamps: [], letters: [] },
   // The Godard Factory (docs/systemdocs/FACTORY.md). All three are facts about
   // where this character is standing and what is in their hands, resolved
   // server-side in character/page.js — the actions re-check every one.
@@ -400,6 +428,17 @@ export default function RequestActionsProvider({
   const [crateLabel, setCrateLabel] = useState("");
   const [birdBody, setBirdBody] = useState("");
   const [birdQuery, setBirdQuery] = useState("");
+  // Which letter the bird carries. The Bird no longer holds text of its own —
+  // it delivers a paper you are holding (docs/systemdocs/PAPERWORK.md).
+  const [birdTagId, setBirdTagId] = useState("");
+  // Write: which sheet, and what is being added to it. `paperExisting` is what
+  // is already on it, fetched when the sheet is chosen so it can be shown
+  // read-only above the box — writing only ever appends.
+  const [paperId, setPaperId] = useState("");
+  const [paperBody, setPaperBody] = useState("");
+  const [paperExisting, setPaperExisting] = useState(null);
+  // Seal: which stamp, which letter.
+  const [stampId, setStampId] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -582,10 +621,33 @@ export default function RequestActionsProvider({
       setCorpseKey("");
       setBirdBody("");
       setBirdQuery("");
+      setBirdTagId("");
+      setPaperId("");
+      setPaperBody("");
+      setPaperExisting(null);
+      setStampId("");
       setError(null);
     },
     [selfId],
   );
+
+  // Picking a sheet in the Write dialog fetches what is already on it, so the
+  // box can show it read-only above the cursor. Fetched on demand rather than
+  // shipped with the page: an unreadable sheet must never have its text
+  // sitting in the page source where a blind or illiterate holder could read
+  // it straight out of DevTools. The server re-checks the same gate.
+  const choosePaper = useCallback((nextId) => {
+    setPaperId(nextId);
+    setPaperExisting(null);
+    const chosenPaper = paperOptions.find((o) => o.tagId === nextId);
+    if (!nextId || chosenPaper?.blank) return;
+    startTransition(async () => {
+      const res = await readMyPaper(nextId);
+      // A refusal shows in the box like anything else — the sentence is the
+      // same "You can't read this" the chip gives, so nothing is disclosed.
+      setPaperExisting(res?.ok ? res.text : null);
+    });
+  }, [paperOptions]);
 
   // Heal-someone-else, Harm's lethal branch, Destroy and any Craft that
   // spends ⬢ or a Move ask twice. Confirm is awaited OUTSIDE
@@ -732,12 +794,18 @@ export default function RequestActionsProvider({
       }
       case "engrave":
         return engraveHeadstoneRequest({ firstName: engraveName, reason });
+      // Neither files a Request — see web/app/(app)/character/paperActions.js
+      // for why. Both still come back as { ok, error } like everything else.
+      case "write":
+        return writePaper({ tagId: paperId, text: paperBody });
+      case "seal":
+        return sealLetter({ tagId: tagId, stampTagId: stampId });
       case "bird":
         // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
           recipientId: targetId,
           guessedZoneId: zoneId,
-          body: birdBody,
+          tagId: birdTagId,
         });
       default:
         return Promise.resolve({ ok: false, error: "Nothing to do." });
@@ -749,8 +817,12 @@ export default function RequestActionsProvider({
 
   const canSubmit = (() => {
     switch (mode) {
+      case "write":
+        return Boolean(paperId && paperBody.trim().length > 0);
+      case "seal":
+        return Boolean(tagId && stampId);
       case "bird":
-        return Boolean(targetId && zoneId && birdBody.trim().length > 0);
+        return Boolean(targetId && zoneId && birdTagId);
       case "transfer":
         return Boolean(fromKey && toKey && !sameParty && takingSomething);
       case "heal":
@@ -811,7 +883,10 @@ export default function RequestActionsProvider({
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
-      isLiterate,
+      canRead,
+      canWrite,
+      hasSeal,
+      canSeal,
       canSendBirdToday: !birdSentToday,
       canButcher,
       canSeeExtract,
@@ -829,7 +904,10 @@ export default function RequestActionsProvider({
       teachers,
       canTeach,
       hasBird,
-      isLiterate,
+      canRead,
+      canWrite,
+      hasSeal,
+      canSeal,
       birdSentToday,
       canButcher,
       canSeeExtract,
@@ -853,12 +931,9 @@ export default function RequestActionsProvider({
 
       {enabled && (
         <>
-          {/* The two modes that file no Request — no reason to type, nothing
-          for a GM to review, nothing to undo — so each gets its own plain
-          modal rather than being forced through the Requests popup. Read is a
-          purely local transform (ReadDialog.js); Look at does call the server,
-          but only to read (examineActions.js). */}
-          <ReadDialog open={mode === "read"} onClose={() => setMode(null)} />
+          {/* Look at files no Request and has no fields, so it gets its own
+          plain modal rather than being forced through the Requests popup. It
+          does call the server, but only to read (examineActions.js). */}
           <ExamineDialog open={mode === "examine"} onClose={() => setMode(null)} />
 
           <RequestDialog
@@ -869,8 +944,8 @@ export default function RequestActionsProvider({
             busy={pending}
             error={error}
             canSubmit={canSubmit}
-            // The letter is what a GM reads, so Bird asks for no reason.
-            reasonRequired={mode !== "bird"}
+            // The letter is what a GM reads, so none of the paper verbs ask.
+            reasonRequired={!NO_REASON_MODES.has(mode)}
             onCancel={() => !pending && setMode(null)}
             onConfirm={submit}
           >
@@ -1509,6 +1584,104 @@ export default function RequestActionsProvider({
               </>
             )}
 
+            {mode === "write" && (
+              <>
+                {paperOptions.length === 0 ? (
+                  <NobodyHere>
+                    You have no paper. The Depot sells it, cheaper than anything else there. ‡
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">What are you writing on? ‡</span>
+                      <Select value={paperId} onChange={(e) => choosePaper(e.target.value)} required>
+                        <option value="" disabled>
+                          Pick a sheet
+                        </option>
+                        {paperOptions.map((o) => (
+                          <option key={o.tagId} value={o.tagId}>
+                            {o.blank
+                              ? `${o.name}${o.quantity > 1 ? ` ×${o.quantity}` : ""} — blank`
+                              : `${o.name}${o.excerpt ? ` — ${o.excerpt}` : ""}`}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    {/* Read-only, always. You can always write more; you can
+                    never take anything back off a sheet. */}
+                    {paperExisting && (
+                      <div className="field">
+                        <span className="field-label">Already on it ‡</span>
+                        <pre className="panel whitespace-pre-wrap text-sm">{paperExisting}</pre>
+                      </div>
+                    )}
+
+                    <label className="field">
+                      <span className="field-label">
+                        {paperExisting ? "Add underneath ‡" : "What does it say? ‡"}
+                      </span>
+                      <textarea
+                        rows={6}
+                        maxLength={WRITE_MAX}
+                        value={paperBody}
+                        onChange={(e) => setPaperBody(e.target.value)}
+                        placeholder="Anyone who can read it will read exactly this. ‡"
+                      />
+                      <span className="text-xs text-muted mono">
+                        {paperBody.length} / {WRITE_MAX}
+                      </span>
+                    </label>
+                  </>
+                )}
+              </>
+            )}
+
+            {mode === "seal" && (
+              <>
+                {sealOptions.letters.length === 0 ? (
+                  <NobodyHere>
+                    You aren&apos;t carrying a written letter to close. ‡
+                  </NobodyHere>
+                ) : (
+                  <>
+                    <label className="field">
+                      <span className="field-label">Which letter? ‡</span>
+                      <Select value={tagId ?? ""} onChange={(e) => setTagId(e.target.value)} required>
+                        <option value="" disabled>
+                          Pick a letter
+                        </option>
+                        {sealOptions.letters.map((o) => (
+                          <option key={o.tagId} value={o.tagId}>
+                            {o.name}
+                            {o.excerpt ? ` — ${o.excerpt}` : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    </label>
+
+                    <label className="field">
+                      <span className="field-label">Whose wax? ‡</span>
+                      <Select value={stampId} onChange={(e) => setStampId(e.target.value)} required>
+                        <option value="" disabled>
+                          Pick a stamp
+                        </option>
+                        {sealOptions.stamps.map((o) => (
+                          <option key={o.tagId} value={o.tagId}>
+                            {o.name}
+                          </option>
+                        ))}
+                      </Select>
+                      <p className="text-xs text-muted">
+                        Nobody can read it without breaking the seal, and everybody can see
+                        whose wax it was. The stamp is not used up. ‡
+                      </p>
+                    </label>
+                  </>
+                )}
+              </>
+            )}
+
             {mode === "bird" && (
               <>
                 {/* EVERY character, alive or dead, unfiltered. Narrowing this to
@@ -1567,17 +1740,28 @@ export default function RequestActionsProvider({
                 </label>
 
                 <label className="field">
-                  <span className="field-label">The letter</span>
-                  <textarea
-                    rows={5}
-                    maxLength={MAX_BIRD_BODY}
-                    value={birdBody}
-                    onChange={(e) => setBirdBody(e.target.value)}
-                    placeholder="They'll read this exactly as you write it."
-                  />
-                  <span className="text-xs text-muted mono">
-                    {birdBody.length} / {MAX_BIRD_BODY}
-                  </span>
+                  <span className="field-label">Which letter?</span>
+                  {letterOptions.length === 0 ? (
+                    <NobodyHere>
+                      You aren&apos;t carrying anything written. Use Write first. ‡
+                    </NobodyHere>
+                  ) : (
+                    <Select value={birdTagId} onChange={(e) => setBirdTagId(e.target.value)} required>
+                      <option value="" disabled>
+                        Pick a letter
+                      </option>
+                      {letterOptions.map((o) => (
+                        <option key={o.tagId} value={o.tagId}>
+                          {o.name}
+                          {o.excerpt ? ` — ${o.excerpt}` : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  <p className="text-xs text-muted">
+                    The bird takes it out of your hands. Guess the wrong place and it comes
+                    back with the letter still on it. ‡
+                  </p>
                 </label>
               </>
             )}

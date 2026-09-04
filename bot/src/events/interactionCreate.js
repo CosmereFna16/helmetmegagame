@@ -76,8 +76,18 @@ const {
 const { resolveChannelContext } = require("../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
 const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
-const { BIRD_REPLY_PREFIX, BIRD_REPLY_MODAL_PREFIX } = require("@lifeweb/db/lib/bird");
-const { handleBirdReplyOpen, handleBirdReplySubmit } = require("../lib/birdReply");
+const { BIRD_REPLY_PREFIX, BIRD_REPLY_PICK_PREFIX } = require("@lifeweb/db/lib/bird");
+const { handleBirdReplyOpen, handleBirdReplyPick } = require("../lib/birdReply");
+const { NOTICEBOARD_PREFIX } = require("@lifeweb/db/lib/locationAnchorRow");
+const {
+  READ_PREFIX: NOTICE_READ_PREFIX,
+  TEAR_PREFIX: NOTICE_TEAR_PREFIX,
+  PIN_PREFIX: NOTICE_PIN_PREFIX,
+  handleNoticeboardOpen,
+  handleNoticeRead,
+  handleNoticeTear,
+  handleNoticePin,
+} = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
 const {
@@ -1589,6 +1599,11 @@ module.exports = {
         if (interaction.customId.startsWith(BIRD_REPLY_PREFIX)) {
           return void (await handleBirdReplyOpen(interaction, interaction.customId.slice(BIRD_REPLY_PREFIX.length)));
         }
+        // The board on a Location's anchor. Shown only where docs/zones.yaml
+        // declared one (db/lib/noticeboard.js).
+        if (interaction.customId.startsWith(NOTICEBOARD_PREFIX)) {
+          return void (await handleNoticeboardOpen(interaction, interaction.customId.slice(NOTICEBOARD_PREFIX.length)));
+        }
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
         // Arrives in a DM; must NOT be acked first since it opens a modal.
@@ -1606,6 +1621,22 @@ module.exports = {
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }
+        // Answering a bird: which letter in your hands goes back.
+        if (interaction.customId.startsWith(BIRD_REPLY_PICK_PREFIX)) {
+          return void (await handleBirdReplyPick(interaction, interaction.customId.slice(BIRD_REPLY_PICK_PREFIX.length)));
+        }
+        // The three verbs on a noticeboard. Read is free to anyone standing
+        // here; whether they can make anything of it is a separate question
+        // the handler asks (db/lib/reading.js).
+        if (interaction.customId.startsWith(NOTICE_READ_PREFIX)) {
+          return void (await handleNoticeRead(interaction, interaction.customId.slice(NOTICE_READ_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(NOTICE_TEAR_PREFIX)) {
+          return void (await handleNoticeTear(interaction, interaction.customId.slice(NOTICE_TEAR_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(NOTICE_PIN_PREFIX)) {
+          return void (await handleNoticePin(interaction, interaction.customId.slice(NOTICE_PIN_PREFIX.length)));
+        }
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {
@@ -1619,9 +1650,6 @@ module.exports = {
         }
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));
-        }
-        if (interaction.customId.startsWith(BIRD_REPLY_MODAL_PREFIX)) {
-          return void (await handleBirdReplySubmit(interaction, interaction.customId.slice(BIRD_REPLY_MODAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith(EDIT_MODAL_PREFIX)) return void (await handleEditSubmit(interaction));
       }

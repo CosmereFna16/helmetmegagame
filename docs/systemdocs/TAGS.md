@@ -247,11 +247,12 @@ just no longer as a gate.
 ## 3a. Hidden categories, and gated groups
 
 **Two tags gate an action rather than an item: `bird` and `literate`.** Holding
-both puts the Bird on the Actions grid; holding `literate` alone puts the Read
-button there (`BIRD.md`). `literate` is also the key to
-`db/lib/gribble.js`, the cipher any future literacy feature should reuse rather
-than reinvent — a written thing an illiterate character cannot read should look
-the same everywhere in the game.
+both puts the Bird on the Actions grid; holding `literate` puts Write and Seal
+there (`BIRD.md`, `PAPERWORK.md`). `literate` is also half of
+`db/lib/reading.js#readBlock`, which is what any future literacy feature should
+call rather than reinvent — the other half is the character's eyes, and a
+written thing they cannot read must look the same everywhere in the game. There
+used to be a cipher here (`db/lib/gribble.js`); paper replaced it.
 
 One whole category is secret: **Demoness** (behind the `demoness` tag). It
 contains exactly one `TagGroup` carrying the `requiredTag`, which is where
@@ -1401,6 +1402,30 @@ catalog *structure*: `parentTag`, `requiredTag`, `requirementSkills` and
 `consumesInto` all wire tags to each other, and that belongs in the YAML where
 it can be reviewed alongside the tags it connects.
 
+## 5e. `ephemeral`: which rows are game state
+
+There are three authors of a `Tag` row — `docs/tags.yaml`, a GM at
+`/gm/dev/tags`, and the game itself (§5d). `custom` separates the first from the
+other two. **`ephemeral` separates the third from the second**, and it has to
+be its own field because the two want opposite things from a Restart Game: a
+GM's homebrew must survive one, and a crate must not.
+
+Set by every runtime minter — `db/lib/depotCrates.js`, the Factory's Package
+button, `db/lib/headstone.js`, and both paper minters in
+`db/lib/paperMint.js`. `wipeGameData` deletes exactly these rows and leaves the
+catalog and the homebrew alone.
+
+Corpses are the exception that needs nothing: `Tag.corpseOfCharacterId`'s
+`onDelete: Cascade` already took them out with the characters, and still does.
+They were also, until this landed, **the only runtime rows a wipe ever
+removed** — crates and headstones simply accumulated.
+
+One more reader: `web/lib/referenceData.js#getVisibleTags` withholds an
+`ephemeral` row from anyone not holding it. That loader ships the whole catalog
+to every browser on every page, and the runtime set has no ceiling — every
+letter anybody writes is a row. Paper is what made that urgent; crates had the
+same problem quietly.
+
 ## 6. Things that used to be tags and aren't anymore
 
 `Leader` and `Treasurer` were retired as tags in the same rework that
@@ -1633,9 +1658,13 @@ sync refuses it on a tag with no `depotPrice`: the station cannot ship what it
 does not stock.
 
 **Crates** are not in `docs/tags.yaml` at all. They are `Tag` rows minted at
-runtime by `db/lib/depotCrates.js` with `custom: true`, one per crate, carrying
-their contents in `Tag.crateContents` and their manifest in `description`.
-`db:prune-tags` skips custom rows, so they survive a prune; the row is deleted
-once nothing references it any more.
+runtime by `db/lib/depotCrates.js` with `custom: true` **and `ephemeral: true`**,
+one per crate, carrying their contents in `Tag.crateContents` and their manifest
+in `description`. `db:prune-tags` skips custom rows, so they survive a prune.
+
+This doc used to claim the row was "deleted once nothing references it any
+more". **That was never true** — nothing deleted it, and every crate ever landed
+was a permanent orphan sitting in the catalog across every game. `ephemeral` is
+the fix; see §5e.
 
 See `docs/systemdocs/DEPOT.md` §0e.

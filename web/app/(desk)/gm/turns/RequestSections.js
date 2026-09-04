@@ -497,6 +497,21 @@ export const SECTIONS = {
     ),
   },
 
+  BREAK_SEAL: {
+    heading: "Break Seal",
+    render: ({ effect }) => (
+      <>
+        <Line label="Letter">{effect.openedName ?? effect.tagName ?? "—"}</Line>
+        <Line label="Wax">{effect.sealMark ?? "—"}</Line>
+        <Line label="Envelope">{effect.envelopeName ?? "—"}</Line>
+        <p className="text-xs text-muted">
+          They broke the wax and read it. Undo re-seals the letter and takes the spent
+          envelope back — but nothing unreads it. ‡
+        </p>
+      </>
+    ),
+  },
+
   BIRD_MESSAGE: {
     heading: "Bird Message",
     render: ({ effect }) => (
@@ -504,14 +519,21 @@ export const SECTIONS = {
         <Line label="To">{effect.recipientName ?? "—"}</Line>
         <Line label="Guessed">{effect.guessedZoneName ?? "—"}</Line>
         <Line label="Arrived">{effect.delivered ? "Yes" : "No — the bird came back"}</Line>
-        {/* The plaintext, always — the DM the player actually received may be
-            enciphered (db/lib/gribble.js) if they can't read, and this is the
-            only surface where what was written is legible. */}
-        <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body ?? ""}</div>
+        <Line label="Letter">{effect.tagName ?? "—"}</Line>
+        {/* A snapshot of what was written, taken at send time. Null when the
+            letter went out sealed — the bird did not open it either, and this
+            desk is a record of what happened rather than an X-ray. The paper
+            itself is on somebody's sheet and a GM can read it there. ‡ */}
+        {effect.body ? (
+          <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body}</div>
+        ) : (
+          <p className="text-xs text-muted">It went out sealed. ‡</p>
+        )}
         <p className="text-xs text-muted">
           One letter a day, to a named person in a GUESSED zone — a wrong guess or a dead
-          recipient means it never arrived, and the sender is told a turn later. Undo hands the
-          day back and closes any reply window, but it cannot unsend a message that landed.
+          recipient means it never arrived, and the paper stays in the sender&apos;s hands. Undo
+          hands the day back and closes any reply window, but it cannot unsend a letter that
+          landed. ‡
         </p>
       </>
     ),

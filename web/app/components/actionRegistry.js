@@ -41,6 +41,8 @@ import {
   SpeakerIcon,
   ExtractIcon,
   CrateIcon,
+  QuillIcon,
+  SealIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -82,8 +84,12 @@ export const ACTION_HELP = {
     "Cut Godflesh out of the marsh. Takes your turn, and you need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves. ‡",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again. ‡",
-  bird: "Send a bird to someone. You have to guess their zone. If they are illiterate, they'll need help reading it.",
-  read: "Decode a letter someone showed you. Paste the script and it turns back into words. Nobody is told you read it.",
+  bird:
+    "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on. ‡",
+  write:
+    "Put words on a sheet of paper. You can always write more on a paper you're holding; you can never take anything back off it. ‡",
+  seal:
+    "Close a letter with wax so nobody can read it without breaking the seal — and so everyone can see whose wax it was. The stamp is not used up. ‡",
 };
 
 export const ACTION_SECTIONS = [
@@ -149,10 +155,16 @@ export const ACTION_SECTIONS = [
     key: "letters",
     label: "Letters ‡",
     actions: [
+      // Both HIDE on literacy rather than greying, the same reasoning the
+      // Factory verbs give: an eternally dead Write button would teach a
+      // player nothing except that letters exist and they haven't got them.
+      // The gate underneath is eyes as well as letters — blind, blind drunk,
+      // nearsighted with no spectacles (db/lib/reading.js).
+      { mode: "write", icon: QuillIcon, label: "Write ‡", show: "canRead", gate: "canWrite" },
+      // Shown only while you are actually holding a wax stamp. A seal is a
+      // fact about your own sheet, so hiding it leaks nothing.
+      { mode: "seal", icon: SealIcon, label: "Seal Letter ‡", show: "hasSeal", gate: "canSeal" },
       { mode: "bird", icon: BirdIcon, label: "Send Bird", show: "hasBird", gate: "canSendBirdToday" },
-      // The only entry that files no Request: a local box that decodes a
-      // ciphered letter. See docs/systemdocs/BIRD.md.
-      { mode: "read", icon: EyeIcon, label: "Read", show: "isLiterate" },
     ],
   },
 ];

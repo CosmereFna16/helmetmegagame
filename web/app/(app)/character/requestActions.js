@@ -10,7 +10,6 @@ import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { isMounted, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import {
-  MAX_BIRD_BODY,
   canSendBird as holdsBirdAndLetters,
   isBirdReachableZone,
   deliveryDm,
@@ -79,6 +78,7 @@ import {
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
+import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
@@ -745,6 +745,51 @@ async function destroyTagRequestImpl({ tagId, quantity: rawQuantity, reason: raw
 // on. Always exactly ONE unit, so a stack feeds several times. No resource
 // cost — the item already cost ⬢ to make. A grant may be conditional on
 // what's already held, so the slug list runs through resolveConsumeGrants.
+// Breaking a seal. Opening a letter is Consume because that is what it is —
+// the seal is used up and cannot be put back — and routing it through the same
+// button means a player never has to learn a second verb for it.
+//
+// Two things come out: the letter, exactly as it was written, and the spent
+// envelope. The envelope is the point of the whole mechanism: it is evidence
+// that somebody opened this, and whose wax was on it when they did.
+async function breakSealRequestImpl({ session, character, held, reason }) {
+  const openTurn = await getOpenTurn();
+
+  let opened;
+  await prisma.$transaction(async (tx) => {
+    opened = await breakSeal(tx, character.id, held.tag);
+
+    const effect = {
+      tagId: held.tagId,
+      tagName: held.tag.name,
+      // What the row is called NOW, so an Undo can find its way back.
+      openedName: opened.paper.name,
+      sealMark: held.tag.sealMark ?? null,
+      envelopeTagId: opened.envelope?.id ?? null,
+      envelopeName: opened.envelope?.name ?? null,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "BREAK_SEAL",
+      reason,
+      payload: { tagId: held.tagId },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_break_seal",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true, name: opened.paper.name };
+}
+
 async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -752,6 +797,14 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
+
+  // Breaking a seal takes its own road out of here. The ordinary consume path
+  // below reads `consumesInto`, which names CATALOG SLUGS — and the letter
+  // inside a sealed one is a runtime row that no slug in docs/tags.yaml can
+  // ever name. See docs/systemdocs/PAPERWORK.md.
+  if (held.tag.paperKind === "SEALED") {
+    return breakSealRequestImpl({ session, character, held, reason });
+  }
 
   const openTurn = await getOpenTurn();
   const restore = {
@@ -2431,6 +2484,8 @@ async function packageItemsRequestImpl({ lines: rawLines, label: rawLabel, reaso
         name: "Crate",
         description: `[CONTAINS]: ${label}`,
         custom: true,
+        // Game state, not catalog — a Restart Game sweeps it up (TAGS.md §5d).
+        ephemeral: true,
         category: "items",
         groupId: group?.id ?? null,
         pointCost: 0,
@@ -2576,22 +2631,33 @@ export async function engraveHeadstoneRequest(input) {
 // until db/lib/birdPass.js reports it at turn close. That delay is the
 // entire anti-scouting measure: answering "not delivered" now would hand
 // every Bird-holder a free probe for whether someone is alive in a zone.
-async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBody }) {
+async function birdMessageRequestImpl({ recipientId, guessedZoneId, tagId: rawTagId }) {
   const { session, character } = await requireCharacter();
 
   if (!holdsBirdAndLetters(character.tags)) {
-    throw new UserError("You need a bird, and you need to be able to write.");
+    throw new UserError("You need a bird, and you need to be able to write. ‡");
   }
 
-  const body = (rawBody ?? "").trim();
-  if (!body) throw new UserError("Write something first.");
-  if (body.length > MAX_BIRD_BODY) {
-    throw new UserError(`A bird can only carry ${MAX_BIRD_BODY} characters.`);
+  // The bird carries an OBJECT now. Resolved against what they actually hold,
+  // never against what was posted. See docs/systemdocs/PAPERWORK.md.
+  const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
+  if (!held) throw new UserError("You aren't holding that. ‡");
+  const kind = held.tag.paperKind;
+  if (kind !== "PAPER" && kind !== "SEALED") {
+    throw new UserError("A bird carries letters, not that. ‡");
   }
+  if (kind === "PAPER" && !(held.tag.paperText ?? "").trim()) {
+    throw new UserError("There's nothing written on it. ‡");
+  }
+
+  // A snapshot for the GM desk, so a letter that is later resealed, torn up or
+  // wiped still has a record of what went. Null on a sealed one: the bird did
+  // not open it and neither does this.
+  const body = kind === "SEALED" ? null : held.tag.paperText.trim();
 
   // The only Request with no reason box — the letter IS the record, clipped
   // to what the Request/AuditLog reason columns hold.
-  const reason = body.slice(0, MAX_REASON_LENGTH);
+  const reason = (body ?? `Sealed: ${held.tag.name}`).slice(0, MAX_REASON_LENGTH);
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is currently open.");
@@ -2621,6 +2687,9 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
   if (!recipient) throw new UserError("Nobody by that name.");
 
   const delivered = recipient.status === "ALIVE" && recipient.zoneId === guessedZone.id;
+  // Only whether they can WRITE BACK. Reading the letter is no longer this
+  // action's business — the paper is the letter, and whether they can read it
+  // is answered every time they look at it (db/lib/paper.js).
   const recipientIsLiterate = canReadLetters(recipient.tags);
 
   // In-game DAY, not a turn id — two turns run per day, and keying on the
@@ -2649,6 +2718,8 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
         recipientDiscordUserId: recipient.discordUserId ?? null,
         guessedZoneId: guessedZone.id,
         guessedZoneName: guessedZone.name,
+        tagId: held.tagId,
+        tagName: held.tag.name,
         body,
         delivered,
         arrivalTurnId: delivered ? openTurn.id : null,
@@ -2664,19 +2735,31 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
       turnId: openTurn.id,
       type: "BIRD_MESSAGE",
       reason,
-      payload: { recipientId: recipient.id, guessedZoneId: guessedZone.id, body },
+      payload: { recipientId: recipient.id, guessedZoneId: guessedZone.id, tagId: held.tagId },
       effect: {
         birdMessageId: row.id,
         recipientId: recipient.id,
         recipientName: recipient.name,
         guessedZoneId: guessedZone.id,
         guessedZoneName: guessedZone.name,
-        // Always plaintext, so a GM reading the desk sees what was written.
+        tagId: held.tagId,
+        tagName: held.tag.name,
+        // What was written, for the desk. Null on a sealed letter.
         body,
         delivered,
         previousBirdTurnId: character.birdTurnId ?? null,
       },
     });
+    // THE LETTER ONLY LEAVES YOUR HANDS IF IT ARRIVES. A wrong guess means the
+    // bird comes back with it still tied on, and the sender is told a turn
+    // later like always. Burning a player's letter as the price of a bad guess
+    // would be a second punishment nobody was warned about — and the guess
+    // already costs them the day's send.
+    if (delivered) {
+      await dropCharacterTag(tx, character.id, held.tagId, 1);
+      await addToStack(tx, recipient.id, held.tagId, 1, {});
+    }
+
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bird_message",
@@ -2694,22 +2777,22 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
   // Post-commit — a DM must not hold up or undo the write (ARCHITECTURE.md §5).
   notifyCharacter(
     character,
-    sentReceiptDm({ recipientName: recipient.name, zoneName: guessedZone.name, body }),
+    sentReceiptDm({ recipientName: recipient.name, zoneName: guessedZone.name, letterName: held.tag.name }),
     { source: "bird" },
   );
   if (delivered) {
     notifyCharacter(
       recipient,
-      deliveryDm({ senderName: character.name, body, recipientIsLiterate }),
+      deliveryDm({ senderName: character.name, letterName: held.tag.name }),
       {
-        // No Reply button for someone who can't read — birdReply.js re-checks.
+        // No Reply button for someone who can't write one — birdReply.js
+        // re-checks, since a GM can strip the tag inside the window.
         components: recipientIsLiterate ? replyButtonRow(birdMessageId) : undefined,
-        // Plaintext rides along so /gm/messages can join the cipher to what
-        // it says.
-        meta: { kind: "bird", birdMessageId, plaintext: body },
+        meta: { kind: "bird", birdMessageId, letterName: held.tag.name },
         source: "bird",
       },
     );
+    await afterInventoryChange([character.id, recipient.id]);
   }
 
   revalidateAll();

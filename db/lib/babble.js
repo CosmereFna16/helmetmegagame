@@ -11,12 +11,13 @@
 // doesn't. That is the whole design: it should be legible as *communication
 // failing*, not as a bot swallowing the message.
 //
-// Deliberately NOT db/lib/gribble.js. That is a cipher — reversible by anyone
-// holding the right tag, which is exactly right for a letter an illiterate
-// character could hand to a friend. There is nothing to decode here.
+// Deliberately NOT a cipher. There used to be one (db/lib/gribble.js, deleted
+// with the paperwork rework) that turned a letter into runes an illiterate
+// recipient could carry to a friend — the paper itself does that job now, and
+// does it better, because it is an object. Babble is the opposite kind of
+// thing: there is nothing to decode here and never was. What was said is gone.
 //
-// Pure and dependency-free, like gribble.js beside it, so both faces can use
-// it and neither can drift.
+// Pure and dependency-free, so both faces can use it and neither can drift.
 
 const SYLLABLES = [
   "ehhhh", "blauh", "ghhr", "yahhh", "ugh", "eh", "uh", "gah", "mmnh",

@@ -824,7 +824,8 @@ export const REQUEST_EFFECTS = {
   BIRD_MESSAGE: {
     editableFields: [],
     async undo(tx, request) {
-      const { previousBirdTurnId, recipientName, birdMessageId, delivered } = request.effect;
+      const { previousBirdTurnId, recipientName, recipientId, birdMessageId, delivered, tagId, tagName } =
+        request.effect;
       await tx.character.update({
         where: { id: request.characterId },
         data: { birdTurnId: previousBirdTurnId ?? null },
@@ -834,11 +835,62 @@ export const REQUEST_EFFECTS = {
           .update({ where: { id: birdMessageId }, data: { replyDeadlineTurn: null } })
           .catch(() => {});
       }
+      // The bird carries an object, so undoing a DELIVERED send has to carry
+      // it back. Only a delivered one moved anything: a wrong guess left the
+      // letter in the sender's hands to begin with.
+      //
+      // Taken off the recipient BEFORE it is given back, and conditionally —
+      // they may have handed it on, eaten it or been looted of it in the
+      // meantime, and an undo that mints a second copy of a unique letter is
+      // worse than one that quietly fails to recover it. `delivered` is what
+      // says whether it was read, and that part genuinely cannot be undone.
+      let recovered = false;
+      if (delivered && tagId && recipientId) {
+        const stillHas = await tx.characterTag.findUnique({
+          where: { characterId_tagId: { characterId: recipientId, tagId } },
+          select: { id: true },
+        });
+        if (stillHas) {
+          await dropCharacterTag(tx, recipientId, tagId, 1);
+          await addToStack(tx, request.characterId, tagId, 1, {});
+          recovered = true;
+        }
+      }
       return `The bird is theirs again.${
         delivered
-          ? ` ${recipientName ?? "They"} already read it — a sent message can't be taken back, and any reply is now closed.`
+          ? ` ${recipientName ?? "They"} already had it — a sent letter can't be unread, and any reply is now closed.${
+              recovered
+                ? ` ${tagName ?? "The letter"} is back in the sender's hands.`
+                : ` ${tagName ?? "The letter"} has moved on and could not be recovered.`
+            }`
           : ""
       }`;
+    },
+  },
+
+  // Re-wax a letter somebody opened. The only Request in the game that can be
+  // undone EXACTLY, because nothing was destroyed: the paper row was renamed
+  // in place, so putting the name and the mark back is the whole of it, and
+  // the spent envelope is taken off the sheet again.
+  //
+  // What it cannot undo is that they read it. Nothing can.
+  BREAK_SEAL: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { tagId, tagName, sealMark, envelopeTagId } = request.effect;
+      if (tagId) {
+        await tx.tag
+          .update({ where: { id: tagId }, data: { paperKind: "SEALED", sealMark, name: tagName, consumable: true } })
+          .catch(() => {});
+      }
+      if (envelopeTagId) {
+        await dropCharacterTag(tx, request.characterId, envelopeTagId, 1);
+        // The envelope exists for exactly one letter and nothing else can
+        // reference it, so the row goes with the holding rather than lingering
+        // as an orphan until the next Restart Game.
+        await tx.tag.delete({ where: { id: envelopeTagId } }).catch(() => {});
+      }
+      return `${tagName ?? "The letter"} is sealed again. They still read it.`;
     },
   },
 

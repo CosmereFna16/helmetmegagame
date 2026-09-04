@@ -533,6 +533,28 @@ export function ExtractIcon(props) {
 // Package — a crate with its lid banded shut. Deliberately not a plain box:
 // the two bands are what distinguish it from every other rectangle in the set
 // at the size the action grid renders.
+// A quill on a sheet — the Write action. See docs/systemdocs/PAPERWORK.md.
+export function QuillIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M5 20.5h6" strokeLinecap="round" />
+      <path d="M4.5 18.5c0-6 4-11 12-13.5-1 8.5-5 12.5-9.5 13.5z" strokeLinejoin="round" />
+      <path d="M8 17c2-4 4.5-6.5 7-8.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// A folded letter closed with a blob of wax — the Seal action.
+export function SealIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M3.5 6.5h17v12h-17z" strokeLinejoin="round" />
+      <path d="M3.5 6.5L12 13l8.5-6.5" strokeLinejoin="round" />
+      <circle cx="12" cy="15.5" r="2.75" />
+    </svg>
+  );
+}
+
 export function CrateIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

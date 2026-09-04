@@ -51,6 +51,13 @@ const ATTRIBUTES = {
   refinery: {
     describe: () => "Vats, hooks and a press. Work a day here and whatever you brought comes out in cubes. ‡",
   },
+
+  // A public board somebody can pin a paper to. What the Noticeboard button on
+  // this Location's anchor matches on, so no board has to be named by slug.
+  // See docs/systemdocs/PAPERWORK.md.
+  noticeboard: {
+    describe: () => "A board of weathered planks, thick with old nail holes. People pin things here. ‡",
+  },
 };
 
 // The authored half: whatever is in Location.attributes, in registry order so

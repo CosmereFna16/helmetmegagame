@@ -332,6 +332,12 @@ What the station charges him, per unit. Almost every ware is
 `purchasable: false` — **for those, the Merchant is the only source in the
 game**, which is the whole point of the seat.
 
+**Paper undercuts everything at 1 ⬢**, on purpose. It has to be something a
+scribe buys by the ream without thinking about it, or nobody writes and the
+whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
+with no sell-back price at all: a resale market in blank paper is not a thing
+anybody needs, and 1 ⬢ leaves no room under it anyway.
+
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
 `poison-snooper` (9) and `neoclassic-rw10` (14). All six are
@@ -343,6 +349,7 @@ buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
+| `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
 | `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
 | `firecracker` | 4 | 1 | |

@@ -1,9 +1,9 @@
 # The Bird: a letter to one person in one place
 
-One narrow, expensive crossing of the game's zone isolation, and the first
-mechanical job the Literate tag has ever had. Companion to `REQUESTS.md` (the
-surface it files through), `TAGS.md` (the two tags that gate it) and
-`TURN-ENGINE.md` (the pass that delivers its bad news).
+One narrow, expensive crossing of the game's zone isolation. Companion to
+`PAPERWORK.md` (what a letter actually *is*), `REQUESTS.md` (the surface it
+files through), `TAGS.md` (the two tags that gate it) and `TURN-ENGINE.md`
+(the pass that delivers its bad news).
 
 ## 1. The shape of it
 
@@ -14,12 +14,14 @@ only crossings are travel and a GM. The Bird adds one more, and prices it:
 1. A character holding both **Bird** and **Literate** presses the bird on the
    Actions grid.
 2. They pick a person, **guess which zone that person is standing in**, and
-   write a letter.
-3. If the guess is right and the recipient is alive, the letter is DMed to them
-   **immediately**, with a Reply button — unless they can't read, in which case
-   see §5.
-4. If the guess is wrong, or the recipient is dead, nothing happens — and the
-   sender is told **at the next turn close**: *"The message wasn't delivered."*
+   pick a **letter they are already holding** — written or sealed
+   (`PAPERWORK.md`). There is no text box; you write with the Write button.
+3. If the guess is right and the recipient is alive, the paper **leaves the
+   sender's sheet and lands on theirs**, immediately, with a DM saying so and a
+   Reply button.
+4. If the guess is wrong, or the recipient is dead, nothing happens — the
+   letter stays in the sender's hands — and they are told **at the next turn
+   close**: *"The message wasn't delivered."*
 
 One letter per in-game day. A day is two turns, so that is one letter every two
 turns.
@@ -78,9 +80,15 @@ The window is two turns rather than one for a plain fairness reason: a letter
 sent five minutes before a turn closes would otherwise be unanswerable in
 practice, and a rule that fires on when the *sender* clicked reads as a bug.
 
-The window is checked twice — when the button is pressed **and** when the modal
-is submitted. A player can leave a modal open across a turn boundary, and the
-submit is the check that cannot be outrun.
+The window is checked twice — when the button is pressed **and** when the
+letter is picked. A player can leave the picker open across a turn boundary,
+and the pick is the check that cannot be outrun.
+
+**Replying is a picker, not a modal.** It lists the letters the replier is
+holding, because a reply is a piece of paper like any other: you write it on
+your sheet, where there is a real text box and no three-second clock, and post
+it here. That also means a reply can go out **sealed**, which a modal could
+never have expressed.
 
 One reply, never a chain. It costs the replier nothing, needs no bird of their
 own, and does not reveal where they are.
@@ -90,66 +98,40 @@ own, and does not reveal where they are.
 snapshotted onto the `BirdMessage` row, so answering a letter needs no lookup
 against live state at all.
 
-## 5. Illiteracy, and the Read button
+## 5. Illiteracy
 
-A recipient without **Literate** still gets the letter. They just can't read
-it: the body arrives enciphered, under a `-#` line telling them to show it to
-someone who can. They get no Reply button — answering a letter is writing one,
-and that is the same gate the sender had to pass.
+A recipient without **Literate** still gets the letter. It lands on their sheet
+like anybody else's — a real object, with real weight, that they can carry,
+hand over, sell or burn. What they cannot do is read it: the tag chip says
+*"You can't read this."*, and so does a noticeboard, and so does every other
+surface, because they all ask one predicate (`db/lib/reading.js`).
 
-The missing button is only the hint. The lock is in `windowState()`
-(`bot/src/lib/birdReply.js`), which re-reads the replier's tags alongside the
-reply window, so a GM stripping **Literate** between the letter landing and the
-answer going out is caught on both the button and the modal submit.
+That is the point. Illiteracy is something a player *plays through* — find a
+reader, decide whether to trust them with your mail — rather than a wall that
+eats the message. And an illiterate courier is now a genuinely useful thing to
+be, which is new.
 
-That is the point. Illiteracy becomes something a player *plays through* —
-find a reader, decide whether to trust them with your mail — rather than a wall
-that eats the message.
+They get no Reply button: working the bird is writing, and that is the same
+gate the sender had to pass. The missing button is only the hint. The lock is
+in `windowState()` (`bot/src/lib/birdReply.js`), which re-reads the replier's
+tags alongside the reply window, so a GM stripping **Literate** between the
+letter landing and the answer going out is caught on both the button and the
+pick.
 
-The decoder is the second Actions-grid button, **Read**, visible to any
-Literate character. Paste the runes, get the words.
+### 5a. The cipher is gone
 
-**Read is the only entry on that grid that files no Request.** No server
-action, no cooldown, nothing written anywhere. The letter has already been
-delivered; decoding it is a thing a character can do, not a thing that happens
-to the world. There is nothing to review and nothing to undo. Don't go looking
-for the missing action (`web/app/components/ReadDialog.js`).
+There used to be one — `db/lib/gribble.js`, which turned a letter into a block
+of Runic so an illiterate recipient held something real but unreadable, plus a
+**Read** button on the Actions grid that decoded it. Both are deleted, along
+with `web/app/components/ReadDialog.js`.
 
-### 5a. The cipher
+Paper replaced it and does the job better. The cipher was a way of making a DM
+behave like an object; a tag *is* an object, so it gets carry weight, Transfer,
+Loot, room stashes and noticeboards for free, and nobody has to copy a wall of
+runes into a box. See `PAPERWORK.md`.
 
-`db/lib/gribble.js`, and it is meant to be reused by every Literate feature
-that comes after this one — that is why it lives on its own rather than beside
-the Bird.
-
-```
-plaintext -> UTF-8 bytes -> append a 2-byte checksum
-          -> XOR against a keystream seeded from a fixed key plus a 2-byte nonce
-          -> pack 3 bytes into 4 six-bit symbols -> 65 Runic codepoints
-```
-
-The obvious design — map each letter to a rune, keep the spaces — is the wrong
-one. Word lengths survive, letter frequencies survive, and a paragraph falls to
-a pencil in about ten minutes. So the output here is flat instead:
-
-- **No word shapes and no spaces.** The whole letter is one unbroken block.
-- **The nonce means the same sentence never ciphers the same way twice**, so
-  nobody learns anything from recognising a repeated block.
-- **The checksum** is what lets `decodeGribble` return `null` on anything that
-  isn't one of ours, so the Read box can say *"This isn't written in any script
-  you know"* instead of printing mojibake.
-- **Runic is in the BMP**, so one rune is one Discord character. 900 characters
-  of letter become 1208 runes, which keeps the DM under Discord's 2000-char
-  ceiling with the `»` and the footer on top. An astral script like Deseret
-  would double every length.
-
-**This is obfuscation, not cryptography, and the module says so at the top.**
-The key is in the repo. It is built to defeat pen-and-paper analysis and a
-Google search of rune charts — that is the actual threat, a player without the
-tag reading their own DMs — and nothing more.
-
-`decodeGribble` drops anything outside the alphabet before decoding, so a
-player can paste the whole DM (the `»`, the footer, stray newlines) and it
-still works.
+`db/lib/babble.js` — the speech mangler for the `stupid` tag — is a separate
+system and stays. It was never a cipher: there is nothing to decode there.
 
 ## 6. Once a day
 
@@ -165,26 +147,30 @@ been written or a request filed.
 
 ## 7. What a GM sees
 
-A `BIRD_MESSAGE` Request, carrying the **plaintext**. Without it the feature
-would be a private channel between two players that nobody can review, which is
-not a thing this game has. The ciphering happens when the DM is composed, never
-on the way into the database.
+A `BIRD_MESSAGE` Request naming the letter that went and carrying a
+**snapshot of what it said**, taken at send time. Without it the feature would
+be a private channel between two players that nobody can review, which is not a
+thing this game has — and the paper itself can be resealed, handed on or torn
+up before a GM ever looks.
 
-For the same reason, a ciphered DM carries its own plaintext in
-`DirectMessage.meta` — otherwise a GM reading an illiterate player's
-conversation on `/gm/messages` sees only runes.
+**The snapshot is null on a sealed letter.** The bird did not open it either,
+and the desk is a record of what happened rather than an X-ray. A GM who needs
+to know can read the paper itself, wherever it ended up.
 
 **Bird is the one Request with no reason box.** `RequestDialog` takes
 `reasonRequired={false}` for it, and the server action fills the `Request` and
 `AuditLog` reason columns with the letter itself, clipped to
-`MAX_REASON_LENGTH`. The letter *is* the record: the plaintext is already filed
-on the row, so a separate one-line justification asked the same question twice
-and made sending mail feel like filing a form. Every other Request still
-requires one — see `REQUESTS.md` §1.
+`MAX_REASON_LENGTH`. The letter *is* the record, so a separate one-line
+justification asked the same question twice and made sending mail feel like
+filing a form. Every other Request still requires one — see `REQUESTS.md` §1.
+Write and Seal file no Request at all (`PAPERWORK.md` §4).
 
-**Undo is the one place this type is unlike every other.** A sent DM cannot be
-recalled. Undo hands back the day and closes the reply window, and its note says
-plainly that a letter which landed stayed landed.
+**Undo half-works, and says so.** It hands back the day, closes the reply
+window, and **takes the paper back off the recipient** — but only if they are
+still holding it. They may have handed it on, pinned it up or been looted of
+it, and an undo that minted a second copy of a unique letter would be worse
+than one that failed to recover it. The note says which happened. What nothing
+can undo is that they read it.
 
 ## 8. Anything else worth knowing
 
@@ -193,9 +179,11 @@ plainly that a letter which landed stayed landed.
   done *to* a helpless person and the identity is what's being withheld. A
   letter nobody can attribute is not a letter — choosing to tell someone who
   you are is the whole act.
-- **A player with DMs closed silently loses the letter.** `notifyCharacter`
-  swallows send failures by design, so the sender's day is burnt and nobody is
-  told. This matches every other notifier in the app rather than being special.
+- **A player with DMs closed silently loses the NOTICE, not the letter.**
+  `notifyCharacter` swallows send failures by design, so the sender's day is
+  burnt and nobody is told — but since the rework the paper is on the
+  recipient's sheet whether or not the DM landed, so the letter itself survives
+  a closed inbox. That is strictly better than it used to be.
 - **Catatonic, Bound, Dying and buried recipients all receive normally** — they
   are `ALIVE`. A catatonic recipient is an AFK player, so the letter vanishes
   into a mailbox nobody opens, and it costs the sender their day. That is the

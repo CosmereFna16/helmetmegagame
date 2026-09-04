@@ -6058,6 +6058,225 @@ tags:
     consumable: true
     consumesInto: []
 
+  # --- Paperwork -----------------------------------------------------------
+  #
+  # See docs/systemdocs/PAPERWORK.md. Three kinds of thing live here: the blank
+  # stock below, the wax stamps that seal a finished letter, and — at runtime —
+  # every sheet anybody actually writes on, which is a minted Tag row and is
+  # never in this file.
+  #
+  # A stamp is declared by `sealMark:`, its distinguishing line. The sync
+  # composes the whole description around it, so the boilerplate is written
+  # once and nothing can drift; authoring a `description:` beside a `sealMark:`
+  # is an error rather than an override.
+
+  # The cheapest thing the Depot sells, on purpose. Paper has to be something
+  # a scribe buys by the ream without thinking about it, or nobody writes.
+  paper:
+    name: Paper
+    category: items
+    group: items-paper
+    description: "*Blank paper.* ‡"
+    pointCost: 0
+    depotPrice: 1
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  wax-seal-three-cups:
+    name: Wax Seal (Three Cups)
+    category: items
+    group: items-paper
+    sealMark: "Three cups, stacked."
+    pointCost: 1
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-duo-of-saints:
+    name: Wax Seal (Duo of Saints)
+    category: items
+    group: items-paper
+    sealMark: "Two saints beholding each other."
+    pointCost: 1
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-regal-cross:
+    name: Wax Seal (Regal Cross)
+    category: items
+    group: items-paper
+    sealMark: "A cross wrapped in vines."
+    pointCost: 1
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-fleur-de-lis:
+    name: Wax Seal (Fleur de Lis)
+    category: items
+    group: items-paper
+    sealMark: "A fleur de lis—chivalrous and noble."
+    pointCost: 1
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-mounted-knight:
+    name: Wax Seal (Mounted Knight)
+    category: items
+    group: items-paper
+    sealMark: "A knight on a warhorse."
+    pointCost: 1
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-ox:
+    name: Wax Seal (Ox)
+    category: items
+    group: items-paper
+    sealMark: "An ox."
+    pointCost: 1
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # The offices' own stamps. These are never bought — each one starts in the
+  # room the seat works out of (docs/zones.yaml `stash:`) and is `tradeable`
+  # like every other piece of office regalia, so prying the Bishop's stamp off
+  # the Bishop is exactly the kind of thing the game is for (TAGS.md §5).
+
+  bannerets-wax-stamp:
+    name: Banneret's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Banneret
+    sealMark: "Three ravens on a tree branch."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  barons-wax-stamp:
+    name: Baron's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Baron
+    sealMark: "A raven clutching a banner. Huge and magnificent."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  esculaps-wax-stamp:
+    name: Esculap's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Esculap
+    sealMark: "A staff wrapped with snakes."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  meisters-wax-stamp:
+    name: Meister's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Meister
+    sealMark: "A single goblet."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  captains-wax-stamp:
+    name: Captain's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Captain
+    sealMark: "A shield with a sword."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  bishops-wax-stamp:
+    name: Bishop's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Bishop
+    sealMark: "A cross wreathed in vines."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  inquisitors-wax-stamp:
+    name: Inquisitor's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Inquisitor
+    sealMark: "A cross with a rapier on one side and a skull on the other."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The one stamp with no mark in this file. The Merchant's bears his actual
+  # initials, so it is written once at character creation, beside the line that
+  # teaches the Depot turret his face
+  # (web/app/(app)/character/createActions.js). Until a Merchant exists it
+  # reads as an unreadable smudge, which is honest — nobody has pressed it yet.
+  merchants-wax-stamp:
+    name: Merchant's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Merchant
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   coffee:
     name: Coffee
     category: items

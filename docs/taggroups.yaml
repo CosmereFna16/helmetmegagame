@@ -210,6 +210,27 @@ groups:
     name: Corpses
     category: items
     color: "#4a8f88"
+  # Paper, wax stamps, and every sheet anybody writes on
+  # (docs/systemdocs/PAPERWORK.md). Like items-corpse, this group holds both
+  # catalog rows and rows the game mints at runtime, and for the same reason:
+  # a written note is per-character and never in the YAML, so the GROUP is
+  # what code checks rather than any catalog flag.
+  #
+  # The one warm colour in Items, and deliberately — paper is the only thing
+  # in the category that is not metal, meat or machinery, and a player
+  # scanning their sheet should be able to find their letters without reading.
+  #
+  # The band is razor-thin, the same trap items-corpse documents: a group
+  # colour is not theme-aware, so one value has to clear 3:1 on the dusk chip
+  # (#1e352f/#27443e), the brown one (#362a24/#46372d) AND the dawn one
+  # (#fbfaf7/#ffffff). Every warmer, softer parchment tone measured 2.87–2.89
+  # on dawn. This one measures 3.93 / 3.18 / 3.19 / 3.33 / 4.17 / 3.42, which
+  # is about as good as the constraint allows — don't "improve" it toward
+  # something more paper-coloured without re-measuring all six.
+  items-paper:
+    name: Paper
+    category: items
+    color: "#c47c44"
   # --- Health ------------------------------------------------------------
   # Every affliction a doctor might treat, split by what KIND of medicine it
   # wants rather than by severity — severity is carried by the tag's own

@@ -151,6 +151,9 @@ const TURN_PASSES = [
   // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
   "corpseRot",
   "expirySweep",
+  // After the sweep, and it has nothing to do with it: a notice is on a board
+  // rather than on a sheet, so nothing above can see one.
+  "noticeboard",
   "catatonic",
   "catatonicDeath",
   "bird",
@@ -402,6 +405,34 @@ async function resolveNeeds(turn, config) {
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);
+    }
+  }
+
+  // Noticeboards. A paper nobody took down blows away, and it takes the paper
+  // with it — that is what expiring MEANS here, and it is why a notice is
+  // worth tearing down rather than leaving. See docs/systemdocs/PAPERWORK.md.
+  //
+  // The Tag row goes too. Nothing else can reference it (NoticePost.tagId is
+  // @unique, and the paper left its holder's sheet when it went up), so
+  // leaving it would be an orphan waiting for the next Restart Game — which
+  // is exactly the accumulation Tag.ephemeral was added to stop.
+  if (!done.has("noticeboard")) {
+    try {
+      const blown = await prisma.noticePost.findMany({
+        where: { expiresTurn: { lte: turn.number } },
+        select: { id: true, tagId: true },
+      });
+      if (blown.length > 0) {
+        const ids = blown.map((p) => p.id);
+        const tagIds = blown.map((p) => p.tagId);
+        await prisma.noticePost.deleteMany({ where: { id: { in: ids } } });
+        // Only the runtime paper rows, never a catalog tag that somehow found
+        // its way onto a board — `ephemeral` is the whole guard.
+        await prisma.tag.deleteMany({ where: { id: { in: tagIds }, ephemeral: true } });
+      }
+      await markDone("noticeboard");
+    } catch (err) {
+      await passFailed("Noticeboards", err);
     }
   }
 

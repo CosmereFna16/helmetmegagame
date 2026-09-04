@@ -288,7 +288,9 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
   await prisma.$transaction(async (tx) => {
     for (const data of crateTagData(shipment, crates, { groupId: group?.id ?? null, weightByTagId })) {
       const { crateContents, ...tagFields } = data;
-      const tag = await tx.tag.create({ data: { ...tagFields, crateContents } });
+      // ephemeral: game state, not catalog. A Restart Game sweeps every crate
+      // still sitting on the landing pad (TAGS.md §5d).
+      const tag = await tx.tag.create({ data: { ...tagFields, crateContents, ephemeral: true } });
       await addToRoomStack(tx, room.id, tag.id, 1);
     }
 

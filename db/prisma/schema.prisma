@@ -273,6 +273,15 @@ enum RequestType {
   EXTRACT_GODFLESH
   PACKAGE_ITEMS
 
+  // Breaking the wax on a sealed letter (docs/systemdocs/PAPERWORK.md). Filed
+  // through the Consume button, but its own type because it cannot go through
+  // consumesInto: that field names catalog SLUGS, and the letter inside a
+  // sealed one is a runtime row no slug in docs/tags.yaml could ever name.
+  //
+  // Undoable, and exactly: the letter is resealed and the spent envelope taken
+  // back, so the only trace is the Request row itself.
+  BREAK_SEAL
+
   // RETIRED, and kept only because Postgres cannot drop an enum value in
   // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
   // ActionStatus.ADJUDICATED are still here. Nothing writes any of these.
@@ -573,6 +582,12 @@ model GameConfig {
   // it gets its own off switch: 0 disables the death pass entirely, without a
   // deploy, while leaving the flagging pass above untouched.
   catatonicDeathTurns Int @default(4)
+
+  // How many turns a paper pinned to a noticeboard stays up before it blows
+  // away, counting the turn it was pinned in. The paper is destroyed with the
+  // post — a notice nobody took down is a notice nobody wanted.
+  // See docs/systemdocs/PAPERWORK.md.
+  noticeExpiryTurns Int @default(10)
 
   // Whether the bot runs the channel doctor's cheap reconciliation pass
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
@@ -1026,6 +1041,7 @@ model Location {
   playerThreads    PlayerThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
+  noticePosts      NoticePost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1181,6 +1197,45 @@ model Room {
 /// CHARACTER can hold, re-applied on the way out by tagWrites.js#addToStack.
 /// `expiresTurn` rides along from the holder's row so stashing a meal can't
 /// stop it rotting; the sweeps in db/index.js shed it the same way.
+// A paper pinned to a Location's noticeboard. See
+// docs/systemdocs/PAPERWORK.md.
+//
+// Its own table rather than a RoomTag, for three reasons. A noticeboard is a
+// LOCATION fixture and only Rooms carry stashes. A post needs its own clock,
+// which RoomTag.expiresTurn could have carried but nothing sweeps for a room.
+// And a pinned notice must not show up in the Storage readout — a board is
+// public by nature and a stash is not.
+//
+// tagId is @unique: the paper is ON the board or it is in somebody's hands,
+// never both. Pinning moves the CharacterTag row here; tearing moves it back.
+model NoticePost {
+  id String @id @default(cuid())
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  tagId String @unique
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  // Who put it up, for the GM's benefit and for the ambient line. Nullable and
+  // SetNull, because a notice outlives the person who pinned it — that is
+  // rather the point of nailing something to a wall.
+  postedById String?
+  postedBy   Character? @relation("NoticePostAuthor", fields: [postedById], references: [id], onDelete: SetNull)
+
+  postedTurn  Int
+  // Absolute turn number, the same convention as CharacterTag.expiresTurn, and
+  // computed through db/lib/turnFormat.js#expiryFrom so N turns means N turns
+  // counting the one it was pinned in. Swept by db/lib/noticeboardPass.js,
+  // which destroys the paper with the post — it blew away.
+  expiresTurn Int
+
+  createdAt DateTime @default(now())
+
+  @@index([locationId])
+  @@index([expiresTurn])
+}
+
 model RoomTag {
   id String @id @default(cuid())
 
@@ -1591,6 +1646,7 @@ model Character {
   gmNotes                 GmCharacterNote[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
+  noticePosts             NoticePost[]             @relation("NoticePostAuthor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1611,6 +1667,20 @@ model Character {
 enum CorpseKind {
   FRESH
   ROTTEN
+}
+
+// What a sheet of paper currently IS. Null on every ordinary tag, and null on
+// the blank `paper` catalog tag too — a blank sheet is stackable stock, not a
+// document. A row only gets one of these once somebody has written on it.
+//
+// SEALED is the same row renamed in place, the way a corpse rots
+// (db/lib/corpseRotPass.js): a letter somebody is carrying seals in their
+// hands with no second row to reconcile. BROKEN_SEAL is a separate row minted
+// when the seal is broken — the spent envelope, which is evidence.
+enum PaperKind {
+  PAPER
+  SEALED
+  BROKEN_SEAL
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
@@ -1862,6 +1932,56 @@ model Tag {
   // where it came from. See docs/systemdocs/DEPOT.md §5.
   crateContents Json?
 
+  // --- Paperwork (docs/systemdocs/PAPERWORK.md) --------------------------
+  //
+  // A written sheet is a Tag row minted at runtime, the same shape as a crate
+  // or a corpse. What makes it different from every other tag in the catalog
+  // is that its text is PRIVATE: whether you can read it depends on your eyes
+  // and your letters, so the sentence a reader sees cannot be baked into
+  // `description` the way every other tag's is.
+  //
+  // That matters more than it sounds. web/lib/referenceData.js#getVisibleTags
+  // ships the WHOLE catalog, descriptions included, to every signed-in
+  // browser. A letter's text in `description` would publish every letter in
+  // the game. So it lives here instead, TAG_CHIP_FIELDS never selects it, and
+  // the description is composed per request, per viewer, by
+  // db/lib/paper.js#paperDescription.
+  paperKind PaperKind?
+
+  // The sheet's contents. APPEND-ONLY — the Write dialog shows what is already
+  // there read-only and adds beneath it. You can always write more; you can
+  // never unwrite.
+  paperText String?
+
+  // Who wrote on it first, by presented name, for the generated title ("A Note
+  // (hand of Ada)"). Kept as a snapshot rather than a relation: the row has to
+  // outlive its author, and a dead writer's letter still names them.
+  paperAuthor String?
+
+  // A wax stamp's distinguishing line — "Three cups, stacked." Authored in
+  // docs/tags.yaml as `sealMark:`, which is also what makes the stamp a stamp:
+  // db/lib/syncTags.js composes the whole description around it, so the
+  // boilerplate is written once and {sealMark} has one clean source.
+  //
+  // Copied onto a letter this stamp seals, and onto the envelope left behind
+  // when that seal is broken. The Merchant's is the one exception — null in
+  // the YAML, written at character creation beside setMerchantFace, because it
+  // bears his actual initials (web/app/(app)/character/createActions.js).
+  sealMark String?
+
+  // Minted at runtime rather than authored, and therefore GAME state rather
+  // than catalog: crates, headstones, written paper, sealed letters. A Restart
+  // Game deletes exactly these rows and leaves the docs/tags.yaml catalog and
+  // a GM's homebrew from /gm/dev/tags alone.
+  //
+  // This closes a real leak. wipeGameData never touched the Tag catalog, and
+  // db:prune-tags skips every `custom` row on purpose — so crates and
+  // headstones were permanent orphan rows accumulating across every game. Only
+  // corpses escaped, and only through corpseOfCharacterId's cascade. `custom`
+  // could not be reused for this: a GM's homebrew is custom and must SURVIVE a
+  // restart, which is the opposite of what this asks.
+  ephemeral Boolean @default(false)
+
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
   // by resolveNeeds()" convention). E.g. Drained sets this to 3, so donating
@@ -2079,6 +2199,7 @@ model Tag {
 
   characters    CharacterTag[]
   roomTags      RoomTag[]
+  noticePost    NoticePost?
   gatedGroups   TagGroup[]     @relation("TagGroupGate")
   cavingRolls   CavingRoll[]
   offers        Offer[]
@@ -2094,6 +2215,9 @@ model Tag {
   // The two trgm indexes still read that way and still have to be declined by
   // hand (see CLAUDE.md); this one no longer does.
   @@index([corpseKind])
+  // Declared here as well as in the migration SQL, so `prisma migrate diff`
+  // does not read it as drift. Same reasoning as the corpseKind index above.
+  @@index([ephemeral])
 }
 
 // Optional grouping of tags within a single category, purely for display
@@ -2939,10 +3063,20 @@ model BirdMessage {
   guessedZoneId   String
   guessedZoneName String
 
-  // Plaintext, always — the ciphering in db/lib/gribble.js happens when the DM
-  // is composed, never on the way into the database. A GM reading the desk
-  // needs to see what was actually written.
-  body String
+  // The letter the bird actually carried, and the whole of what a Bird send is
+  // now: you pick a paper you are HOLDING (docs/systemdocs/PAPERWORK.md). Null
+  // only on rows written before the paperwork rework.
+  //
+  // Not a relation, and deliberately: the paper can be sealed, torn up, eaten
+  // or wiped, and this row is the GM's record that a letter went. It holds the
+  // id so the desk can still find the tag while it exists.
+  tagId   String?
+  tagName String?
+
+  // A snapshot of the text at send time, so the desk can read what went even
+  // after the paper is gone or resealed. Null when the letter went out sealed
+  // — the bird did not open it either.
+  body String?
 
   // False means the guess missed, or the recipient was dead. The sender is not
   // told until the next turn closes: an instant "no" would turn this into a

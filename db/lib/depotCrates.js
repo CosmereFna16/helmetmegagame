@@ -174,6 +174,8 @@ function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Ma
     name: crateName(shipment, index),
     description: crateDescription(shipment, crate),
     custom: true,
+    // Game state, not catalog — a Restart Game sweeps it up. See TAGS.md §5d.
+    ephemeral: true,
     category: "items",
     groupId,
     pointCost: 0,

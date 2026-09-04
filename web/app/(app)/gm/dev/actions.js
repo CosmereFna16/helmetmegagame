@@ -325,9 +325,26 @@ export async function wipeGameData(formData) {
       prisma.desire.deleteMany({}),
       prisma.birdMessage.deleteMany({}),
       prisma.characterTag.deleteMany({}),
+      // Anything pinned to a noticeboard (PAPERWORK.md). Before the tag sweep
+      // below, or the FK from NoticePost.tagId blocks it.
+      prisma.noticePost.deleteMany({}),
       // Room stashes (CARRY.md): the rows cascade from nothing the wipe
       // deletes, so they go explicitly and the ⬢ column is zeroed.
       prisma.roomTag.deleteMany({}),
+      // Runtime-minted tags: crates, headstones, written paper, sealed
+      // letters. GAME state that happened to be stored in the catalog, and it
+      // has to go with the game.
+      //
+      // This closes a real leak rather than merely serving the new feature.
+      // The wipe never touched the Tag table, and db:prune-tags skips every
+      // `custom` row on purpose — so a crate or a headstone was a permanent
+      // orphan accumulating across every game ever run. Only corpses escaped,
+      // through corpseOfCharacterId's cascade, and they still do.
+      //
+      // `ephemeral` and not `custom`, deliberately: a GM's homebrew from
+      // /gm/dev/tags is custom too and must SURVIVE a restart. Runs after the
+      // holdings above so nothing references these rows.
+      prisma.tag.deleteMany({ where: { ephemeral: true } }),
       prisma.room.updateMany({ data: { resources: 0 } }),
       // Factions are live game state now (FACTIONS.md), so a restart has to
       // undo the parts players wrote. Handshakes go with the characters they

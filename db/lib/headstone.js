@@ -40,6 +40,8 @@ async function mintHeadstone(tx, target) {
         category: "Items",
         pointCost: 0,
         custom: true,
+        // Game state, not catalog — a Restart Game sweeps it up.
+        ephemeral: true,
         // A carved stone is a thing people can see you carrying.
         inspectVisibility: "ALWAYS",
         tradeable: true,

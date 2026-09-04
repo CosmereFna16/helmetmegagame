@@ -33,6 +33,7 @@ export const REQUEST_TYPE_LABELS = {
   PACKAGE_ITEMS: "Package ‡",
   ENGRAVE_HEADSTONE: "Engrave ‡",
   BIRD_MESSAGE: "Bird Message",
+  BREAK_SEAL: "Break Seal ‡",
   DEPOT_BUY: "Depot Purchase",
   DEPOT_SELL: "Depot Sale",
   DEPOT_CREDIT: "Depot Credit",
