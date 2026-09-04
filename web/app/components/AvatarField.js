@@ -19,6 +19,10 @@ export default function AvatarField({
   // picture control gives way to one line, and the conceal switch is off and
   // locked. The server actions re-check it (character/actions.js).
   forcedIdentity = null,
+  // The equipped thing covering this face, highest layer first, as
+  // { tagName, forced } — or null for a bare face, which is what shuts the
+  // conceal switch. Passed down from /character's page through BioForm.
+  concealGear = null,
 }) {
   const [fileName, setFileName] = useState("");
   const [makerOpen, setMakerOpen] = useState(false);
