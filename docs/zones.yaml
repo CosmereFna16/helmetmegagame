@@ -317,12 +317,6 @@ zones:
         description: >-
           A postern, really — one arch, one bar, one man's width. It faces the woods and the cave road, which is why the respectable traffic uses the north gate and this one gets everything else. There has not been a Cerberus on it in living memory. ‡
         rooms: {}
-      farms:
-        name: Farms
-        description: >-
-          Squalid patches of mud outside the town walls. The ground sustains you, and to it you shall return. Strike the earth!
-        yield: { farming: 1.0 }
-        rooms: {}
 
   fortress:
     name: Fortress
@@ -549,93 +543,221 @@ zones:
         name: Headwaters
         map_node: 1
         description: >-
-          The trees thin, tough grasses filling the gaps, snapping in the mountain breeze. Rubble from the mountain crowds the creek, creating pockets and swimming holes fed by small waterfalls. It turns into scree further up. You'd have to climb to get a better look, but there's a big waterfall up north.
-
-          # public rooms:
-          Scree Field
-          An uneven slope of gravel surrounding the cliffs.
-
-          Basin
-          The waterfall plunges into a cool, refreshing pond. You can't see the creek. It seems to have disappeared into the rocks, to reemerge further downhill.
-
-          # private requires
-          Cave
-          It's loud. You can barely hear yourself. There's a rusted steel box and a couple of obols on the floor.
-          # requires Caving
-          # start with 32 obols, a gladius, a refined poppy, and a gladiator helmet
-
+          The trees thin: tough grasses fill the gaps, snapping in the mountain breeze. Rubble from the mountain crowds the creek, creating pockets and swimming holes fed by small waterfalls. It turns into scree further up. You'd have to climb to get a better look, but there's a big waterfall up north.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
-        rooms: {}
+        rooms:
+          headwaters-scree:
+            name: Scree Field
+            description: >-
+              An uneven slope of gravel surrounding the cliffs.
+          headwaters-basin:
+            name: Basin
+            description: >-
+              The waterfall plunges into a cool, refreshing pond. You can't see the creek. It seems to have disappeared into the rocks, to reemerge further downhill.
+          headwaters-cave:
+            name: Cave
+            description: >-
+              It's loud. You can barely hear yourself. There's a rusted steel box and a couple of obols on the floor.
+            access: [caving]
+            stash:
+              items:
+                obol: 32
+                gladius: 1
+                advanced-poppy: 1
+                gladiator-helmet: 1
       forest-cliffs:
         name: Cliffs
         map_node: 2
         description: >-
-          The ground rises toward the fortress cliffs, and the spruce grow crooked out of them. Somewhere above, water runs through stone that was cut, not worn. There is an old service door in the hillside, and it has a keyhole. ‡
+          The mountains loom overhead. Blue pines crop out from lichen-covered granite. The cliffs have inaccessible gaps in them. It's very thickly forested here and hard to see.
         yield: { hunting: 0.5, farming: 0.3 }
-        rooms: {}
-      forest-crossroads:
-        name: Crossroads
+        rooms:
+          cliffside-path:
+            name: Cliffside Path
+            description: >-
+              A dirt path in the shadow of the keep. The river banks are further south. There's a distinctive boulder overhead, twice a person's height. It looks like a head. You can see dark gaps behind it—there are small caves in the cliffside.
+          cliffs-den:
+            name: Den
+            description: >-
+              A hidden cave that smells musky. You could investigate further with a Gambit.
+            access: [forester]
+          cliffs-elevator:
+            name: Elevator
+            # The near end of the Baron's lift, whose edge out of
+            # fortress/undercroft is `hidden: elevator-key` in `connections:`.
+            description: >-
+              There's a caged elevator in a vertical tunnel. You have to open the cage with a key, but there's a winch inside.
+            access: [elevator-key]
+      forest-creekside:
+        name: Creekside
         map_node: 3
         description: >-
-          Four ways meet under a beech old enough to have a name nobody remembers. The undergrowth is trodden flat in a ring around it. People stop here. Not all of them go on. ‡
+          Matted roots knit the rocky banks together. The trees rise to the west. You can't see anything, as thick as the forest is, but there's a boulder splitting the creek that you could climb to get a better view.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
-        rooms: {}
+        rooms:
+          creekside-shack:
+            name: Old Shack
+            description: >-
+              The forest overgrew an old wooden shack. The door is missing.
+            access: [forester]
       forest-north-road:
         name: North Road
         map_node: 4
         description: >-
-          The road proper, rutted by cart wheels and kept clear by the Baron's men. It runs downhill toward the town's north gate and uphill toward the manors. Walking it means being seen. ‡
+          The road starts to climbs up to the keep with rocky switchbacks. The first steep jumps have rock steps.
         yield: { hunting: 0.5, farming: 0.5, fishing: 0.9 }
-        rooms: {}
-      forest-boardwalk:
-        name: Boardwalk
+        rooms:
+          north-road-ascent:
+            name: Ascent
+            description: >-
+              There's a wooden post bearing the Ravenheart banner. The grass is dry on either side of the road. On each turn, you can start to see the town lower and lower.
+      forest-west-riverbank:
+        name: West Riverbank
         map_node: 5
         description: >-
-          A bog that has been swallowing this stretch of path for a century. Boards have been laid across the worst of it and then laid again on top of the rotted ones. Do not step where the moss looks freshest. ‡
+          The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark mark the territory of fishermen.
         yield: { hunting: 0.7, farming: 0.3 }
-        rooms: {}
-      forest-charcoal:
-        name: Charcoal Clearings
+        rooms:
+          riverbank-banks:
+            name: River Banks
+            description: >-
+              A small drop from the road, the banks are muddy. The water is warm and shallow the water grows warm and shallow. A common place for bathing.
+          beaver-dam:
+            name: Beaver Dam
+            description: >-
+              You can't fit in here, but it's a good place to store things.
+            access: [animal-friend]
+      forest-deep-forest:
+        name: Deep Forest
         map_node: 6
         description: >-
-          Charcoal burners worked here once. The clearings are circles of black earth where nothing has grown back, and the stacked kilns have collapsed into shapes that look, at dusk, like people sitting. ‡
+          Trees thickly clustered together. It's hard to move through here—it's thorny and overgrown. There's ferns and spiderwebs in the gloom.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
-        rooms: {}
-      forest-deadfall:
-        name: Deadfall
+        rooms:
+          deep-forest-brambles:
+            name: Brambles
+            description: >-
+              You can barely see in front of you.
+          deep-forest-clearing:
+            name: Clearing
+            description: >-
+              A huge tree fell here and took down other trees with it. There's a clearing with soft grass.
+            access: [forester]
+          sylvan-shrine:
+            name: Sylvan Shrine
+            # TODO: a "Pray" button here should strip a character's belief tags
+            # and grant old-ways-sylvia, unless they hold `fundamentalist`. A
+            # Room carries no `attributes:` — only a Location does — so there
+            # is nowhere in this file to hang it. Needs its own piece of work.
+            description: >-
+              An old, broken sculpture of antlers. Make your obeisance.
+            access: [old-ways-sylvia, forester]
+          metal-wreckage:
+            name: Metal Wreckage
+            description: >-
+              Old metal buried in the Earth.
+            access: [forester]
+            stash:
+              resources: 3
+              items:
+                obol: 1
+                workshop-equipment: 1
+      forest-bend:
+        name: Bend
         map_node: 7
         description: >-
-          Deadfall from a storm nobody alive remembers, piled two men high and going soft. Threading it takes an hour. Going around takes three. Things live in it. ‡
+          The river bends into a messy tangle of deadfall, where a storm broke the trees, making it hard to fish. The forest is thick to the west.
         yield: { hunting: 0.5, farming: 0.3 }
-        rooms: {}
-      forest-shrine:
-        name: Shrine
+        rooms:
+          bend-river-bank:
+            name: River Bank
+            description: >-
+              The road isn't maintained here, but the trees clearly shape around where there used to be a path to the cliffs. The trees block going any further.
+          bend-ravine:
+            name: Ravine
+            description: >-
+              The cliffside opens into an open ravine. There's several large puddles in the muddy depressions. To the left, wooden beams support a collapsed mineshaft. There's no getting in there.
+            access: [caving]
+      forest-crossroads:
+        name: Crossroads
         map_node: 8
         description: >-
-          Where every southern path knots together: the town's south gate above, the farms east, the cave mouth below. There is a shrine at the junction and somebody keeps it swept, though no one will admit to it. ‡
+          Welcome to Ravenheart.
         yield: { hunting: 0.5, farming: 0.5 }
-        rooms: {}
-      forest-terraces:
-        name: Terraces
+        rooms:
+          crossroads-road:
+            name: Road
+            description: >-
+              Two men have been hanging from parallel posts for weeks, unrecognizable. The road branches north to the town, south to the caves, and east to the fields. Farmers and migrants frequently take this road.
+      forest-sparse-field:
+        name: Sparse Field
         map_node: 9
         description: >-
-          Terraced ground the farmers gave up on, sliding slowly downhill. The old irrigation channels still run, and they run somewhere. Cargo comes up out of the ground near here and nobody asks whose. ‡
+          Sparse, muddy fields, collecting puddles in the deepest spots. There's a lot of fallen trees here. You can see all the way south to the Depot.
         yield: { hunting: 0.5, farming: 0.5 }
-        rooms: {}
+        rooms:
+          lumber-field:
+            name: Lumber Field
+            description: >-
+              The trees that were too thin to take lay fallen on the bare soil.
+          sparse-field-outcrop:
+            name: Outcrop
+            description: >-
+              Large granite boulders form a natural place to watch the road from.
+            access: [caving]
       forest-culvert:
         name: Culvert
         map_node: 10
         description: >-
-          The eastern bank, where the river turns and the water goes quiet and deep. There is a culvert in the bank, grated once. The grate is gone. ‡
+          There's a culvert on the other side of the river, locked, leading into the town.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
-        rooms: {}
-      forest-coppice:
-        name: Coppice
+        rooms:
+          culvert-road:
+            name: Road
+            description: >-
+              The road is flat, but you can see the Black Hills up ahead, sparse and mountainous, covered with a sparse dry flooring.
+      forest-east-river:
+        name: East River
         map_node: 36
         description: >-
-          Coppiced woodland, cut on a cycle so old it looks natural until you notice every trunk is the same age. The farms begin where the stools end. ‡
+          The river meets and starts to grow, forming a canyon between the Black Hills and a large promontory to the south. You can't go directly down the river, so you'll have to climb up the hills to the north.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
-        rooms: {}
+        rooms:
+          east-river-bridge:
+            name: Bridge
+            description: >-
+              An old wooden bridge.
+          rockside-washup:
+            name: Rockside Washup
+            description: >-
+              Accessible by boat, there's a still pond on the side of the river where some of the town's washup has collected.
+            access: [fishing-boat]
+            stash:
+              items:
+                sewer-key: 1
+                obol: 3
+                skinned-cave-rat: 1
+                feces: 4
+                alcohol: 3
+                cargo-crate: 1
+      farms:
+        name: Farms
+        description: >-
+          Smoke rises from thatch-roofed houses on the other side of the river from the town. They're slightly elevated, just above the cattails, but still vulnerable. There's a small guard tower.
+        yield: { farming: 1.0 }
+        rooms:
+          fields:
+            name: Fields
+            description: >-
+              Low walls of piled rocks separate the road from expansive fields of wheat. There's carts and empty crates, used for the harvest.
+          village-green:
+            name: Village Green
+            description: >-
+              Several plum trees surround a large, dead oak. The hamlet's informal gathering place.
+          old-church:
+            name: Old Church
+            description: >-
+              A miniature stone church with a cross inside. There's a cart laid on its side.
 
   hills:
     name: Black Hills
@@ -683,7 +805,7 @@ zones:
             name: Ravine Camp
             description: >-
               Roots hang over the ravine ledge, further obscuring the hidden camp. There's meats drying on a rack, a couple of fires, and some stolen crates.
-            access: [hills-camp]
+            access: [ravine-camp]
             stash:
               resources: 4
               items:
@@ -736,7 +858,7 @@ zones:
         name: Village
         description: >-
           Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
-        yield: { fishing: 1.2 }
+        yield: { fishing: 1.5 }
         attributes:
           godflesh: true
         rooms:
@@ -773,6 +895,7 @@ zones:
               The Godflesh is prepared for production here while Squeeze is stacked into neat little crates. There's a ramp leading down to dry ground, where the cart is usually staged.
             access: [factory-key]
             stash:
+              resources: 2
               items:
                 packaging-equipment: 1
                 armored-gloves: 2
@@ -796,6 +919,7 @@ zones:
               Clear sightways into the factory and out to the surrounding marsh, leading to a walkway that wraps around the factory's upper levels.
             access: [bannerets-key]
             stash:
+              resources: 8
               items:
                 obol: 5
                 cleaning-powder: 1
@@ -807,7 +931,7 @@ zones:
         map_node: 31
         description: >-
           Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
-        yield: { hunting: 1.0, fishing: 1.0 }
+        yield: { hunting: 1.0, fishing: 1.3 }
         attributes:
           godflesh: true
         rooms: {}
@@ -816,7 +940,7 @@ zones:
         map_node: 32
         description: >-
           Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
-        yield: { hunting: 1.0, fishing: 1.0 }
+        yield: { hunting: 1.0, fishing: 1.3 }
         attributes:
           godflesh: true
         rooms: {}
@@ -825,7 +949,7 @@ zones:
         map_node: 33
         description: >-
           Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
-        yield: { hunting: 1.0, fishing: 1.0 }
+        yield: { hunting: 1.0, fishing: 1.3 }
         attributes:
           godflesh: true
         rooms: {}
@@ -834,7 +958,7 @@ zones:
         map_node: 34
         description: >-
           Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
-        yield: { hunting: 1.0, fishing: 1.0 }
+        yield: { hunting: 1.0, fishing: 1.3 }
         attributes:
           godflesh: true
         rooms: {}
@@ -843,7 +967,7 @@ zones:
         map_node: 35
         description: >-
           The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
-        yield: { hunting: 1.0, fishing: 1.0 }
+        yield: { hunting: 1.0, fishing: 1.3 }
         attributes:
           godflesh: true
         rooms: {}
@@ -1041,19 +1165,18 @@ connections:
   - [town/the-hole, town/south-gate]
 
   # --- Forest -----------------------------------------------------------
-  - [forest/forest-river, forest/forest-cliffs]
-  - [forest/forest-river, forest/forest-crossroads]
-  - [forest/forest-cliffs, forest/forest-crossroads]
+  - [forest/forest-headwaters, forest/forest-cliffs]
+  - [forest/forest-headwaters, forest/forest-creekside]
   - [forest/forest-cliffs, forest/forest-north-road]
-  - [forest/forest-crossroads, forest/forest-boardwalk]
-  - [forest/forest-crossroads, forest/forest-charcoal]
+  - [forest/forest-creekside, forest/forest-west-riverbank]
+  - [forest/forest-creekside, forest/forest-deep-forest]
   - [forest/forest-north-road, forest/forest-culvert]
-  - [forest/forest-boardwalk, forest/forest-charcoal]
-  - [forest/forest-boardwalk, forest/forest-deadfall]
-  - [forest/forest-charcoal, forest/forest-deadfall]
-  - [forest/forest-deadfall, forest/forest-shrine]
-  - [forest/forest-shrine, forest/forest-terraces]
-  - [forest/forest-culvert, forest/forest-coppice]
+  - [forest/forest-west-riverbank, forest/forest-deep-forest]
+  - [forest/forest-west-riverbank, forest/forest-bend]
+  - [forest/forest-deep-forest, forest/forest-bend]
+  - [forest/forest-bend, forest/forest-crossroads]
+  - [forest/forest-crossroads, forest/forest-sparse-field]
+  - [forest/forest-culvert, forest/forest-east-river]
 
   # --- Black Hills ------------------------------------------------------
   - [hills/hills-descent, hills/hills-ferry]
@@ -1097,11 +1220,11 @@ connections:
 
   # --- Between zones — each of these costs the Move ----------------------
   - [fortress/manors, forest/forest-north-road]
-  - [forest/forest-shrine, town/farms]
-  - [forest/forest-terraces, town/farms]
-  - [forest/forest-coppice, town/farms]
-  - [forest/forest-shrine, caves/customs]
-  - [forest/forest-terraces, caves/depot]
+  - [forest/forest-crossroads, forest/farms]
+  - [forest/forest-sparse-field, forest/farms]
+  - [forest/forest-east-river, forest/farms]
+  - [forest/forest-crossroads, caves/customs]
+  - [forest/forest-sparse-field, caves/depot]
   - [forest/forest-culvert, hills/hills-ferry]
   - [caves/caves-stairhead, depths/depths-gallery]
   - [caves/caves-stairhead, depths/depths-braid]
@@ -1114,7 +1237,7 @@ connections:
   # would have seen rather than who it actually was.
   - pair: [forest/forest-north-road, town/north-gate]
     announce: concealed
-  - pair: [forest/forest-shrine, town/south-gate]
+  - pair: [forest/forest-crossroads, town/south-gate]
     announce: concealed
 
   # The Baron's elevator: the Undercroft's deeper passages come out in the
@@ -1137,13 +1260,13 @@ connections:
   - pair: [fortress/servant-wing, hills/hills-mountain]
     locked: mountaineering
     on_foot: true
-  - pair: [forest/forest-river, hills/hills-mountain]
+  - pair: [forest/forest-headwaters, hills/hills-mountain]
     locked: mountaineering
     on_foot: true
 
   # The four crawls. Hidden, so a player without Caving never learns they are
   # there at all, and on foot, because they are crawls.
-  - pair: [forest/forest-terraces, caves/caves-junction]
+  - pair: [forest/forest-sparse-field, caves/caves-junction]
     hidden: caving
     on_foot: true
   - pair: [caves/caves-junction, marshes/marshes-duckboards]

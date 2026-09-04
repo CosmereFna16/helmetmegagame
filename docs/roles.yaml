@@ -883,6 +883,7 @@ zones:
               - Laboring (Farming)
               - Literate
               - Headman's Cap
+              - Sewer Key
             doc_elements:
               - townstarting
               - farming
@@ -1170,6 +1171,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: caves
+            extra_starting_points: 10
             starting_tags: [Pale]
             doc_elements: [caving]
           mercenary:
@@ -1298,7 +1300,7 @@ zones:
             difficulty: easy
             multiple: true
             weight: 3
-            starting_resources: 1
+            starting_resources: 2
             starting_zone: marshes
             starting_location: factory
             starting_tags:
@@ -1348,7 +1350,7 @@ zones:
             leader: true
             whitelist: true
             starting_tags:
-              - Hills Camp
+              - Ravine Camp
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1381,7 +1383,7 @@ zones:
             starting_zone: hills
             starting_location: hills-ravine
             starting_tags:
-              - Hills Camp
+              - Ravine Camp
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)

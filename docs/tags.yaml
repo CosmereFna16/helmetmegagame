@@ -419,12 +419,12 @@ tags:
   # docs/zones.yaml and nothing else, so it weighs nothing, cannot be bought
   # and cannot be handed over — you either were shown the place or you were
   # not. A faction that recruits somebody has to grant it deliberately.
-  hills-camp:
+  ravine-camp:
     catalog: all
-    name: Hills Camp
+    name: Ravine Camp
     category: general
     group: general-location
-    description: "You know about the camp in the ravine."
+    description: "You know about the Brigand camp in the Black Hills ravine."
     pointCost: 0
     tradeable: false
     weight: 0
@@ -1817,8 +1817,8 @@ tags:
     name: Caving
     category: skills
     teachable: true
-    description: "Unlocks secret passages through the caves. ‡"
-    pointCost: 5
+    description: "You know about some secret connections between the surface and the caves."
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 

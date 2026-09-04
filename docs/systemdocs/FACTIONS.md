@@ -234,7 +234,7 @@ check, not a preference:
   themselves a key the officer chose not to give. The silo's keys are granted
   in full instead, because an officer who invited somebody has already decided
   they belong there. Without this an invited Brigand could never get the camp
-  tag at all: `hills-camp` is untradeable and unremovable, so no later
+  tag at all: `ravine-camp` is untradeable and unremovable, so no later
   hand-over exists.
 
 Every hidden tab and disabled button is a hint. The actions re-resolve the

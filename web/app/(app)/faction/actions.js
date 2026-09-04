@@ -503,7 +503,7 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
   //   themselves the Cathedral Key the officer chose not to give. Instead the
   //   silo's keys are granted in full, because an officer who invited
   //   somebody in has already decided they belong there. Without this an
-  //   invited Brigand could never receive the camp tag at all: `hills-camp`
+  //   invited Brigand could never receive the camp tag at all: `ravine-camp`
   //   is untradeable, so no later hand-over exists.
   const keySlugs = await siloKeySlugs(row.factionId);
   let grantSlugs = [];
