@@ -186,9 +186,25 @@ licence, not the keycard, not the role. So:
 - A Docker who steals the card is still shot.
 - Anyone who comes back wearing the Merchant's name walks past it.
 - With no face on file it fires on **everyone**, so **arming it is refused
-  until a GM sets the face**. That was a one-click suicide with a GM-only cure:
+  until there is one**. That was a one-click suicide with a GM-only cure:
   disarming needs you standing in the Depot, and walking in rolls the gun on
   you first.
+
+**The face is written when the Merchant is created.** Creating a character on
+the `merchant` role calls `setMerchantFace` with that character's own name
+(`web/app/(app)/character/createActions.js`, in the best-effort side-effect
+block; the writer is in `db/lib/depotState.js`). It used to be a GM-only field,
+which meant a new Merchant met a gun he was forbidden to arm and had to go and
+ask somebody to type his name into a form. `/gm/dev` is still the override.
+
+It is set **once and never resynced**, because a face does not change when the
+papers do. Two consequences worth knowing, both deliberate:
+
+- Concealing himself later still gets the Merchant shot — he presents an alias,
+  which is not the face on file. That is the trap working, not a bug.
+- A **dead Merchant's face stays on file.** The gun goes on sparing a name
+  nobody is wearing until the next Merchant is created, which overwrites it, or
+  a GM edits it. Nothing clears it on death.
 
 It fires **on entry** (`db/lib/locationMove.js`, before the Discord guard —
 being shot is a database fact) and **again at the end of every turn**

@@ -164,8 +164,9 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
 
         {!depot.merchantFace && (
           <p className="mt-3 text-sm text-danger">
-            No face is on file, so it would fire on everyone including you. A GM sets this on the
-            Dev Panel. ‡
+            No face is on file, so it would fire on everyone including you. The Depot learns the
+            Merchant&apos;s face when he is created, so either nobody holds the seat yet or a GM
+            has cleared it. A GM can set it on the Dev Panel. ‡
           </p>
         )}
 

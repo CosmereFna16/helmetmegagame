@@ -63,6 +63,23 @@ async function loadDepot(tx) {
   return tx.depot.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
 }
 
+// Who the turret spares. Written when a character is created on the Merchant
+// role (web/app/(app)/character/createActions.js) so a new Merchant is not
+// handed a gun he is forbidden to arm, and writable by a GM from /gm/dev after
+// that. It is set ONCE and never follows the character: the turret reads a
+// FACE, so a Merchant who later conceals himself presents an alias, misses
+// this string and is shot by his own gun, which is the point.
+//
+// A blank name is ignored rather than stored. Clearing the face is a
+// deliberate GM act through the Dev Panel, never a side effect of some caller
+// having nothing to say.
+async function setMerchantFace(tx, name) {
+  const face = String(name ?? "").trim();
+  if (!face) return null;
+  await loadDepot(tx);
+  return tx.depot.update({ where: { id: 1 }, data: { merchantFace: face } });
+}
+
 // The shared shape behind every mover below: lock the row, clamp inside the
 // UPDATE, report what actually moved. `column` is interpolated as an
 // identifier and so must never come from user input — the three callers below
@@ -137,6 +154,7 @@ module.exports = {
   fuelTurnsLeft,
   creditAvailableObols,
   loadDepot,
+  setMerchantFace,
   bumpAccount,
   bumpFuel,
 };

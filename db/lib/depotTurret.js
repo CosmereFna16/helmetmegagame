@@ -173,8 +173,9 @@ function rollTurret(characterTags, depot, rng = Math.random) {
 }
 
 // Does the turret spare this character? The one question the whole gun asks.
-// Compared case-insensitively on the trimmed presented name, because the GM
-// types merchantFace by hand into the Dev Panel and a stray capital should not
+// Compared case-insensitively on the trimmed presented name: the face is
+// normally written from the Merchant's own character name at creation, but a
+// GM can retype it by hand from the Dev Panel and a stray capital should not
 // get somebody killed. An empty merchantFace spares nobody — a turret with no
 // face on file is a turret that shoots the room, which is the safe failure for
 // a gun that has to be deliberately armed in the first place.

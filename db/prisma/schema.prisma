@@ -641,6 +641,10 @@ model Depot {
   // merchantFace — so a concealed Merchant is shot by his own gun, and anyone
   // wearing his name is spared. Deliberately not keyed on the keycard or the
   // role: it reads faces, and that is the whole trap.
+  //
+  // merchantFace is written when a character is created on the Merchant role,
+  // and a GM can override it from /gm/dev. It is set once and never resynced,
+  // because a face does not change when the papers do.
   turretArmed  Boolean @default(false)
   merchantFace String  @default("")
 
