@@ -8,6 +8,7 @@ import Pager from "./Pager";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
 import Tooltip from "./Tooltip";
+import { formatMoney } from "./depotMoney";
 
 // The working table: what the station stocks, what it pays back, and the
 // spread between the two. The margin column is the reason this is a table and
@@ -22,15 +23,16 @@ import Tooltip from "./Tooltip";
 const SEARCH_FIELDS = [(r) => r.name, (r) => r.description];
 const FILTER_DEFS = [{ key: "group", label: "Kind", value: (r) => r.groupName ?? "" }];
 
-// The catalog prices in ⬢ and the account pays in obols, so the rows show ⬢
-// and the total shows both. Converting per row would print fractions at every
-// line and round a cart of cheap things into nonsense; the server converts the
-// same way, on the total. See db/lib/depotState.js#obolsToPay.
+// The catalog prices in ⬢ and the account pays in obols. The rows follow the
+// cockpit's ⬢/¢ toggle and are exact to the decimal (depotMoney.js); the TOTAL
+// below is the settlement and always shows both, in whole obols, because that
+// is the number that actually leaves the account. The server converts the same
+// way, on the total. See db/lib/depotState.js#obolsToPay.
 function toObols(resources, rate) {
   return Math.ceil(Math.max(0, resources) / Math.max(1, rate));
 }
 
-export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
+export default function DepotOrderTab({ wares, depot, disabled, manifest, unit }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [cart, setCart] = useState(() => new Map());
@@ -138,10 +140,10 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
                       </Tooltip>
                     )}
                   </td>
-                  <td className="mono">{row.price} ⬢</td>
-                  <td className="mono text-muted">{row.sellPrice == null ? "—" : `${row.sellPrice} ⬢`}</td>
+                  <td className="mono">{formatMoney(row.price, depot.obolRate, unit)}</td>
+                  <td className="mono text-muted">{formatMoney(row.sellPrice, depot.obolRate, unit) ?? "—"}</td>
                   <td className={`mono ${row.margin != null && row.margin < 0 ? "text-danger" : "text-muted"}`}>
-                    {row.margin == null ? "—" : `${row.margin > 0 ? "+" : ""}${row.margin} ⬢`}
+                    {formatMoney(row.margin, depot.obolRate, unit, { sign: true }) ?? "—"}
                   </td>
                   <td className="mono text-muted">{row.held || "—"}</td>
                   <td className="depot-stepper-cell">
@@ -204,7 +206,7 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
               <li key={l.id}>
                 <span>{l.name}</span>
                 <span className="mono">
-                  ×{l.quantity} · {l.price * l.quantity} ⬢
+                  ×{l.quantity} · {formatMoney(l.price * l.quantity, depot.obolRate, unit)}
                 </span>
               </li>
             ))}

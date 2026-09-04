@@ -226,7 +226,7 @@ The Merchant is the only faucet of currency in the game.
 - **The ATM** moves obols between `Depot.accountObols` and physical `obol`
   tags. It is the only door coins enter and leave the world through, which is
   what makes lending something only he can do.
-- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 60)
+- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 15)
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
@@ -239,13 +239,26 @@ The Merchant is the only faucet of currency in the game.
 
 Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
 (`Obol x5`), parsed by `db/lib/startingTags.js`. Baron 5, Hand 2, Esculap 2,
-Baroness / Heir / Meister 1 each, Merchant 20.
+Baroness / Heir / Meister 1 each, Merchant 6 — about 30 ⬢ at the default rate.
+His float is deliberately thin: the Company's line, 15 ¢, is where the rest of
+his first order comes from, and it has to be paid back.
 
 ## 0h. The console
 
 `/depot`. A cockpit strip that never scrolls away — greeting, balance,
 generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
 **Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
+
+Beside the balance sits a **⬢/¢ toggle** (`useDepotUnit.js`, persisted per
+browser; `depotMoney.js` does the formatting). It changes what the price
+columns on Order, Price List and Hold are printed in, and nothing else. Two
+things it deliberately does not do. Obol figures on a row are **exact to the
+decimal** — an 8 ⬢ ware reads 1.6 ¢ — because the station converts on the total
+and a row rounded to a whole obol would misprice a cart of ten. And the
+settlement figures never follow it: the order total, the Hold payout, the
+account and the credit line stay in whole obols in both modes, because those
+are the numbers that actually move. Sorting is unaffected, since dividing by a
+positive rate keeps the order.
 
 The strip is pinned because all four of those facts matter whichever job you
 are doing; hiding the generator behind a tab is how you order three hundred
@@ -340,6 +353,7 @@ buying one mid-game is still a real decision.
 | `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
 | `amoeba-vial` | 64 | 28 | |
 | `illusion-crystal` | 73 | 32 | |
+| `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |

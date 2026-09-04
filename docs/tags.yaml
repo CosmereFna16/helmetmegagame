@@ -6405,6 +6405,24 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  silencer:
+    name: Silencer
+    category: items
+    group: items-gear
+    description: "Equip to muffle your shots. ‡"
+    pointCost: 0
+    depotPrice: 90
+    sellable: true
+    sellablePrice: 39
+    equippable: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   antibiotics:
     name: Antibiotics
     category: items

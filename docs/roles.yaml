@@ -1197,7 +1197,7 @@ zones:
               - >-
                 You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. ‡ You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
-                The Company will advance you up to 60 ¢ against the business. Your licence will be revoked if you fail to pay it. ‡
+                The Company will advance you up to 15 ¢ against the business. Your licence will be revoked if you fail to pay it. ‡
               - >-
                 Try your hand at usury. Lend at high rates and call on your Dockers to collect. That's probably the easiest way to make serious bucks.
               - >-
@@ -1213,7 +1213,8 @@ zones:
               - Merchant's Garb
               - Merchant's License
               - Depot Keycard
-              - Obol x20
+              - Silencer
+              - Obol x6
             doc_elements:
               - townstarting
           docker:

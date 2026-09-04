@@ -3987,6 +3987,39 @@ input[type="radio"]:disabled {
   color: var(--accent);
 }
 
+/* The ⬢/¢ segmented control, sitting beside the balance. Deliberately quiet:
+   it is a preference, not a control that moves money. */
+.depot-cockpit-money {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.depot-unit-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.depot-unit {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: var(--sp-1) var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.depot-unit:hover { color: var(--text); }
+
+.depot-unit-on {
+  background: var(--surface-raised);
+  color: var(--accent);
+}
+
 .depot-cockpit-stats,
 .console-strip-stats {
   display: flex;

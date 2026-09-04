@@ -655,7 +655,7 @@ model Depot {
   shuttleMaxTurns Int @default(6)
   shuttleCooldown Int @default(1)
 
-  creditCapObols Int @default(60)
+  creditCapObols Int @default(15)
 
   // How many ⬢ one obol is worth when the Depot takes Resources in trade.
   obolRate Int @default(5)
