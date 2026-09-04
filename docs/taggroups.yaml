@@ -123,6 +123,17 @@ groups:
     category: general
     color: "#aaace4"
     requiredTag: courtier
+  # Places you know about that are not on any map a stranger could read. A
+  # tag here is knowledge, not a possession: it opens a hidden room's door
+  # and nothing else. Ungated as a group, because each member is granted by
+  # a role rather than bought — nobody browses this in the point-buy.
+  #
+  # The General blue, one step down in lightness from Traits so the two
+  # don't read as the same chip: 3.33 on dusk, 3.51 on dawn.
+  general-location:
+    name: Location
+    category: general
+    color: "#5a83b5"
   # Orphaned: the Health category below took every tag that used to live
   # here. Sync never deletes, and `db:prune-tags` only prunes an empty group
   # once it's absent from this file — so this row survives empty as long as
@@ -164,6 +175,15 @@ groups:
     name: Armor
     category: items
     color: "#8faab7"
+  # Split out of Armor once headgear started deciding what a character's FACE
+  # is (Tag.concealSprite, docs/systemdocs/PROXYING.md §5). A helm is no longer
+  # just plate that happens to sit high up: a mask with no armour value at all
+  # belongs here, and a breastplate does not, so grouping by body part reads
+  # better on a sheet than grouping by what stops a blade.
+  items-headgear:
+    name: Headgear
+    category: items
+    color: "#9db8c4"
   # The exotic tier: relics, grafts and machinery that don't belong to the
   # low-fantasy surface of the game. Kept apart from Gear so a player reading
   # their sheet can tell at a glance which of their possessions are ordinary.
@@ -171,6 +191,18 @@ groups:
     name: Special
     category: items
     color: "#a9d0e5"
+  # Keys. Split out of Gear because a key is not equipment — it weighs
+  # nothing, does nothing in a fight, and its whole value is the one door it
+  # opens (a Room's `access:` list in docs/zones.yaml). Grouping them means a
+  # GM can see every lock in the game in one screen.
+  #
+  # Deeper than Gear's teal, because the light theme is the binding
+  # constraint: 3.56 on dusk, 3.28 on dawn. The obvious brighter cyan
+  # measured 2.25 on dawn and would have been unreadable there.
+  items-keys:
+    name: Keys
+    category: items
+    color: "#4a8fa0"
   items-weapons:
     name: Weapons
     category: items
@@ -187,6 +219,27 @@ groups:
     name: Corpses
     category: items
     color: "#4a8f88"
+  # Paper, wax stamps, and every sheet anybody writes on
+  # (docs/systemdocs/PAPERWORK.md). Like items-corpse, this group holds both
+  # catalog rows and rows the game mints at runtime, and for the same reason:
+  # a written note is per-character and never in the YAML, so the GROUP is
+  # what code checks rather than any catalog flag.
+  #
+  # The one warm colour in Items, and deliberately — paper is the only thing
+  # in the category that is not metal, meat or machinery, and a player
+  # scanning their sheet should be able to find their letters without reading.
+  #
+  # The band is razor-thin, the same trap items-corpse documents: a group
+  # colour is not theme-aware, so one value has to clear 3:1 on the dusk chip
+  # (#1e352f/#27443e), the brown one (#362a24/#46372d) AND the dawn one
+  # (#fbfaf7/#ffffff). Every warmer, softer parchment tone measured 2.87–2.89
+  # on dawn. This one measures 3.93 / 3.18 / 3.19 / 3.33 / 4.17 / 3.42, which
+  # is about as good as the constraint allows — don't "improve" it toward
+  # something more paper-coloured without re-measuring all six.
+  items-paper:
+    name: Paper
+    category: items
+    color: "#c47c44"
   # --- Health ------------------------------------------------------------
   # Every affliction a doctor might treat, split by what KIND of medicine it
   # wants rather than by severity — severity is carried by the tag's own

@@ -19,6 +19,10 @@ export default function AvatarField({
   // picture control gives way to one line, and the conceal switch is off and
   // locked. The server actions re-check it (character/actions.js).
   forcedIdentity = null,
+  // The equipped thing covering this face, highest layer first, as
+  // { tagName, forced } — or null for a bare face, which is what shuts the
+  // conceal switch. Passed down from /character's page through BioForm.
+  concealGear = null,
 }) {
   const [fileName, setFileName] = useState("");
   const [makerOpen, setMakerOpen] = useState(false);
@@ -90,16 +94,25 @@ export default function AvatarField({
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
         </Switch>
-        {/* While this is on every message you send posts under your alias with
-            the unknown avatar, and Who's here? lists the alias too. */}
+        {/* While this is on every message you send posts under your alias and
+            the concealing item's own face, and Who's here? lists the alias too.
+            Three ways it can be locked, and the label says which: a forced
+            name, a bare face, or something you don't get to take off. The
+            server re-checks all three — this is the hint, not the lock. */}
         <Switch
           name="concealed"
-          defaultChecked={forcedIdentity ? false : defaultConcealed}
-          disabled={Boolean(forcedIdentity)}
+          defaultChecked={
+            forcedIdentity ? false : concealGear?.forced ? true : Boolean(concealGear) && defaultConcealed
+          }
+          disabled={Boolean(forcedIdentity) || !concealGear || concealGear.forced}
         >
           {forcedIdentity
             ? `Speak under an anonymous alias — not while you are ${forcedIdentity.name}. ‡`
-            : "Speak under an anonymous alias ‡"}
+            : !concealGear
+              ? "Speak under an anonymous alias — your face is bare. Equip something that covers it. ‡"
+              : concealGear.forced
+                ? `Speak under an anonymous alias — no choice while you are wearing ${concealGear.tagName}. ‡`
+                : "Speak under an anonymous alias ‡"}
         </Switch>
         {fileName ? (
           <span className="text-sm text-muted">

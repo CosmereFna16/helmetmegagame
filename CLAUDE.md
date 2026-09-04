@@ -30,7 +30,7 @@ signed off yet, and it stays there until Bascinet replaces the words.
 **Where it goes.** At the very end of the string, after the final punctuation.
 **One per string, not one per sentence** — a three-sentence tag description gets
 exactly one ‡, at the end. A multi-block document marks per rendered block, the
-way `docs/threats.md` already does. It sits *after* the other glyph
+way `docs/handbook.md` already does. It sits *after* the other glyph
 conventions rather than displacing them: a line ending in `3 ⬢` becomes
 `3 ⬢ ‡`, and a `»` quote line keeps its prefix.
 
@@ -208,7 +208,8 @@ you pick the right doc — they are never enough to change code with.
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet |
-| [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, the Reply window, or the **Literate cipher** (`db/lib/gribble.js`) that any future literacy feature should reuse |
+| [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
+| [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
@@ -218,6 +219,7 @@ you pick the right doc — they are never enough to change code with.
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, a GM's zone seat, `/gm/gamemasters`, or who can see the audit log |
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
+| [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
@@ -227,13 +229,12 @@ you pick the right doc — they are never enough to change code with.
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
+| [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
 | [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
 
 Other reference docs, outside `systemdocs/`:
 
 - `docs/lore.md` — the setting.
-- `docs/threats.md` — the antagonist seats. It briefs 6 of them, while
-  `db/lib/antagonists.js` ships 11 opt-in entries.
 - `docs/handbook.md` — the player handbook, read at runtime by the web app
   (`web/lib/handbook.js`) rather than repo-only reference. It renders on two
   live surfaces: the pinned "Player Handbook" card on `/documents` and the
@@ -744,9 +745,9 @@ starting with a glyph, a `-` or a `*`.
   `--secret`) and nothing is written and nothing is posted. There is no partial
   version — a heading alone still tells the GMs something happened.
 - **Lore and antagonists, by default.** A push touching `docs/lore.md`,
-  `docs/threats.md`, `docs/archive/` or `db/lib/antagonists.js` is held back on
-  its own, with a line printed saying so. The GMs get briefed on that material
-  deliberately and in order, not by changelog. `--tell-gms` overrides it for the
+  `docs/archive/`, `db/lib/threats.js` or `docs/systemdocs/THREATS.md` is held
+  back on its own, with a line printed saying so. The GMs get briefed on that
+  material deliberately and in order, not by changelog. `--tell-gms` overrides it for the
   odd case where the change really is theirs to see. The same applies to your
   own wording: don't describe a secret in a note about some other file.
 
@@ -855,6 +856,12 @@ global CLIs. To make one able to build, run, and deploy:
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
+  `FactionApplication_pending_unique` is the same shape of ghost: a PARTIAL
+  unique index (`WHERE status = 'PENDING'`), which Prisma's schema language
+  cannot express. Decline that drop too — without it a character could hold
+  two live applications to one faction. `ThreatSpawn_pending_unique` is the
+  third of these, and the same answer: without it a player could hold two live
+  spawn offers (`THREATS.md` §4).
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

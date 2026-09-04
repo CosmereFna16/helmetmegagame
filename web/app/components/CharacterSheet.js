@@ -35,6 +35,7 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferParties,
+  transferSilo,
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
@@ -65,7 +66,13 @@ export default function CharacterSheet({
   learners = [],
   pendingOffers = [],
   hasBird = false,
-  isLiterate = false,
+  canRead = false,
+  canWrite = false,
+  hasSeal = false,
+  canSeal = false,
+  paperOptions = [],
+  letterOptions = [],
+  sealOptions = { stamps: [], letters: [] },
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
@@ -76,6 +83,10 @@ export default function CharacterSheet({
   // is standing here. Empty on someone else's sheet.
   corpses = [],
   canButcher = false,
+  canSeeExtract = false,
+  canExtract = false,
+  extractBlocked = null,
+  canSeePackage = false,
   lootTargets = [],
   moveTargets = [],
   moveLocations = [],
@@ -139,6 +150,7 @@ export default function CharacterSheet({
             characterTags={character.tags}
             resources={character.resources}
             transferParties={transferParties}
+            transferSilo={transferSilo}
             carry={carry}
             hasWorkshop={hasWorkshop}
             canHeal={canHeal}
@@ -152,7 +164,13 @@ export default function CharacterSheet({
             teachers={teachers}
             learners={learners}
             hasBird={hasBird}
-            isLiterate={isLiterate}
+            canRead={canRead}
+            canWrite={canWrite}
+            hasSeal={hasSeal}
+            canSeal={canSeal}
+            paperOptions={paperOptions}
+            letterOptions={letterOptions}
+            sealOptions={sealOptions}
             birdSentToday={birdSentToday}
             birdTargets={birdTargets}
             birdZones={birdZones}
@@ -160,6 +178,10 @@ export default function CharacterSheet({
             healParties={healParties}
             corpses={corpses}
             canButcher={canButcher}
+            canSeeExtract={canSeeExtract}
+            canExtract={canExtract}
+            extractBlocked={extractBlocked}
+            canSeePackage={canSeePackage}
             lootTargets={lootTargets}
             moveTargets={moveTargets}
             moveLocations={moveLocations}

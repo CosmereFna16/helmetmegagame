@@ -22,14 +22,8 @@ import Tooltip from "./Tooltip";
 const SEARCH_FIELDS = [(r) => r.name, (r) => r.description];
 const FILTER_DEFS = [{ key: "group", label: "Kind", value: (r) => r.groupName ?? "" }];
 
-// The catalog prices in ⬢ and the account pays in obols, so the rows show ⬢
-// and the total shows both. Converting per row would print fractions at every
-// line and round a cart of cheap things into nonsense; the server converts the
-// same way, on the total. See db/lib/depotState.js#obolsToPay.
-function toObols(resources, rate) {
-  return Math.ceil(Math.max(0, resources) / Math.max(1, rate));
-}
-
+// One obol is one ⬢, so a price is the same number on either side of the
+// counter and the cart total is a plain sum. See db/lib/depotState.js.
 export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
@@ -52,7 +46,7 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
     [cart, wares],
   );
   const cartResources = cartLines.reduce((s, l) => s + l.price * l.quantity, 0);
-  const cartTotal = toObols(cartResources, depot.obolRate);
+  const cartTotal = cartResources;
   const after = (depot.accountObols ?? 0) - cartTotal;
   const affordable = after >= 0;
 
@@ -138,10 +132,10 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
                       </Tooltip>
                     )}
                   </td>
-                  <td className="mono">{row.price} ⬢</td>
-                  <td className="mono text-muted">{row.sellPrice == null ? "—" : `${row.sellPrice} ⬢`}</td>
+                  <td className="mono">{row.price} ¢</td>
+                  <td className="mono text-muted">{row.sellPrice != null ? `${row.sellPrice} ¢` : "—"}</td>
                   <td className={`mono ${row.margin != null && row.margin < 0 ? "text-danger" : "text-muted"}`}>
-                    {row.margin == null ? "—" : `${row.margin > 0 ? "+" : ""}${row.margin} ⬢`}
+                    {row.margin != null ? `${row.margin > 0 ? "+" : ""}${row.margin} ¢` : "—"}
                   </td>
                   <td className="mono text-muted">{row.held || "—"}</td>
                   <td className="depot-stepper-cell">
@@ -204,7 +198,7 @@ export default function DepotOrderTab({ wares, depot, disabled, manifest }) {
               <li key={l.id}>
                 <span>{l.name}</span>
                 <span className="mono">
-                  ×{l.quantity} · {l.price * l.quantity} ⬢
+                  ×{l.quantity} · {l.price * l.quantity} ¢
                 </span>
               </li>
             ))}

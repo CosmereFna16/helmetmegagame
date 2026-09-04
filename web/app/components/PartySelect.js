@@ -13,9 +13,17 @@
 // `rooms` — the Room stashes at the character's Location they can get into
 // (docs/systemdocs/CARRY.md), as "room:<id>". `selfId` puts "(you)" after
 // your own name so a payer or destination list reads right.
+//
+// `silo` — the character's own faction silo, when the "Rooms here" list
+// cannot carry it: either it is elsewhere in the zone, or it is a locked room
+// at this very Location that `accessibleRooms` filtered out. That second case
+// is the mail slot (FACTIONS.md §4a) — you may deposit into a silo you cannot
+// open, and without this group the picker would hide the one destination the
+// server actually allows. Only ever passed for a DESTINATION: you deposit
+// from across the zone, and take things out only by standing in the room.
 import Select from "./Select";
 
-export default function PartySelect({ label, value, onChange, characters, rooms, hint, selfId = null }) {
+export default function PartySelect({ label, value, onChange, characters, rooms, hint, selfId = null, silo = null }) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
@@ -23,6 +31,14 @@ export default function PartySelect({ label, value, onChange, characters, rooms,
         <option value="" disabled>
           {hint}
         </option>
+        {silo ? (
+          <optgroup label="Your silo ‡">
+            <option value={`room:${silo.id}`}>
+              ★ {silo.name}
+              {silo.here ? " — locked to you ‡" : ` — ${silo.locationName} ‡`}
+            </option>
+          </optgroup>
+        ) : null}
         {rooms?.length ? (
           <optgroup label="Rooms here ‡">
             {rooms.map((r) => (

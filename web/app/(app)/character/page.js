@@ -4,11 +4,15 @@ import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/l
 import { prisma, roleCapacity, isDynastyMember, presentedIdentity, startingTagNames } from "@lifeweb/db";
 import { accessibleRooms, guestRoomIds as roomGuestIds } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
-import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG, PACKAGING_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
+import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { canRead } from "@lifeweb/db/lib/reading";
+import { PAPER_SLUG, isPaper, isSeal, sealLabel, paperDescription } from "@lifeweb/db/lib/paper";
 import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
@@ -47,7 +51,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { isTradeable } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
-import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf, LITERATE_SLUG } from "@lifeweb/db/lib/bird";
+import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf } from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
@@ -461,9 +465,58 @@ export default async function CharacterPage() {
 
   // From is you or a room; To is anyone here or a room (TransferDialog.js).
   const transferParties = { characters: peopleParties, rooms };
+  // Your faction's silo, if it has one and you are standing in its zone: a
+  // deposit-only destination pinned above the rooms here (FACTIONS.md). The
+  // `here` flag says whether it is already in `rooms` above, so the dialog
+  // doesn't list the same room twice; `canOpen` is what decides whether the
+  // dialog warns that this is a one-way trip.
+  const siloFaction = character.factionId
+    ? await prisma.faction.findFirst({
+        where: { id: character.factionId, siloRoomId: { not: null } },
+        select: {
+          siloRoom: {
+            select: {
+              id: true,
+              name: true,
+              kind: true,
+              accessTagSlugs: true,
+              locationId: true,
+              location: { select: { name: true, zoneId: true } },
+            },
+          },
+        },
+      })
+    : null;
+  const siloRoom = siloFaction?.siloRoom ?? null;
+  const transferSilo =
+    siloRoom && character.zoneId && siloRoom.location.zoneId === character.zoneId
+      ? {
+          id: siloRoom.id,
+          name: siloRoom.name,
+          locationName: siloRoom.location.name,
+          here: siloRoom.locationId === character.locationId,
+          canOpen:
+            accessibleRooms(
+              [{ id: siloRoom.id, kind: siloRoom.kind, accessTagSlugs: siloRoom.accessTagSlugs }],
+              heldSlugsForRooms,
+              guestRoomIds,
+            ).length === 1,
+        }
+      : null;
   // Is a forge within reach? Resolved server-side so the Craft dialog can say
   // so before a player commits, and re-checked by craftRequest either way.
   const hasWorkshop = await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG);
+  // The Godard Factory's two buttons (docs/systemdocs/FACTORY.md). Both HIDE
+  // where the place is wrong rather than greying — a fact about where this
+  // character is standing, which is theirs already, so nothing about the room
+  // leaks the way the metagaming rule in actionRegistry.js guards against.
+  const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
+  const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
+  const canExtract = Boolean(extractTool);
+  const extractBlocked = canSeeExtract && !canExtract
+    ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
+    : null;
+  const canSeePackage = await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG);
   const carry = carryStatus(character, gameConfig);
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so
   // no allowance math reaches the client bundle.
@@ -544,7 +597,85 @@ export default async function CharacterPage() {
   // A fact about your own sheet, so this one may grey the button out.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const hasBird = holdsBirdAndLetters(character.tags);
-  const isLiterate = heldSlugs.has(LITERATE_SLUG);
+  // Paperwork (docs/systemdocs/PAPERWORK.md). Letters AND eyes — the same
+  // predicate the tag chips, the noticeboard and paperActions.js all use, so
+  // the button, the chip and the server's refusal can never disagree.
+  const canReadNow = canRead(character.tags, {
+    phase: openTurn?.phase ?? null,
+    indoors: character.location?.indoors ?? true,
+  });
+  // Something to write ON: a blank sheet, or a note already started. A sealed
+  // letter does not count — you would have to break the seal first.
+  const writables = character.tags.filter(
+    (ct) => ct.tag.slug === PAPER_SLUG || ct.tag.paperKind === "PAPER",
+  );
+  const canWrite = canReadNow && writables.length > 0;
+  // Wax stamps in hand, and letters worth closing. Both are facts about your
+  // own sheet, so both may hide or grey the button.
+  const seals = character.tags.filter((ct) => isSeal(ct.tag));
+  const hasSeal = seals.length > 0;
+  const sealables = character.tags.filter(
+    (ct) => ct.tag.paperKind === "PAPER" && (ct.tag.paperText ?? "").trim(),
+  );
+  const canSeal = hasSeal && sealables.length > 0;
+
+  // What the two dialogs list. The TEXT is deliberately not sent — the dialog
+  // asks for it on demand (paperActions.js#readMyPaper) so an unreadable sheet
+  // never has its contents sitting in a client payload waiting to be read out
+  // of the page source. The excerpt below is the same one the chip shows and
+  // is already gated by canReadNow.
+  const paperOptions = writables.map((ct) => ({
+    tagId: ct.tagId,
+    name: ct.tag.name,
+    blank: ct.tag.slug === PAPER_SLUG,
+    quantity: ct.quantity,
+    // Enough to tell two notes apart in a dropdown, and only for a reader.
+    excerpt:
+      canReadNow && ct.tag.paperKind === "PAPER"
+        ? (ct.tag.paperText ?? "").trim().slice(0, 60)
+        : null,
+  }));
+  // Everything a bird could carry. Sealed letters included — a courier does
+  // not have to be able to read what they are carrying, which is rather the
+  // use of an illiterate one.
+  const letterOptions = character.tags
+    .filter((ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED")
+    .map((ct) => ({
+      tagId: ct.tagId,
+      name: ct.tag.name,
+      excerpt:
+        canReadNow && ct.tag.paperKind === "PAPER" ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
+    }));
+  const sealOptions = {
+    stamps: seals.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, label: sealLabel(ct.tag) })),
+    letters: sealables.map((ct) => ({
+      tagId: ct.tagId,
+      name: ct.tag.name,
+      excerpt: canReadNow ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
+    })),
+  };
+
+  // The sheet itself goes to a client component, so the raw text of every
+  // paper on it would otherwise sit in the page source — readable straight out
+  // of DevTools by a holder who is blind, drunk or illiterate, which is the
+  // one thing this whole system exists to prevent. Strip it here and compose
+  // the description the same way getVisibleTags does.
+  //
+  // Holding a letter is not the same as being able to read it. That is the
+  // entire point of an illiterate courier.
+  const viewer = {
+    tags: character.tags,
+    phase: openTurn?.phase ?? null,
+    indoors: character.location?.indoors ?? true,
+  };
+  const sheetCharacter = {
+    ...character,
+    tags: character.tags.map((ct) => {
+      if (!isPaper(ct.tag)) return ct;
+      const { paperText, ...tag } = ct.tag;
+      return { ...ct, tag: { ...tag, description: paperDescription(ct.tag, viewer) } };
+    }),
+  };
   // Compared against the in-game DAY (birdTurnId stores the day), not the
   // turn. Advisory only — the server's conditional claim is the real gate.
   const birdSentToday =
@@ -791,6 +922,16 @@ export default async function CharacterPage() {
   // what the room sees: the forced name's letter plaque, not their own face.
   const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
   const forcedIdentity = forcedTag ? { name: forcedTag.forcedName, tagName: forcedTag.name } : null;
+  // And what is over their face, which decides whether the conceal switch is
+  // usable at all (PROXYING.md §5). Named here rather than in AvatarField so
+  // the refusal can say WHICH thing is doing it.
+  const concealingTag =
+    character.tags
+      .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
+      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]?.tag ?? null;
+  const concealGear = concealingTag
+    ? { tagName: concealingTag.name, forced: Boolean(concealingTag.forcesConceal) }
+    : null;
   const avatarSrc = forcedIdentity
     ? presentedIdentity(character, { forcedName: forcedIdentity.name }).avatarPath
     : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
@@ -808,13 +949,15 @@ export default async function CharacterPage() {
 
   return (
     <CharacterSheet
-      character={character}
+      character={sheetCharacter}
       mode="self"
       openTurn={openTurnWithWindow}
       currentAction={sheetAction}
       avatarSrc={avatarSrc}
       forcedIdentity={forcedIdentity}
+      concealGear={concealGear}
       transferParties={transferParties}
+      transferSilo={transferSilo}
       carry={carry}
       zoneMoves={zoneMoves}
       zoneMovesReason={zoneMovesReason}
@@ -842,7 +985,13 @@ export default async function CharacterPage() {
       learners={learners}
       pendingOffers={pendingOffers}
       hasBird={hasBird}
-      isLiterate={isLiterate}
+      canRead={canReadNow}
+      canWrite={canWrite}
+      hasSeal={hasSeal}
+      canSeal={canSeal}
+      paperOptions={paperOptions}
+      letterOptions={letterOptions}
+      sealOptions={sealOptions}
       birdSentToday={birdSentToday}
       birdTargets={birdTargets}
       birdZones={birdZoneOptions}
@@ -859,6 +1008,10 @@ export default async function CharacterPage() {
       healParties={healParties}
       corpses={corpses}
       canButcher={canButcher}
+      canSeeExtract={canSeeExtract}
+      canExtract={canExtract}
+      extractBlocked={extractBlocked}
+      canSeePackage={canSeePackage}
       lootTargets={lootTargets}
       moveTargets={moveTargets}
       moveLocations={moveLocations}

@@ -7,10 +7,16 @@
 // SQL for that, and a Location has a handful of rooms at most. Every PUBLIC
 // room is a valid destination, provisioned or not — an unprovisioned one
 // simply gets no announcement.
+// A room that eats what is put into it (Room.destroysContents — the Godard
+// Factory's Spillway) is NEVER eligible. The overflow drop is not a choice
+// anybody made: a refining shift makes 160 lb of Squeeze against a 120 lb cap,
+// so the carry pass fires on the intended loop, every day, and a one-in-three
+// roll would delete a day's work nobody threw away. Tipping something into the
+// trough has to stay a thing you do on purpose (docs/systemdocs/FACTORY.md §9).
 async function pickRandomPublicRoom(db, locationId) {
   if (!locationId) return null;
   const rooms = await db.room.findMany({
-    where: { locationId, kind: "PUBLIC" },
+    where: { locationId, kind: "PUBLIC", destroysContents: false },
     select: { id: true, name: true, discordThreadId: true, locationId: true },
   });
   if (rooms.length === 0) return null;

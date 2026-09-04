@@ -54,9 +54,9 @@ const MAX_NOTES = 12;
 // on this material on purpose and in order, not by changelog.
 const SENSITIVE_PATHS = [
   "docs/lore.md",
-  "docs/threats.md",
   "docs/archive/",
-  "db/lib/antagonists.js",
+  "db/lib/threats.js",
+  "docs/systemdocs/THREATS.md",
 ];
 
 // A second net, over the words rather than the files: a note can give away a

@@ -29,16 +29,20 @@ Merchant's own sheet. It worked and nobody wanted to open it twice. The rework
 turned it into a machine somebody operates, and five things are now true that
 were not before.
 
-- **The money is obols (¢), not ⬢.** One obol is worth `Depot.obolRate` ⬢
-  (5 by default) and only at this counter. They are a weightless stackable tag,
-  so a fortune fits in a pocket — which is the point, because ⬢ do not.
-  **The catalog still prices in ⬢.** `depotPrice` and `sellablePrice` are what
-  a thing is *worth*, and that has to keep meaning the same number whether the
-  Merchant is buying it or a player is haggling over it. The conversion happens
-  at the counter and only there — on the **total**, never per unit, because
-  per-unit rounding makes anything under one obol either free or unsellable.
-  You pay the ceiling (`obolsToPay`) and you are paid the floor
-  (`obolsEarned`); the station rounds in its own favour both ways.
+- **The money is obols (¢), and one obol is one ⬢.** Nothing converts and
+  nothing rounds. **The catalog still prices in ⬢** — `depotPrice` and
+  `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
+  same number whether the Merchant is buying it or a player is haggling over
+  it — so every authored price is already a whole number of obols too.
+  An obol does not compress value, it makes value **physical**: a weightless
+  stackable tag holding the same amount as the number on a sheet, but one you
+  can carry, hand over, stash and have stolen.
+
+  It used to be worth 5 ⬢, and that broke the bottom of the price table. A 3 ⬢
+  cup of tea cost a whole coin to buy and paid nothing at all to sell, because
+  the station took the ceiling one way and the floor the other. Thirty-two
+  wares sold for under a coin and were therefore worth zero at the counter. The
+  rate, the two rounding helpers and the ⬢/¢ display toggle are all gone.
 - **The money belongs to the station, not the Merchant.** It lives on
   `Depot.accountObols`. The licence is tradeable, so handing it over hands over
   the balance too, and that is what makes the card worth stealing.
@@ -182,9 +186,25 @@ licence, not the keycard, not the role. So:
 - A Docker who steals the card is still shot.
 - Anyone who comes back wearing the Merchant's name walks past it.
 - With no face on file it fires on **everyone**, so **arming it is refused
-  until a GM sets the face**. That was a one-click suicide with a GM-only cure:
+  until there is one**. That was a one-click suicide with a GM-only cure:
   disarming needs you standing in the Depot, and walking in rolls the gun on
   you first.
+
+**The face is written when the Merchant is created.** Creating a character on
+the `merchant` role calls `setMerchantFace` with that character's own name
+(`web/app/(app)/character/createActions.js`, in the best-effort side-effect
+block; the writer is in `db/lib/depotState.js`). It used to be a GM-only field,
+which meant a new Merchant met a gun he was forbidden to arm and had to go and
+ask somebody to type his name into a form. `/gm/dev` is still the override.
+
+It is set **once and never resynced**, because a face does not change when the
+papers do. Two consequences worth knowing, both deliberate:
+
+- Concealing himself later still gets the Merchant shot — he presents an alias,
+  which is not the face on file. That is the trap working, not a bug.
+- A **dead Merchant's face stays on file.** The gun goes on sparing a name
+  nobody is wearing until the next Merchant is created, which overwrites it, or
+  a GM edits it. Nothing clears it on death.
 
 It fires **on entry** (`db/lib/locationMove.js`, before the Discord guard —
 being shot is a database fact) and **again at the end of every turn**
@@ -226,26 +246,35 @@ The Merchant is the only faucet of currency in the game.
 - **The ATM** moves obols between `Depot.accountObols` and physical `obol`
   tags. It is the only door coins enter and leave the world through, which is
   what makes lending something only he can do.
-- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 60)
+- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 15)
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
-- **The ⬢ Counter** converts his own Resources to obols and back, **at one flat
-  rate with no spread**. He does not charge himself a margin to use his own
-  till. Denominated in whole obols so it is exact: N ¢ is always N × `obolRate`
-  ⬢ in both directions, and there is no rounding for a margin to hide in.
-  This replaced an earlier rule that ⬢ could only become obols by riding the
-  shuttle up — one counter, one rate.
+- **The ⬢ Counter** moves his own Resources to obols and back, one for one and
+  **with no spread**. He does not charge himself a margin to use his own till.
+  What it really changes is the *form* of a value rather than the amount: a
+  number on his sheet becomes coins, and back again. This replaced an earlier
+  rule that ⬢ could only become obols by riding the shuttle up — one counter,
+  one place.
 
 Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
-(`Obol x5`), parsed by `db/lib/startingTags.js`. Baron 5, Hand 2, Esculap 2,
-Baroness / Heir / Meister 1 each, Merchant 20.
+(`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
+10, Esculap 10, Baroness / Heir / Meister 5 each — 80 ¢ across the whole cast.
+His float is deliberately thin, and thinner than the rest of the cast's scaled
+with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
+is where most of his first order has to come from. It has to be paid back.
 
 ## 0h. The console
 
 `/depot`. A cockpit strip that never scrolls away — greeting, balance,
 generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
 **Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
+
+There is no ⬢/¢ toggle any more, and no need for one: an obol is one ⬢, so
+every price column reads the same number in either unit. Prices print in ¢
+throughout, whole, with no decimals anywhere — the row figure, the cart total,
+the Hold payout, the account and the credit line are all the same kind of
+number now.
 
 The strip is pinned because all four of those facts matter whichever job you
 are doing; hiding the generator behind a tab is how you order three hundred
@@ -303,6 +332,12 @@ What the station charges him, per unit. Almost every ware is
 `purchasable: false` — **for those, the Merchant is the only source in the
 game**, which is the whole point of the seat.
 
+**Paper undercuts everything at 1 ⬢**, on purpose. It has to be something a
+scribe buys by the ream without thinking about it, or nobody writes and the
+whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
+with no sell-back price at all: a resale market in blank paper is not a thing
+anybody needs, and 1 ⬢ leaves no room under it anyway.
+
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
 `poison-snooper` (9) and `neoclassic-rw10` (14). All six are
@@ -314,10 +349,12 @@ buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
+| `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
 | `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
 | `firecracker` | 4 | 1 | |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
+| `rat-mask` | 15 | 6 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
 | `sweets` | 5 | 2 | Consumes into `ate-meal` |
 | `honey` | 5 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 5 | 2 | |
@@ -340,13 +377,20 @@ buying one mid-game is still a real decision.
 | `soporific` | 55 | 24 | Inflicts `asleep` (1t) |
 | `amoeba-vial` | 64 | 28 | |
 | `illusion-crystal` | 73 | 32 | |
+| `bb-pistol` | 75 | 33 | Equippable |
+| `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
+| `silver-sword` | 150 | 66 | |
+| `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
 | `neoclassic-rw10` | 164 | 72 | Neoclassic R&W10. Also a 14-pt creation pick. |
 | `ml-23` | 182 | 80 | A 9mm pistol |
 | `motorcycle` | 209 | 92 | Caving loot he also imports |
+| `adamantium-sword` | 230 | 101 | |
 | `flamethrower` | 237 | 104 | Caving loot he also imports |
+| `ctt43-rifle` | 260 | 114 | A .308 semi-automatic |
+| `kpfw-6-avtomat` | 540 | 237 | The dearest thing on the counter |
 
 Three of these need code, not just catalog data:
 
@@ -396,14 +440,18 @@ Four bands, about 106 tags in total:
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9, Moderate 22, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
-| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **40** |
+| Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
+| Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **48** |
 
 **Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
-off the bands above on purpose. `skinless-brain` went 10 → **40**: the old
-price read the Skinless as a slightly harder Graga, and they are not — they are
-the only ingredient in the catalog that has to be talked out of being a person
-first, and the number says so. `dreamers-draught` went 16 → **60**, staying
+off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**
+when the Godard Factory opened: the 10 read the Skinless as a slightly harder
+Graga, which they are not — they are the only ingredient in the catalog that has
+to be talked out of being a person first — but at 40 a single organ stood level
+with a whole day of industry, and read as a shortcut past it. 25 keeps it well
+clear of a Graga Sac without competing with a wagon.
+`dreamers-draught` went 16 → **60**, staying
 above its own ingredient, because the point of that recipe is that the brain is
 the cheap part. `painting` went 60 → **48**, a flat 20% nerf; over its 4 turns
 that is 12 ⬢/turn, still the best rate a craftable pays.

@@ -356,7 +356,17 @@ on a duration, since the removal chain is fired by the removal itself.
 
 Three pairings are mirrored as disabled controls and re-checked on the server:
 `concealsIdentity` and `WORN` visibility need `equippable`, `sellablePrice`
-needs `sellable`, and an `expiresInto` chain needs a duration. The chain itself
+needs `sellable`, and an `expiresInto` chain needs a duration.
+
+`concealsIdentity` is then **refused outright** on a GM-authored tag, pairing
+notwithstanding. Concealing gear also needs a `Tag.concealSprite`, and that has
+to be a real file under `web/public/assets/helms/` built by
+`npm run assets:helms` — nothing a GM can add from here. Left half-set the flag
+would do nothing at all, so the form says so rather than silently producing a
+mask that conceals nobody. Headgear is authored in `docs/tags.yaml`
+(`TAGS.md`, `PROXYING.md` §5). The read-only chips on the detail sheet still
+show `Conceals by force`, `Conceal sprite:` and the `Worn: head · layer 3`
+pair for catalog tags. The chain itself
 is a list of outcome rows, each a multi-pick — one tag means "becomes this",
 two or more an even coin-flip, the `{ oneOf: [...] }` shape
 `db/lib/tagExpiryPass.js` reads.
@@ -485,9 +495,9 @@ character panel. It is the fourth page in the `(desk)` family (`DESIGN-
 SYSTEM.md` §6): a two-column settings workspace, `OpsNav.js` picking one
 section down the left over a validated `?s=` param (`turn` when absent or
 unrecognised), one settings surface on the right. Each section fetches only
-its own data — `listGuildMembers()` and the whole tag catalog only load for
-`?s=antagonists`, instead of on every visit regardless of which section a GM
-actually opens.
+its own data — `listGuildMembers()` and the role/seat maths only load for the
+two Threats sections, instead of on every visit regardless of which section a
+GM actually opens.
 
 The split across two route groups is deliberate. `page.js` and `OpsNav.js`
 live in `(desk)/gm/dev/`, because the `(app)` layout's fixed `TurnChip` would
@@ -498,11 +508,12 @@ superadmin gate lives in `page.js` itself rather than the layout, because
 `(desk)/layout.js` only checks GM membership — `/gm/players` and `/gm/turns`
 share that layout and are meant to stay GM-open.
 
-Six sections: **Turn** and **Configuration** under "Game"; **Bulk move**,
-**System reports** and **Antagonist roster** under "Operations"; **Restart
-game** on its own under "Danger". The last three are the ones that arrived
-with the zone rework, and this is the only doc that lists them. `LAUNCH.md`
-covers Restart Game itself.
+Eight sections: **Turn**, **Configuration** and **The Depot** under "Game";
+**Bulk move** and **System reports** under "Operations"; **Assignments** and
+**Antagonists** under "Threats"; **Restart game** on its own under "Danger".
+The two Threats sections replaced the old Antagonist Roster popup and have
+their own doc — `THREATS.md`. `LAUNCH.md` covers Restart Game itself, and the
+Depot section is this doc's appendix.
 
 **Game Config knobs documented nowhere else**, all reset by a wipe:
 
@@ -512,6 +523,7 @@ covers Restart Game itself.
 | `desiresEnabled` | Let players set a NEW Desire, in any slot, on `/character`. Off greys that form with "Temporarily disabled." An already-ACTIVE Desire in any slot can still be fulfilled or cancelled, and GMs are unaffected — `setDesireGm`/`endDesireGm` on this panel bypass every catalog gate regardless (`DESIRES.md` §6, `REQUESTS.md` §5) |
 | `desireSlots` | How many Desires a character may hold ACTIVE at once, one per slot (default 2). Each slot sets/cancels/fulfils independently (`DESIRES.md` §1) |
 | `maxDrawbackTags` | Character-creation cap on the COUNT of drawback tags a player may point-buy (default 5) — not their combined point value. A GM grant bypasses it, same as every other creation gate (`TAGS.md` §4a) |
+| `maxDrawbackPoints` | The other half of the same ceiling: how many points those drawbacks may claim back in total, as a positive magnitude (default 12). A build stops at whichever cap it reaches first (`TAGS.md` §4a) |
 
 **System Reports** shows the latest run of each operational pass — `WIPE`,
 `DOCTOR`, `DAWN_WIPE`, `BULK_MOVE` — with its summary and its failures. A
@@ -560,7 +572,8 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 `/gm/dev?s=depot`. The Merchant's station, split into live state you can
 override (account, debt, fuel, the face the turret spares, the two switches)
 and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
-clock and cooldown, credit cap, ⬢-per-obol).
+clock and cooldown, credit cap). There is no ⬢-per-obol field: an obol is one
+⬢ and the rate is gone (`DEPOT.md` §0).
 
 The turret's severity table is edited as JSON, one weighted column per armour
 tier. **The save is refused if any column does not sum to 1** — a broken die is

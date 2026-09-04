@@ -189,7 +189,6 @@ function overCapSentence({
 // simply sits at 100% cannot show by how much you overshot.
 function Meter({ label, used, cap, over, children }) {
   const pct = cap > 0 ? Math.min(100, Math.max(0, (used / cap) * 100)) : 0;
-  const colour = over ? "var(--danger)" : "var(--accent)";
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -213,7 +212,20 @@ function Meter({ label, used, cap, over, children }) {
           overflow: "hidden",
         }}
       >
-        <div style={{ width: `${over ? 100 : pct}%`, height: "100%", background: colour }} />
+        {/* The accent token is spelled out here rather than hoisted into a
+            `colour` variable above. That reads as a needless repetition of
+            `over`, and it is not: audit:contrast attributes each accent token
+            to the CSS property it sits under, and a variable holding one hides
+            that property from it — the exact shape of the costColor() bug the
+            gate was written for. Inline, it can see this is a fill. (Don't
+            spell the token out in a comment either; the gate reads those too.) */}
+        <div
+          style={{
+            width: `${over ? 100 : pct}%`,
+            height: "100%",
+            background: over ? "var(--danger)" : "var(--accent)",
+          }}
+        />
       </div>
     </div>
   );

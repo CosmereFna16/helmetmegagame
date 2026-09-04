@@ -32,7 +32,10 @@ function formatRoutineCloseDm(turn, action, applied, adjudicated) {
     `*Your ${kind} for turn ${turn.number}.*`,
     `» ${action.description}`,
     ...(effects ? [`**Applied:** ${effects}`] : []),
-    ...(action.resourceRollValue != null
+    // A refining shift pays no ⬢ and its range is a literal 0-0, so this
+    // line would only ever read "+0 ⬢". A range that cannot pay is not
+    // information (docs/systemdocs/FACTORY.md §4).
+    ...(action.resourceRollValue != null && action.resourceRollExpression !== "0-0"
       ? [
           `**Resource roll (${formatRangeExpression(action.resourceRollExpression)}):** ${action.resourceRollValue > 0 ? "+" : ""}${action.resourceRollValue} ⬢`,
         ]

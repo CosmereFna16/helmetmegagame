@@ -430,6 +430,57 @@ function collectYields(location, problems) {
   return out;
 }
 
+// A room's `stash:` in two shapes. The short one is a plain list of slugs,
+// one each — the way every stash in the file was written before the Armory
+// needed six helmets. The long one is a map with `resources:` and an
+// `items:` map of slug -> count. Both normalise to the same
+// { resources, items: [[slug, quantity], ...] } so seedRoomStash sees one
+// shape. A count that isn't a positive whole number is a PROBLEM, not a
+// silent 1: a typo'd quantity is a room that quietly holds the wrong thing.
+function parseStash(raw, roomId, problems) {
+  const empty = { resources: 0, items: [] };
+  if (raw == null) return empty;
+
+  if (Array.isArray(raw)) {
+    return { resources: 0, items: raw.map(String).filter(Boolean).map((slug) => [slug, 1]) };
+  }
+  if (typeof raw !== "object") {
+    problems.push(`room "${roomId}" has a stash that is neither a list nor a map`);
+    return empty;
+  }
+
+  const out = { resources: 0, items: [] };
+  const count = (value, label) => {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 1) {
+      problems.push(`room "${roomId}" stash ${label} must be a whole number of at least 1`);
+      return null;
+    }
+    return n;
+  };
+
+  if (raw.resources != null) {
+    const n = count(raw.resources, "resources");
+    if (n != null) out.resources = n;
+  }
+  if (raw.items != null) {
+    if (typeof raw.items !== "object" || Array.isArray(raw.items)) {
+      problems.push(`room "${roomId}" stash items: must be a map of slug -> count`);
+    } else {
+      for (const [slug, value] of Object.entries(raw.items)) {
+        const n = count(value, `items.${slug}`);
+        if (n != null) out.items.push([slug, n]);
+      }
+    }
+  }
+  for (const key of Object.keys(raw)) {
+    if (key !== "resources" && key !== "items") {
+      problems.push(`room "${roomId}" stash has unknown key "${key}"`);
+    }
+  }
+  return out;
+}
+
 function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems) {
   for (const [index, location] of entriesOf(zone.locations, "id").entries()) {
     if (!location?.id) {
@@ -462,7 +513,8 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         sortOrder: roomIndex,
         kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
         accessTagSlugs: access,
-        stash: Array.isArray(room.stash) ? room.stash.map(String).filter(Boolean) : [],
+        destroysContents: room.destroys === true,
+        stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,
       });
     }
@@ -700,7 +752,9 @@ async function syncLocationAnchor(prisma, location, rooms) {
   if (!location.discordChannelId) return "skipped";
 
   const body = buildAnchorBody(location, rooms);
-  const components = [locationAnchorRow(location.id), await gatesFor(prisma, location.id).then(locationGateRow)]
+  // The whole row, not just the id: the Noticeboard button is conditional on
+  // this location's `attributes` (db/lib/noticeboard.js).
+  const components = [locationAnchorRow(location), await gatesFor(prisma, location.id).then(locationGateRow)]
     .filter(Boolean);
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
@@ -954,13 +1008,22 @@ async function syncZonesFromYaml(prisma) {
   }
 
   // A Room's seeded stash: the kit that is simply THERE, like the Sanctuary's
-  // surgical instruments or the Factory's forge. Written as a FLOOR, never a
-  // reset — if the row already exists at any quantity the sync leaves it
-  // alone, so a re-sync can't undo a player carrying the anvil off, and
-  // can't quietly duplicate it either. Tags sync AFTER zones, so an unknown
-  // slug is skipped with a warning rather than throwing.
-  async function seedRoomStash(prisma, roomId, slugs) {
-    for (const slug of slugs) {
+  // surgical instruments or the Armory's rack. Written as a FLOOR, never a
+  // reset — a stack already at or above the authored quantity is left alone,
+  // and `resources` is written only while the room still holds none. So a
+  // re-sync can't undo a player carrying the anvil off, and can't quietly
+  // duplicate it either. Tags sync AFTER zones, so an unknown slug is skipped
+  // with a warning rather than throwing.
+  async function seedRoomStash(prisma, roomId, stash) {
+    if (stash.resources > 0) {
+      // Conditional on 0, so this is a seed and not a top-up: a room somebody
+      // has already spent out of stays spent.
+      await prisma.room.updateMany({
+        where: { id: roomId, resources: 0 },
+        data: { resources: stash.resources },
+      });
+    }
+    for (const [slug, quantity] of stash.items) {
       const tag = await prisma.tag.findUnique({ where: { slug }, select: { id: true } });
       if (!tag) {
         console.warn(`zones.yaml: room stash names unknown tag "${slug}" — run db:sync-tags first.`);
@@ -968,10 +1031,15 @@ async function syncZonesFromYaml(prisma) {
       }
       const existing = await prisma.roomTag.findUnique({
         where: { roomId_tagId: { roomId, tagId: tag.id } },
-        select: { id: true },
+        select: { id: true, quantity: true },
       });
-      if (existing) continue;
-      await prisma.roomTag.create({ data: { roomId, tagId: tag.id, quantity: 1 } });
+      if (!existing) {
+        await prisma.roomTag.create({ data: { roomId, tagId: tag.id, quantity } });
+        continue;
+      }
+      if (existing.quantity < quantity) {
+        await prisma.roomTag.update({ where: { id: existing.id }, data: { quantity } });
+      }
     }
   }
 
@@ -986,6 +1054,7 @@ async function syncZonesFromYaml(prisma) {
       sortOrder: entry.sortOrder,
       kind: entry.kind,
       accessTagSlugs: entry.accessTagSlugs,
+      destroysContents: entry.destroysContents,
       locationId: location.id,
     };
     let room = await prisma.room.findUnique({ where: { slug: entry.slug } });
@@ -1003,7 +1072,9 @@ async function syncZonesFromYaml(prisma) {
       room = await prisma.room.update({ where: { id: room.id }, data });
     }
     roomsBySlug.set(entry.slug, room);
-    if (entry.stash.length > 0) await seedRoomStash(prisma, room.id, entry.stash);
+    if (entry.stash.resources > 0 || entry.stash.items.length > 0) {
+      await seedRoomStash(prisma, room.id, entry.stash);
+    }
   }
 
   // Pass 1d: the travel graph. ONE LocationLink row per undirected edge,

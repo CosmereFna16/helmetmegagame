@@ -7,7 +7,7 @@
 const { settleCarry } = require("./carry");
 const fs = require("node:fs");
 const yaml = require("js-yaml");
-const { docsPath } = require("./repoPaths");
+const { docsPath, repoPath } = require("./repoPaths");
 const { CORPSE_GROUP_SLUG } = require("./constants");
 const {
   normalizeRequirementItems,
@@ -25,6 +25,17 @@ const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
 const { entriesOf } = require("./yamlEntries");
 const { NAME_LIMITS } = require("./characterName");
+
+// `equipSlot:` in docs/tags.yaml -> Tag.equipSlot. HEAD and BODY take a layer
+// 1-4; SHIELD refuses one, because there is only ever one shield.
+const EQUIP_SLOTS = new Set(["HEAD", "BODY", "SHIELD"]);
+const LAYERED_SLOTS = new Set(["HEAD", "BODY"]);
+const MAX_EQUIP_LAYER = 4;
+
+// Where generate-helms.js writes the concealed-identity avatars. Null, or a
+// directory that isn't there, means "cannot check" rather than "invalid" —
+// see repoPaths.js#repoPath.
+const HELM_DIR = repoPath("web/public/assets/helms");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility, a real enum rather
 // than a truthy string.
@@ -120,6 +131,34 @@ function consumesIntoScalars(entries) {
 // docsPath() is null only when docs/ cannot be found at all — fatal here,
 // since a missing master would read as "everything was deleted" and prune
 // the lot. See db/lib/repoPaths.js.
+// A wax stamp's description, composed rather than authored, so the boilerplate
+// is written once and cannot drift across fifteen entries. Returns null for
+// everything that is not a stamp. See docs/systemdocs/PAPERWORK.md.
+//
+// Two sentences: what the thing is, then what is cut into it. An office stamp
+// names its seat; a courtier's private seal does not, because it belongs to
+// whoever is holding it.
+//
+// The Merchant's is the deliberate gap — `sealOffice` with no `sealMark`. His
+// mark bears his own initials and is written at character creation
+// (web/app/(app)/character/createActions.js), so until a Merchant exists the
+// description honestly says nobody has pressed it yet.
+// Whose mark is this — the file's, or the game's? A stamp that names an office
+// but carries no mark is one the game fills in at runtime. There is exactly one
+// today (the Merchant's) and the rule is written rather than the slug, so a
+// second one needs no code.
+function gameWrittenSeal(entry) {
+  return Boolean(entry.sealOffice?.trim()) && !entry.sealMark?.trim();
+}
+
+function sealDescription(entry) {
+  const mark = entry.sealMark?.trim();
+  const office = entry.sealOffice?.trim();
+  if (!mark && !office) return null;
+  const opening = office ? `The ${office}'s wax stamp.` : "A wax stamp for sealing letters.";
+  return mark ? `${opening} ${mark} ‡` : `${opening} Nobody has pressed it yet. ‡`;
+}
+
 function requireDocsPath(...segments) {
   const p = docsPath(...segments);
   if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
@@ -224,6 +263,63 @@ async function syncTagsFromYaml(prisma) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both forcesName and concealsIdentity — a tag can't hide who you are and dictate it`);
       }
     }
+    // A concealing tag has to have a face to show. Checking the file is really
+    // there matters more than it looks: a typo in concealSprite would
+    // otherwise stay invisible until somebody equipped the thing in play and
+    // Discord served a broken image, which is a miserable way to find out.
+    if (t.concealsIdentity && !t.concealSprite) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets concealsIdentity but no concealSprite — concealing gear is what the room sees instead of a face, so it needs one`,
+      );
+    }
+    if (t.concealSprite !== undefined) {
+      if (typeof t.concealSprite !== "string" || !t.concealSprite.trim()) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets concealSprite but it is empty — name a sprite in web/public/assets/helms`);
+      }
+      if (!t.concealsIdentity) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets concealSprite but not concealsIdentity — nothing would ever show it`,
+        );
+      }
+      if (HELM_DIR && fs.existsSync(HELM_DIR) && !fs.existsSync(`${HELM_DIR}/${t.concealSprite.trim()}.webp`)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets concealSprite "${t.concealSprite}" but web/public/assets/helms/${t.concealSprite}.webp does not exist — add the source sprite and run \`npm run assets:helms --workspace=web\``,
+        );
+      }
+    }
+    // forcesConceal is a stricter concealsIdentity, never a substitute for it:
+    // forcing a concealment the catalog does not grant is a contradiction.
+    if (t.forcesConceal && !t.concealsIdentity) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets forcesConceal but not concealsIdentity — it can't take away a choice it never gave`,
+      );
+    }
+    // equipSlot/equipLayer: the pair that stops two helmets going on one head.
+    if (t.equipSlot !== undefined) {
+      if (!EQUIP_SLOTS.has(t.equipSlot)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" has equipSlot: ${JSON.stringify(t.equipSlot)} — say ${[...EQUIP_SLOTS].join(", ")}`,
+        );
+      }
+      if (!t.equippable) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets equipSlot but not equippable — a slot only means anything once something can occupy it`,
+        );
+      }
+      if (LAYERED_SLOTS.has(t.equipSlot)) {
+        if (!Number.isInteger(t.equipLayer) || t.equipLayer < 1 || t.equipLayer > MAX_EQUIP_LAYER) {
+          throw new Error(
+            `docs/tags.yaml: tag "${t.slug}" is equipSlot ${t.equipSlot}, so it needs equipLayer 1-${MAX_EQUIP_LAYER} — 1 against the skin, ${MAX_EQUIP_LAYER} outermost`,
+          );
+        }
+      } else if (t.equipLayer !== undefined) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is equipSlot ${t.equipSlot} and sets equipLayer — that slot holds exactly one thing, so there is nothing to layer`,
+        );
+      }
+    } else if (t.equipLayer !== undefined) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets equipLayer but no equipSlot — a layer of what?`);
+    }
     // `visible` is three-state: true, false, or "worn".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
       throw new Error(
@@ -307,6 +403,33 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ⬢ but costs ${t.depotPrice} ⬢ at the Depot — buying and selling it in a loop prints Resources`,
       );
     }
+    // A wax stamp is declared BY its mark: `sealMark` is the line the wax
+    // carries ("Three cups, stacked."), and the sync composes the whole
+    // description around it so the boilerplate is written once. Authoring a
+    // description beside one is therefore an error rather than an override —
+    // silently ignoring it would leave the file claiming something the game
+    // does not say. See docs/systemdocs/PAPERWORK.md.
+    if (t.sealMark !== undefined) {
+      if (typeof t.sealMark !== "string" || !t.sealMark.trim()) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealMark but it is empty — give the line the wax carries`);
+      }
+      if (t.description != null) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets both sealMark and description — the sync composes a stamp's description from sealMark and sealOffice`,
+        );
+      }
+    }
+    // `sealOffice` names the seat a stamp belongs to, and only changes the
+    // sentence the mark is set into. The Merchant's is the one stamp with an
+    // office and no mark: his bears his own initials, written at character
+    // creation, so an empty sealMark here is expected rather than a mistake.
+    if (t.sealOffice !== undefined && (typeof t.sealOffice !== "string" || !t.sealOffice.trim())) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealOffice but it is empty`);
+    }
+    if (t.sealOffice !== undefined && t.description != null) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both sealOffice and description`);
+    }
+
     // expiresInto/removesInto: shared shape and rules in db/lib/tagShapes.js.
     validateExpiresInto(normalizeExpiresInto(t.expiresInto), {
       selfSlug: t.slug,
@@ -419,7 +542,14 @@ async function syncTagsFromYaml(prisma) {
     }
     const scalars = {
       name: entry.name,
-      description: entry.description ?? null,
+      // A stamp whose mark the GAME writes rather than the YAML — the
+      // Merchant's, which bears his own initials — keeps both of these fields
+      // out of `scalars` entirely, so the diff never compares them and the
+      // upsert never touches them. Without that, the next db:sync-tags would
+      // quietly rub his initials back off.
+      ...(gameWrittenSeal(entry)
+        ? {}
+        : { description: sealDescription(entry) ?? entry.description ?? null, sealMark: entry.sealMark?.trim() ?? null }),
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
       inspectVisibility: VISIBILITY_BY_YAML.get(entry.visible ?? false),
@@ -431,6 +561,10 @@ async function syncTagsFromYaml(prisma) {
       carryBonus: entry.carryBonus ?? null,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,
+      forcesConceal: entry.forcesConceal ?? false,
+      concealSprite: entry.concealSprite?.trim() ?? null,
+      equipSlot: entry.equipSlot ?? null,
+      equipLayer: entry.equipLayer ?? null,
       forcedName: entry.forcesName?.trim() ?? null,
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
@@ -469,7 +603,16 @@ async function syncTagsFromYaml(prisma) {
 
     let tag = await prisma.tag.findUnique({ where: { slug: entry.slug } });
     if (!tag) {
-      tag = await prisma.tag.create({ data: { slug: entry.slug, ...scalars } });
+      tag = await prisma.tag.create({
+        data: {
+          slug: entry.slug,
+          ...scalars,
+          // A game-written stamp is left out of `scalars` so a re-sync cannot
+          // rub its mark off — but a brand-new row still needs SOMETHING to
+          // say, so the placeholder is seeded here and only here.
+          ...(gameWrittenSeal(entry) ? { description: sealDescription(entry) } : {}),
+        },
+      });
       tagsCreated += 1;
     } else {
       // Arrays/Json fields compare by value. ARRAY order stays significant —

@@ -2,7 +2,7 @@
 // db/scripts/sync/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
 // "Restart Game" flow (web/app/(app)/gm/dev/actions.js). Must run AFTER
 // syncLocationsFromYaml and syncTagsFromYaml (starting_zone/starting_tags are
-// validated against them). Threats live in docs/threats.md, not here.
+// validated against them). Threats live in db/lib/threats.js, not here.
 //
 // A faction's parentFactionId is live game state once created, so it is
 // only written on CREATE.
@@ -41,6 +41,7 @@ function parseRolesYaml(doc) {
         name: faction.name,
         zoneName: zone.name,
         parentSlug: faction.parent ?? null,
+        siloRoomSlug: faction.silo ?? null,
         sortOrder: factionOrder++,
       };
       factions.push(entry);
@@ -188,17 +189,9 @@ async function syncRolesFromYaml(prisma) {
     };
     let row = await prisma.faction.findUnique({ where: { slug: entry.slug } });
     if (!row) {
-      // Claim a pre-slug row of the same name rather than duplicating it.
-      row = await prisma.faction.findFirst({ where: { name: entry.name, slug: null } });
-      if (row) {
-        row = await prisma.faction.update({ where: { id: row.id }, data: { slug: entry.slug, ...data } });
-        stats.factionsUpdated++;
-        freshFactionIds.add(row.id);
-      } else {
-        row = await prisma.faction.create({ data: { slug: entry.slug, ...data } });
-        stats.factionsCreated++;
-        freshFactionIds.add(row.id);
-      }
+      row = await prisma.faction.create({ data: { slug: entry.slug, ...data } });
+      stats.factionsCreated++;
+      freshFactionIds.add(row.id);
     } else if (changed(row, data)) {
       row = await prisma.faction.update({ where: { id: row.id }, data });
       stats.factionsUpdated++;
@@ -217,6 +210,37 @@ async function syncRolesFromYaml(prisma) {
     if (current.parentFactionId !== parentFactionId) {
       await prisma.faction.update({ where: { id }, data: { parentFactionId } });
     }
+  }
+
+  // Pass 2b: the silo pointer. A FLOOR, not a create-only field and not a
+  // reset: it fills a faction that has no silo and leaves one that does
+  // alone. That is stronger than the hierarchy's create-only rule above and
+  // still can't clobber a Leader — re-pointing a silo writes a non-null id,
+  // which this never touches — while a faction that predates the silo
+  // column still gets the one roles.yaml names for it.
+  //
+  // Rooms come from db:sync-zones, which runs first, so an unknown slug is a
+  // warning rather than a throw — the same posture seedRoomStash takes
+  // toward a tag that hasn't synced yet.
+  for (const entry of factions) {
+    if (!entry.siloRoomSlug) continue;
+    const id = factionIdBySlug.get(entry.slug);
+    const room = await prisma.room.findUnique({
+      where: { slug: entry.siloRoomSlug },
+      select: { id: true },
+    });
+    if (!room) {
+      console.warn(
+        `roles.yaml: faction "${entry.name}" names unknown silo room "${entry.siloRoomSlug}" — run db:sync-zones first.`,
+      );
+      continue;
+    }
+    // The `siloRoomId: null` in the WHERE *is* the floor — one round trip,
+    // and a faction whose officers have already picked a silo is skipped.
+    await prisma.faction.updateMany({
+      where: { id, siloRoomId: null },
+      data: { siloRoomId: room.id },
+    });
   }
 
   // Pass 3: Role scalars.
@@ -270,7 +294,13 @@ async function syncRolesFromYaml(prisma) {
   }
 
   for (const faction of await prisma.faction.findMany({
-    where: { slug: { notIn: [...slugs.faction] } },
+    // A faction founded in play was never in roles.yaml and never will be, so
+    // "absent from the YAML" cannot mean "delete" for it. Without this, the
+    // moment its last member walked out or died the next `db:sync-roles` —
+    // which `npm run db:sync` runs every time — would delete the row and
+    // cascade its applications away (FACTIONS.md §3: a faction with nobody
+    // left is leaderless, not deleted).
+    where: { slug: { notIn: [...slugs.faction] }, foundedById: null },
     include: { _count: { select: { characters: true, roles: true } } },
   })) {
     if (faction._count.characters > 0 || faction._count.roles > 0) {

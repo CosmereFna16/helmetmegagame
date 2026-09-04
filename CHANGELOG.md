@@ -6,6 +6,148 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · The point-buy meter stops tripping the contrast gate
+
+✎ No player-visible change — the meter is the colour it always was
+
+## 2026-09-04 · One ruined face per character, and Scarred is no longer a build choice
+
+✎ Ugly and Disfigured now conflict with each other, as both already did with Leper  
+− Scarred can no longer be bought at creation
+
+## 2026-09-04 · Two fixes on the Threats tables and the character sheet
+
+✎ The Threats tables now use the full width instead of half the screen  
+✎ Fixed a crash on /character — the profile picture field threw as soon as the page rendered
+
+## 2026-09-04 · Leper cannot be stacked with the other ugliness
+
+✎ Leper now conflicts with Ugly, Disfigured, Pretty and Beautiful
+
+## 2026-09-04 · A helmet is a face: concealment now takes something over yours
+
+✎ /conceal needs concealing headgear equipped — a bare face can no longer go unnamed  
+✚ Seventeen helmets, hoods and masks, each with its own face for the room to see  
+✚ Some conceal by force: a sack or a plague mask gives the wearer no say, and a turn summary honours it too  
+✚ Headgear and body armor now sit in layers 1-4, so a coif goes under a helm but two helms do not go together  
+✚ One shield at a time  
+✚ Bound characters can no longer equip, unequip, craft or destroy — a hostage cannot take the bag off  
+✚ A Leper trait, and a Leper's Hood that costs nothing if you have it  
+✚ The Merchant stocks a Rat Mask; the Armory trades two Simple Helms for four Cerberus Helmets  
+− The Ridiculous Hat
+
+## 2026-09-04 · The drawback cap lands on 5 tags and 12 points
+
+✎ A character may take 5 drawbacks claiming back 12 points, not 4 and 14
+
+## 2026-09-04 · Four drawbacks, worth 14 points, and a Fast Metabolism
+
+✎ A character may now take 4 drawbacks claiming back 14 points, was 6 and 12  
+✚ Fast Metabolism, a -6 drawback: you eat 2 ⬢ a turn instead of 1
+
+## 2026-09-04 · A courtier has one wax seal, not six
+
+✎ At most one personal wax seal per courtier, at creation and in the store
+
+## 2026-09-04 · Paperwork: paper you can write on, seal, post and tear down
+
+✚ Write and Seal Letter on the Actions grid, for anyone with their letters  
+✚ Noticeboards at the Square, the Gatehouse, the Garrison, the Factory and the Depot — pin a paper, read one, or tear it down  
+✚ Paper at the Depot for 1 obol, the cheapest thing on his shelf  
+✚ Six courtier wax seals, and eight office stamps each starting in the room its seat works out of  
+✚ The Merchant's stamp bears his own initials, taken when he is created  
+− The glyph cipher and the Read button, which paper replaces outright  
+✎ The Bird carries a letter you are holding instead of typed text, and a wrong guess brings it back rather than eating it  
+✎ An illiterate or blind character can now carry a letter they cannot read, and hand it to somebody who can  
+✎ A Restart Game now clears crates, headstones and paper instead of leaving them in the catalog forever
+
+## 2026-09-04 · Equipped slots stay full width instead of shrinking to the tag
+
+
+## 2026-09-04 · The Spillway no longer eats a shift by accident
+
+
+## 2026-09-04 · The Depot's turret learns the Merchant's face when he is created
+
+✚ The Depot's turret now knows the Merchant's face the moment he is made, so he can arm it himself  
+✎ A GM setting the face by hand is the override now, not the only way
+
+## 2026-09-04 · The Merchant starts with 20 obols, not 30
+
+✎ The Merchant starts with 20 ¢ instead of 30, so his first order leans harder on the Company's line  
+✎ The cast starts with 80 ¢ between them rather than 90; nobody else's purse changed
+
+## 2026-09-04 · Adds the Godard Factory, the Banneret, and the Squeeze production chain
+
+
+## 2026-09-04 · An obol is one Resource, so the Merchant can sell you a cup of tea
+
+✎ An obol is now worth one Resource instead of five, so the Depot can price a cup of tea  
+✎ Everything cheap is buyable and sellable again — 32 wares used to sell back for nothing at all  
+✎ Starting money and the Company's line went up five times to match, so nobody is poorer  
+− The Resources/obols toggle on the console; there is nothing left for it to switch between  
+− The ⬢-per-obol field on the Dev Panel
+
+## 2026-09-04 · The Black Hills hunt evenly, and the Forest fishes better
+
+✎ Hunting is the same everywhere in the Black Hills now, at 1.0. It was 0.8 across most of the zone with two richer spots; those are gone  
+✎ Fishing in the Forest went from 0.7 to 0.9 at all six waterside places
+
+## 2026-09-04 · Five more guns and blades on the Merchant's counter
+
+✚ The Merchant now imports a CTT4&3 Rifle, a Kpfw-6 Avtomat, an Adamantium Sword, a Silver Sword and a BB Pistol  
+The two rifles and the Adamantium Sword ship sealed, so nobody reads the crate on the landing pad before the right person opens it
+
+## 2026-09-04 · The Depot can show its prices in obols
+
+✚ A ⬢/¢ toggle beside the balance in the Depot cockpit, remembered per browser. Order, Price List and Hold all follow it  
+✎ Obol prices on a row are exact — an 8 ⬢ ware reads 1.6 ¢ — because the counter converts on the total, not line by line. The order total, the Hold payout and the balance stay in whole obols either way  
+✎ The Merchant now starts with 6 ¢ instead of 20, about 30 ⬢, and the Company will only advance him 15 ¢ instead of 60  
+✚ Silencer, a 90 ⬢ Depot import the Merchant starts holding. Equip to muffle your shots
+
+## 2026-09-04 · Laboring pays about 7% less
+
+✎ The production coefficient drops from 1 to 0.93, in the default and in the live game  
+✎ Hunting is 0-17 now, Farming 11-15, Fishing 7-13 at a full-strength location  
+✎ Basic laboring is untouched on purpose — it is the floor of the economy — and Skilled's 1-4 is too coarse to move 7%
+
+## 2026-09-04 · A dead faction Leader hands the seat on, and a founded faction survives a sync
+
+✚ A Leader who dies gives up the seat; it passes on, skipping anyone Catatonic  
+✚ db:sync-roles no longer deletes a faction a player founded once it empties  
+✚ A Restart Game wipe clears silos and the factions players founded  
+✎ A locked silo no longer shows its ⬢ to somebody who cannot open it  
+✎ You can hand goods into a locked silo while standing at its door, not just from across the zone  
+✎ Accepting an invitation hands over the silo keys; the invitee can no longer pick which  
+✎ A silo has to be in the faction's own zone, and the pickers only offer those rooms  
+✎ Faction rosters and member counts no longer include the dead  
+✎ Two factions can no longer share a name  
+✎ Anyone can found a faction from inside one, without leaving first  
+✎ The faction directory is searchable and paged  
+✎ Nobody is an officer of Unaffiliated, and its Leader cannot drag anybody  
+✎ Hills Camp can't be destroyed — it was untradeable, so it was unrecoverable  
+− Two application columns nothing read; the audit log already carried both facts
+
+## 2026-09-04 · Factions secede, apply, and keep their silo in a room
+
+✚ Leave a faction, apply to another, invite somebody, accept or decline  
+✚ A Leader can secede from a parent faction, or rename their own  
+✚ Anyone can found a new faction and become its Leader  
+✚ A faction's silo is a Room now, storing tags and goods like any other stash  
+✚ Deposit into your silo from anywhere in its zone; withdraw only in the room  
+✚ A locked silo still takes deposits, and says it is one-way before you commit  
+✚ /faction is a tabbed console; players with no faction get a directory  
+✚ /gm/dev/factions gains a silo picker, a member mover and a pending list  
+✚ Nine storerooms, the Armory restocked, a Baron's Study and a Ravine Camp  
+✚ Six keys, a Keys tag group, and a Location group for the Brigands' camp  
+✎ Brigands start in the Ravine now, not the town  
+✎ Nothing branches on a faction's name any more, only its slug
+
+## 2026-09-04 · Soft Hands has never done a day's labor, and cannot be taught otherwise
+
+Soft Hands can no longer be held with any Laboring skill  
+A lesson can no longer teach past a tag conflict, which was the way round every conflict pair in the catalog and not just this one
+
 ## 2026-09-04 · The #info rebuild works again
 
 ✎ The command that rebuilds #info from its master file had been broken since the scripts were reorganised; it looked for a docs folder that isn't there, and then choked on the roles list. #info is rebuilt and carries the new turn cadence

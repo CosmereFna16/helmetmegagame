@@ -1,5 +1,9 @@
 const HUNGER_SLUG = "hungry";
 const HUNGERLESS_SLUG = "hungerless";
+// Doubles the per-turn upkeep to 2 ⬢ (db/lib/hungerPass.js). The magnitude of
+// the charge is hardcoded by slug the same way hungerless/ate-meal exemptions
+// are — there is no generic upkeep field on Tag.
+const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
 const NOBILITY_SLUG = "nobility";
 const COURTIER_SLUG = "courtier";
@@ -32,6 +36,20 @@ const BUTCHER_SLUG = "butcher";
 // to. Workshop Equipment gates smithing and building; Surgical Equipment is
 // +1 on a medical Gambit.
 const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
+// Packaging Equipment is the third standing kit, alongside the two above:
+// having it in reach is what turns the Package button on. Unlike those two it
+// is not craftable — there are exactly two in the world, one on the Godard
+// Factory's Logistics Room floor and one in the Merchant's Cargo Bay.
+const PACKAGING_EQUIPMENT_SLUG = "packaging-equipment";
+// What one crate holds, and how long the line printed on its side may be.
+// 150 lb is the number the Squeeze economy is balanced on: at 20 lb a cube
+// that is 7 to a crate, 70 lb each, and a Horse-and-Cart takes 8 of them.
+// See docs/systemdocs/FACTORY.md.
+const PACKAGE_MAX_LBS = 150;
+// The weight cap does not bound the weightless — obols are 0 lb and stackable
+// without a ceiling — and a crate's consumesInto repeats a slug per unit.
+const PACKAGE_MAX_UNITS = 200;
+const PACKAGE_LABEL_MAX = 120;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
@@ -79,6 +97,7 @@ module.exports = {
   LEAVE_ANNOUNCE_CHANNEL_ID,
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
+  FAST_METABOLISM_SLUG,
   DYING_SLUG,
   NOBILITY_SLUG,
   COURTIER_SLUG,
@@ -97,6 +116,10 @@ module.exports = {
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
+  PACKAGING_EQUIPMENT_SLUG,
+  PACKAGE_MAX_LBS,
+  PACKAGE_MAX_UNITS,
+  PACKAGE_LABEL_MAX,
   SURGICAL_EQUIPMENT_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,

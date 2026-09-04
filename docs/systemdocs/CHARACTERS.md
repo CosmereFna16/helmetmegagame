@@ -40,20 +40,27 @@ The wizard has five steps:
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
 4. **Antagonists** — eleven checkboxes, all off, naming the antagonist seats a
-   GM hands out in secret (Succubus, the Judge…). Pure consent data:
-   nothing in the game reads `Character.antagonistOptIns`, grants from it or
-   gates on it — it exists so a GM choosing who receives one can tell who is
-   willing. Also **optional** — ticking nothing is a real answer, so
-   `canAdvance` is unconditionally true here too.
+   GM hands out in secret (the Demoness, the Judge…). Pure consent data:
+   nothing in the game grants from `Character.antagonistOptIns` or gates on it
+   — it exists so a GM choosing who receives one can tell who is willing. Also
+   **optional** — ticking nothing is a real answer, so `canAdvance` is
+   unconditionally true here too.
+
+   **Most of these are decoys.** Only two of the eleven are real seats today,
+   and a GM may hand one to somebody who ticked nothing at all. That is the
+   design: the list tells a player nothing about which threats exist. See
+   `THREATS.md` §1.
 
    Opt-in rather than opt-out deliberately: a player who clicks through without
    reading has consented to nothing. It is **creation-only** — the list is set
    here and `updateCharacterProfile` never reads the key, the same lock `title`
-   uses. There is no GM read/edit surface yet; the values just land on the row.
-   The catalog is `db/lib/antagonists.js` (alphabetized, so catalog order *is*
-   display order), and `normalizeAntagonistSlugs` is the server-side allowlist —
+   uses. A GM reads it on `/gm/dev?s=assignments`, which is the only surface
+   that shows it. The catalog is `db/lib/threats.js` (alphabetized, so catalog
+   order *is* display order — which is also what hides the real seats among the
+   decoys), and `normalizeAntagonistSlugs` is the server-side allowlist —
    a server action is a public endpoint, so the checkboxes are UX and that
-   function is the boundary.
+   function is the boundary. It drops a slug the catalog no longer carries,
+   which is why renaming one needs no data migration.
 5. **Confirm** — a summary, then `createCharacter`.
 
 ## 1b. Names
@@ -330,7 +337,7 @@ reach no one.
 **Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Judge,
 the NPC monsters, the Brigands — those seats are assigned
 by hand by a GM and must never appear in the player-facing picker, so they are
-prose in `docs/threats.md` rather than data. They used to sit in
+prose in `db/lib/threats.js` rather than role data (`THREATS.md`). They used to sit in
 `zones[].threats[]`, carrying a full role's worth of fields that no sync ever
 read.
 
@@ -483,7 +490,7 @@ completion rule. Every negative-cost tag is `purchasableAfterStart: false` —
 a drawback you could buy mid-game would be a point farm.
 
 Drawbacks face **two** ceilings, and a build stops at whichever it reaches
-first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
+first: at most `GameConfig.maxDrawbackTags` of them may be bought (**5** by
 default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
 (**12** by default, matching `startingTagPoints` — you can never claim back
 more than you started with). Both are live on `/gm/dev`. Either alone leaves a
@@ -738,18 +745,19 @@ never deletes. See `SYNC.md`.
 | Discord access + death | `web/lib/discordGuild.js` |
 | Name formatting | `db/lib/characterName.js` |
 | Dynasty | `db/lib/dynasty.js`, `web/lib/dynasty.js` |
-| Antagonist catalog | `db/lib/antagonists.js` |
+| Threat catalog | `db/lib/threats.js` (see `THREATS.md`) |
 | Launch gating | `db/lib/roleIds.js`, `web/lib/superadmin.js` |
 
 ## Starting obols
 
 A few seats begin the game with coin in their pocket, so the Merchant has
-somebody to trade with on turn one: Baron 5 ¢, Hand 2 ¢, Esculap 2 ¢, and
-Baroness, Heir and Meister 1 ¢ each. The Merchant starts with 20 ¢ and a Depot
-Keycard; every Docker starts with a Keycard.
+somebody to trade with on turn one: Baron 25 ¢, Hand 10 ¢, Esculap 10 ¢, and
+Baroness, Heir and Meister 5 ¢ each. The Merchant starts with 20 ¢ and a Depot
+Keycard; every Docker starts with a Keycard. An obol is one ⬢, so those are
+also the ⬢ figures.
 
 These are authored in `docs/roles.yaml` with a **count suffix** —
-`- Obol x5` — parsed by `db/lib/startingTags.js`. A bare name still means one,
+`- Obol x25` — parsed by `db/lib/startingTags.js`. A bare name still means one,
 which is every other entry in every other role. Repeating the name five times
 could not work: `createCharacter` resolves the list with `name: { in: [...] }`,
 a set lookup that collapses duplicates.

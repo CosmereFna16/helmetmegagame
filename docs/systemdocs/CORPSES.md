@@ -180,7 +180,7 @@ person can have helped.
 ## 8. `Tag.requirementItems` — the first enforced ingredient
 
 `BREWING.md` was explicit that no code enforced a recipe, "least of all the
-ingredient". Two recipes now do:
+ingredient". Three recipes now do:
 
 ```yaml
   miasma:
@@ -190,7 +190,16 @@ ingredient". Two recipes now do:
   dreamers-draught:
     requirement:
       items: [skinless-brain]      # a bare string is a tag slug
+  bone-mask:
+    requirement:
+      skills: [butcher]            # a mask cut out of a human skull
+      items:
+        - group: items-corpse
 ```
+
+The Bone Mask is the first of these outside brewing, and the first that makes
+a corpse into something you *wear* — it is a `concealsIdentity` piece, so the
+face it hides you behind is a skull (`PROXYING.md` §5).
 
 **HOLDING IT IS THE CHECK. Nothing is consumed.** No quantity moves, and
 crafting twice off one corpse is allowed — the recipe says you need one to

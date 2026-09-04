@@ -27,6 +27,7 @@ const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
+const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
@@ -140,12 +141,19 @@ const TURN_PASSES = [
   "lessons",
   "stagedPush",
   "tagExpiry",
+  // Counts Damaged Vision stacks and turns 5 of them into Blind. After
+  // tagExpiry so a stack that grew this turn is counted, before the sweep so
+  // the rows it deletes are its own. See db/lib/visionDecayPass.js.
+  "visionDecay",
   "dyingDeath",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
   // is a blind deleteMany over expiresTurn, so a body that reached its clock
   // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
   "corpseRot",
   "expirySweep",
+  // After the sweep, and it has nothing to do with it: a notice is on a board
+  // rather than on a sheet, so nothing above can see one.
+  "noticeboard",
   "catatonic",
   "catatonicDeath",
   "bird",
@@ -297,6 +305,29 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Tag expiry audit log failed:", err));
   }
 
+  // Moonshine's slow bill. Rides the tagExpiry DM channel rather than
+  // threading a variable of its own through runSideEffects — it is the same
+  // kind of notice, "a tag on your sheet became a different tag".
+  let visionDecay = null;
+  if (!done.has("visionDecay")) {
+    visionDecay = await runVisionDecayPass(prisma, turn).catch(async (err) => {
+      await passFailed("Vision decay", err);
+      return null;
+    });
+    if (visionDecay) await markDone("visionDecay");
+  }
+  if (visionDecay) {
+    tagExpiryDms.push(...(visionDecay.dms ?? []));
+    if (visionDecay.blinded > 0) {
+      const { dms: _visionDms, ...visionSummary } = visionDecay;
+      await prisma.auditLog
+        .create({
+          data: { actorDiscordUserId: "system", actionType: "vision_decay_resolved", details: visionSummary },
+        })
+        .catch((err) => console.error("Vision decay audit log failed:", err));
+    }
+  }
+
   // Dying death — the engine's second auto-kill, run down from the Dying
   // tag's one-turn clock. After stagedPush/tagExpiry, before the sweep.
   // See db/lib/dyingDeathPass.js.
@@ -374,6 +405,34 @@ async function resolveNeeds(turn, config) {
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);
+    }
+  }
+
+  // Noticeboards. A paper nobody took down blows away, and it takes the paper
+  // with it — that is what expiring MEANS here, and it is why a notice is
+  // worth tearing down rather than leaving. See docs/systemdocs/PAPERWORK.md.
+  //
+  // The Tag row goes too. Nothing else can reference it (NoticePost.tagId is
+  // @unique, and the paper left its holder's sheet when it went up), so
+  // leaving it would be an orphan waiting for the next Restart Game — which
+  // is exactly the accumulation Tag.ephemeral was added to stop.
+  if (!done.has("noticeboard")) {
+    try {
+      const blown = await prisma.noticePost.findMany({
+        where: { expiresTurn: { lte: turn.number } },
+        select: { id: true, tagId: true },
+      });
+      if (blown.length > 0) {
+        const ids = blown.map((p) => p.id);
+        const tagIds = blown.map((p) => p.tagId);
+        await prisma.noticePost.deleteMany({ where: { id: { in: ids } } });
+        // Only the runtime paper rows, never a catalog tag that somehow found
+        // its way onto a board — `ephemeral` is the whole guard.
+        await prisma.tag.deleteMany({ where: { id: { in: tagIds }, ephemeral: true } });
+      }
+      await markDone("noticeboard");
+    } catch (err) {
+      await passFailed("Noticeboards", err);
     }
   }
 
@@ -1067,7 +1126,7 @@ module.exports = {
   ...require("./lib/dynasty"),
   ...require("./lib/concealedIdentity"),
   ...require("./lib/presentedIdentity"),
-  ...require("./lib/antagonists"),
+  ...require("./lib/threats"),
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/depot"),

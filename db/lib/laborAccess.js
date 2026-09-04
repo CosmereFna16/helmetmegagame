@@ -15,6 +15,7 @@
 // context the caller already has in hand rather than each one costing its own
 // round trip.
 const { computeRate, SPECIALISATION_KINDS } = require("./production");
+const { isRefinery, refineryInput, REFINERY_YIELD } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
 const {
@@ -70,7 +71,7 @@ async function buildLaborContext(prisma, characterId) {
     select: {
       locationId: true,
       location: {
-        select: { name: true, yields: { select: { kind: true, current: true } } },
+        select: { name: true, attributes: true, yields: { select: { kind: true, current: true } } },
       },
     },
   });
@@ -87,12 +88,24 @@ async function buildLaborContext(prisma, characterId) {
     structuresAt(prisma, character?.locationId, { statuses: ["COMPLETE"] }),
   ]);
 
-  return {
+  const ctx = {
     locationName: character?.location?.name ?? null,
     yields: yieldMap(character?.location?.yields ?? []),
+    refinery: isRefinery(character?.location),
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
     tools: [...toolsFrom(tags), ...structureTools(structures)],
   };
+  // Only asked when it matters — 56 of the 57 Locations are not a refinery and
+  // pay nothing for this. The auto-labor pass does not come through here at
+  // all: it hand-builds a ctx off one bulk query for the whole roster
+  // (db/lib/autoLaborPass.js) and calls resolveLaborRateFrom directly.
+  if (ctx.refinery) {
+    ctx.refineryInput = await refineryInput(prisma, {
+      id: characterId,
+      locationId: character?.locationId ?? null,
+    });
+  }
+  return ctx;
 }
 
 // LocationYield rows -> { HUNTING: 0.5, ... }. A kind absent from the map is a
@@ -225,6 +238,32 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
   const access = computeLaborAccess(ctx);
   if (!access.ok) return access;
 
+  // A refinery pays in goods, not ⬢, and it is the one place a Labor resolves
+  // with no LocationYield row behind it. It still wants a Laboring tag: the
+  // Factory floor is work, not a vending machine. The range is a real 0-0 so
+  // db/lib/resourceDelta.js#rollResourceRange still parses it — everything
+  // downstream assumes an expression, and "" would silently pay nothing while
+  // looking like a bug. See docs/systemdocs/FACTORY.md.
+  if (ctx.refinery) {
+    if (!canLaborAtAll(ctx)) return { ok: false, reason: "You don't know how to labor." };
+    if (!ctx.refineryInput) {
+      return { ok: false, reason: "There's no Godflesh here to refine." };
+    }
+    return {
+      ok: true,
+      tier: "refining",
+      min: 0,
+      max: 0,
+      bonus: 0,
+      tools: [],
+      halved: false,
+      lifewebFailing,
+      locationCoefficient: 1,
+      refinery: true,
+      expression: "0-0",
+    };
+  }
+
   const candidates = [];
   for (const { slug, tier } of GENERAL_TIERS) {
     if (!ctx.tagSlugs.has(slug)) continue;
@@ -304,6 +343,7 @@ const TIER_LABELS = {
   hunting: "Hunting",
   farming: "Farming",
   fishing: "Fishing",
+  refining: "Refining",
 };
 
 function laborTierLabel(tier) {
@@ -315,7 +355,21 @@ function laborTierLabel(tier) {
 // Discord `-#` subtext: it explains a number rather than competing with it.
 // Returns null when there is nothing to explain, so a caller can spread it
 // straight into a lines array.
-function formatLaborBonusNote({ tools = [], halved = false, lifewebFailing = false } = {}) {
+function formatLaborBonusNote(
+  { tools = [], halved = false, lifewebFailing = false, refinery = false } = {},
+  { refined = true } = {},
+) {
+  // A refining shift has no tools and no dials — what it made is the whole
+  // story, and describeMoveEffects has already said it. The second branch is
+  // the one that matters: three refugees sharing one lump is the normal case
+  // whenever the stash runs thin, and the two who lost the race have to be
+  // told why their day came to nothing rather than reading a line about eight
+  // cubes they never got.
+  if (refinery) {
+    return refined
+      ? `-# One Godflesh in, ${REFINERY_YIELD} cubes out. Do not eat them. ‡`
+      : "-# There was no Godflesh left on the floor by the time you got to it. Bring one in, or leave one in the room. ‡";
+  }
   const parts = [];
   for (const tool of tools) {
     if (tool.amount) parts.push(`+${tool.amount} ⬢ from ${tool.name}`);

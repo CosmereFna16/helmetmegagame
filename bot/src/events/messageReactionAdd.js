@@ -5,6 +5,7 @@ const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
 // db/lib/examine.js for why it is one module and not two embeds.
 const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("@lifeweb/db/lib/examine");
 const { buildSkillAncestry, satisfiedSkillIds } = require("@lifeweb/db/lib/medicalVision");
+const { BLIND_SLUG } = require("@lifeweb/db/lib/examineVision");
 const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
@@ -305,6 +306,18 @@ module.exports = {
           where: { discordUserId: user.id, status: "ALIVE" },
           select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
         });
+
+        // The one thing that closes this door. Everything else about 🔍 is
+        // deliberately open — it needs the subject to have just spoken beside
+        // you, which is close enough to see whatever your eyes are — but a
+        // blind viewer sees nothing at all, here as on /character
+        // (db/lib/examineVision.js).
+        if (viewer?.tags?.some((t) => t.tag?.slug === BLIND_SLUG)) {
+          await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+            console.error(`Couldn't tell ${user.id} they're blind:`, err),
+          );
+          return;
+        }
 
         // A concealed message is read off the PROXY, not the live row: the
         // hood the room saw when this was posted is the hood this answers for,

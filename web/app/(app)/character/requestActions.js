@@ -10,13 +10,12 @@ import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { isMounted, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import {
-  MAX_BIRD_BODY,
   canSendBird as holdsBirdAndLetters,
   isBirdReachableZone,
   deliveryDm,
   sentReceiptDm,
   replyButtonRow,
-  LITERATE_SLUG,
+  canReadLetters,
 } from "@lifeweb/db/lib/bird";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
@@ -33,7 +32,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { isTradeable, addRequirementSatisfied, needsWorkshop } from "@/lib/tagRequests";
+import { isTradeable, isCrate, addRequirementSatisfied, needsWorkshop } from "@/lib/tagRequests";
 import {
   tagsById as buildTagsById,
   exclusiveConflict,
@@ -63,7 +62,7 @@ import {
   isInflictable,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
-import { canReachParty, outOfReachMessage } from "@/lib/transferReach";
+import { canReachParty, outOfReachMessage, isOwnFactionSilo } from "@/lib/transferReach";
 import { isHere, notHereMessage } from "@/lib/peopleHere";
 import { applyBind, createBindOffer, needsNoConsent, isBound as isBoundTarget, requireBoundTag, BIND_SELECT } from "@lifeweb/db/lib/bind";
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
@@ -79,11 +78,24 @@ import {
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
+import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
-import { BUTCHER_SLUG, ENGRAVE_RESOURCE_COST, WORKSHOP_EQUIPMENT_SLUG, SURGICAL_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import {
+  BUTCHER_SLUG,
+  ENGRAVE_RESOURCE_COST,
+  WORKSHOP_EQUIPMENT_SLUG,
+  SURGICAL_EQUIPMENT_SLUG,
+  PACKAGING_EQUIPMENT_SLUG,
+  PACKAGE_MAX_LBS,
+  PACKAGE_MAX_UNITS,
+  PACKAGE_LABEL_MAX,
+} from "@lifeweb/db/lib/constants";
+import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
+import { crateWeight } from "@lifeweb/db/lib/depotCrates";
+import { GODFLESH_SLUG, extractToolFor, rollExtraction, extractionDm } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollDie } from "@lifeweb/db/lib/moveEffects";
@@ -395,6 +407,7 @@ async function fileAutoRoutine(tx, character, openTurn, description, gmNotes) {
         description,
         appliedEffects: {},
         zoneId: character.zoneId ?? null,
+        locationId: character.locationId ?? null,
         gmNotes,
       },
     });
@@ -455,6 +468,12 @@ function payerNotice(character, payer, cost, tag) {
 async function craftRequestImpl({ tagId, quantity: rawQuantity, payerKey, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
+
+  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
+  // get to keep working; the same reasoning as the Extract gate below.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be working. ‡");
+  }
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
@@ -1207,6 +1226,12 @@ async function destroyTagRequestImpl({ tagId, quantity: rawQuantity, reason: raw
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
 
+  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
+  // get to keep working; the same reasoning as the Extract gate below.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be working. ‡");
+  }
+
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.removable) throw new UserError("That isn't something you can destroy. ‡");
@@ -1256,6 +1281,51 @@ async function destroyTagRequestImpl({ tagId, quantity: rawQuantity, reason: raw
 // on. Always exactly ONE unit, so a stack feeds several times. No resource
 // cost — the item already cost ⬢ to make. A grant may be conditional on
 // what's already held, so the slug list runs through resolveConsumeGrants.
+// Breaking a seal. Opening a letter is Consume because that is what it is —
+// the seal is used up and cannot be put back — and routing it through the same
+// button means a player never has to learn a second verb for it.
+//
+// Two things come out: the letter, exactly as it was written, and the spent
+// envelope. The envelope is the point of the whole mechanism: it is evidence
+// that somebody opened this, and whose wax was on it when they did.
+async function breakSealRequestImpl({ session, character, held, reason }) {
+  const openTurn = await getOpenTurn();
+
+  let opened;
+  await prisma.$transaction(async (tx) => {
+    opened = await breakSeal(tx, character.id, held.tag);
+
+    const effect = {
+      tagId: held.tagId,
+      tagName: held.tag.name,
+      // What the row is called NOW, so an Undo can find its way back.
+      openedName: opened.paper.name,
+      sealMark: held.tag.sealMark ?? null,
+      envelopeTagId: opened.envelope?.id ?? null,
+      envelopeName: opened.envelope?.name ?? null,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "BREAK_SEAL",
+      reason,
+      payload: { tagId: held.tagId },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_break_seal",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true, name: opened.paper.name };
+}
+
 async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -1263,6 +1333,14 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
+
+  // Breaking a seal takes its own road out of here. The ordinary consume path
+  // below reads `consumesInto`, which names CATALOG SLUGS — and the letter
+  // inside a sealed one is a runtime row that no slug in docs/tags.yaml can
+  // ever name. See docs/systemdocs/PAPERWORK.md.
+  if (held.tag.paperKind === "SEALED") {
+    return breakSealRequestImpl({ session, character, held, reason });
+  }
 
   const openTurn = await getOpenTurn();
   const restore = {
@@ -1374,10 +1452,17 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
   // Both ends have to be where you stand — re-checked here on the posted
   // key, the same predicate that built the menu (web/lib/peopleHere.js). A
   // room adds "and its door opens for you".
+  //
+  // The one asymmetry: `direction` lets a member DEPOSIT into their own
+  // faction's silo from anywhere in that room's zone, while taking anything
+  // back out keeps the strict rule (web/lib/transferReach.js).
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
-  for (const party of [from, to]) {
-    if (!(await canReachParty(character, party, { heldSlugs }))) {
-      throw new UserError(outOfReachMessage(party));
+  for (const [direction, party] of [["from", from], ["to", to]]) {
+    if (!(await canReachParty(character, party, { heldSlugs, direction }))) {
+      // Only to pick which of the two out-of-reach sentences to write —
+      // the same predicate the gate itself used, not a second one.
+      const isSilo = party.kind === "room" && (await isOwnFactionSilo(character, party));
+      throw new UserError(outOfReachMessage(party, { isSilo }));
     }
   }
   if (amount > from.balance) throw new UserError(`${from.name} only has ${from.balance} ⬢.`);
@@ -1466,6 +1551,10 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };
   const toParty = { kind: to.kind, id: to.id, name: to.name };
+  // The Spillway (Room.destroysContents). Nothing is written on the receiving
+  // end — giveTagTo and moveParty both refuse — so the effect has to say so,
+  // or Undo goes looking for goods that were never stored (requestEffects.js).
+  const destroyed = to.destroysContents === true;
   const fromCharacterId = from.kind === "character" ? from.id : null;
   const toCharacterId = to.kind === "character" ? to.id : null;
 
@@ -1487,6 +1576,7 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
           quantity,
           direction: "SEND",
           restore,
+          destroyed,
           from: fromParty,
           to: toParty,
           fromCharacterId,
@@ -1511,7 +1601,7 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
         if (!(err instanceof InsufficientResourcesError)) throw err;
         throw new UserError(err.message);
       }
-      const effect = { amount, from: fromParty, to: toParty, direction: "SEND" };
+      const effect = { amount, from: fromParty, to: toParty, direction: "SEND", destroyed };
       await createRequest(tx, {
         characterId: character.id,
         turnId: openTurn?.id ?? null,
@@ -1541,7 +1631,17 @@ async function transferRequestImpl({ fromKey, toKey, tags: rawTags, amount: rawA
   }
   // The room hears about it, aliased (CARRY.md): leaving something is public
   // by nature, and so is walking off with it.
-  if (to.kind === "room") after(() => announceInRoom(to, character, `leaves ${goods} here.`));
+  if (to.kind === "room") {
+    // "Leaves it here" would be a lie about the Spillway — the trough is the
+    // point of the room, and anyone watching sees it go over the edge.
+    after(() =>
+      announceInRoom(
+        to,
+        character,
+        destroyed ? `tips ${goods} into the trough. It is gone. ‡` : `leaves ${goods} here.`,
+      ),
+    );
+  }
   if (from.kind === "room") after(() => announceInRoom(from, character, `takes ${goods}.`));
 
   revalidateAll();
@@ -2747,6 +2847,237 @@ async function engraveHeadstoneRequestImpl({ firstName: rawFirstName, reason: ra
   return { name: target.name, headstone: result.headstone.name };
 }
 
+// --- The Godard Factory -----------------------------------------------
+
+// Cutting Godflesh out of the marsh. Spends the Routine, rolls a d6, and on a
+// 1 rolls again on a table that Armored Gloves dominate — db/lib/godflesh.js
+// holds all of that, and this only writes the result down.
+//
+// Every gate is re-checked here. The button greys itself for a blade and hides
+// itself off a marsh tile, but a server action is a public endpoint and the
+// client's menus are advisory (REQUESTS.md §3).
+async function extractGodfleshRequestImpl({ reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const location = character.locationId
+    ? await prisma.location.findUnique({
+        where: { id: character.locationId },
+        select: { id: true, name: true, attributes: true },
+      })
+    : null;
+  if (!hasAttribute(location, GODFLESH_ATTRIBUTE)) {
+    throw new UserError("There's nothing to cut here. ‡");
+  }
+  if (!extractToolFor(character.tags)) {
+    throw new UserError("You need a hatchet, a battle-axe or a chainsaw in your hands. ‡");
+  }
+  // Bound, Dying, Paralyzed, Catatonic — or mid-Seizure from a cube, which is
+  // the one this exists for. requireFreeMove below only checks the turn and
+  // the one-Action rule, so nothing else would stop a man on the floor wading
+  // into the marsh with an axe.
+  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
+    throw new UserError("You're in no state to be swinging anything. ‡");
+  }
+
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+
+  const result = rollExtraction(character.tags);
+  const [godflesh, injury] = await Promise.all([
+    prisma.tag.findUnique({ where: { slug: GODFLESH_SLUG }, select: { id: true, name: true, stackable: true } }),
+    result.injury
+      ? prisma.tag.findUnique({
+          where: { slug: result.injury.tagSlug },
+          select: { id: true, name: true, defaultDurationTurns: true },
+        })
+      : null,
+  ]);
+  if (!godflesh) throw new UserError("The catalog has no Godflesh in it. Tell a GM. ‡");
+
+  const effect = {
+    die: result.die,
+    tool: result.tool,
+    tagId: godflesh.id,
+    tagName: godflesh.name,
+    quantity: result.quantity,
+    injuryTagId: injury?.id ?? null,
+    injuryTagName: injury?.name ?? null,
+    locationName: location?.name ?? null,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await addToStack(tx, character.id, godflesh.id, result.quantity, {
+      source: "EVENT",
+      stackable: godflesh.stackable,
+    });
+    if (injury) {
+      await addToStack(tx, character.id, injury.id, 1, {
+        source: "EVENT",
+        expiresTurn: await expiryForGrant(tx, injury, openTurn, {
+          characterId: character.id,
+          where: "extractGodflesh",
+        }),
+      });
+    }
+    const action = await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      "*Out in the marsh, cutting.* ‡",
+      "auto:extract",
+    );
+    effect.actionId = action.id;
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "EXTRACT_GODFLESH",
+      reason,
+      payload: {},
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_extract_godflesh",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  // The die is the point of the whole button, so it is DM'd whatever it said.
+  notifyCharacter(character, extractionDm(result, { locationName: location?.name ?? null }));
+
+  revalidateAll();
+  return { die: result.die, quantity: result.quantity, injury: injury?.name ?? null };
+}
+
+// Packing goods into a crate that weighs half what is in it.
+//
+// The crate is a runtime Tag, exactly the shape db/lib/depotCrates.js mints
+// for a Depot shipment — `custom: true` and a `custom-` slug, so db:prune-tags
+// leaves it alone and no docs/tags.yaml sync can upsert over it. It is an
+// ordinary CONSUMABLE, which is what makes unpacking free: the Consume button
+// already on the sheet opens it, and the Depot's own openCrate (which lives on
+// /depot, out of reach of a Banneret in the Marshes) is not needed.
+async function packageItemsRequestImpl({ lines: rawLines, label: rawLabel, reason: rawReason }) {
+  const { session, character } = await requireCharacter();
+  const reason = requireReason(rawReason);
+
+  const label = String(rawLabel ?? "").trim().slice(0, PACKAGE_LABEL_MAX);
+  if (!label) throw new UserError("Say what's in it. ‡");
+
+  const lines = (Array.isArray(rawLines) ? rawLines : [])
+    .map((l) => ({ tagId: String(l?.tagId ?? ""), quantity: Math.max(1, Math.trunc(Number(l?.quantity) || 1)) }))
+    .filter((l) => l.tagId);
+  if (lines.length === 0) throw new UserError("Nothing selected. ‡");
+
+  if (!(await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG))) {
+    throw new UserError("There's no packaging equipment here. ‡");
+  }
+
+  // Resolved against what they ACTUALLY hold, never against what was posted.
+  const held = character.tags.filter((ct) => lines.some((l) => l.tagId === ct.tagId));
+  const contents = lines.map((line) => {
+    const row = held.find((ct) => ct.tagId === line.tagId);
+    if (!row) throw new UserError("You aren't carrying that. ‡");
+    if (!isTradeable(row.tag)) throw new UserError("That isn't something that can be packed. ‡");
+    // A crate of crates would nest a consumesInto chain arbitrarily deep, and
+    // halving twice is a free carry exploit besides.
+    if (isCrate(row.tag)) throw new UserError("You can't crate a crate. ‡");
+    const quantity = Math.min(line.quantity, row.quantity);
+    return { tagId: row.tagId, slug: row.tag.slug, name: row.tag.name, quantity, weightLbs: row.tag.weightLbs ?? 0 };
+  });
+
+  const innerLbs = contents.reduce((sum, c) => sum + c.weightLbs * c.quantity, 0);
+  if (innerLbs > PACKAGE_MAX_LBS) {
+    throw new UserError(`A crate holds ${PACKAGE_MAX_LBS} lb. That's ${Math.round(innerLbs)}. ‡`);
+  }
+  // A second cap, on COUNT rather than weight, because the weight cap does not
+  // bound the weightless: `consumesInto` repeats a slug per unit, so a crate of
+  // obols (0 lb, stackable, no ceiling) would write an array as long as the
+  // pile. The number is generous enough that nobody packing real cargo will
+  // ever see it.
+  const units = contents.reduce((sum, c) => sum + c.quantity, 0);
+  if (units > PACKAGE_MAX_UNITS) {
+    throw new UserError(`A crate holds ${PACKAGE_MAX_UNITS} things. That's ${units}. ‡`);
+  }
+
+  const weightByTagId = new Map(contents.map((c) => [c.tagId, c.weightLbs]));
+  const group = await prisma.tagGroup.findUnique({ where: { slug: "items-gear" } });
+  const openTurn = await getOpenTurn();
+
+  // The "custom-" prefix every runtime tag uses, plus enough entropy that two
+  // people packing in the same tick cannot collide on the unique slug.
+  const slug = `custom-crate-${character.id.slice(-6)}-${Date.now().toString(36)}`;
+
+  let crate;
+  await prisma.$transaction(async (tx) => {
+    crate = await tx.tag.create({
+      data: {
+        slug,
+        name: "Crate",
+        description: `[CONTAINS]: ${label}`,
+        custom: true,
+        // Game state, not catalog — a Restart Game sweeps it up (TAGS.md §5d).
+        ephemeral: true,
+        category: "items",
+        groupId: group?.id ?? null,
+        pointCost: 0,
+        tradeable: true,
+        stackable: false,
+        // The COLUMN is inspectVisibility; `visible:` is only the name
+        // docs/tags.yaml uses, and passing it here throws an unknown-argument
+        // error whose message points at `groupId` rather than at the real
+        // culprit. A crate is a box somebody is visibly hauling.
+        inspectVisibility: "ALWAYS",
+        weightLbs: crateWeight(contents, weightByTagId),
+        removable: false,
+        consumable: true,
+        // Repeated per unit — that is how consumesInto expresses a quantity
+        // (docs/tags.yaml header), and every packable thing worth crating in
+        // bulk is stackable.
+        consumesInto: contents.flatMap((c) => Array(c.quantity).fill(c.slug)),
+        // Carried too, for parity with a Depot crate, so anything that reads
+        // one manifest reads both.
+        crateContents: contents.map((c) => ({ tagId: c.tagId, name: c.name, quantity: c.quantity })),
+      },
+    });
+
+    for (const c of contents) await dropCharacterTag(tx, character.id, c.tagId, c.quantity);
+    await addToStack(tx, character.id, crate.id, 1, { source: "EVENT", stackable: false });
+
+    const effect = {
+      crateTagId: crate.id,
+      crateName: crate.name,
+      label,
+      weightLbs: crate.weightLbs,
+      innerLbs,
+      contents,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "PACKAGE_ITEMS",
+      reason,
+      payload: { lines, label },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_package_items",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { name: crate.name, weightLbs: crate.weightLbs, innerLbs };
+}
+
 // --- public surface ---------------------------------------------------
 
 // Each action is wrapped so validation comes back as { ok: false, error }
@@ -2846,22 +3177,33 @@ export async function engraveHeadstoneRequest(input) {
 // until db/lib/birdPass.js reports it at turn close. That delay is the
 // entire anti-scouting measure: answering "not delivered" now would hand
 // every Bird-holder a free probe for whether someone is alive in a zone.
-async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBody }) {
+async function birdMessageRequestImpl({ recipientId, guessedZoneId, tagId: rawTagId }) {
   const { session, character } = await requireCharacter();
 
   if (!holdsBirdAndLetters(character.tags)) {
-    throw new UserError("You need a bird, and you need to be able to write.");
+    throw new UserError("You need a bird, and you need to be able to write. ‡");
   }
 
-  const body = (rawBody ?? "").trim();
-  if (!body) throw new UserError("Write something first.");
-  if (body.length > MAX_BIRD_BODY) {
-    throw new UserError(`A bird can only carry ${MAX_BIRD_BODY} characters.`);
+  // The bird carries an OBJECT now. Resolved against what they actually hold,
+  // never against what was posted. See docs/systemdocs/PAPERWORK.md.
+  const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
+  if (!held) throw new UserError("You aren't holding that. ‡");
+  const kind = held.tag.paperKind;
+  if (kind !== "PAPER" && kind !== "SEALED") {
+    throw new UserError("A bird carries letters, not that. ‡");
   }
+  if (kind === "PAPER" && !(held.tag.paperText ?? "").trim()) {
+    throw new UserError("There's nothing written on it. ‡");
+  }
+
+  // A snapshot for the GM desk, so a letter that is later resealed, torn up or
+  // wiped still has a record of what went. Null on a sealed one: the bird did
+  // not open it and neither does this.
+  const body = kind === "SEALED" ? null : held.tag.paperText.trim();
 
   // The only Request with no reason box — the letter IS the record, clipped
   // to what the Request/AuditLog reason columns hold.
-  const reason = body.slice(0, MAX_REASON_LENGTH);
+  const reason = (body ?? `Sealed: ${held.tag.name}`).slice(0, MAX_REASON_LENGTH);
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is currently open.");
@@ -2891,7 +3233,10 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
   if (!recipient) throw new UserError("Nobody by that name.");
 
   const delivered = recipient.status === "ALIVE" && recipient.zoneId === guessedZone.id;
-  const recipientIsLiterate = recipient.tags.some((ct) => ct.tag.slug === LITERATE_SLUG);
+  // Only whether they can WRITE BACK. Reading the letter is no longer this
+  // action's business — the paper is the letter, and whether they can read it
+  // is answered every time they look at it (db/lib/paper.js).
+  const recipientIsLiterate = canReadLetters(recipient.tags);
 
   // In-game DAY, not a turn id — two turns run per day, and keying on the
   // turn would hand out two letters a day. (The mount's claim shared this trap
@@ -2919,6 +3264,8 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
         recipientDiscordUserId: recipient.discordUserId ?? null,
         guessedZoneId: guessedZone.id,
         guessedZoneName: guessedZone.name,
+        tagId: held.tagId,
+        tagName: held.tag.name,
         body,
         delivered,
         arrivalTurnId: delivered ? openTurn.id : null,
@@ -2934,19 +3281,31 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
       turnId: openTurn.id,
       type: "BIRD_MESSAGE",
       reason,
-      payload: { recipientId: recipient.id, guessedZoneId: guessedZone.id, body },
+      payload: { recipientId: recipient.id, guessedZoneId: guessedZone.id, tagId: held.tagId },
       effect: {
         birdMessageId: row.id,
         recipientId: recipient.id,
         recipientName: recipient.name,
         guessedZoneId: guessedZone.id,
         guessedZoneName: guessedZone.name,
-        // Always plaintext, so a GM reading the desk sees what was written.
+        tagId: held.tagId,
+        tagName: held.tag.name,
+        // What was written, for the desk. Null on a sealed letter.
         body,
         delivered,
         previousBirdTurnId: character.birdTurnId ?? null,
       },
     });
+    // THE LETTER ONLY LEAVES YOUR HANDS IF IT ARRIVES. A wrong guess means the
+    // bird comes back with it still tied on, and the sender is told a turn
+    // later like always. Burning a player's letter as the price of a bad guess
+    // would be a second punishment nobody was warned about — and the guess
+    // already costs them the day's send.
+    if (delivered) {
+      await dropCharacterTag(tx, character.id, held.tagId, 1);
+      await addToStack(tx, recipient.id, held.tagId, 1, {});
+    }
+
     await logRequest(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_bird_message",
@@ -2964,26 +3323,34 @@ async function birdMessageRequestImpl({ recipientId, guessedZoneId, body: rawBod
   // Post-commit — a DM must not hold up or undo the write (ARCHITECTURE.md §5).
   notifyCharacter(
     character,
-    sentReceiptDm({ recipientName: recipient.name, zoneName: guessedZone.name, body }),
+    sentReceiptDm({ recipientName: recipient.name, zoneName: guessedZone.name, letterName: held.tag.name }),
     { source: "bird" },
   );
   if (delivered) {
     notifyCharacter(
       recipient,
-      deliveryDm({ senderName: character.name, body, recipientIsLiterate }),
+      deliveryDm({ senderName: character.name, letterName: held.tag.name }),
       {
-        // No Reply button for someone who can't read — birdReply.js re-checks.
+        // No Reply button for someone who can't write one — birdReply.js
+        // re-checks, since a GM can strip the tag inside the window.
         components: recipientIsLiterate ? replyButtonRow(birdMessageId) : undefined,
-        // Plaintext rides along so /gm/messages can join the cipher to what
-        // it says.
-        meta: { kind: "bird", birdMessageId, plaintext: body },
+        meta: { kind: "bird", birdMessageId, letterName: held.tag.name },
         source: "bird",
       },
     );
+    await afterInventoryChange([character.id, recipient.id]);
   }
 
   revalidateAll();
   return { ok: true };
+}
+
+export async function extractGodfleshRequest(input) {
+  return guarded(() => extractGodfleshRequestImpl(input));
+}
+
+export async function packageItemsRequest(input) {
+  return guarded(() => packageItemsRequestImpl(input));
 }
 
 export async function birdMessageRequest(input) {

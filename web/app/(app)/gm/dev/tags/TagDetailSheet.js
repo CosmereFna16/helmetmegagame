@@ -60,6 +60,7 @@ const FLAG_LABELS = [
   ["stackable", "Stackable"],
   ["equippable", "Equippable"],
   ["concealsIdentity", "Conceals identity"],
+  ["forcesConceal", "Conceals by force ‡"],
   ["consumable", "Consumable"],
   ["removable", "Removable"],
   ["tradeable", "Tradeable"],
@@ -117,6 +118,13 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     VISIBILITY_CHIP[tag.inspectVisibility],
     // Not a boolean: the name the holder is forced to wear (TAGS.md §5).
     tag.forcedName ? `Forces name: ${tag.forcedName} ‡` : null,
+    // Nor these: the face a concealed wearer shows, and where the thing sits.
+    // Both are worth a chip rather than a fold — "which helmet slot is this?"
+    // is the question a GM building kit actually asks.
+    tag.concealSprite ? `Conceal sprite: ${tag.concealSprite} ‡` : null,
+    tag.equipSlot
+      ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer} ‡` : " ‡"}`
+      : null,
   ].filter(Boolean);
   const requirement = formatTagRequirement(tag);
 

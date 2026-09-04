@@ -18,6 +18,7 @@
 // last fulfilled Desire and the skill catalog behind the doctor's eye. Both
 // come in as arguments; see EXAMINE_SUBJECT_SELECT for the rest.
 const { concealedLine } = require("./concealedIdentity");
+const { inRealFaction } = require("./factionConstants");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { inspectVision, isInscrutable } = require("./inspectVision");
 const {
@@ -25,7 +26,12 @@ const {
   medicallyVisibleTags,
   seenByBystander,
 } = require("./medicalVision");
-const { forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 
 // The subject `select` both callers load. Kept here beside the reader so a
@@ -42,7 +48,7 @@ const EXAMINE_SUBJECT_SELECT = {
   roleTitle: true,
   resources: true,
   factionId: true,
-  faction: { select: { name: true } },
+  faction: { select: { name: true, slug: true } },
   tags: {
     select: {
       equipped: true,
@@ -52,6 +58,7 @@ const EXAMINE_SUBJECT_SELECT = {
           category: true,
           inspectVisibility: true,
           forcedName: true,
+          ...CONCEALMENT_TAG_FIELDS,
           // The five formatTagRequirement() reads. It renders no ingredient
           // line rather than throwing when requirementItems is missing, which
           // is the quiet failure this shared select exists to prevent.
@@ -111,12 +118,6 @@ function concealedReadout(identity, subject) {
   };
 }
 
-// A real faction, as opposed to the Unaffiliated catch-all that everybody who
-// picked nothing shares — which is not a group whose members know each other.
-function inRealFaction(subject) {
-  return Boolean(subject.factionId) && subject.faction?.name !== "Unaffiliated";
-}
-
 // `subject` is a row loaded with EXAMINE_SUBJECT_SELECT.
 // `viewerTags` is the LOOKER's CharacterTag rows (for Seductive), `satisfied`
 // their satisfiedSkillIds() (for the doctor's eye), and `lastDesire` the
@@ -131,7 +132,10 @@ function examineReadout({
   viewerFactionId = null,
   viewerIsOfficer = false,
 }) {
-  const identity = presentedIdentity(subject, { forcedName: forcedNameFrom(subject.tags) });
+  const identity = presentedIdentity(subject, {
+    forcedName: forcedNameFrom(subject.tags),
+    concealment: concealmentFrom(subject.tags),
+  });
   // `concealed` is false for a forced name (Apex Form): a Beast is not hiding,
   // it is being something else, so it gets the ordinary read under its own
   // presented name. presentedIdentity.js carries that distinction.

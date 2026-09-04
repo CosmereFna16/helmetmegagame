@@ -9,7 +9,12 @@
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
 const { loadDepot, bumpFuel, depotPowered, LANDING_PAD_SLUG } = require("./depotState");
 const { rollTurret, turretSpares } = require("./depotTurret");
-const { presentedIdentity, forcedNameFrom } = require("./presentedIdentity");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+} = require("./presentedIdentity");
 const { DEPOT_LOCATION_SLUG } = require("./depot");
 const { expiryFrom } = require("./turnFormat");
 // Death is decided in one place so the two existing death paths and this one
@@ -98,14 +103,19 @@ async function sweepTurret(prisma, depot, turn) {
       name: true,
       discordUserId: true,
       concealed: true,
-      tags: { select: { equipped: true, tag: { select: { slug: true, forcedName: true } } } },
+      tags: {
+        select: { equipped: true, tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+      },
     },
   });
 
   const shots = [];
   for (const character of present) {
     const forcedName = forcedNameFrom(character.tags);
-    const { name } = presentedIdentity(character, { forcedName });
+    const { name } = presentedIdentity(character, {
+      forcedName,
+      concealment: concealmentFrom(character.tags),
+    });
     if (turretSpares(name, depot)) continue;
 
     shots.push({ character, ...rollTurret(character.tags, depot) });
@@ -187,12 +197,17 @@ async function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) 
       discordUserId: true,
       status: true,
       concealed: true,
-      tags: { select: { equipped: true, tag: { select: { slug: true, forcedName: true } } } },
+      tags: {
+        select: { equipped: true, tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+      },
     },
   });
   if (!character || character.status !== "ALIVE") return null;
 
-  const { name } = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
+  const { name } = presentedIdentity(character, {
+    forcedName: forcedNameFrom(character.tags),
+    concealment: concealmentFrom(character.tags),
+  });
   if (turretSpares(name, depot)) return null;
 
   const shot = { character, ...rollTurret(character.tags, depot) };

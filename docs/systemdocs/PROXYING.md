@@ -247,22 +247,39 @@ The bot needs the `MESSAGE_CONTENT` privileged intent for any of this
 
 ## 5. Concealed identity (`/conceal`)
 
-Concealment is a **toggle on the character** — `Character.concealed`, flipped
-by the `/conceal` slash command (registered everywhere, the bot's DMs included)
-or the switch beside turn-ping on `/character`. While it is on, every message
-the character sends — typed into a channel or through the Speak modal — is
-reposted under an anonymous alias instead of the name, and **Who's here?** on
-a Location's anchor lists them under that alias too (`CHANNELS.md` §4). The
-old per-message `/conceal` text prefix and the Speak modal's checkbox are
-gone: a player who wants to be unnamed is unnamed until they say otherwise. A
-concealed character is also excluded from every people-picker on
-`/character` (Heal, Loot, Move Player, Bind, Free, Harm, Transfer) and
-cannot be targeted through those menus (`db/lib/presence.js`).
+Concealment is a property of **what is over your face**. `Character.concealed`
+is only the player's wish, flipped by the `/conceal` slash command (registered
+everywhere, the bot's DMs included) or the switch beside turn-ping on
+`/character`; it takes effect solely while a `Tag.concealsIdentity` item is
+**equipped**. While it is in effect, every message the character sends — typed
+into a channel or through the Speak modal — is reposted under an anonymous
+alias instead of the name, and **Who's here?** on a Location's anchor lists
+them under that alias too (`CHANNELS.md` §4). The old per-message `/conceal`
+text prefix and the Speak modal's checkbox are gone: a player who wants to be
+unnamed is unnamed until they say otherwise. A concealed character is also
+excluded from every people-picker on `/character` (Heal, Loot, Move Player,
+Bind, Free, Harm, Transfer) and cannot be targeted through those menus
+(`db/lib/presence.js`).
 
-**It is open to everyone** — nothing equipped, no tag required. A player
-decides for themselves when to go unnamed. `Tag.concealsIdentity` still exists
-in the catalog and is still synced but nothing reads it (`TAGS.md`); re-gating
-would be one query where `messageCreate.js` reads the flag.
+**It is not open to everyone.** With a bare face there is nothing to toggle and
+both surfaces refuse. This is `Tag.concealsIdentity`, which sat inert in the
+catalog for a long time and is now the gate it was always kept for.
+
+`Tag.forcesConceal` is the stricter version, and the difference is the whole
+point of the pair: a hood is a choice, a sack tied over the head is not. While
+a forcing item is equipped the character is concealed whatever the column says,
+and **both toggles refuse in both directions** — there is no choice to make, so
+the stored preference is left alone and comes back when the thing comes off.
+Being **Bound** blocks unequipping entirely (`TAGS.md`), which is what makes a
+sack worth tying on.
+
+Concealment is **derived at read time**, never written. Nothing has to happen
+when a mask is put on or taken off, no catch-up pass exists, and a row left
+`concealed: true` after the mask came off simply resolves back to the real face
+on its own. `concealmentFrom(tags)` in `db/lib/presentedIdentity.js` is the
+whole of it, and `CONCEALMENT_TAG_FIELDS` beside it is the field list every
+call site selects — miss one and concealment silently stops working at that
+surface only.
 
 The slash command only flips the column and replies; the message itself still
 rides the ordinary proxy path, so ✏️/❌/⭐/🔍 all behave unchanged.
@@ -286,9 +303,26 @@ The alias is frozen into `ArchiveEntry.concealedAlias` at send time, so a later
 gender correction never rewrites the archive. That is correct: it records who
 someone was as they were known then.
 
-The avatar is `web/public/assets/unknown.png`, served straight out of `public/`
-and **identical for everyone** — a per-character concealed avatar would be a
-fingerprint.
+The avatar is the concealing item's own `Tag.concealSprite`, served straight
+out of `public/` as `/assets/helms/<sprite>.webp` and **identical for every
+wearer of that item** — a per-character concealed avatar would be a
+fingerprint. The sprite says *what* is over the face, never *who* is behind it,
+so a room full of Tribunal helmets is a room full of identical Tribunal
+helmets. Two things follow: no per-character render, and no cache-busting,
+because the file never changes.
+
+`syncTags.js` refuses a `concealsIdentity` tag with no sprite, and refuses a
+sprite naming a file that isn't there — a typo would otherwise stay invisible
+until somebody equipped the thing in play and Discord served a broken image.
+The images are built from the source sprites in `web/assets/helms/` by
+`npm run assets:helms --workspace=web`; `PORTRAITS.md` covers the sizing.
+
+When two concealing items are worn at once, the **outermost** wins — highest
+`Tag.equipLayer` — because that is the one an onlooker can actually see. A coif
+under a knight's helm is a coif nobody can see.
+
+`web/public/assets/unknown.png` survives, but only as history: `ArchiveFeed.js`
+still needs it for entries archived before concealment had a face.
 
 `recentProxies` records `concealed`/`alias`, and three handlers read it:
 

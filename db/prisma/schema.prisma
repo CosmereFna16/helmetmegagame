@@ -136,6 +136,19 @@ enum TagVisibility {
   WORN
 }
 
+// Where on the body an equippable tag sits. Only three, because these are the
+// places where wearing two things at once is nonsense: you get one helmet, one
+// cuirass, one shield. Everything else equippable — a sword, a lantern, a cart
+// — has no slot and is limited only by GameConfig.equipSlots, the flat count.
+//
+// HEAD and BODY additionally carry Tag.equipLayer 1-4, so a coif can go under
+// a helm; SHIELD has no layers and admits exactly one. See TAGS.md.
+enum EquipSlot {
+  HEAD
+  BODY
+  SHIELD
+}
+
 enum TagSource {
   POINT_BUY
   DESIRE_REWARD
@@ -248,11 +261,10 @@ enum RequestType {
   DEPOT_ATM
   DEPOT_CRATE_OPEN
   DEPOT_REFUEL
-  // ⬢ across the counter at a flat rate, both directions, no spread. The one
-  // place the Merchant converts his own Resources into money and back. Priced
-  // in whole obols so it is EXACT — N ¢ is always N × obolRate ⬢ — because a
-  // rounded conversion is a margin however small, and this counter is
-  // deliberately marginless.
+  // ⬢ across the counter, both directions, no spread. The one place the
+  // Merchant turns his own Resources into money and back. One obol IS one ⬢,
+  // so it changes the form of a value rather than the amount, and there is no
+  // rounding for a margin to hide in.
   DEPOT_EXCHANGE
 
   // One written letter, carried by a bird to a named person in a GUESSED
@@ -272,6 +284,25 @@ enum RequestType {
   // Postgres cannot drop an enum value, so both ride one migration.
   BUILD_STRUCTURE
   DAMAGE_STRUCTURE
+
+  // The Godard Factory's two verbs (docs/systemdocs/FACTORY.md).
+  //   EXTRACT_GODFLESH — cutting Godflesh out of a marsh tile. Spends the
+  //                      Routine, rolls a d6, and on a 1 rolls again on an
+  //                      injury table that Armored Gloves dominate.
+  //   PACKAGE_ITEMS    — packing up to 150 lb of held goods into one crate,
+  //                      halving their weight. The crate is a runtime Tag,
+  //                      the same shape db/lib/depotCrates.js mints.
+  EXTRACT_GODFLESH
+  PACKAGE_ITEMS
+
+  // Breaking the wax on a sealed letter (docs/systemdocs/PAPERWORK.md). Filed
+  // through the Consume button, but its own type because it cannot go through
+  // consumesInto: that field names catalog SLUGS, and the letter inside a
+  // sealed one is a runtime row no slug in docs/tags.yaml could ever name.
+  //
+  // Undoable, and exactly: the letter is resealed and the spent envelope taken
+  // back, so the only trace is the Request row itself.
+  BREAK_SEAL
 
   // RETIRED, and kept only because Postgres cannot drop an enum value in
   // place — the same reason MoveReviewStatus.WAITING_FOR_OPPONENTS and
@@ -410,8 +441,13 @@ model GameConfig {
   // PRODUCTION_RATES table — read live by the Labor checkbox
   // (db/lib/laborAccess.js). docs/documents.yaml renders its numbers through
   // live {resource:...} bubbles, so nothing needs regenerating when this
-  // changes. See docs/systemdocs/PRODUCTION.md.
-  productionCoefficient Float @default(1)
+  // changes. See docs/systemdocs/LABORING.md.
+  //
+  // Default is 0.93, not 1: laboring was brought down about 7% before launch.
+  // Note what that does NOT reach — Basic is in UNSCALED_TIERS on purpose, and
+  // Skilled's 1-4 rounds back to 1-4, so the cut lands on the three
+  // specialisations, which is where the volume is.
+  productionCoefficient Float @default(0.93)
 
   // Base point-buy budget every new character starts with, before the
   // role's own `extra_starting_points` and the Cursed penalty are applied
@@ -518,7 +554,7 @@ model GameConfig {
 
   // How many drawback TAGS may be bought — a cap on the COUNT of
   // negative-cost tags picked, whatever they are worth.
-  maxDrawbackTags Int @default(6)
+  maxDrawbackTags Int @default(5)
 
   // How many points those drawbacks may claim back in total. Stored as a
   // POSITIVE magnitude — "at most 12 points may be claimed" — even though
@@ -569,6 +605,12 @@ model GameConfig {
   // deploy, while leaving the flagging pass above untouched.
   catatonicDeathTurns Int @default(4)
 
+  // How many turns a paper pinned to a noticeboard stays up before it blows
+  // away, counting the turn it was pinned in. The paper is destroyed with the
+  // post — a notice nobody took down is a notice nobody wanted.
+  // See docs/systemdocs/PAPERWORK.md.
+  noticeExpiryTurns Int @default(10)
+
   // Whether the bot runs the channel doctor's cheap reconciliation pass
   // (db/lib/channelDoctor.js) automatically after every turn advance, on top
   // of its pass at ready. Off by default.
@@ -614,9 +656,11 @@ model Depot {
 
   // ─── Live state ───
 
-  // The account. One balance for the whole station, in obols. It is NOT on the
-  // Merchant's character on purpose: the licence is tradeable, so handing it
-  // over hands over the money too, which is what makes the card worth stealing.
+  // The account. One balance for the whole station, in obols — and an obol is
+  // one ⬢, so this compares directly against any price in the catalog. It is
+  // NOT on the Merchant's character on purpose: the licence is tradeable, so
+  // handing it over hands over the money too, which is what makes the card
+  // worth stealing.
   accountObols Int @default(0)
 
   // Drawn against the Company's line, in obols. Repaying frees the room back
@@ -634,6 +678,10 @@ model Depot {
   // merchantFace — so a concealed Merchant is shot by his own gun, and anyone
   // wearing his name is spared. Deliberately not keyed on the keycard or the
   // role: it reads faces, and that is the whole trap.
+  //
+  // merchantFace is written when a character is created on the Merchant role,
+  // and a GM can override it from /gm/dev. It is set once and never resynced,
+  // because a face does not change when the papers do.
   turretArmed  Boolean @default(false)
   merchantFace String  @default("")
 
@@ -659,10 +707,7 @@ model Depot {
   shuttleMaxTurns Int @default(6)
   shuttleCooldown Int @default(1)
 
-  creditCapObols Int @default(60)
-
-  // How many ⬢ one obol is worth when the Depot takes Resources in trade.
-  obolRate Int @default(5)
+  creditCapObols Int @default(75)
 
   // The turret's severity distribution, one weighted column per armour tier.
   // JSON rather than columns because a GM retuning it should not need a
@@ -674,13 +719,32 @@ model Depot {
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]
-// (db/lib/syncRoles.js#syncRolesFromYaml, npm run db:sync-roles). `slug` is
-// the stable match key. Factions used to bank ⬢ in a Silo; that was removed
-// in 9/2026 (FACTIONS.md), so a Faction is now membership and a home zone.
+// (db/lib/syncRoles.js#syncRolesFromYaml, npm run db:sync-roles), then LIVE:
+// players found factions, rename them, secede from a parent and move between
+// them, so nothing here is safe to re-derive from the YAML.
+//
+// `slug` is the stable match key and the ONLY thing code may branch on --
+// `name` is player-editable (db/lib/factionConstants.js#isUnaffiliated).
 model Faction {
-  id   String  @id @default(cuid())
-  slug String? @unique
+  id   String @id @default(cuid())
+  slug String @unique
   name String
+
+  // Where this faction banks: a Room, whose own `resources` and RoomTag
+  // stacks ARE the silo (CARRY.md, FACTIONS.md). There is no faction-level
+  // balance -- a Silo model existed until 9/2026 and is not coming back.
+  // Seeded create-only from roles.yaml's `silo:`, then owned by the faction's
+  // officers. SetNull, so pruning a room in db:sync-zones unpoints the silo
+  // rather than cascading the faction away.
+  siloRoomId String?
+  siloRoom   Room?   @relation("FactionSilo", fields: [siloRoomId], references: [id], onDelete: SetNull)
+
+  // The character who founded this faction in play; null for every faction
+  // the YAML authored. Kept as a plain id rather than a relation: the founder
+  // can die, leave or be deleted, and none of that should touch the faction.
+  foundedById String?
+
+  applications FactionApplication[]
 
   // The Zone this faction belongs to, from its nesting in roles.yaml. Groups
   // the character-creation role picker (Zone -> Faction -> Role) and labels
@@ -704,6 +768,55 @@ model Faction {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// One live handshake between a character and a faction, in whichever
+// direction it was opened. Deliberately NOT a Request (REQUESTS.md): a
+// Request lands immediately and is reviewed afterwards, carrying an applied
+// `effect` snapshot, and an application's whole nature is that it sits
+// pending until somebody answers it.
+enum FactionApplicationKind {
+  // The character knocked. Any officer of the faction answers.
+  APPLICATION
+  // An officer knocked. The named character answers.
+  INVITE
+}
+
+enum FactionApplicationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  // Pulled back by whoever opened it -- including automatically, when the
+  // applicant joins somewhere else or dies.
+  WITHDRAWN
+}
+
+model FactionApplication {
+  id String @id @default(cuid())
+
+  factionId String
+  faction   Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  kind   FactionApplicationKind
+  status FactionApplicationStatus @default(PENDING)
+
+  // What the applicant or the inviting officer wrote. Free text, shown to the
+  // other side verbatim.
+  note String @default("")
+
+  // Who answered and when are deliberately NOT columns here. Every decision
+  // already writes an AuditLog row naming the actor, and `updatedAt` below is
+  // the timestamp -- two more fields nothing read would have been state
+  // stored twice.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([factionId, status])
+  @@index([characterId, status])
 }
 
 // A region of the map: a Discord category, its #summary channel and the
@@ -952,9 +1065,14 @@ model Location {
   playerThreads    PlayerThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
+  noticePosts      NoticePost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Moves filed while standing here (Action.locationId).
+  actions      Action[]
+  threatSpawns ThreatSpawn[]
 
   @@index([zoneId])
 }
@@ -1075,6 +1193,13 @@ model Room {
   // identifiers and the two syncs run independently. Empty for PUBLIC.
   accessTagSlugs String[] @default([])
 
+  // A room that eats what is put into it. Set from `destroys: true` in
+  // docs/zones.yaml; the Godard Factory's Spillway is the only one. A
+  // Transfer whose destination carries this never writes a RoomTag or touches
+  // Room.resources — the lines are recorded on the request's effect instead,
+  // so a GM can still Undo. See docs/systemdocs/CARRY.md.
+  destroysContents Boolean @default(false)
+
   // The thread, its starter message (a thread in a text channel has an
   // ordinary first message with its own id — only a forum post's starter
   // shares the thread id) and the body hash last written.
@@ -1092,6 +1217,11 @@ model Room {
   playerThreads PlayerThread[]
   guests        RoomGuest[]
 
+  // Factions banking here. A list rather than a single back-reference because
+  // nothing stops two factions sharing a room -- the Church and the Order
+  // both sit in the Cathedral.
+  siloOf Faction[] @relation("FactionSilo")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1104,6 +1234,45 @@ model Room {
 /// CHARACTER can hold, re-applied on the way out by tagWrites.js#addToStack.
 /// `expiresTurn` rides along from the holder's row so stashing a meal can't
 /// stop it rotting; the sweeps in db/index.js shed it the same way.
+// A paper pinned to a Location's noticeboard. See
+// docs/systemdocs/PAPERWORK.md.
+//
+// Its own table rather than a RoomTag, for three reasons. A noticeboard is a
+// LOCATION fixture and only Rooms carry stashes. A post needs its own clock,
+// which RoomTag.expiresTurn could have carried but nothing sweeps for a room.
+// And a pinned notice must not show up in the Storage readout — a board is
+// public by nature and a stash is not.
+//
+// tagId is @unique: the paper is ON the board or it is in somebody's hands,
+// never both. Pinning moves the CharacterTag row here; tearing moves it back.
+model NoticePost {
+  id String @id @default(cuid())
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  tagId String @unique
+  tag   Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  // Who put it up, for the GM's benefit and for the ambient line. Nullable and
+  // SetNull, because a notice outlives the person who pinned it — that is
+  // rather the point of nailing something to a wall.
+  postedById String?
+  postedBy   Character? @relation("NoticePostAuthor", fields: [postedById], references: [id], onDelete: SetNull)
+
+  postedTurn  Int
+  // Absolute turn number, the same convention as CharacterTag.expiresTurn, and
+  // computed through db/lib/turnFormat.js#expiryFrom so N turns means N turns
+  // counting the one it was pinned in. Swept by db/lib/noticeboardPass.js,
+  // which destroys the paper with the post — it blew away.
+  expiresTurn Int
+
+  createdAt DateTime @default(now())
+
+  @@index([locationId])
+  @@index([expiresTurn])
+}
+
 model RoomTag {
   id String @id @default(cuid())
 
@@ -1307,6 +1476,9 @@ model Character {
   factionId String?
   faction   Faction? @relation(fields: [factionId], references: [id])
 
+  // Applications this character has open, in either direction.
+  factionApplications FactionApplication[]
+
   // AUTHORITATIVE "where is this character" since Bascinet 2. Drives the
   // "Location: {Name}" Discord role (swapped by
   // db/lib/locationMove.js#applyLocationMoveSideEffects) and therefore the
@@ -1494,7 +1666,7 @@ model Character {
   // player-editable afterwards; updateCharacterProfile not reading the key is
   // the lock, same posture as the GM-granted `title` above.
   //
-  // A String[] of slugs validated against db/lib/antagonists.js rather than a
+  // A String[] of slugs validated against db/lib/threats.js rather than a
   // relation: eleven fixed values that can never differ per environment, so a
   // table would only add a join and a way to drift.
   antagonistOptIns String[] @default([])
@@ -1511,6 +1683,7 @@ model Character {
   gmNotes                 GmCharacterNote[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
+  noticePosts             NoticePost[]             @relation("NoticePostAuthor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1531,6 +1704,20 @@ model Character {
 enum CorpseKind {
   FRESH
   ROTTEN
+}
+
+// What a sheet of paper currently IS. Null on every ordinary tag, and null on
+// the blank `paper` catalog tag too — a blank sheet is stackable stock, not a
+// document. A row only gets one of these once somebody has written on it.
+//
+// SEALED is the same row renamed in place, the way a corpse rots
+// (db/lib/corpseRotPass.js): a letter somebody is carrying seals in their
+// hands with no second row to reconcile. BROKEN_SEAL is a separate row minted
+// when the seal is broken — the spent envelope, which is evidence.
+enum PaperKind {
+  PAPER
+  SEALED
+  BROKEN_SEAL
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
@@ -1681,12 +1868,36 @@ model Tag {
   equippable Boolean @default(false)
 
   // Marks gear that hides who the wearer is — a mask, hood or closed helm.
-  // Currently INERT: /conceal is open to every character with nothing
-  // equipped, and nothing reads this field. Kept so the gate can be restored
-  // without a migration. Only meaningful together with equippable, and
+  // This is the gate on /conceal: without one of these EQUIPPED, a character
+  // cannot go unnamed at all. Only meaningful together with equippable, and
   // db/lib/syncTags.js throws if it is set without it, since a mask nobody can
   // equip could never conceal anything. See docs/systemdocs/TAGS.md.
   concealsIdentity Boolean @default(false)
+
+  // Concealment with no say in it — a sack tied over the head, a plague mask
+  // whose whole point is that the wearer is nobody. While one of these is
+  // equipped the character is concealed whatever Character.concealed says, and
+  // both /conceal toggles refuse to turn it off. Requires concealsIdentity;
+  // syncTags.js throws otherwise, since forcing a concealment the catalog does
+  // not grant is a contradiction rather than a stricter setting.
+  forcesConceal Boolean @default(false)
+
+  // Which plated 256px avatar a concealed wearer shows, as a basename under
+  // web/public/assets/helms (built by web/scripts/generate-helms.js). Required
+  // alongside concealsIdentity — a hood nobody can see is not concealment,
+  // it is a missing image — and syncTags.js checks the file is really there,
+  // because a typo here would otherwise surface as a broken avatar in Discord
+  // rather than as a failed sync.
+  concealSprite String?
+
+  // Where this sits on the body, and how deep. Two equipped tags may not share
+  // a slot, nor a layer within HEAD/BODY: layer 1 is against the skin and 4 is
+  // outermost, so a mail coif (1) goes under a knight's helm (3) but two helms
+  // do not go together. The OUTERMOST equipped concealing piece is the one
+  // whose concealSprite the room sees. Enforced in both places that flip
+  // CharacterTag.equipped — equipActions.js and db/lib/tagOps.js.
+  equipSlot  EquipSlot?
+  equipLayer Int?
 
   // The opposite of hiding: a tag that FIXES how the character presents. While
   // any held tag carries this, the character posts under this name with the
@@ -1781,6 +1992,56 @@ model Tag {
   // opened in a cellar three zones over without anything needing to look up
   // where it came from. See docs/systemdocs/DEPOT.md §5.
   crateContents Json?
+
+  // --- Paperwork (docs/systemdocs/PAPERWORK.md) --------------------------
+  //
+  // A written sheet is a Tag row minted at runtime, the same shape as a crate
+  // or a corpse. What makes it different from every other tag in the catalog
+  // is that its text is PRIVATE: whether you can read it depends on your eyes
+  // and your letters, so the sentence a reader sees cannot be baked into
+  // `description` the way every other tag's is.
+  //
+  // That matters more than it sounds. web/lib/referenceData.js#getVisibleTags
+  // ships the WHOLE catalog, descriptions included, to every signed-in
+  // browser. A letter's text in `description` would publish every letter in
+  // the game. So it lives here instead, TAG_CHIP_FIELDS never selects it, and
+  // the description is composed per request, per viewer, by
+  // db/lib/paper.js#paperDescription.
+  paperKind PaperKind?
+
+  // The sheet's contents. APPEND-ONLY — the Write dialog shows what is already
+  // there read-only and adds beneath it. You can always write more; you can
+  // never unwrite.
+  paperText String?
+
+  // Who wrote on it first, by presented name, for the generated title ("A Note
+  // (hand of Ada)"). Kept as a snapshot rather than a relation: the row has to
+  // outlive its author, and a dead writer's letter still names them.
+  paperAuthor String?
+
+  // A wax stamp's distinguishing line — "Three cups, stacked." Authored in
+  // docs/tags.yaml as `sealMark:`, which is also what makes the stamp a stamp:
+  // db/lib/syncTags.js composes the whole description around it, so the
+  // boilerplate is written once and {sealMark} has one clean source.
+  //
+  // Copied onto a letter this stamp seals, and onto the envelope left behind
+  // when that seal is broken. The Merchant's is the one exception — null in
+  // the YAML, written at character creation beside setMerchantFace, because it
+  // bears his actual initials (web/app/(app)/character/createActions.js).
+  sealMark String?
+
+  // Minted at runtime rather than authored, and therefore GAME state rather
+  // than catalog: crates, headstones, written paper, sealed letters. A Restart
+  // Game deletes exactly these rows and leaves the docs/tags.yaml catalog and
+  // a GM's homebrew from /gm/dev/tags alone.
+  //
+  // This closes a real leak. wipeGameData never touched the Tag catalog, and
+  // db:prune-tags skips every `custom` row on purpose — so crates and
+  // headstones were permanent orphan rows accumulating across every game. Only
+  // corpses escaped, and only through corpseOfCharacterId's cascade. `custom`
+  // could not be reused for this: a GM's homebrew is custom and must SURVIVE a
+  // restart, which is the opposite of what this asks.
+  ephemeral Boolean @default(false)
 
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
@@ -2019,6 +2280,7 @@ model Tag {
 
   characters    CharacterTag[]
   roomTags      RoomTag[]
+  noticePost    NoticePost?
   gatedGroups   TagGroup[]     @relation("TagGroupGate")
   cavingRolls   CavingRoll[]
   offers        Offer[]
@@ -2034,6 +2296,9 @@ model Tag {
   // The two trgm indexes still read that way and still have to be declined by
   // hand (see CLAUDE.md); this one no longer does.
   @@index([corpseKind])
+  // Declared here as well as in the migration SQL, so `prisma migrate diff`
+  // does not read it as drift. Same reasoning as the corpseKind index above.
+  @@index([ephemeral])
 }
 
 // Optional grouping of tags within a single category, purely for display
@@ -2108,8 +2373,8 @@ model CharacterTag {
 // A playable seat, master-sourced from docs/roles.yaml's
 // zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).
 // Threats are deliberately not in that YAML at all — they live in
-// docs/threats.md as prose, hand-assigned by a GM, and never appear in the
-// player-facing picker.
+// db/lib/threats.js, hand-assigned by a GM, and never appear in the
+// player-facing picker. See docs/systemdocs/THREATS.md.
 model Role {
   id          String   @id @default(cuid())
   slug        String   @unique
@@ -2165,6 +2430,7 @@ model Role {
 
   characters   Character[]
   reservations RoleReservation[]
+  threatSpawns ThreatSpawn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2296,6 +2562,16 @@ model Action {
   description            String
   zoneId                 String?
   zone                   Zone?       @relation(fields: [zoneId], references: [id])
+  // WHERE this Move happened, stamped at filing time. zoneId above is not
+  // enough: a free zone move (CARRY.md §2a) costs no Action, so a character
+  // can file a Labor on the Factory floor and walk out before the turn closes,
+  // and the payout runs at turn close. db/lib/moveEffects.js#refined reads
+  // this to decide whether a Labor was a REFINING one; without it, it asked
+  // where the character is standing NOW and paid for the wrong room.
+  // Nullable, and readers fall back to the live location, so rows filed
+  // before this existed still resolve.
+  locationId             String?
+  location               Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
   resourceDelta          Int?
   // A range like "5-12", rolled at ⚜ confirm. @map keeps the original column
   // names: this used to hold dice notation ("1d6*2"), which the labor
@@ -2986,10 +3262,20 @@ model BirdMessage {
   guessedZoneId   String
   guessedZoneName String
 
-  // Plaintext, always — the ciphering in db/lib/gribble.js happens when the DM
-  // is composed, never on the way into the database. A GM reading the desk
-  // needs to see what was actually written.
-  body String
+  // The letter the bird actually carried, and the whole of what a Bird send is
+  // now: you pick a paper you are HOLDING (docs/systemdocs/PAPERWORK.md). Null
+  // only on rows written before the paperwork rework.
+  //
+  // Not a relation, and deliberately: the paper can be sealed, torn up, eaten
+  // or wiped, and this row is the GM's record that a letter went. It holds the
+  // id so the desk can still find the tag while it exists.
+  tagId   String?
+  tagName String?
+
+  // A snapshot of the text at send time, so the desk can read what went even
+  // after the paper is gone or resealed. Null when the letter went out sealed
+  // — the bird did not open it either.
+  body String?
 
   // False means the guess missed, or the recipient was dead. The sender is not
   // told until the next turn closes: an instant "no" would turn this into a
@@ -3207,4 +3493,58 @@ model GmCharacterNote {
   createdAt           DateTime  @default(now())
 
   @@index([characterId, createdAt])
+}
+
+// A threat seat offered to somebody who has no character yet: the GM presses
+// SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
+// DM carrying Accept / Decline. Accepting creates the character
+// (db/lib/threatSpawn.js). See docs/systemdocs/THREATS.md.
+//
+// The offer is a row rather than state on a DM because the DM is Discord's and
+// can be deleted: the row is what says an offer is live, what seat and role it
+// was for, and -- once answered -- what became of it.
+model ThreatSpawn {
+  id String @id @default(cuid())
+
+  // The target. Not a Character relation on purpose: the whole point is that
+  // they have no character yet, and after accepting they own the one below.
+  discordUserId String
+
+  // A slug in db/lib/threats.js, not a table -- the catalog is code, same
+  // posture as antagonistOptIns above.
+  threatSlug String
+
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  // Null only for a role with no starting location; every offer the UI writes
+  // names one.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
+  status ThreatSpawnStatus @default(PENDING)
+
+  // The GM who offered. A Discord user id rather than a relation, same as
+  // AuditLog.actorDiscordUserId -- there is no user table.
+  offeredBy String
+
+  // Set on accept. Unique, so one offer can never mint two characters.
+  characterId String? @unique
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  // One live offer per player is enforced by a PARTIAL unique index
+  // (WHERE status = 'PENDING') that lives only in the migration SQL, because
+  // Prisma's schema language cannot express one. `prisma migrate diff` will
+  // propose dropping it -- decline, same as FactionApplication_pending_unique.
+  @@index([discordUserId, status])
+  @@index([status])
+}
+
+enum ThreatSpawnStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
 }

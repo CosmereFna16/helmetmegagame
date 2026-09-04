@@ -96,6 +96,14 @@ function summarize(request) {
       return `Buried ${e.targetName ?? "?"} — curse lifted`;
     case "BUTCHER_CORPSE":
       return `Butchered ${e.corpseTagName ?? "a body"} → ${e.yieldTagName ?? "nothing"}`;
+    case "EXTRACT_GODFLESH":
+      return `Rolled ${e.die ?? "?"} — +${e.quantity ?? 0} Godflesh${
+        e.injuryTagName ? `, and ${e.injuryTagName}` : ""
+      }`;
+    case "PACKAGE_ITEMS":
+      return `Crated ${(e.contents ?? []).length} kind${(e.contents ?? []).length === 1 ? "" : "s"} — ${
+        e.innerLbs ?? 0
+      } lb → ${e.weightLbs ?? 0} lb`;
     case "ENGRAVE_HEADSTONE":
       return `Engraved ${e.targetName ?? "?"} — curse lifted, ${e.resourcesSpent ?? 0} ⬢`;
     case "BIRD_MESSAGE":

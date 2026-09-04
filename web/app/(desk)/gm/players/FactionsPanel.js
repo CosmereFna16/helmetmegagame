@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import FactionLink from "@/app/components/FactionLink";
 import CharacterLink from "@/app/components/CharacterLink";
+import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 
 // The all-factions overview, the Factions tab of the Players panel.
 //
@@ -62,8 +63,8 @@ function FactionRows({ factions, childrenMap, depth, highlightFactionId }) {
 }
 
 export default function FactionsPanel({ factions, highlightFactionId }) {
-  const unaffiliated = factions.filter((f) => f.name === "Unaffiliated");
-  const rest = factions.filter((f) => f.name !== "Unaffiliated");
+  const unaffiliated = factions.filter((f) => isUnaffiliated(f));
+  const rest = factions.filter((f) => !isUnaffiliated(f));
   const childrenMap = buildChildrenMap(rest);
   const topLevel = rest.filter((f) => !f.parentFactionId);
   const tableRef = useRef(null);

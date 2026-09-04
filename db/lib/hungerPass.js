@@ -6,6 +6,7 @@
 const {
   HUNGER_SLUG,
   HUNGERLESS_SLUG,
+  FAST_METABOLISM_SLUG,
   ATE_MEAL_SLUG,
   DYING_SLUG,
   NOBILITY_SLUG,
@@ -44,7 +45,17 @@ function disappointedDm(notice) {
 async function runHungerPass(prisma, turn) {
   const tags = await prisma.tag.findMany({
     where: {
-      slug: { in: [HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG, NOBILITY_SLUG, DISAPPOINTED_SLUG] },
+      slug: {
+        in: [
+          HUNGER_SLUG,
+          HUNGERLESS_SLUG,
+          FAST_METABOLISM_SLUG,
+          ATE_MEAL_SLUG,
+          DYING_SLUG,
+          NOBILITY_SLUG,
+          DISAPPOINTED_SLUG,
+        ],
+      },
     },
     select: { id: true, slug: true, defaultDurationTurns: true },
   });
@@ -55,6 +66,14 @@ async function runHungerPass(prisma, turn) {
     return null;
   }
   const hungerlessId = tags.find((t) => t.slug === HUNGERLESS_SLUG)?.id ?? null;
+  // Missing is non-fatal, unlike Hunger itself: nobody holds it, so everyone
+  // just pays the ordinary 1 ⬢.
+  const fastMetabolismId = tags.find((t) => t.slug === FAST_METABOLISM_SLUG)?.id ?? null;
+  if (!fastMetabolismId) {
+    console.error(
+      `Hunger pass: no "${FAST_METABOLISM_SLUG}" tag — run npm run db:sync-tags. Everyone pays the flat 1 ⬢.`,
+    );
+  }
   const ateMealId = tags.find((t) => t.slug === ATE_MEAL_SLUG)?.id ?? null;
   const dyingId = tags.find((t) => t.slug === DYING_SLUG)?.id ?? null;
   if (!dyingId) {
@@ -69,7 +88,7 @@ async function runHungerPass(prisma, turn) {
   }
   const trackNobles = Boolean(nobilityId && disappointedId);
 
-  const gateIds = [hungerlessId, ateMealId].filter(Boolean);
+  const gateIds = [hungerlessId, fastMetabolismId, ateMealId].filter(Boolean);
   if (trackNobles) gateIds.push(nobilityId, disappointedId, ...(dyingId ? [dyingId] : []));
   const characters = await prisma.character.findMany({
     where: { status: "ALIVE" },
@@ -85,7 +104,9 @@ async function runHungerPass(prisma, turn) {
     },
   });
 
-  const toPay = [];
+  // Split by what they owe, because one updateMany carries one decrement.
+  const toPay1 = [];
+  const toPay2 = []; // Fast Metabolism
   const toStarve = [];
   const shieldedIds = [];
   const toZeroIds = []; // hungerless only: streak -> 0
@@ -127,8 +148,12 @@ async function runHungerPass(prisma, turn) {
       }
     }
 
-    if (character.resources >= 1) {
-      toPay.push(character.id);
+    // Under the full cost the character pays NOTHING and goes hungry, keeping
+    // what they have — the same rule a 0 ⬢ character has always had, just with
+    // a higher bar. A fast metabolism holding 1 ⬢ does not half-eat.
+    const cost = fastMetabolismId && held.has(fastMetabolismId) ? 2 : 1;
+    if (character.resources >= cost) {
+      (cost === 2 ? toPay2 : toPay1).push(character.id);
       fed.push(character);
     } else {
       toStarve.push(character);
@@ -169,10 +194,16 @@ async function runHungerPass(prisma, turn) {
 
   // One transaction so a character can't be charged without Ate Meal being
   // consumed, or land at the streak cap without Dying landing with it.
-  const [charged] = await prisma.$transaction([
+  const [charged1, charged2] = await prisma.$transaction([
     prisma.character.updateMany({
-      where: { id: { in: toPay }, resources: { gte: 1 } },
+      where: { id: { in: toPay1 }, resources: { gte: 1 } },
       data: { resources: { decrement: 1 } },
+    }),
+    // Same structural clamp, one rung up: the where-guard matches its own
+    // decrement, so resources can never go negative without a Math.max.
+    prisma.character.updateMany({
+      where: { id: { in: toPay2 }, resources: { gte: 2 } },
+      data: { resources: { decrement: 2 } },
     }),
     prisma.characterTag.deleteMany({
       where: { characterId: { in: shieldedIds }, tagId: ateMealId ?? "" },
@@ -242,8 +273,8 @@ async function runHungerPass(prisma, turn) {
   // already flushed.
   return {
     turnNumber: turn.number,
-    paid: charged.count,
-    intendedToPay: toPay.length,
+    paid: charged1.count + charged2.count,
+    intendedToPay: toPay1.length + toPay2.length,
     starved: toStarve.length,
     shielded: shieldedIds.length,
     skipped,

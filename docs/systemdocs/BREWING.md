@@ -12,12 +12,18 @@ ladder — there is nothing above them to derive a price from.
 
 **This paragraph used to say no code enforced any of it. That is no longer
 true of anything in it.** The Craft flow charges the ⬢, spends the Move and
-checks the skills; and since the Butchering change, **two recipes have a real,
-enforced ingredient** — `miasma` needs a corpse and `dreamers-draught` needs a
-Skinless Brain (`Tag.requirementItems`, `CORPSES.md` §8). Holding it is the
-check: **nothing is consumed**, so you keep the corpse you bottled the Miasma
-over. Everything else in the Ingredient column below is still prose that a GM
-adjudicates.
+checks the skills; and **three recipes now have a real, enforced ingredient** —
+`miasma` needs a corpse, `dreamers-draught` needs a Skinless Brain, and
+`moonshine` needs Godflesh (`Tag.requirementItems`, `CORPSES.md` §8,
+`FACTORY.md` §8). Holding it is the check: **nothing is consumed**, so you keep
+the corpse you bottled the Miasma over. Everything else in the Ingredient column
+below is still prose that a GM adjudicates.
+
+Moonshine is the only recipe in the game that costs **0 ⬢** and still has a
+real ingredient, and that is deliberate rather than an oversight: the marsh
+hands you the Godflesh, the throttle is the Routine, and at 3 ⬢ a bottle it
+undercuts a farming day badly enough to be nobody's living. What it costs is
+the drinker's eyes, a notch at a time (`FACTORY.md` §8).
 
 ## 1. Skills
 
@@ -33,6 +39,7 @@ adjudicates.
 | `bliss` | 0 | 0 | cave fungus | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 | feces | — |
 | `alcohol` | 2 | 1 | — | `tipsy` |
+| `moonshine` | **0** | 1 | **Godflesh** (enforced, kept) | `tipsy`, `blind-drunk` (2t), `damaged-vision` |
 | `miasma` | 2 | 1 | **a corpse** (enforced, kept) | — |
 | `poppy` | 2 | 1 | — | `opium-high` |
 | `molotov-cocktail` | 2 | 0 | alcohol | — |

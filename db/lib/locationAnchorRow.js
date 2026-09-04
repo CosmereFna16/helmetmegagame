@@ -13,6 +13,8 @@
 // bot/src/events/interactionCreate.js — change a prefix here and you must
 // change it there.
 
+const { hasNoticeboard } = require("./noticeboard");
+
 const ACTION_ROW = 1;
 const BUTTON = 2;
 const SECONDARY = 2;
@@ -20,6 +22,7 @@ const SUCCESS = 3;
 const DANGER = 4;
 
 const WHOS_HERE_PREFIX = "loc:who:";
+const NOTICEBOARD_PREFIX = "loc:notice:";
 const SECRET_ROOMS_PREFIX = "loc:secret:";
 const EXAMINE_PREFIX = "loc:examine:";
 const CONVERSE_PREFIX = "loc:converse:";
@@ -30,7 +33,13 @@ const KEYED_PREFIX = "loc:keyed:";
 const ROW_BUTTON_LIMIT = 5;
 const LABEL_MAX = 80;
 
-function locationAnchorRow(locationId) {
+// Takes the LOCATION rather than a bare id, because the fifth button is
+// conditional: a Noticeboard only appears where docs/zones.yaml declared one
+// (db/lib/noticeboard.js). Five is exactly Discord's per-row cap, so anything
+// added after this needs a second row.
+function locationAnchorRow(location) {
+  const locationId = typeof location === "string" ? location : location?.id;
+  const board = typeof location === "string" ? false : hasNoticeboard(location);
   return {
     type: ACTION_ROW,
     components: [
@@ -58,6 +67,16 @@ function locationAnchorRow(locationId) {
         custom_id: `${CONVERSE_PREFIX}${locationId}`,
         label: "Converse ‡",
       },
+      ...(board
+        ? [
+            {
+              type: BUTTON,
+              style: SECONDARY,
+              custom_id: `${NOTICEBOARD_PREFIX}${locationId}`,
+              label: "Noticeboard ‡",
+            },
+          ]
+        : []),
     ],
   };
 }
@@ -119,6 +138,7 @@ function keyedPromptRow(linkId) {
 module.exports = {
   EXAMINE_PREFIX,
   WHOS_HERE_PREFIX,
+  NOTICEBOARD_PREFIX,
   SECRET_ROOMS_PREFIX,
   CONVERSE_PREFIX,
   GATE_PREFIX,

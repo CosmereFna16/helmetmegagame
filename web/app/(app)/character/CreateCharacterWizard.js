@@ -29,7 +29,7 @@ import {
   GENDER_LABELS,
 } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
-import { ANTAGONISTS, antagonistNames } from "@/lib/antagonists";
+import { ANTAGONISTS, antagonistNames } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
 // role you took and the tags you hold (db/lib/titles.js), so there is nothing

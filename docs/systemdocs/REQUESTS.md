@@ -82,7 +82,7 @@ row and the audit entry all roll back with it.
 
 ## 3. The types
 
-Deliberately uncounted — a stale number outlived two counts here already;
+Deliberately uncounted — a stale number outlived three counts here already;
 the table below and the `RequestType` enum are the record. Most live in
 `web/app/(app)/character/requestActions.js`, the two Lifeweb types in
 `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
@@ -117,6 +117,8 @@ reason.
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
 | `BUTCHER_CORPSE` | Cuts a corpse up for what is in it — an organ from a monster, Human Flesh from a person. Free, and it destroys the body. Gated on `butcher` | — | Takes the yield back and returns the corpse to the party it came from |
 | `FAST_TRAVEL` | **Retired.** A mount now adds a free zone move instead (CARRY.md §2a). Old rows stay undoable | — | Sends them back and returns the ride |
+| `EXTRACT_GODFLESH` | Cuts Godflesh out of a marsh tile. Spends the Routine, needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the Move stays spent |
+| `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
@@ -317,15 +319,18 @@ writer of all three, called from `resolveNeeds()` at the close of every turn:
    than the 1 ⬢ it saves. Eating *settles* the turn's upkeep; the streak it
    took several starved turns to climb takes that many fed turns to climb back
    down.
-3. **Check first, then pay**: at `resources === 0` you go Hungry, owe nothing,
-   and the streak **increments**; at 1+ ⬢ you pay 1, stay fed, and the streak
-   drops by **one tick**.
+3. **Check first, then pay**: short of the turn's cost you go Hungry, owe
+   nothing, and the streak **increments**; able to cover it, you pay, stay
+   fed, and the streak drops by **one tick**. The cost is 1 ⬢ for everyone
+   except a holder of `fast-metabolism`, who owes **2** — and at 1 ⬢ that
+   holder keeps their coin and starves rather than half-eating.
 
-So 1 ⬢ always buys a fed turn, and `Character.resources` can never go
+So the upkeep always buys a fed turn, and `Character.resources` can never go
 negative — the clamp is structural, not a `Math.max`, and it lives on step 3,
 the only branch that still pays. Structural means the check and the payment
-are the *same statement*: the decrement carries `resources: { gte: 1 }` in its
-own `where`. Read the balance in one query and decrement in another and a
+are the *same statement*: the decrement carries `resources: { gte: n }` in its
+own `where`, which is why the 1 ⬢ and 2 ⬢ payers are charged in two separate
+batches. Read the balance in one query and decrement in another and a
 player who spends in between goes to −1, which is what used to happen, and
 turn rollover is exactly when players are most active.
 

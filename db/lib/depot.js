@@ -11,6 +11,18 @@
 // Merchant handing it away really does hand away the Depot.
 const MERCHANT_LICENSE_SLUG = "merchants-license";
 
+// The Merchant's ROLE, which is a different thing from the licence above: the
+// licence is a tradeable tag and this is the seat somebody rolled. Only one
+// thing reads it — creating a character on this role tells the Depot's turret
+// whose face to spare, so the Merchant is not left with a gun he cannot arm.
+// A slug predicate rather than a schema flag, the same shape as
+// db/lib/dynasty.js, because it is one role and not a property of roles.
+const MERCHANT_ROLE_SLUG = "merchant";
+
+function isMerchantRole(slug) {
+  return slug === MERCHANT_ROLE_SLUG;
+}
+
 // Where the shuttle is parked. Buying and selling both require standing here,
 // the same way the Lifeweb requires the Fortress — you cannot trade with a
 // craft you are not next to.
@@ -36,6 +48,8 @@ function normalizeQuantity(raw) {
 
 module.exports = {
   MERCHANT_LICENSE_SLUG,
+  MERCHANT_ROLE_SLUG,
+  isMerchantRole,
   DEPOT_LOCATION_SLUG,
   DEPOT_MAX_QUANTITY,
   normalizeQuantity,

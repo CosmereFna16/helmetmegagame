@@ -50,12 +50,22 @@
 #   never says what it is. `indoors` is deliberately NOT one of these — it is a
 #   real column that mounts and carts act on — but Examine prints it alongside
 #   them as though it were.
-# - stash (rooms only): a list of Tag slugs to seed into the room's stash —
-#   the kit that is simply THERE, like the Sanctuary operating theatre's
-#   surgical instruments. Written as a FLOOR, never a reset: if the row
-#   already exists the sync leaves it alone, so re-syncing can neither undo a
-#   player carrying it off nor quietly duplicate it. Tags sync AFTER zones, so
-#   an unknown slug is skipped with a warning rather than throwing.
+# - stash (rooms only): what is simply THERE in the room, like the Sanctuary
+#   operating theatre's surgical instruments. Two shapes, both accepted:
+#
+#       stash: [surgical-equipment]          # the short one: each slug, x1
+#
+#       stash:                               # the long one, with quantities
+#         resources: 24
+#         items:
+#           obol: 3
+#           cleaning-powder: 1
+#
+#   Written as a FLOOR, never a reset. A stack already at or above the
+#   authored quantity is left alone, and `resources` is written only while the
+#   room still holds none — so re-syncing can neither undo a player carrying
+#   the anvil off nor quietly duplicate it. Tags sync AFTER zones, so an
+#   unknown slug is skipped with a warning rather than throwing.
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -142,6 +152,10 @@ zones:
       # share one namespace) — hence "town-square".
       town-square:
         name: Square
+        # The public board (docs/systemdocs/PAPERWORK.md). The Square is where
+        # everything in Town gets announced, so it is where things get nailed up.
+        attributes:
+          noticeboard: true
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
         rooms:
@@ -157,6 +171,14 @@ zones:
             name: Smithery
             description: >-
               The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
+          warehouse:
+            name: Warehouse
+            description: >-
+              A long building storing food and other public goods.
+            stash:
+              resources: 4
+              items:
+                workshop-equipment: 1
       # Promoted out of the Square, where it was a room, because the map makes
       # it a place you walk to. Its prose is unchanged.
       old-cock-inn:
@@ -164,7 +186,16 @@ zones:
         indoors: true
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
-        rooms: {}
+        rooms:
+          cellar:
+            name: Cellar
+            description: >-
+              A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
+            access: [cellar-key]
+            stash:
+              resources: 3
+              items:
+                alcohol: 1
       # Named "Gate" in play; the id is north-gate because the Gatehouse
       # already owns the slug "gate" for its own room.
       north-gate:
@@ -190,10 +221,26 @@ zones:
             name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
+            access: [order-key]
+            stash:
+              items:
+                paper: 12
+                inquisitors-wax-stamp: 1
+          pantry:
+            name: Pantry
+            description: >-
+              Shelves of bread, oil and candle-stubs behind a door the Bishop keeps shut. What the Cathedral gives away it gives away from here, which is why it is locked. ‡
+            access: [cathedral-key]
+            stash:
+              resources: 3
           scriptorium:
             name: Scriptorium
             description: >-
               It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
+            stash:
+              items:
+                paper: 20
+                bishops-wax-stamp: 1
       sanctuary:
         name: Sanctuary
         indoors: true
@@ -208,11 +255,26 @@ zones:
             name: Esculap's Office
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
+            stash:
+              items:
+                paper: 15
+                esculaps-wax-stamp: 1
           operating-theater:
             name: Operating Theater
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
             stash: [surgical-equipment]
+          supply-storage:
+            name: Supply Storage
+            description: >-
+              Neatly organized shelves, labeled, archived, illuminated by standardized electric lights. Possibly the most valuable place in Ravenheart.
+            access: [sanctuary-key]
+            stash:
+              resources: 24
+              items:
+                obol: 15
+                cleaning-powder: 1
+                surgical-equipment: 2
           garden:
             name: Garden
             description: >-
@@ -262,6 +324,8 @@ zones:
     locations:
       gatehouse:
         name: Gatehouse
+        attributes:
+          noticeboard: true
         description: |-
           Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
 
@@ -292,7 +356,17 @@ zones:
         name: Servant Wing
         description: >-
           Where the fortress actually runs from: laundries, sculleries, a back stair that reaches every floor without passing a single door the nobility use. The people here know more about the Keep than anyone in it, and are paid partly in the understanding that they will not say so. ‡
-        rooms: {}
+        rooms:
+          storehouse:
+            name: Storehouse
+            description: >-
+              A larder and a cellar combined in one, holding the keep's goods.
+            stash:
+              resources: 3
+              items:
+                fine-meal: 1
+                paper: 5
+                meisters-wax-stamp: 1
       keep:
         name: Keep
         indoors: true
@@ -316,6 +390,9 @@ zones:
             name: Council Room
             description: >-
               A wide table. There's a holographic map of Ravenheart and a button for the intercom.
+            stash:
+              items:
+                paper: 10
           swimming-pool:
             name: Swimming Pool
             description: >-
@@ -338,8 +415,21 @@ zones:
             description: >-
               The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
             access: [incarns-key]
+          barons-study:
+            name: "Baron's Study"
+            description: >-
+              Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
+            access: [the-barons-key]
+            stash:
+              items:
+                armory-key: 1
+                elevator-key: 1
+                paper: 20
+                barons-wax-stamp: 1
       garrison:
         name: Garrison
+        attributes:
+          noticeboard: true
         description: >-
           The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
         rooms:
@@ -347,14 +437,45 @@ zones:
             name: Captain's Office
             description: >-
               On the second floor of the tower, the captain's office is a spacious room. A small portrait of the captain's beloved Baron is perched on the wall. A window looks out over the training ground below, perhaps you should let in some air — it smells like alcohol…
+            stash:
+              items:
+                paper: 8
+                captains-wax-stamp: 1
           barracks:
             name: Barracks
             description: >-
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
+          mess-hall:
+            name: Mess Hall
+            description: >-
+              The Watch's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
+            stash:
+              resources: 2
+              items:
+                alcohol: 1
           armory:
             name: Armory
             description: >-
-              The garrison's store of weapons, useful for when thorough beatings can no longer keep the peace. Locked, accessible by the Baron and captain. It has enough to give each Watchman his choice of Moderate gear (freely add item tags from the Simple smithing document or below) — but nothing else. Consider stocking it.
+              There's a statue of the good Baron Casimir II. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
+            access: [armory-key]
+            stash:
+              items:
+                halberd: 2
+                broadsword: 1
+                gladius: 2
+                mace: 3
+                dagger: 2
+                spear: 3
+                buckler: 4
+                shield: 3
+                longbow: 2
+                breastplate: 2
+                simple-helm: 4
+                cerberus-helmet: 4
+                mail-coif: 3
+                mail-shirt: 4
+                padded-armor: 5
+                padded-cap: 3
           dungeons:
             name: Dungeons
             description: >-
@@ -418,7 +539,7 @@ zones:
         name: Forest 1
         description: >-
           The river comes out of the rock here, cold enough to ache. Beyond it the trees give up and the land goes to scree. Nobody has any reason to be this far west, which is its own kind of reason. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 2
       forest-2:
@@ -432,14 +553,14 @@ zones:
         name: Forest 3
         description: >-
           Four ways meet under a beech old enough to have a name nobody remembers. The undergrowth is trodden flat in a ring around it. People stop here. Not all of them go on. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 4
       forest-4:
         name: Forest 4
         description: >-
           The road proper, rutted by cart wheels and kept clear by the Baron's men. It runs downhill toward the town's north gate and uphill toward the manors. Walking it means being seen. ‡
-        yield: { hunting: 0.5, farming: 0.5, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.5, fishing: 0.9 }
         rooms: {}
       # map node 5
       forest-5:
@@ -453,7 +574,7 @@ zones:
         name: Forest 6
         description: >-
           Charcoal burners worked here once. The clearings are circles of black earth where nothing has grown back, and the stacked kilns have collapsed into shapes that look, at dusk, like people sitting. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 7
       forest-7:
@@ -481,14 +602,14 @@ zones:
         name: Forest 10
         description: >-
           The eastern bank, where the river turns and the water goes quiet and deep. There is a culvert in the bank, grated once. The grate is gone. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
       # map node 36
       forest-36:
         name: Forest 11
         description: >-
           Coppiced woodland, cut on a cycle so old it looks natural until you notice every trunk is the same age. The farms begin where the stools end. ‡
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
+        yield: { hunting: 0.5, farming: 0.3, fishing: 0.9 }
         rooms: {}
 
   east-forests:
@@ -513,56 +634,74 @@ zones:
         name: Black Hills 1
         description: >-
           Where the mountain road finally comes down out of the rock. The trees here are wrong — taller, further apart, quieter — and the ground between them is clear in a way no forest manages by itself. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 13
       east-forests-13:
         name: Black Hills 2
         description: >-
           The river again, wider and slower, with the far bank invisible in the haze. A ferry rope is still strung across it. There is no ferry. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 25
       east-forests-25:
         name: Black Hills 3
         description: >-
           Hunters' country. Trails braid and rejoin, marked by cuts in the bark at shoulder height, and the marks are not in any alphabet the town uses. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
-      # map node 26
+      # map node 26. Renamed off the numbered series because the brigands live
+      # here now — a place people talk about needs a name people can say.
       east-forests-26:
-        name: Black Hills 4
+        name: Ravine
         description: >-
-          The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. Someone has built a cairn. Someone else has knocked it down. ‡
-        yield: { hunting: 0.8 }
-        rooms: {}
+          The high ground, where you can see the whole eastern spread and understand for the first time how much of it there is. The hills split here, a dry cut too steep to walk into and too deep to see the bottom of. Roots come through the wall of it. Somebody has been up and down this more than once, and has been careful about where they put their feet. ‡
+        yield: { hunting: 1.0 }
+        rooms:
+          ravine-camp:
+            name: Ravine Camp
+            description: >-
+              Roots hang over the ravine ledge, further obscuring the hidden camp. There's meats drying on a rack, a couple of fires, and some stolen crates.
+            access: [hills-camp]
+            stash:
+              resources: 4
+              items:
+                spear: 2
+                buckler: 2
+                work-knife: 3
+                mace: 1
+                shortbow: 1
+                padded-armor: 1
+                padded-cap: 2
+                brigandine: 1
+                skinned-cave-rat: 1
       # map node 27
       east-forests-27:
         name: Black Hills 5
         description: >-
           A crossroads of deer paths in a stand of black pine, so dense that noon reads as evening. Sound does not carry. Neither do shouts. ‡
-        yield: { hunting: 1.3, fishing: 0.8 }
+        yield: { hunting: 1.0, fishing: 0.8 }
         rooms: {}
       # map node 28
       east-forests-28:
         name: Black Hills 6
         description: >-
           Ruins under moss: footings, a doorstep, the stub of a chimney, all laid out in a grid too regular for a village. Whatever stood here was planned by somebody with a straight edge. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 29
       east-forests-29:
         name: Black Hills 7
         description: >-
           A dead end that does not look like one until you are in it — a bowl of ground ringed by rock, floored in fern. Excellent for hiding. Terrible for leaving. ‡
-        yield: { hunting: 0.8 }
+        yield: { hunting: 1.0 }
         rooms: {}
       # map node 30
       east-forests-30:
         name: Black Hills 8
         description: >-
           The eastern edge, where the forest thins into scrub and the ground starts its long fall toward the marsh. The air changes here. You can taste it before you see it. ‡
-        yield: { hunting: 1.1 }
+        yield: { hunting: 1.0 }
         rooms: {}
 
   marshes:
@@ -572,23 +711,86 @@ zones:
     description: >-
       Standing water from horizon to horizon, threaded by channels somebody dug and reeds nobody planted. The ground here is a rumour. What lives on it has built out of what the water gives up, and what the water gives up is not from around here. ‡
     locations:
+      # The `village` id is kept although the name changed: a new id would
+      # delete the channel and provision a fresh one. Same for `factory`.
       village:
-        name: Village
+        name: Fishing Village
         description: >-
-          Houses on stilts, joined by walkways, with boats tied under every doorstep. They pay the Baron nothing and he sends nobody to collect it. The people are courteous, incurious about you, and extremely curious about what you brought. ‡
-        rooms: {}
+          Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
+        yield: { fishing: 1.2 }
+        attributes:
+          godflesh: true
+        rooms:
+          bridges:
+            name: Bridges
+            description: >-
+              Algae clings to the bridges, connecting flooded homes.
+          bighook-maw:
+            name: Bighook Maw
+            description: >-
+              An abandoned pub. The cellar's still there, but it's flooded. You'd have to be a good swimmer to get in there.
+          # Private, so the thread itself is invisible to anyone who can't
+          # swim — the nearest thing the schema has to a hidden room.
+          flooded-cellar:
+            name: Cellar
+            description: >-
+              A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
+            access: [strong-swimmer]
+            stash: [flooded-crate]
       factory:
-        name: Factory
+        name: Godard Factory
         indoors: true
         description: >-
-          A hall of rusted frames standing in six inches of water, roofed where the roof has held. Something in it still turns — you can feel it through the boards before you hear it. The village will not say who keeps it running, only that it has always been running. ‡
-        rooms: {}
+          A huge, wooden warehouse elevated above a shallow lake. Rickety bridges connect the various sheds, barrels, and winches. Electric lamps hang overhead, holding back the darkness. You can hear the insects and frogs every night. `GODARD FACTORY` is printed in white. Raven banners hang over the entrance.
+        # No `yield:` — refining is not a labor coefficient. `refinery` is what
+        # makes laboring legal here at all, and what it pays in.
+        attributes:
+          refinery: true
+          noticeboard: true
+        rooms:
+          logistics-room:
+            name: Logistics Room
+            description: >-
+              The Godflesh is prepared for production here while Squeeze is stacked into neat little crates. There's a ramp leading down to dry ground, where the cart is usually staged.
+            access: [factory-key]
+            stash:
+              items:
+                packaging-equipment: 1
+                armored-gloves: 2
+          main-floor:
+            name: Main Floor
+            description: >-
+              The production room. Godflesh, suspended by hooks, slowly boils in big, wood-fired vats. Hydraulic pistons then senselessly compress it into cubes. Outside, the bridges have a few tables for people to kick their feet and relax. The Days Since Last Incident ticker is covered over by a hastily painted sign saying: "DO NOT EAT THE CUBES." A level up, the overseer box looks out onto the working floor.
+          factory-pub:
+            name: Pub
+            description: >-
+              An old barge converted into a pub for the factory workers. When the nearby village was more active, there was an actual bar. Well, at least you have moonshine, and some interesting folks still pass by.
+          # `destroys` is the only room in the game with it. See CARRY.md.
+          spillway:
+            name: Spillway
+            description: >-
+              An open-air wooden trough where acidic, pink-stained wastewater cascades into the lake. Anything you drop here is gone for good.
+            destroys: true
+          overseer-box:
+            name: Overseer Box
+            description: >-
+              Clear sightways into the factory and out to the surrounding marsh, leading to a walkway that wraps around the factory's upper levels.
+            access: [bannerets-key]
+            stash:
+              items:
+                obol: 5
+                cleaning-powder: 1
+                military-autoinjector: 1
+                paper: 9
+                bannerets-wax-stamp: 1
       # map node 31
       marshes-31:
         name: Marshes 1
         description: >-
           Firm ground, barely — a tongue of gravel reaching into the wet, which is why every road in the marsh eventually comes here. Cart ruts fill with brown water and hold their shape for weeks. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 32
       marshes-32:
@@ -596,6 +798,8 @@ zones:
         description: >-
           Reed beds over your head, cut through by a channel somebody dug straight. Straight is not natural here. Follow it and you are following somebody's intention. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 33
       marshes-33:
@@ -603,6 +807,8 @@ zones:
         description: >-
           Where the ground gives up pretending. Duckboards run from hummock to hummock, and under them the water is black and warm and moves against the current. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 34
       marshes-34:
@@ -610,6 +816,8 @@ zones:
         description: >-
           Drowned pasture. Fence posts stand in three feet of water in lines that go on past where you can see, and the animals they were built for have been gone a long time. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
       # map node 35
       marshes-35:
@@ -617,6 +825,8 @@ zones:
         description: >-
           The southern sink, where everything the marsh carries finally stops. There is a smell. There is also a stairwell, going down, with water lapping at the fourth step. ‡
         yield: { hunting: 1.0, fishing: 1.0 }
+        attributes:
+          godflesh: true
         rooms: {}
 
   # --- Underground (group) ---
@@ -655,6 +865,7 @@ zones:
             indoors: true
             attributes:
               depot: true
+              noticeboard: true
             description: >-
               The merchant's depot: crates of a foreign design scattered around a decayed metal frame, light flowing forth, powered by their own basic generator. Everything imported into Ravenheart comes through this room, and the ledger that says so is the most valuable object in the caves. ‡
             rooms:
@@ -663,6 +874,17 @@ zones:
                 access: [depot-keycard]
                 description: >-
                   A scorched circle of plating under a hatch in the rock, wide enough to set a shuttle down on and not one inch wider. Most days it holds nothing but the smell of burnt fuel. On the days it does hold something, the crates are stacked where they fell. ‡
+              cargo-bay:
+                name: Cargo Bay
+                description: >-
+                  Shelves on either side, stacked high with crates.
+                stash:
+                  resources: 4
+                  items:
+                    obol: 10
+                    cargo-crate: 1
+                    paper: 6
+                    merchants-wax-stamp: 1
           # map node 14
           caves-14:
             name: Caves 1

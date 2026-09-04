@@ -85,6 +85,17 @@ function scalarsFrom(input) {
   if (input.concealsIdentity && !equippable) {
     throw new UserError("Only an equippable tag can conceal identity.");
   }
+  // A concealing tag also needs a Tag.concealSprite — the face the room sees
+  // instead of the wearer's — and this form has no editor for one, because the
+  // image has to exist as a real file under web/public/assets/helms (built by
+  // `npm run assets:helms`). A GM can't add one at runtime. Without the sprite
+  // the flag would simply do nothing, which is the quiet failure the throw in
+  // syncTags.js exists to prevent; refusing here says so out loud instead.
+  if (input.concealsIdentity) {
+    throw new UserError(
+      "Concealing gear needs a sprite, so it has to be authored in docs/tags.yaml rather than here. ‡",
+    );
+  }
 
   // Three states, not a checkbox (Tag.inspectVisibility). A missing or unknown
   // value reads as HIDDEN, which is the safe direction for a vision gate.

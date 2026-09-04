@@ -253,6 +253,17 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # The Judge's seat tag (db/lib/threats.js). Like `demoness` above it is
+  # role-granted, never bought, and carries no group — the point cost is
+  # cosmetic. It exists so the threat roster can find who holds the seat
+  # without a column to keep in sync.
+  judge:
+    name: Judge
+    category: general
+    description: "You are the Judge."
+    pointCost: 0
+    purchasable: false
+
   demoness:
     name: Demoness
     category: general
@@ -380,8 +391,33 @@ tags:
     group: general-court
     description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring. ‡"
     pointCost: -4
+    # Every skill in the skills-labor group. Listed rather than derived,
+    # because conflictsWith is a slug pair — add a sixth Laboring skill and it
+    # belongs on this line too.
+    conflictsWith: [laboring-basic, laboring-skilled, laboring-hunting, laboring-farming, laboring-fishing]
     purchasable: true
     purchasableAfterStart: false
+
+  # --- Locations you know about (group general-location) --------------------
+  # Knowledge, not a possession. It is the `access:` key on a hidden Room in
+  # docs/zones.yaml and nothing else, so it weighs nothing, cannot be bought
+  # and cannot be handed over — you either were shown the place or you were
+  # not. A faction that recruits somebody has to grant it deliberately.
+  hills-camp:
+    name: Hills Camp
+    category: general
+    group: general-location
+    description: "You know about the camp in the ravine."
+    pointCost: 0
+    tradeable: false
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Not removable: you cannot un-know where a place is, and Destroying it
+    # would have locked a Brigand out of their own faction's home for good —
+    # untradeable means nobody could hand them another.
+    removable: false
 
   # Moved out of general-court (2026-08-31, Desires rework) — anyone can be
   # vain, not just the court.
@@ -571,6 +607,26 @@ tags:
     description: "Elderly. You're slower, fight slightly worse, and don't heal as well."
     pointCost: -5
     carryBonus: -0.05
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+
+  # Costed at -1 rather than the scale's -2 (docs/systemdocs/TAGS.md §4a): it
+  # is nearly all flavour, and it is the gate on the Leper's Hood, which is a
+  # 0-point item. At -2 the pair would have PAID a player to take a free hood.
+  #
+  # conflictsWith runs BOTH ways on purpose. Against Pretty and Beautiful it is
+  # the same edge Ugly and Disfigured already carry — you cannot be covered in
+  # sores and divine. Against Ugly and Disfigured it is about points: all three
+  # are the one fiction, "your face is hard to look at", and without the edge a
+  # build could bank -4 of the -12 drawback budget for it three times over.
+  leper:
+    name: Leper
+    category: general
+    group: general-traits
+    description: "Covered in sores."
+    pointCost: -1
+    conflictsWith: [pretty, beautiful, ugly, disfigured]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -1025,6 +1081,19 @@ tags:
       locks:
         - families: [wealth]
 
+  # The one tag that changes the MAGNITUDE of the per-turn upkeep rather than
+  # exempting somebody from it — hardcoded by slug in db/lib/hungerPass.js,
+  # same as hungerless. Priced at -6, deliberately off the -5/-7 bands
+  # (TAGS.md §4a).
+  fast-metabolism:
+    name: Fast Metabolism
+    category: general
+    group: general-traits
+    description: "You consume 2 ⬢ per turn. ‡"
+    pointCost: -6
+    purchasable: true
+    purchasableAfterStart: false
+
   bad-liar:
     name: Bad Liar
     category: general
@@ -1199,11 +1268,14 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Slug kept deliberately (see this file's header) — renamed Mime's Vow.
+  # Renamed from Vow of Silence, slug and all: db/lib/syncTags.js requires a
+  # slug to BE its name slugified, and refused to run at all until this
+  # matched. Nothing referenced the old slug but the conflictsWith below, and
+  # nobody held the tag.
   #
   # Minstrel-only. A singer who has sworn off singing is a character; anybody
   # else taking it is picking up a free tag with no cost to it.
-  vow-of-silence:
+  mimes-vow:
     name: "Mime's Vow"
     keepSlug: true
     category: general
@@ -1290,7 +1362,7 @@ tags:
     group: general-traits
     description: "People wonder if you were dropped on your face as a child."
     pointCost: -1
-    conflictsWith: [pretty, beautiful]
+    conflictsWith: [pretty, beautiful, disfigured]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -3313,7 +3385,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: false
-    conflictsWith: [stutter, vow-of-silence]
+    conflictsWith: [stutter, mimes-vow]
 
   # --- Maiming -----------------------------------------------------------
 
@@ -3448,6 +3520,10 @@ tags:
     # depths — holding both would be paying twice for one pair of eyes.
     conflictsWith: [blind]
 
+  # Not purchasable: this is what the burn and pox chains HEAL INTO
+  # (docs/systemdocs/TAGS.md §5c), not a face you can turn up with. Buying it
+  # was also the cheap way around Ugly and Leper conflicting with each other —
+  # same fiction, no cost, no edge.
   scarred:
     name: Scarred
     category: health
@@ -3455,7 +3531,7 @@ tags:
     description: "You are badly scarred. Off-putting to some, attractive to others."
     pointCost: 0
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     removable: false
 
@@ -4199,14 +4275,14 @@ tags:
     purchasableAfterStart: false
     removable: true
     sellable: true
-    # 40, up from 10, and now the second-most-valuable thing in the game
-    # behind the one brew that needs it. The old price sat it just above a
-    # Graga Sac, which read the Skinless as a slightly harder monster; they
-    # are not. They are the only ingredient in the catalog that has to be
-    # talked out of being a person first, and the number is the game saying
-    # so out loud. It is also the only enforced ingredient beside a corpse
-    # (Tag.requirementItems), so it can no longer be hand-waved.
-    sellablePrice: 40
+    # 25, down from 40, and no longer the second-most-valuable thing in the
+    # game — the Godard Factory now sells the Merchant a wagon of {tag:squeeze}
+    # instead, and a single organ standing near a whole day's industry was
+    # reading the Skinless as a shortcut past it. Still well above a Graga Sac:
+    # they are the only ingredient in the catalog that has to be talked out of
+    # being a person first, and they are one of only two enforced ingredients
+    # (Tag.requirementItems), so it can never be hand-waved. ‡
+    sellablePrice: 25
 
   # --- Corpses -----------------------------------------------------------
   # Bodies as real, carryable objects. These three are what a monster leaves;
@@ -4501,16 +4577,18 @@ tags:
     sellable: true
     sellablePrice: 1
 
-  # The Depot's currency. Weightless on purpose — the whole point of a coin is
-  # that it compresses a cartload of ⬢ into something you can carry, which is
-  # what makes the Merchant's bank worth walking to. Only he issues them and
-  # only he redeems them, so a purse of these is worth exactly as much as your
-  # ability to reach the Depot. See docs/systemdocs/DEPOT.md.
+  # The Depot's currency, and worth exactly one ⬢. It does not compress value,
+  # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick
+  # your pocket for, and these are the same amount as an object you can carry,
+  # hand over, stash and lose. Weightless, so a fortune still fits in a pocket.
+  # Only the Merchant issues them and only he redeems them, so a purse of these
+  # is worth exactly as much as your ability to reach the Depot.
+  # See docs/systemdocs/DEPOT.md.
   obol:
     name: Obol
     category: items
     group: items-gear
-    description: "Obols (¢) are worth 5 ⬢ at the merchant's depot."
+    description: "Obols (¢) are worth 1 ⬢ at the merchant’s depot. They weigh nothing, which is the whole reason to hold them. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -4571,21 +4649,6 @@ tags:
     consumesInto:
       - alcohol
     consumesIntoResources: 8
-
-  gas-mask:
-    name: Gas Mask
-    category: items
-    group: items-gear
-    description: "This could protect you from fumes, but mostly it looks cool."
-    pointCost: 0
-    equippable: true
-    tradeable: true
-    weight: 2
-    stackable: true
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: true
 
   smoke-grenade:
     name: Smoke Grenade
@@ -4670,26 +4733,29 @@ tags:
       - sake
       - sweets
 
-  ridiculous-hat:
-    name: Ridiculous Hat
+  # A crate sitting in the Merchant's Cargo Bay. The Depot's real crates are
+  # runtime Tag rows minted per shuttle (docs/systemdocs/DEPOT.md §5), which a
+  # YAML stash cannot name — so the one that is simply THERE at the start is
+  # an ordinary authored consumable, the same shape as Starting Wares above.
+  # Heavy, because it is a crate: carrying one off is a decision.
+  cargo-crate:
+    name: Cargo Crate
     category: items
     group: items-gear
-    description: "What were you thinking?"
-    pointCost: 7
-    equippable: true
+    description: "A merchant's crate, still nailed shut. The manifest on the side reads: coffee, coffee, alcohol, work knife. ‡"
+    pointCost: 0
     tradeable: true
-    weight: 2
-    stackable: true
+    weight: 6
     visible: true
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     removable: true
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      skills: [crafting]
-      gambit: false
+    consumable: true
+    consumesInto:
+      - coffee
+      - coffee
+      - alcohol
+      - work-knife
 
   spectacles:
     name: Spectacles
@@ -4725,7 +4791,7 @@ tags:
   sewer-key:
     name: Sewer Key
     category: items
-    group: items-gear
+    group: items-keys
     description: "A key to the Underquarter's sewers. ‡"
     pointCost: 0
     tradeable: true
@@ -4735,7 +4801,7 @@ tags:
   elevator-key:
     name: Elevator Key
     category: items
-    group: items-gear
+    group: items-keys
     description: "Works the lift in the Undercroft, which comes out somewhere in the forest below the cliffs. The Baron would rather this were not common knowledge. ‡"
     pointCost: 0
     tradeable: true
@@ -4745,12 +4811,87 @@ tags:
   the-barons-key:
     name: "The Baron's Key"
     category: items
-    group: items-gear
+    group: items-keys
     description: "Opens the Charon."
     pointCost: 0
     tradeable: true
     weight: 0
     purchasable: false
+
+  # The rest of Ravenheart's locks. Every one is weightless, tradeable and
+  # stackable: a key is meant to be handed over, stolen off a body or copied,
+  # and a role that hands out three of them needs a stack to put them in.
+  # Invisible on the sheet, so carrying one is not something a stranger reads
+  # off you.
+  armory-key:
+    name: Armory Key
+    category: items
+    group: items-keys
+    description: "A key to the armory."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  cellar-key:
+    name: Cellar Key
+    category: items
+    group: items-keys
+    description: "A key to the inn's cellar."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  order-key:
+    name: Order Key
+    category: items
+    group: items-keys
+    description: "A key to the Order Chambers. It's old and simple."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  cathedral-key:
+    name: Cathedral Key
+    category: items
+    group: items-keys
+    description: "A key to the Cathedral's locked rooms."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  sanctuary-key:
+    name: Sanctuary Key
+    category: items
+    group: items-keys
+    description: "A key to the Sanctuary's locked rooms."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
 
   #Uncraftable
   neoclassic-rw10:
@@ -6023,19 +6164,6 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  bishops-mitre:
-    name: Bishop's Mitre
-    category: items
-    group: items-special
-    description: "The holy headwear of Ravenheart's Bishop. Recognizable from a distance."
-    pointCost: 0
-    equippable: true
-    visible: worn
-    tradeable: true
-    weight: 2
-    purchasable: false
-    purchasableAfterStart: false
-
   barons-scepter:
     name: Baron's Scepter
     category: items
@@ -6115,7 +6243,7 @@ tags:
   depot-keycard:
     name: Depot Keycard
     category: items
-    group: items-special
+    group: items-keys
     description: "A worn plastic card on a lanyard. It opens the hangar door and the sealed crates, and it will not stop a single bullet from the thing in the ceiling. ‡"
     pointCost: 0
     tradeable: true
@@ -6128,7 +6256,7 @@ tags:
   incarns-key:
     name: Incarn's Key
     category: items
-    group: items-special
+    group: items-keys
     description: "A elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
     pointCost: 0
     equippable: true
@@ -6148,19 +6276,6 @@ tags:
     visible: worn
     tradeable: true
     weight: 0
-    purchasable: false
-    purchasableAfterStart: false
-
-  headmans-cap:
-    name: Headman's Cap
-    category: items
-    group: items-special
-    description: "A feathered cap for the head of the Headman."
-    pointCost: 0
-    equippable: true
-    visible: worn
-    tradeable: true
-    weight: 2
     purchasable: false
     purchasableAfterStart: false
 
@@ -6287,6 +6402,238 @@ tags:
     removable: true
     consumable: true
     consumesInto: []
+
+  # --- Paperwork -----------------------------------------------------------
+  #
+  # See docs/systemdocs/PAPERWORK.md. Three kinds of thing live here: the blank
+  # stock below, the wax stamps that seal a finished letter, and — at runtime —
+  # every sheet anybody actually writes on, which is a minted Tag row and is
+  # never in this file.
+  #
+  # A stamp is declared by `sealMark:`, its distinguishing line. The sync
+  # composes the whole description around it, so the boilerplate is written
+  # once and nothing can drift; authoring a `description:` beside a `sealMark:`
+  # is an error rather than an override.
+
+  # The cheapest thing the Depot sells, on purpose. Paper has to be something
+  # a scribe buys by the ream without thinking about it, or nobody writes.
+  paper:
+    name: Paper
+    category: items
+    group: items-paper
+    description: "*Blank paper.* ‡"
+    pointCost: 0
+    depotPrice: 1
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  wax-seal-three-cups:
+    name: Wax Seal (Three Cups)
+    category: items
+    group: items-paper
+    sealMark: "Three cups, stacked."
+    pointCost: 1
+    exclusive: true
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-duo-of-saints:
+    name: Wax Seal (Duo of Saints)
+    category: items
+    group: items-paper
+    sealMark: "Two saints beholding each other."
+    pointCost: 1
+    exclusive: true
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-regal-cross:
+    name: Wax Seal (Regal Cross)
+    category: items
+    group: items-paper
+    sealMark: "A cross wrapped in vines."
+    pointCost: 1
+    exclusive: true
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-fleur-de-lis:
+    name: Wax Seal (Fleur de Lis)
+    category: items
+    group: items-paper
+    sealMark: "A fleur de lis—chivalrous and noble."
+    pointCost: 1
+    exclusive: true
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-mounted-knight:
+    name: Wax Seal (Mounted Knight)
+    category: items
+    group: items-paper
+    sealMark: "A knight on a warhorse."
+    pointCost: 1
+    exclusive: true
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  wax-seal-ox:
+    name: Wax Seal (Ox)
+    category: items
+    group: items-paper
+    sealMark: "An ox."
+    pointCost: 1
+    exclusive: true
+    requiredTag: courtier
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
+  # The offices' own stamps. These are never bought — each one starts in the
+  # room the seat works out of (docs/zones.yaml `stash:`) and is `tradeable`
+  # like every other piece of office regalia, so prying the Bishop's stamp off
+  # the Bishop is exactly the kind of thing the game is for (TAGS.md §5).
+  #
+  # NOT `exclusive`, unlike the six above. A stamp is an object attached to a
+  # seat rather than a signature you chose, so holding the Bishop's and the
+  # Captain's at once is a real and interesting situation — you took one of
+  # them off somebody. `exclusive` is also only enforced on the purchase paths,
+  # and nothing here is purchasable, so setting it would be inert as well as
+  # wrong.
+
+  bannerets-wax-stamp:
+    name: Banneret's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Banneret
+    sealMark: "Three ravens on a tree branch."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  barons-wax-stamp:
+    name: Baron's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Baron
+    sealMark: "A raven clutching a banner. Huge and magnificent."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  esculaps-wax-stamp:
+    name: Esculap's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Esculap
+    sealMark: "A staff wrapped with snakes."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  meisters-wax-stamp:
+    name: Meister's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Meister
+    sealMark: "A single goblet."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  captains-wax-stamp:
+    name: Captain's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Captain
+    sealMark: "A shield with a sword."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  bishops-wax-stamp:
+    name: Bishop's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Bishop
+    sealMark: "A cross wreathed in vines."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  inquisitors-wax-stamp:
+    name: Inquisitor's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Inquisitor
+    sealMark: "A cross with a rapier on one side and a skull on the other."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The one stamp with no mark in this file. The Merchant's bears his actual
+  # initials, so it is written once at character creation, beside the line that
+  # teaches the Depot turret his face
+  # (web/app/(app)/character/createActions.js). Until a Merchant exists it
+  # reads as an unreadable smudge, which is honest — nobody has pressed it yet.
+  merchants-wax-stamp:
+    name: Merchant's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Merchant
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
 
   coffee:
     name: Coffee
@@ -6637,6 +6984,24 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  silencer:
+    name: Silencer
+    category: items
+    group: items-gear
+    description: "Equip to muffle your shots. ‡"
+    pointCost: 0
+    depotPrice: 90
+    sellable: true
+    sellablePrice: 39
+    equippable: true
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   antibiotics:
     name: Antibiotics
     category: items
@@ -6687,6 +7052,100 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 80
+    tradeable: true
+    weight: 2
+    equippable: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # Five more of the Merchant's imports, priced off DEPOT.md §3: the sell-back
+  # column is floor(depotPrice x 0.44), the same ratio every other ware uses.
+  # Descriptions are Bascinet's, dictated verbatim, so none of them takes a ‡.
+  #
+  # Weights come off the CARRY.md §1a bands and match the weapons already in
+  # this group: a long gun and a sword weigh 5, a pistol 2.
+  ctt43-rifle:
+    name: CTT4&3 Rifle
+    category: items
+    group: items-weapons
+    description: "A semi-automatic rifle chambered in .308."
+    pointCost: 0
+    depotPrice: 260
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 114
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  kpfw-6-avtomat:
+    name: Kpfw-6 Avtomat
+    category: items
+    group: items-weapons
+    description: "An experimental fully automatic rifle that belongs to the past."
+    pointCost: 0
+    depotPrice: 540
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 237
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  adamantium-sword:
+    name: Adamantium Sword
+    category: items
+    group: items-weapons
+    description: "Fit for the highest of nobility. Light, strong, and unimaginably sharp."
+    pointCost: 0
+    depotPrice: 230
+    sealedShipping: true
+    sellable: true
+    sellablePrice: 101
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  silver-sword:
+    name: Silver Sword
+    category: items
+    group: items-weapons
+    description: "You're no longer afraid of the night."
+    pointCost: 0
+    depotPrice: 150
+    sellable: true
+    sellablePrice: 66
+    tradeable: true
+    weight: 5
+    equippable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  bb-pistol:
+    name: BB Pistol
+    category: items
+    group: items-weapons
+    description: "Hurts!"
+    pointCost: 0
+    depotPrice: 75
+    sellable: true
+    sellablePrice: 33
     tradeable: true
     weight: 2
     equippable: true
@@ -7436,16 +7895,372 @@ tags:
   # --- Armor -------------------------------------------------------------
 
   # ─── Dead Simple (1 pt / 3 ⬢ / 0 turns) ───
-  padded-armor:
-    name: Padded Armor
+  # --- Headgear ----------------------------------------------------------
+  # Split out of Armor because these decide what a character's FACE is, not
+  # just what stops a blade. Anything with `concealsIdentity` replaces the
+  # wearer's name and avatar for as long as it is EQUIPPED — see
+  # docs/systemdocs/PROXYING.md §5 — and `concealSprite` names the image the
+  # room sees instead, built by `npm run assets:helms --workspace=web`.
+  #
+  # `forcesConceal` is the difference between a hood and a sack: with it, the
+  # wearer has no say and /conceal refuses in both directions.
+  #
+  # equipLayer runs 1 (against the skin) to 4 (outermost), and the OUTERMOST
+  # equipped piece is the one whose sprite shows. Two things cannot share a
+  # layer, which is what stops a character wearing three helmets at once.
+
+  soulbreaker-helm:
+    name: Soulbreaker Helm
     category: items
-    group: items-armor
-    description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
-    pointCost: 2
+    group: items-headgear
+    description: "An opaque steel cage with a HUD display inside the iridescent visor, aiding targeting. It has lights on the front."
+    pointCost: 9
     equippable: true
-    visible: worn
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: soulbreaker1
+    visible: true
     tradeable: true
     weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+
+  cerberus-helmet:
+    name: Cerberus Helmet
+    category: items
+    group: items-headgear
+    description: "A new design, shaped like a wolf's head. Slightly more reliable than your average bucketcap."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: cerberus
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+
+  censors-helmet:
+    name: Censor's Helmet
+    category: items
+    group: items-headgear
+    description: "A brutal helmet to aid in your noble task."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: hero0
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 26
+      skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 42
+
+  gladiator-helmet:
+    name: Gladiator Helmet
+    category: items
+    group: items-headgear
+    description: "A cage for a visor. Dramatic."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: fighterhelmet
+    visible: true
+    tradeable: true
+    weight: 8
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 14
+      skills: [smithing-skilled]
+    depotPrice: 45
+    sellable: true
+    sellablePrice: 18
+
+  tribunal-helmet:
+    name: Tribunal Helmet
+    category: items
+    group: items-headgear
+    description: "A thick flak helmet, concealing your identity."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: tribhelm
+    visible: true
+    tradeable: true
+    weight: 8
+    purchasable: false
+    purchasableAfterStart: false
+
+  tribunal-ordinator-helmet:
+    name: Tribunal Ordinator Helmet
+    category: items
+    group: items-headgear
+    description: "A thick flak helmet, concealing your identity. It has a band around on top with playing cards stuffed in."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: vietnamordinator
+    visible: true
+    tradeable: true
+    weight: 8
+    purchasable: false
+    purchasableAfterStart: false
+
+  spacesuit-helmet:
+    name: Spacesuit Helmet
+    category: items
+    group: items-headgear
+    description: "An old helmet with a reflective visor. It has a pipe connecting it to the suit's internal systems."
+    pointCost: 7
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: tspacehelmet
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: false
+    purchasableAfterStart: false
+
+  pumpkin:
+    name: Pumpkin
+    category: items
+    group: items-headgear
+    description: "Put it on your head!"
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: pumpkin
+    visible: true
+    tradeable: true
+    weight: 5
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+
+  thanati-mask:
+    name: Thanati Mask
+    category: items
+    group: items-headgear
+    description: "A bold declaration of your faith, wrought out of iron. Offers some protection."
+    pointCost: 5
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: silvermask
+    visible: true
+    tradeable: true
+    weight: 4
+    purchasable: false
+    purchasableAfterStart: false
+
+  plague-doctor-mask:
+    name: Plague Doctor Mask
+    category: items
+    group: items-headgear
+    description: "The long beak is elegant."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: plaguedoctor
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
+  rat-mask:
+    name: Rat Mask
+    category: items
+    group: items-headgear
+    description: "A mask in the shape of a rat's face."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: rat
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+    depotPrice: 15
+    sellable: true
+    sellablePrice: 6
+
+  bone-mask:
+    name: Bone Mask
+    category: items
+    group: items-headgear
+    description: "A mask cut out of a human skull."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: bone
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [butcher]
+      items:
+        - group: items-corpse
+
+  balaclava:
+    name: Balaclava
+    category: items
+    group: items-headgear
+    description: "A sock for your head."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: balaclava
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+
+  hood:
+    name: Hood
+    category: items
+    group: items-headgear
+    description: "A bag with eyes cut out. Terrifying."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: hood
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+
+  bag:
+    name: Bag
+    category: items
+    group: items-headgear
+    description: "A bag for hostages."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: bag
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+
+  plebeian-hood:
+    name: Plebeian Hood
+    category: items
+    group: items-headgear
+    description: "A peasant's hood, can be drawn down."
+    pointCost: 1
+    requiredTag: laboring-basic
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    concealSprite: plebhood
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  lepers-hood:
+    name: Leper's Hood
+    category: items
+    group: items-headgear
+    description: "A hood that masks the worst of your wounds."
+    pointCost: 0
+    requiredTag: leper
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 4
+    concealsIdentity: true
+    concealSprite: leper
+    visible: true
+    tradeable: true
+    weight: 1
+    purchasable: true
+    purchasableAfterStart: true
+
+  padded-cap:
+    name: Padded Cap
+    category: items
+    group: items-headgear
+    description: "Cushioned. Turns away blows."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    visible: true
+    tradeable: true
+    weight: 2
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -7456,16 +8271,141 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  padded-cap:
-    name: Padded Cap
+  mail-coif:
+    name: Mail Coif
     category: items
-    group: items-armor
-    description: "Cushioned. Turns away blows."
-    pointCost: 2
+    group: items-headgear
+    description: "A mail hood covering the head and neck, worn under a helmet."
+    pointCost: 5
     equippable: true
+    equipSlot: HEAD
+    equipLayer: 1
+    concealsIdentity: true
+    concealSprite: hauberkhood
     visible: true
     tradeable: true
+    weight: 5
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  gas-mask:
+    name: Gas Mask
+    category: items
+    group: items-headgear
+    description: "This could protect you from fumes, but mostly it looks cool."
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 2
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: gas_mask
+    tradeable: true
     weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  simple-helm:
+    name: Simple Helm
+    category: items
+    group: items-headgear
+    description: "An open helmet."
+    pointCost: 5
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    concealSprite: paladin1
+    visible: true
+    tradeable: true
+    weight: 5
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+    sellable: true
+    sellablePrice: 9
+
+  knights-helmet:
+    name: Knight's Helmet
+    category: items
+    group: items-headgear
+    description: "A closed helmet. Vision is obscured."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: knight0
+    visible: true
+    tradeable: true
+    weight: 12
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 26
+      skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 42
+
+  bishops-mitre:
+    name: Bishop's Mitre
+    category: items
+    group: items-headgear
+    description: "The holy headwear of Ravenheart's Bishop. Recognizable from a distance."
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    visible: worn
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
+  headmans-cap:
+    name: Headman's Cap
+    category: items
+    group: items-headgear
+    description: "A feathered cap for the head of the Headman."
+    pointCost: 0
+    equippable: true
+    equipSlot: HEAD
+    equipLayer: 3
+    visible: worn
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+
+  padded-armor:
+    name: Padded Armor
+    category: items
+    group: items-armor
+    description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
+    pointCost: 2
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 1
+    visible: worn
+    tradeable: true
+    weight: 12
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -7483,6 +8423,7 @@ tags:
     description: "A small shield held in the fist, used for blocking attacks or making your own."
     pointCost: 2
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: true
     weight: 5
@@ -7497,46 +8438,6 @@ tags:
     sellablePrice: 4
 
   # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
-  simple-helm:
-    name: Simple Helm
-    category: items
-    group: items-armor
-    description: "An open helmet."
-    pointCost: 5
-    equippable: true
-    visible: true
-    tradeable: true
-    weight: 5
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [smithing]
-    sellable: true
-    sellablePrice: 9
-
-  mail-coif:
-    name: Mail Coif
-    category: items
-    group: items-armor
-    description: "A mail hood covering the head and neck, worn under a helmet."
-    pointCost: 5
-    equippable: true
-    visible: true
-    tradeable: true
-    weight: 5
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [smithing]
-    sellable: true
-    sellablePrice: 9
-
   shield:
     name: Shield
     category: items
@@ -7544,6 +8445,7 @@ tags:
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
     pointCost: 5
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: true
     weight: 12
@@ -7565,6 +8467,7 @@ tags:
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
     pointCost: 5
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: true
     weight: 28
@@ -7586,6 +8489,8 @@ tags:
     description: "Interlocking rings. It cannot be cut, but blunt force or thrusts can still be deadly."
     pointCost: 7
     equippable: true
+    equipSlot: BODY
+    equipLayer: 2
     visible: true
     tradeable: true
     weight: 28
@@ -7600,26 +8505,6 @@ tags:
     sellablePrice: 22
 
   # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
-  knights-helmet:
-    name: Knight's Helmet
-    category: items
-    group: items-armor
-    description: "A closed helmet. Vision is obscured."
-    pointCost: 9
-    equippable: true
-    visible: true
-    tradeable: true
-    weight: 12
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 2
-      resourceCost: 26
-      skills: [smithing-skilled]
-    sellable: true
-    sellablePrice: 42
-
   brigandine:
     name: Brigandine
     category: items
@@ -7627,6 +8512,8 @@ tags:
     description: "Small steel plates riveted inside a fabric coat. Protection is similar to plate without the visibility of plate."
     pointCost: 9
     equippable: true
+    equipSlot: BODY
+    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 28
@@ -7647,6 +8534,8 @@ tags:
     description: "A plate over the chest. Offers some protection of full plate while permitting mobility, and it's easy to don."
     pointCost: 9
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     visible: true
     tradeable: true
     weight: 28
@@ -7661,6 +8550,21 @@ tags:
     sellablePrice: 42
 
   # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
+  spacesuit:
+    name: Spacesuit
+    category: items
+    group: items-armor
+    description: "Thick, bulky, painted with orange stripes. Has an internal oxygen system."
+    pointCost: 9
+    equippable: true
+    equipSlot: BODY
+    equipLayer: 4
+    visible: true
+    tradeable: true
+    weight: 40
+    purchasable: false
+    purchasableAfterStart: false
+
   plate-armor:
     name: Plate Armor
     category: items
@@ -7668,6 +8572,8 @@ tags:
     description: "Steel over the whole body. Requires a second person and time to don."
     pointCost: 14
     equippable: true
+    equipSlot: BODY
+    equipLayer: 4
     visible: true
     tradeable: true
     weight: 55
@@ -7690,6 +8596,8 @@ tags:
     description: "Scrap metal strapped over the body."
     pointCost: 2
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     visible: true
     tradeable: true
     weight: 12
@@ -7709,6 +8617,7 @@ tags:
     description: "A projected field. It stops bullets, arrows and blasts, and softens a melee blow. A slow needle passes through it. Any liquid touching it destroys it. GM-granted only."
     pointCost: 0
     equippable: true
+    equipSlot: SHIELD
     visible: true
     tradeable: false
     purchasable: false
@@ -7936,3 +8845,231 @@ tags:
     requirement:
       resourceCost: 2
       skills: [medical-basic]
+
+  # --- The Godard Factory --------------------------------------------------
+  # The marsh production chain: Godflesh comes out of the wet ground, refines
+  # into Squeeze on the Factory floor, and gets crated for the Merchant. See
+  # docs/systemdocs/FACTORY.md.
+  godflesh:
+    name: Godflesh
+    category: items
+    group: items-gear
+    description: "A fibrous, pink substance harvested from the waterlogged marshes. It previously squirmed and tried to eat your hands off, but now it's dead. Labor at the Godard Factory to refine it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 28
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [vomiting]
+
+  squeeze:
+    name: Squeeze
+    category: items
+    group: items-gear
+    description: "A gelatinous pink substance. The machines made it into a cube. Do not eat."
+    pointCost: 0
+    tradeable: true
+    weight: 20
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [seizure]
+    # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
+    # which is the whole reason the Factory exists — 8 cubes is a day's work
+    # and pays about 2.2 times a good farming day. ‡
+    sellable: true
+    sellablePrice: 4
+
+  # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
+  # `removable: false` blocks the Destroy menu and nothing else, so while this
+  # was tradeable anyone holding a Factory Key could pick the crating bench up,
+  # walk it into the Spillway, and delete the Factory's whole reason to exist —
+  # there are exactly two in the world and neither is craftable. Untradeable
+  # also means it carries no weight, which is right for a fixture: nobody is
+  # hauling it anywhere. ‡
+  packaging-equipment:
+    name: Packaging Equipment
+    category: items
+    group: items-gear
+    description: "Allows you to package things into crates. It is bolted down. ‡"
+    pointCost: 0
+    tradeable: false
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: false
+
+  armored-gloves:
+    name: Armored Gloves
+    category: items
+    group: items-armor
+    description: "Thick leather gloves with chainmail, essential for handling the dangerous Godflesh."
+    pointCost: 2
+    equippable: true
+    tradeable: true
+    weight: 2
+    visible: worn
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 4
+
+  factory-key:
+    name: Factory Key
+    category: items
+    group: items-keys
+    description: "A key to Godard factory."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  bannerets-key:
+    name: Banneret's Key
+    category: items
+    group: items-keys
+    description: "A key to the overseer box."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  flooded-crate:
+    name: Flooded Crate
+    category: items
+    group: items-gear
+    description: "A crate somebody left in a cellar that has been underwater for years. The boards have swollen shut. Whatever is inside kept. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: [moonshine, moonshine]
+
+  moonshine:
+    name: Moonshine
+    category: items
+    group: items-drink
+    description: "Freebase alcohol. Not good for your vision."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    consumable: true
+    consumesInto: [tipsy, blind-drunk, damaged-vision]
+    # Costs no ⬢ at all — the marsh gives you the ingredient. Holding one
+    # {tag:godflesh} is the check; it is not consumed, the same as every other
+    # enforced recipe (docs/systemdocs/BREWING.md). ‡
+    requirement:
+      turnsCost: 1
+      resourceCost: 0
+      skills: [brewing-basic]
+      gambit: false
+      items: [godflesh]
+    sellable: true
+    sellablePrice: 3
+
+  blind-drunk:
+    name: Blind Drunk
+    category: status
+    group: status-debuffs
+    description: "You can barely see. That drink is shit!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
+  # Permanent, stackable, and the only tag in the catalog a turn pass counts.
+  # At 5 the whole stack is swept and {tag:blind} lands in its place —
+  # db/lib/visionDecayPass.js. ‡
+  damaged-vision:
+    name: Damaged Vision
+    category: health
+    group: health-mind
+    description: "Your vision is slowly getting worse. Don't let it get to 5."
+    pointCost: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Tier 0 on the cure ladder: it runs its course in a turn, and what it runs
+  # its course INTO is the actual punishment. ‡
+  seizure:
+    name: Seizure
+    category: health
+    group: health-mind
+    description: "That was a bad idea."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    expiresInto: [stupid]
+
+  # No requirement block on purpose — Tier 0, and permanent. Nobody in
+  # Ravenheart knows what a Squeeze cube does to a brain, so nobody can undo
+  # it. Its desire lock leaves exactly two goals standing. ‡
+  stupid:
+    name: Stupid
+    category: health
+    group: health-mind
+    description: "Gghhhh?"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [alcohol, stupidity]
+
+  chainsaw:
+    name: Chainsaw
+    category: items
+    group: items-special
+    description: "BRRRR! Produces two Godflesh per extraction."
+    laborBonus: { kind: farming, amount: 2 }
+    pointCost: 0
+    equippable: true
+    tradeable: true
+    weight: 12
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
+    sellable: true
+    sellablePrice: 68
+    depotPrice: 154

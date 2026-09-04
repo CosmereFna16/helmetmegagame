@@ -104,9 +104,16 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, and on the five Addictions
-  (`general-addictions`) — so a character holds at most one belief and at most
-  one Addiction, independently. **Nothing in `general-personality` carries it**:
+  are a single answer rather than a collection, on the five Addictions
+  (`general-addictions`), and on the six courtier wax seals (`items-paper`,
+  `PAPERWORK.md` §5) — so a character holds at most one belief, at most one
+  Addiction and at most one personal seal, independently.
+
+  The seals are the one case where the flag sits in a group that also holds
+  tags **without** it — blank paper, the eight office stamps, and every note
+  anybody writes. That is fine and is what "per tag group" means: the rule only
+  ever compares two tags that BOTH carry the flag, so nothing else in
+  `items-paper` is touched. **Nothing in `general-personality` carries it**:
   the 2026-09-01 merge dropped it from the nine ex-Restrictions on purpose, so
   Pacifist + Craven is now a legal character. That is what makes the merged
   group actually merged — leaving the flag on would have kept "one Restriction
@@ -247,11 +254,12 @@ just no longer as a gate.
 ## 3a. Hidden categories, and gated groups
 
 **Two tags gate an action rather than an item: `bird` and `literate`.** Holding
-both puts the Bird on the Actions grid; holding `literate` alone puts the Read
-button there (`BIRD.md`). `literate` is also the key to
-`db/lib/gribble.js`, the cipher any future literacy feature should reuse rather
-than reinvent — a written thing an illiterate character cannot read should look
-the same everywhere in the game.
+both puts the Bird on the Actions grid; holding `literate` puts Write and Seal
+there (`BIRD.md`, `PAPERWORK.md`). `literate` is also half of
+`db/lib/reading.js#readBlock`, which is what any future literacy feature should
+call rather than reinvent — the other half is the character's eyes, and a
+written thing they cannot read must look the same everywhere in the game. There
+used to be a cipher here (`db/lib/gribble.js`); paper replaced it.
 
 One whole category is secret: **Demoness** (behind the `demoness` tag). It
 contains exactly one `TagGroup` carrying the `requiredTag`, which is where
@@ -430,7 +438,13 @@ exception, priced at 1** — off the scale entirely, Gunboat's call. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of
-deliberate outlier as Pack Mule; don't read a pattern into it. Teaching and
+deliberate outlier as Pack Mule; don't read a pattern into it. **Fast
+Metabolism is a fourth, at −6** — between the −5 and −7 bands, Bascinet's
+call; it is the only tag that changes the *size* of the per-turn upkeep rather
+than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper is a
+fifth, at −1** — below the −2 band, and the reason is arithmetic rather than
+taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at −2 the
+pair would have *paid* a player to take a free hood. Teaching and
 Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 (`LESSONS.md` §1).
 
@@ -438,7 +452,7 @@ Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
 at whichever it reaches first:**
 
 - **`GameConfig.maxDrawbackTags`** — how many drawback tags may be bought.
-  **6** by default.
+  **5** by default.
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
   claim back in total, stored as a **positive magnitude**. **12** by default,
   matching `startingTagPoints` on purpose, so the rule says itself: *you can
@@ -1401,6 +1415,30 @@ catalog *structure*: `parentTag`, `requiredTag`, `requirementSkills` and
 `consumesInto` all wire tags to each other, and that belongs in the YAML where
 it can be reviewed alongside the tags it connects.
 
+## 5e. `ephemeral`: which rows are game state
+
+There are three authors of a `Tag` row — `docs/tags.yaml`, a GM at
+`/gm/dev/tags`, and the game itself (§5d). `custom` separates the first from the
+other two. **`ephemeral` separates the third from the second**, and it has to
+be its own field because the two want opposite things from a Restart Game: a
+GM's homebrew must survive one, and a crate must not.
+
+Set by every runtime minter — `db/lib/depotCrates.js`, the Factory's Package
+button, `db/lib/headstone.js`, and both paper minters in
+`db/lib/paperMint.js`. `wipeGameData` deletes exactly these rows and leaves the
+catalog and the homebrew alone.
+
+Corpses are the exception that needs nothing: `Tag.corpseOfCharacterId`'s
+`onDelete: Cascade` already took them out with the characters, and still does.
+They were also, until this landed, **the only runtime rows a wipe ever
+removed** — crates and headstones simply accumulated.
+
+One more reader: `web/lib/referenceData.js#getVisibleTags` withholds an
+`ephemeral` row from anyone not holding it. That loader ships the whole catalog
+to every browser on every page, and the runtime set has no ceiling — every
+letter anybody writes is a row. Paper is what made that urgent; crates had the
+same problem quietly.
+
 ## 6. Things that used to be tags and aren't anymore
 
 `Leader` and `Treasurer` were retired as tags in the same rework that
@@ -1509,12 +1547,56 @@ have moved. It also keeps the loot panel (`CHARACTERS.md` §5) from rendering
 an item as if it's still worn.
 
 `concealsIdentity: true` marks gear that hides who the wearer is — a mask, a
-hood, a closed helm. It is currently **inert**: `/conceal` is open to every
-character with nothing equipped (`PROXYING.md` §5), and the field is kept only
-so that gate can be restored without a migration. It is only meaningful
-alongside `equippable`, and `syncTagsFromYaml` **throws** if it is set without
-it rather than syncing a tag that could never do anything — the kind of quiet
-failure that is miserable to debug from inside the game.
+hood, a closed helm. It is **the gate on `/conceal`**: without one of these
+equipped, a character cannot go unnamed at all (`PROXYING.md` §5). It is only
+meaningful alongside `equippable`, and `syncTagsFromYaml` **throws** if it is
+set without it rather than syncing a tag that could never do anything — the
+kind of quiet failure that is miserable to debug from inside the game.
+
+`forcesConceal: true` is the stricter form: concealed with no say in it, and
+both `/conceal` toggles refuse in either direction. It requires
+`concealsIdentity` — forcing a concealment the catalog does not grant is a
+contradiction, not a stricter setting — and sync throws otherwise.
+
+`concealSprite:` names the plated 256px avatar the room sees instead of the
+wearer's face, a basename under `web/public/assets/helms/`. It is **required**
+alongside `concealsIdentity`, and sync checks the file really exists: a hood
+nobody can see is not concealment, it is a missing image. Build the files with
+`npm run assets:helms --workspace=web` after adding a source sprite to
+`web/assets/helms/`.
+
+### `equipSlot` / `equipLayer`
+
+`GameConfig.equipSlots` is a flat **count** — six things, whatever they are —
+and for a long time it was the only limit, so a character with free slots could
+wear three helmets and two shields at once.
+
+`equipSlot:` is the other half. `HEAD`, `BODY` and `SHIELD` are the only three,
+because they are the only places where wearing two things at once is nonsense;
+a sword or a lantern has no slot and is limited by the count alone. **Two
+equipped tags may not share a slot.**
+
+`equipLayer:` 1–4 subdivides `HEAD` and `BODY`, 1 against the skin and 4
+outermost, and **two equipped tags may not share a layer** either. So a mail
+coif (`HEAD` 1) goes under a knight's helm (`HEAD` 3), but two helms do not go
+together. `SHIELD` carries no layer — there is only ever one shield — and sync
+throws if one is set on it. Sync also throws on a layer outside 1–4, a layer
+with no slot, a `HEAD`/`BODY` slot with no layer, and a slot on a tag that is
+not `equippable`.
+
+The layer also decides **which face shows**: the outermost equipped concealing
+piece is the one whose `concealSprite` the room sees.
+
+The rule lives in `db/lib/equipSlots.js` because **two** independent paths flip
+`CharacterTag.equipped` — the player's toggle (`equipActions.js`) and the
+GM/staged batch (`db/lib/tagOps.js`) — and a rule in only one of them is a rule
+a GM can walk straight through. Both write first and then ask "is the resulting
+set wearable?", which is the only form that lets a batch stage "unequip A,
+equip B" without rejecting B for a conflict with an A that is already gone.
+
+**Bound blocks equipping in both directions**, along with Craft and Destroy
+(`INCAPACITATING_SLUGS`, `db/lib/incapacitation.js`). A hostage who could take
+the sack off their own head would not be much of a hostage.
 
 `equippable` **does** interact with `visible`, through its third state. A tag
 authored `visible: worn` is shown to a bystander's 🔍 only while
@@ -1620,8 +1702,9 @@ equips all land against a cap of 6 (verified).
 Three things the Depot rework added to the catalog.
 
 **`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,
-`visible: false`. One obol is worth `Depot.obolRate` ⬢ (5) and only at the
-Depot; everywhere else it is a coin nobody will take. It has no `pointCost` and
+`visible: false`. One obol is worth exactly one ⬢ — it is that same value made
+physical, rather than a compression of it — and it is money only at the Depot;
+everywhere else it is a coin nobody has to take. It has no `pointCost` and
 is not purchasable — the only door it enters the world through is the Depot's
 ATM.
 
@@ -1632,9 +1715,13 @@ sync refuses it on a tag with no `depotPrice`: the station cannot ship what it
 does not stock.
 
 **Crates** are not in `docs/tags.yaml` at all. They are `Tag` rows minted at
-runtime by `db/lib/depotCrates.js` with `custom: true`, one per crate, carrying
-their contents in `Tag.crateContents` and their manifest in `description`.
-`db:prune-tags` skips custom rows, so they survive a prune; the row is deleted
-once nothing references it any more.
+runtime by `db/lib/depotCrates.js` with `custom: true` **and `ephemeral: true`**,
+one per crate, carrying their contents in `Tag.crateContents` and their manifest
+in `description`. `db:prune-tags` skips custom rows, so they survive a prune.
+
+This doc used to claim the row was "deleted once nothing references it any
+more". **That was never true** — nothing deleted it, and every crate ever landed
+was a permanent orphan sitting in the catalog across every game. `ephemeral` is
+the fix; see §5e.
 
 See `docs/systemdocs/DEPOT.md` §0e.

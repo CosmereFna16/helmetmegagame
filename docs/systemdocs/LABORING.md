@@ -50,6 +50,13 @@ nothing to switch between — §4 pays the best one you qualify for.
 dial down to rebalance specialists must not quietly delete subsistence too.
 Everything else scales.
 
+The dial ships at **0.93** rather than 1 — laboring was cut about 7% before
+launch. Two things that buys less than it looks like: Basic is exempt as above,
+and Skilled's 1–4 rounds straight back to 1–4, so a small move on the dial
+reaches only the three specialisations. At 0.93 and a location coefficient of
+1.0 those become Hunting 0–17, Farming 11–15, Fishing 7–13. Moving the general
+tiers at all means editing `PRODUCTION_RATES`, where one whole point is 25%.
+
 ## 3. What a place is worth
 
 Each Location carries up to three `LocationYield` rows, one per `LaborKind`.
@@ -96,12 +103,27 @@ Forest tile 0.3 · Keep 0.2.
 Forests 0.8 except `east-forests-30` 1.1 and `east-forests-27` 1.3 ·
 `caves-14`…`17` 0.4 · Depths 0.6 except `depths-19` 1.8 and `depths-23` 1.6.
 
-Village and Factory have no hunting and no fishing — they are built up. Town
-and Fortress have neither at all; their only yield is farming. Nothing farms or
-fishes underground.
+The Fishing Village fishes at 1.2 and does nothing else; the Godard Factory has
+no rows at all and is worked anyway (§3b). Town and Fortress have neither
+hunting nor fishing; their only yield is farming. Nothing farms or fishes
+underground.
 
 **The old blanket "nothing can be produced in the depths" is gone.** Hunting
 down there is now most of the reason to go.
+
+### 3b. The one place with no rows that can still be worked
+
+A Location carrying the `refinery: true` attribute is worked with **no
+`LocationYield` row at all**, and pays in goods rather than ⬢: one Godflesh
+becomes eight Squeeze on the Godard Factory floor. `resolveLaborRateFrom`
+short-circuits before the candidate loop below and returns `tier: "refining"`
+with a real `0-0` expression — real, because `rollResourceRange` pays nothing
+on a failed parse and does so silently.
+
+It is the only exception to "the row IS the gate", and it is a second gate
+beside the rows rather than a hole in them: everything without the attribute
+still needs its row. It still wants a Laboring tag, and it still grants
+Exhausted. See `FACTORY.md` §4.
 
 ## 4. Resolving one labor
 

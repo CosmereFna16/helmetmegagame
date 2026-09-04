@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { after } from "next/server";
 import {
   prisma,
@@ -166,7 +167,6 @@ export async function updateDepot(formData) {
       shuttleCooldown: Math.max(0, intOrZero(formData, "shuttleCooldown")),
       creditCapObols: Math.max(0, intOrZero(formData, "creditCapObols")),
       // Never zero: the ⬢-to-obol conversion divides by it.
-      obolRate: Math.max(1, intOrZero(formData, "obolRate")),
       ...(turretTable ? { turretTable } : {}),
     },
   });
@@ -273,14 +273,14 @@ const DEFAULT_GAME_CONFIG = {
   nicknameSyncEnabled: false,
   archiveVisible: false,
   archiveTravelEvents: false,
-  productionCoefficient: 1,
+  productionCoefficient: 0.93,
   startingTagPoints: 12,
   playerCount: 100,
   equipSlots: 6,
   carryWeightLbs: 120,
   carryResourceCap: 25,
   freeZoneMovesPerTurn: 1,
-  maxDrawbackTags: 6,
+  maxDrawbackTags: 5,
   maxDrawbackPoints: 12,
   desireSlots: 2,
   desireSlotLockTurns: 2,
@@ -336,10 +336,36 @@ export async function wipeGameData(formData) {
       // No anchor reposts needed: finishGameWipe re-syncs zones afterwards
       // and anchors hash their own gate state, so they self-heal there.
       prisma.$executeRaw`UPDATE "LocationLink" SET "isOpen" = "authoredOpen", "openUntil" = NULL`,
+      // Anything pinned to a noticeboard (PAPERWORK.md). Before the tag sweep
+      // below, or the FK from NoticePost.tagId blocks it.
+      prisma.noticePost.deleteMany({}),
       // Room stashes (CARRY.md): the rows cascade from nothing the wipe
       // deletes, so they go explicitly and the ⬢ column is zeroed.
       prisma.roomTag.deleteMany({}),
+      // Runtime-minted tags: crates, headstones, written paper, sealed
+      // letters. GAME state that happened to be stored in the catalog, and it
+      // has to go with the game.
+      //
+      // This closes a real leak rather than merely serving the new feature.
+      // The wipe never touched the Tag table, and db:prune-tags skips every
+      // `custom` row on purpose — so a crate or a headstone was a permanent
+      // orphan accumulating across every game ever run. Only corpses escaped,
+      // through corpseOfCharacterId's cascade, and they still do.
+      //
+      // `ephemeral` and not `custom`, deliberately: a GM's homebrew from
+      // /gm/dev/tags is custom too and must SURVIVE a restart. Runs after the
+      // holdings above so nothing references these rows.
+      prisma.tag.deleteMany({ where: { ephemeral: true } }),
       prisma.room.updateMany({ data: { resources: 0 } }),
+      // Factions are live game state now (FACTIONS.md), so a restart has to
+      // undo the parts players wrote. Handshakes go with the characters they
+      // named; every silo is un-pointed so db:sync-roles' null-fill floor can
+      // seed the authored ones again; and a faction somebody FOUNDED in the
+      // last game is deleted outright rather than lingering as a leaderless
+      // ghost. Founded factions carry no Role rows, so nothing cascades into
+      // the creation wizard.
+      prisma.factionApplication.deleteMany({}),
+      prisma.faction.updateMany({ data: { siloRoomId: null } }),
       prisma.auditLog.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
@@ -356,6 +382,10 @@ export async function wipeGameData(formData) {
         data: { ...DEFAULT_GAME_CONFIG, nextWeather: null, nextTurnNote: null },
       }),
     ]);
+
+    // After the character sweep above, so the FK from Character.factionId is
+    // already gone and the delete cannot be blocked by a member.
+    await prisma.faction.deleteMany({ where: { foundedById: { not: null } } });
 
     const firstTurn = await prisma.turn.create({
       data: { number: 1, phase: "DAWN", weather: "CLEAR", status: "OPEN", gameDate: new Date() },
@@ -500,11 +530,22 @@ export async function updateFaction(formData) {
     if (ancestorIds.includes(factionId)) return;
   }
 
+  // A room id straight off the form. Validated by existence rather than
+  // trusted, and "" clears the pointer.
+  const siloRoomRaw = str(formData, "siloRoomId").trim();
+  let siloRoomId = null;
+  if (siloRoomRaw) {
+    const room = await prisma.room.findUnique({ where: { id: siloRoomRaw }, select: { id: true } });
+    if (!room) return;
+    siloRoomId = room.id;
+  }
+
   await prisma.faction.update({
     where: { id: factionId },
     data: {
       name: str(formData, "name").trim(),
       parentFactionId,
+      siloRoomId,
     },
   });
 
@@ -521,9 +562,9 @@ export async function deleteFaction(formData) {
   if (!factionId) return;
 
   const faction = await prisma.faction.findUnique({ where: { id: factionId } });
-  if (!faction || faction.name === "Unaffiliated") return;
+  if (!faction || isUnaffiliated(faction)) return;
 
-  const unaffiliated = await prisma.faction.findFirst({ where: { name: "Unaffiliated" } });
+  const unaffiliated = await prisma.faction.findFirst({ where: { slug: UNAFFILIATED_SLUG } });
   if (unaffiliated) {
     await prisma.character.updateMany({
       where: { factionId },
@@ -538,6 +579,58 @@ export async function deleteFaction(formData) {
       actorDiscordUserId: session.discordUserId,
       actionType: "faction_deleted",
       details: { factionId, name: faction.name },
+    },
+  });
+
+  revalidatePath("/gm/dev/factions");
+  revalidatePath("/faction");
+  revalidatePath("/gm/players", "layout");
+}
+
+// Moves a character into a faction and sets their seats, in one write.
+// Deliberately not built out of the player-facing actions: those all check
+// "is this your faction", which is the check a GM is here to skip.
+export async function assignFactionMember(formData) {
+  const session = await requireSuperadmin();
+
+  const characterId = str(formData, "characterId");
+  const factionId = str(formData, "factionId");
+  if (!characterId || !factionId) return;
+
+  const [character, faction] = await Promise.all([
+    prisma.character.findUnique({ where: { id: characterId }, select: { id: true, name: true } }),
+    prisma.faction.findUnique({ where: { id: factionId }, select: { id: true, name: true, slug: true } }),
+  ]);
+  if (!character || !faction) return;
+
+  const makeLeader = str(formData, "isLeader") === "true" && !isUnaffiliated(faction);
+  const makeTreasurer = str(formData, "isTreasurer") === "true" && !isUnaffiliated(faction);
+
+  await prisma.$transaction(async (tx) => {
+    // One Leader per faction, same rule setFactionLeader keeps.
+    if (makeLeader) {
+      await tx.character.updateMany({
+        where: { factionId, isLeader: true },
+        data: { isLeader: false },
+      });
+    }
+    await tx.character.update({
+      where: { id: characterId },
+      data: { factionId, isLeader: makeLeader, isTreasurer: makeTreasurer },
+    });
+    // Whatever they had open elsewhere is moot once a GM has placed them.
+    await tx.factionApplication.updateMany({
+      where: { characterId, status: "PENDING" },
+      data: { status: "WITHDRAWN" },
+    });
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "faction_member_assigned",
+      targetCharacterId: characterId,
+      details: { factionId, factionName: faction.name, isLeader: makeLeader, isTreasurer: makeTreasurer },
     },
   });
 

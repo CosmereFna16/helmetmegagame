@@ -13,6 +13,8 @@ import {
   fuelTurnsLeft,
   creditAvailableObols,
   canOpenCrate,
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
   presentedIdentity,
   forcedNameFrom,
 } from "@lifeweb/db";
@@ -89,7 +91,8 @@ export default async function DepotPage() {
         select: {
           quantity: true,
           tagId: true,
-          tag: { select: { slug: true, forcedName: true, name: true } },
+          equipped: true,
+          tag: { select: { slug: true, forcedName: true, name: true, ...CONCEALMENT_TAG_FIELDS } },
         },
       },
     },
@@ -182,7 +185,10 @@ export default async function DepotPage() {
   const bySlug = new Map((character?.tags ?? []).map((ct) => [ct.tag.slug, ct.quantity]));
 
   const greeting = character
-    ? presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) }).name
+    ? presentedIdentity(character, {
+        forcedName: forcedNameFrom(character.tags),
+        concealment: concealmentFrom(character.tags),
+      }).name
     : null;
 
   const atDepot = character?.location?.slug === DEPOT_LOCATION_SLUG;
@@ -211,7 +217,6 @@ export default async function DepotPage() {
           shuttleState: depot.shuttleState,
           shuttleTurn: depot.shuttleTurn,
           shuttleMaxTurns: depot.shuttleMaxTurns,
-          obolRate: depot.obolRate,
         }}
         greetingName={greeting}
         turnNumber={openTurn?.number ?? null}

@@ -31,10 +31,9 @@ export default function DepotPriceListTab({ priceList }) {
     <section className="panel p-5">
       <h2 className="panel-header">Price List</h2>
       <p className="mt-1 text-sm text-muted">
-        Everything the Depot has a price for, in either direction, in ⬢. The counter settles in
-        obols at {"\u00a0"}
-        the station&apos;s rate, on the total rather than line by line. What you charge Ravenheart is
-        between you and Ravenheart. ‡
+        Everything the Depot has a price for, in either direction. An obol is one ⬢, so these
+        are both what the station settles at and what the thing is worth. What you charge
+        Ravenheart is between you and Ravenheart. ‡
       </p>
 
       <div className="mt-4 flex flex-col gap-3">
@@ -63,8 +62,8 @@ export default function DepotPriceListTab({ priceList }) {
                 <td>
                   <TagChip tag={row.tag} />
                 </td>
-                <td className="mono">{row.price == null ? "—" : `${row.price} ⬢`}</td>
-                <td className="mono">{row.sellPrice == null ? "—" : `${row.sellPrice} ⬢`}</td>
+                <td className="mono">{row.price != null ? `${row.price} ¢` : "—"}</td>
+                <td className="mono">{row.sellPrice != null ? `${row.sellPrice} ¢` : "—"}</td>
                 <td className="mono text-muted">{row.held || "—"}</td>
               </tr>
             ))}

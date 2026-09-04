@@ -18,6 +18,13 @@
 // a key that is not in it, so a typo in the YAML is a loud problem at sync
 // time rather than a line that silently never prints.
 
+// The two keys code matches on rather than merely prints. Exported so the web
+// layer stops writing them as bare literals — a typo in one of those is a
+// button that silently never appears, which is exactly the failure the sync's
+// unknown-key check exists to prevent on the YAML side.
+const GODFLESH_ATTRIBUTE = "godflesh";
+const REFINERY_ATTRIBUTE = "refinery";
+
 // key -> { describe(value, ctx) -> string|null }
 //
 // `describe` returning null means "true, but nothing worth saying here" —
@@ -36,6 +43,27 @@ const ATTRIBUTES = {
   // matched on; the place's own description carries whatever there is to say.
   noBuild: {
     describe: () => null,
+  },
+
+  // Marsh open enough that the Godflesh is in reach of a blade. What the
+  // Extract button matches on, so no marsh tile has to be named by slug.
+  // See docs/systemdocs/FACTORY.md.
+  godflesh: {
+    describe: () => "Something under the water moves when you step, and keeps moving after you stop. ‡",
+  },
+
+  // The Godard Factory floor. Laboring here refines Godflesh into Squeeze
+  // instead of paying ⬢, and it is the one place in the game where labor is
+  // legal with no LocationYield row at all.
+  refinery: {
+    describe: () => "Vats, hooks and a press. Work a day here and whatever you brought comes out in cubes. ‡",
+  },
+
+  // A public board somebody can pin a paper to. What the Noticeboard button on
+  // this Location's anchor matches on, so no board has to be named by slug.
+  // See docs/systemdocs/PAPERWORK.md.
+  noticeboard: {
+    describe: () => "A board of weathered planks, thick with old nail holes. People pin things here. ‡",
   },
 };
 
@@ -196,6 +224,8 @@ function hasAttribute(location, key) {
 }
 
 module.exports = {
+  GODFLESH_ATTRIBUTE,
+  REFINERY_ATTRIBUTE,
   depotLines,
   structureLines,
   ATTRIBUTES,

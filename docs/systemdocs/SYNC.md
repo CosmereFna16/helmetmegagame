@@ -66,7 +66,22 @@ game state** — a clan can break away mid-game, or be absorbed by another, and
 that is a GM edit on `/gm/dev/factions`. An ordinary re-sync leaves it alone,
 so it can't quietly re-parent a faction under the one it rebelled against —
 so editing `parent:` in the YAML for a *future* game is still the right move,
-it just doesn't reach a game already in progress.
+it just doesn't reach a game already in progress. A Leader secedes from
+`/faction` too, not just a GM (`FACTIONS.md` §3).
+
+`Faction.siloRoomId` is a **floor** rather than create-only, which is one
+notch weaker. `roles.yaml`'s `silo:` names a Room slug, and the sync writes it
+only while the faction has no silo at all. Re-pointing a silo in play writes a
+non-null id, which the sync never touches — so a Leader's choice is as safe as
+under create-only, and a faction that predates the column still gets the one
+the YAML names for it. Rooms come from `db:sync-zones`, which runs first; an
+unknown slug warns and skips rather than throwing.
+
+A room's `stash:` is the same shape of promise. It takes either a flat list of
+slugs (one each) or a map with `resources:` and an `items:` map of slug →
+count. A stack already at or above the authored quantity is left alone, and
+`resources` is written only while the room holds none — so a re-sync can
+neither undo a player carrying the anvil off nor quietly duplicate it.
 
 ### One-time vs every-run
 
@@ -221,6 +236,16 @@ keys next to it are strict and throw on a typo.
 before any write, so a typo fails cleanly instead of half-applying. It also
 throws on `concealsIdentity` without `equippable` — a mask nobody can equip
 could never conceal anything.
+
+The rest of the headgear family throws the same way: `concealsIdentity` with no
+`concealSprite`, a `concealSprite` naming a file that isn't in
+`web/public/assets/helms/`, `forcesConceal` without `concealsIdentity`, an
+`equipSlot` on something not `equippable`, an `equipLayer` outside 1–4 or with
+no slot, a `HEAD`/`BODY` slot with no layer, and a layer on a `SHIELD`. The
+sprite check is the interesting one: it is the only validation here that
+touches the filesystem outside `docs/`, and it deliberately treats a missing
+directory as "cannot check" rather than as a failure, since `web/public` may
+not be laid out the same way inside a Next standalone build.
 
 ### Pass structure
 

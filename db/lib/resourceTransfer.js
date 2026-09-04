@@ -29,6 +29,12 @@ async function moveParty(tx, party, delta) {
   const spec = BALANCE[party.kind];
   if (!spec) return;
 
+  // A room that eats what is put into it (Room.destroysContents — the Godard
+  // Factory's Spillway). Money going IN goes nowhere; money coming OUT is
+  // still allowed, because Undo has to be able to take back what it drained
+  // from the sender and nothing was ever added here to overdraw.
+  if (party.destroysContents && delta > 0) return;
+
   const [modelName, field] = spec;
   const model = tx[modelName];
 

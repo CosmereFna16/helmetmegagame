@@ -1,6 +1,14 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
-const { forcedNameFrom, loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
+const {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  loadConcealment,
+  loadForcedName,
+  presentedIdentity,
+} = require("@lifeweb/db/lib/presentedIdentity");
 const {
   MENU_OPTION_LIMIT,
   PICK_ID,
@@ -77,10 +85,25 @@ const {
 const { resolveChannelContext } = require("../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
 const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
-const { BIRD_REPLY_PREFIX, BIRD_REPLY_MODAL_PREFIX } = require("@lifeweb/db/lib/bird");
-const { handleBirdReplyOpen, handleBirdReplySubmit } = require("../lib/birdReply");
+const { BIRD_REPLY_PREFIX, BIRD_REPLY_PICK_PREFIX } = require("@lifeweb/db/lib/bird");
+const { handleBirdReplyOpen, handleBirdReplyPick } = require("../lib/birdReply");
+const { NOTICEBOARD_PREFIX } = require("@lifeweb/db/lib/locationAnchorRow");
+const {
+  READ_PREFIX: NOTICE_READ_PREFIX,
+  TEAR_PREFIX: NOTICE_TEAR_PREFIX,
+  PIN_PREFIX: NOTICE_PIN_PREFIX,
+  handleNoticeboardOpen,
+  handleNoticeRead,
+  handleNoticeTear,
+  handleNoticePin,
+} = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
+const {
+  THREAT_SPAWN_ACCEPT_PREFIX,
+  THREAT_SPAWN_DECLINE_PREFIX,
+} = require("@lifeweb/db/lib/threats");
+const { handleThreatSpawnAccept, handleThreatSpawnDecline } = require("../lib/threatSpawn");
 const {
   OPEN_PREFIX: EDIT_OPEN_PREFIX,
   MODAL_PREFIX: EDIT_MODAL_PREFIX,
@@ -852,10 +875,12 @@ async function handleWhosHere(interaction, locationId) {
         concealed: true,
         age: true,
         gender: true,
-        faction: { select: { name: true } },
+        faction: { select: { name: true, slug: true } },
         tags: {
-          where: { tag: { forcedName: { not: null } } },
-          select: { tag: { select: { forcedName: true } } },
+          where: {
+            OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+          },
+          select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
         },
       },
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
@@ -867,7 +892,14 @@ async function handleWhosHere(interaction, locationId) {
     return;
   }
 
-  const rows = present.map((c) => ({ ...c, forcedName: forcedNameFrom(c.tags) }));
+  // Concealed the same way the proxy decides it, not straight off the column:
+  // a row still flagged concealed after the mask came off is speaking under its
+  // own name, and listing it here as a stranger would be a lie the room can
+  // check.
+  const rows = present.map((c) => {
+    const piece = concealmentFrom(c.tags);
+    return { ...c, forcedName: forcedNameFrom(c.tags), concealed: Boolean(piece && (piece.forced || c.concealed)) };
+  });
   const named = rows
     .filter((c) => !c.concealed || c.forcedName)
     .map((c) => {
@@ -875,7 +907,7 @@ async function handleWhosHere(interaction, locationId) {
       const sameFaction =
         viewer?.factionId &&
         c.factionId === viewer.factionId &&
-        c.faction?.name !== "Unaffiliated" &&
+        !isUnaffiliated(c.faction) &&
         c.roleTitle;
       return sameFaction ? `${c.name}, ${c.roleTitle}` : c.name;
     });
@@ -1173,6 +1205,21 @@ async function handleConcealCommand(interaction) {
     return;
   }
 
+  // Concealment is a property of what you are wearing, not a free action. With
+  // a bare face there is nothing to toggle; under something that forces it,
+  // there is no choice to make in either direction. The column is left alone in
+  // that second case, so whatever the player last chose is what they go back to
+  // when the thing comes off.
+  const concealment = await loadConcealment(prisma, character.id);
+  if (!concealment) {
+    await respond(interaction, "» *Your face is bare. Put something over it first.* ‡");
+    return;
+  }
+  if (concealment.forced) {
+    await respond(interaction, "» *Not while you are wearing that. Take it off first.* ‡");
+    return;
+  }
+
   const concealed = !character.concealed;
   await prisma.character.update({ where: { id: character.id }, data: { concealed } });
   await prisma.auditLog
@@ -1307,6 +1354,10 @@ async function handleMoveSubmit(interaction) {
         resourceDelta: null,
         resourceRollExpression,
         zoneId: character.zoneId ?? null,
+        // Stamped at filing time. A free zone move costs no Action, so by the
+        // time a Labor pays at turn close they may be standing somewhere else
+        // (Action.locationId in schema.prisma).
+        locationId: character.locationId ?? null,
       },
     });
   } catch (err) {
@@ -1415,7 +1466,8 @@ async function handleSpeakSubmit(interaction, channelId) {
   // forcesName tag) are standing state, and a checkbox here would be a
   // second answer to a settled question.
   const forcedName = await loadForcedName(prisma, character.id);
-  const identity = presentedIdentity(character, { forcedName });
+  const concealment = await loadConcealment(prisma, character.id);
+  const identity = presentedIdentity(character, { forcedName, concealment });
 
   let posted;
   try {
@@ -1624,9 +1676,29 @@ module.exports = {
         if (interaction.customId.startsWith(OFFER_DECLINE_PREFIX)) {
           return void (await handleOfferDecline(interaction, interaction.customId.slice(OFFER_DECLINE_PREFIX.length)));
         }
+        // Arrives in a DM on a threat spawn offer (docs/systemdocs/THREATS.md),
+        // so guild/member are null — and the clicker has no character yet,
+        // which is the whole point. Not acked: interaction.update() is the ack.
+        if (interaction.customId.startsWith(THREAT_SPAWN_ACCEPT_PREFIX)) {
+          return void (await handleThreatSpawnAccept(
+            interaction,
+            interaction.customId.slice(THREAT_SPAWN_ACCEPT_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(THREAT_SPAWN_DECLINE_PREFIX)) {
+          return void (await handleThreatSpawnDecline(
+            interaction,
+            interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
+          ));
+        }
         // Arrives in a DM on a Bird's letter, so guild/member are null.
         if (interaction.customId.startsWith(BIRD_REPLY_PREFIX)) {
           return void (await handleBirdReplyOpen(interaction, interaction.customId.slice(BIRD_REPLY_PREFIX.length)));
+        }
+        // The board on a Location's anchor. Shown only where docs/zones.yaml
+        // declared one (db/lib/noticeboard.js).
+        if (interaction.customId.startsWith(NOTICEBOARD_PREFIX)) {
+          return void (await handleNoticeboardOpen(interaction, interaction.customId.slice(NOTICEBOARD_PREFIX.length)));
         }
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
@@ -1645,6 +1717,22 @@ module.exports = {
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }
+        // Answering a bird: which letter in your hands goes back.
+        if (interaction.customId.startsWith(BIRD_REPLY_PICK_PREFIX)) {
+          return void (await handleBirdReplyPick(interaction, interaction.customId.slice(BIRD_REPLY_PICK_PREFIX.length)));
+        }
+        // The three verbs on a noticeboard. Read is free to anyone standing
+        // here; whether they can make anything of it is a separate question
+        // the handler asks (db/lib/reading.js).
+        if (interaction.customId.startsWith(NOTICE_READ_PREFIX)) {
+          return void (await handleNoticeRead(interaction, interaction.customId.slice(NOTICE_READ_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(NOTICE_TEAR_PREFIX)) {
+          return void (await handleNoticeTear(interaction, interaction.customId.slice(NOTICE_TEAR_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(NOTICE_PIN_PREFIX)) {
+          return void (await handleNoticePin(interaction, interaction.customId.slice(NOTICE_PIN_PREFIX.length)));
+        }
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {
@@ -1658,9 +1746,6 @@ module.exports = {
         }
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));
-        }
-        if (interaction.customId.startsWith(BIRD_REPLY_MODAL_PREFIX)) {
-          return void (await handleBirdReplySubmit(interaction, interaction.customId.slice(BIRD_REPLY_MODAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith(EDIT_MODAL_PREFIX)) return void (await handleEditSubmit(interaction));
       }

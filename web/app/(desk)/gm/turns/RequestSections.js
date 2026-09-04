@@ -462,6 +462,45 @@ export const SECTIONS = {
     ),
   },
 
+  EXTRACT_GODFLESH: {
+    heading: "Extract ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Rolled">{`${effect.die ?? "—"} on 1d6`}</Line>
+        <Line label="Cut with">{effect.tool ?? "—"}</Line>
+        <Line label="Where">{effect.locationName ?? "—"}</Line>
+        <Line label="Got">{`${effect.quantity ?? 0} × ${effect.tagName ?? "Godflesh"}`}</Line>
+        <Line label="Cost them">{effect.injuryTagName ?? "Nothing"}</Line>
+        <p className="text-xs text-muted">
+          A day in the marsh, and it spends the filer&apos;s Move. A 1 rolls the injury table:
+          without Armored Gloves that is fingers or a hand, with them a wound that heals. A 6 is a
+          good seam and pays one extra. Undo takes the Godflesh back and heals whatever it cost
+          them, but the Move stays spent. ‡
+        </p>
+      </>
+    ),
+  },
+
+  PACKAGE_ITEMS: {
+    heading: "Package ‡",
+    render: ({ effect }) => (
+      <>
+        <Line label="Marked">{effect.label ?? "—"}</Line>
+        <Line label="Holds">
+          {(effect.contents ?? []).map((c) => `${c.name} ×${c.quantity}`).join(", ") || "—"}
+        </Line>
+        <Line label="Weight">{`${effect.innerLbs ?? 0} lb → ${effect.weightLbs ?? 0} lb`}</Line>
+        <p className="text-xs text-muted">
+          Packing halves what a load weighs, which is the only way a wagon of Squeeze reaches the
+          Depot. It needs Packaging Equipment in reach and costs no Move. The crate is an ordinary
+          consumable, so anyone holding it can open it from their own sheet — the line on the side
+          is whatever the packer typed, and it is <strong>not</strong> checked against what is
+          actually in there. Undo prises it open and deletes the crate. ‡
+        </p>
+      </>
+    ),
+  },
+
   ENGRAVE_HEADSTONE: {
     heading: "Engrave ‡",
     render: ({ effect }) => (
@@ -486,6 +525,21 @@ export const SECTIONS = {
     ),
   },
 
+  BREAK_SEAL: {
+    heading: "Break Seal",
+    render: ({ effect }) => (
+      <>
+        <Line label="Letter">{effect.openedName ?? effect.tagName ?? "—"}</Line>
+        <Line label="Wax">{effect.sealMark ?? "—"}</Line>
+        <Line label="Envelope">{effect.envelopeName ?? "—"}</Line>
+        <p className="text-xs text-muted">
+          They broke the wax and read it. Undo re-seals the letter and takes the spent
+          envelope back — but nothing unreads it. ‡
+        </p>
+      </>
+    ),
+  },
+
   BIRD_MESSAGE: {
     heading: "Bird Message",
     render: ({ effect }) => (
@@ -493,14 +547,21 @@ export const SECTIONS = {
         <Line label="To">{effect.recipientName ?? "—"}</Line>
         <Line label="Guessed">{effect.guessedZoneName ?? "—"}</Line>
         <Line label="Arrived">{effect.delivered ? "Yes" : "No — the bird came back"}</Line>
-        {/* The plaintext, always — the DM the player actually received may be
-            enciphered (db/lib/gribble.js) if they can't read, and this is the
-            only surface where what was written is legible. */}
-        <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body ?? ""}</div>
+        <Line label="Letter">{effect.tagName ?? "—"}</Line>
+        {/* A snapshot of what was written, taken at send time. Null when the
+            letter went out sealed — the bird did not open it either, and this
+            desk is a record of what happened rather than an X-ray. The paper
+            itself is on somebody's sheet and a GM can read it there. ‡ */}
+        {effect.body ? (
+          <div className="mt-1 whitespace-pre-wrap text-sm">{effect.body}</div>
+        ) : (
+          <p className="text-xs text-muted">It went out sealed. ‡</p>
+        )}
         <p className="text-xs text-muted">
           One letter a day, to a named person in a GUESSED zone — a wrong guess or a dead
-          recipient means it never arrived, and the sender is told a turn later. Undo hands the
-          day back and closes any reply window, but it cannot unsend a message that landed.
+          recipient means it never arrived, and the paper stays in the sender&apos;s hands. Undo
+          hands the day back and closes any reply window, but it cannot unsend a letter that
+          landed. ‡
         </p>
       </>
     ),

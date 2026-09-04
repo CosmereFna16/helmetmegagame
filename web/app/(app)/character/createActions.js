@@ -10,11 +10,14 @@ import {
   isDynastyMember,
   normalizeAntagonistSlugs,
   parseStartingTag,
+  isMerchantRole,
+  setMerchantFace,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
   syncCharacterNickname,
@@ -384,6 +387,20 @@ export async function createCharacter(formData) {
   await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   if (cursed) await removeCursedRole(discordUserId).catch(() => {});
+
+  // The Depot's turret spares exactly one face, and it used to be a GM's job
+  // to type it in — so a new Merchant met a gun he was forbidden to arm and
+  // had to go and ask somebody. He knows his own name here. Set once and never
+  // resynced: the turret reads a face, so concealing himself later still gets
+  // him shot, which is the design (DEPOT.md §0f).
+  if (isMerchantRole(role.slug)) {
+    await setMerchantFace(prisma, created.name).catch(() => {});
+    // ...and his wax stamp bears his own initials, for the same reason: the
+    // catalog cannot know them, and asking a GM to type them in means a
+    // Merchant whose seal is a blank smudge until somebody notices.
+    // See db/lib/merchantSeal.js.
+    await setMerchantSeal(prisma, created.name).catch(() => {});
+  }
 
   // A new Baron renames every living family member, including one created
   // before a Baron existed. Best-effort — must not cost this create.

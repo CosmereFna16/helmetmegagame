@@ -53,7 +53,7 @@ export const DEPOT_HELP = {
   generatorFuel:
     "Units left in the tank. The generator burns a fixed amount every turn and switches itself off at zero, which stops everything at the Depot. ‡",
   merchantFace:
-    "The one name the turret will not fire on. It matches the PRESENTED name, so a concealed Merchant is shot by his own gun and anyone wearing his name walks past it. Leave it blank and the turret fires on everyone. ‡",
+    "The one name the turret will not fire on. It is written automatically when a character is created on the Merchant role, and this field is the override. It matches the PRESENTED name, so a concealed Merchant is shot by his own gun and anyone wearing his name walks past it. Leave it blank and the turret fires on everyone — and cannot be armed at all. ‡",
   generatorOn: "Whether the generator is running right now. Switching it on with an empty tank does nothing. ‡",
   turretArmed: "Whether the turret is live. It only fires when the generator is also running. ‡",
   fuelMax: "How much the tank holds. Fuel fed in past this is wasted, not banked. ‡",
@@ -63,7 +63,6 @@ export const DEPOT_HELP = {
   shuttleMaxTurns: "How many turns the shuttle sits on the pad before flying back on its own, loaded or not. ‡",
   shuttleCooldown: "Turns that must pass after it lands before it can be sent back up. ‡",
   creditCapObols: "The ceiling on the Company's credit line, in obols. ‡",
-  obolRate: "How many ⬢ one obol is worth when the Depot takes Resources in trade. ‡",
   turretTable:
     "The turret's severity odds, one column per armour tier. Each column must sum to exactly 1, and the save is refused if any does not. Severities: graze, minor-wound, deep-wound, grievous-wound, dying, dead. ‡",
 };

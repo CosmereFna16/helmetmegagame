@@ -270,6 +270,8 @@ The **Storage** button on a room's first post lists what's there. ‡
 
 Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move — it happens automatically. If you don't have at least 1 ⬢ to spend, your character becomes {tag:hungry}.
 
+A character with {tag:fast-metabolism} eats 2 ⬢ a turn instead of 1. Come up short and nothing is taken at all — you keep what you have and go hungry anyway. ‡
+
 If your character has the {tag:ate-meal} tag or the {tag:hungerless} tag, you stay fed without paying the upkeep.
 
 ### Hunger

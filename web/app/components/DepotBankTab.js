@@ -55,8 +55,8 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
       <section className="panel p-5">
         <h2 className="panel-header">The ATM</h2>
         <p className="mt-1 text-sm text-muted">
-          Coins out of the account, or coins back into it. An obol is worth {depot.obolRate} ⬢ at
-          this counter and nothing at all anywhere else. ‡
+          Coins out of the account, or coins back into it. An obol is worth one ⬢, and only at
+          this counter — anywhere else it is a coin somebody has to agree to take. ‡
         </p>
 
         <dl className="depot-totals">
@@ -97,9 +97,9 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
       <section className="panel p-5">
         <h2 className="panel-header">The ⬢ Counter</h2>
         <p className="mt-1 text-sm text-muted">
-          Your own float, both ways, at one flat rate with no spread. One obol is exactly{" "}
-          {depot.obolRate} ⬢ whether you are buying or selling — you do not charge yourself a
-          margin to use your own till. ‡
+          Your own float, both ways, with no spread. One obol is one ⬢ whichever way it goes —
+          you do not charge yourself a margin to use your own till. What this counter really does
+          is make the number on your sheet into coins you can hand over, and back again. ‡
         </p>
 
         <dl className="depot-totals">
@@ -114,7 +114,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
         </dl>
 
         <div className="mt-4 flex gap-2">
-          <Tooltip text={`Turns obols in the account into Resources in your hands, at ${depot.obolRate} ⬢ each. ‡`}>
+          <Tooltip text="Turns obols in the account into Resources on your sheet, one for one. ‡">
             <button
               type="button"
               className="btn"
@@ -124,14 +124,12 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
               Buy ⬢
             </button>
           </Tooltip>
-          <Tooltip text={`Turns Resources you are carrying into obols in the account, at ${depot.obolRate} ⬢ each. ‡`}>
+          <Tooltip text="Turns Resources on your sheet into obols in the account, one for one. ‡">
             <button
               type="button"
               className="btn-quiet"
-              disabled={disabled || pending || resources < (depot.obolRate ?? 5)}
-              onClick={() =>
-                ask("exchange", "SELL_RESOURCES", Math.floor(resources / Math.max(1, depot.obolRate ?? 5)))
-              }
+              disabled={disabled || pending || resources < 1}
+              onClick={() => ask("exchange", "SELL_RESOURCES", resources)}
             >
               Sell ⬢
             </button>
@@ -217,10 +215,7 @@ export default function DepotBankTab({ depot, heldObols, creditAvailable, resour
           </label>
           <p className="mt-2 text-xs text-muted">
             At most {dialog.max} ¢
-            {dialog.kind === "exchange"
-              ? `, which is ${(Number(amount) || 0) * (depot.obolRate ?? 5)} ⬢ either way`
-              : ""}
-            . ‡
+            {dialog.kind === "exchange" ? ", and an obol is one ⬢ either way" : ""}. ‡
           </p>
         </RequestDialog>
       )}

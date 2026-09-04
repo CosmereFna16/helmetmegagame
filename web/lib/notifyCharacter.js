@@ -17,8 +17,8 @@ export function notifyCharacter(character, text, opts = {}) {
       authorDiscordUserId: opts.authorDiscordUserId ?? null,
       source: opts.source ?? "player_event",
       // Forwarded rather than dropped: a Bird's letter carries a Reply button,
-      // and carries its own plaintext in meta so /gm/messages can join a wall
-      // of runes back to what it actually says.
+      // and names the paper it delivered in meta so /gm/messages can join the
+      // DM to the object that moved.
       components: opts.components,
       meta: opts.meta,
     }).catch((err) => console.error(`notifyCharacter DM failed for ${character.id}:`, err)),

@@ -117,9 +117,11 @@ export default function DepotConsole(props) {
           <span className="depot-greeting">
             {greetingName ? `Good evening, ${greetingName}.` : "The Depot. ‡"}
           </span>
-          <Tooltip text="The station's account, in obols. It is the Depot's money, not yours — hand the licence to someone else and the balance goes with it. ‡">
-            <span className="depot-balance mono">{depot.accountObols} ¢</span>
-          </Tooltip>
+          <span className="depot-cockpit-money">
+            <Tooltip text="The station's account, in obols — one for every ⬢ it is worth. It is the Depot's money, not yours: hand the licence to someone else and the balance goes with it. ‡">
+              <span className="depot-balance mono">{depot.accountObols} ¢</span>
+            </Tooltip>
+          </span>
         </div>
         <div className="depot-cockpit-stats">
           <FuelGauge

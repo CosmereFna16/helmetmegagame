@@ -24,7 +24,7 @@
 # Threats — Sympathizer, the Demoness, the Judge — are
 # NOT in this file. They were never read by any sync (a GM hands those seats
 # out by hand and they never appear in the player-facing picker), so the whole
-# brief lives in docs/threats.md as prose instead.
+# brief lives in db/lib/threats.js instead (docs/systemdocs/THREATS.md).
 #
 # The Brigands are the exception, and used to be listed here as a threat too:
 # they ARE in this file, with weights, so they sync like any other faction and
@@ -64,6 +64,12 @@
 # Caves group itself is not standable, but its levels (caverns, railroad,
 # aberrant-pits) are.
 #
+# `silo` (faction-level, optional) is a Room **slug** from docs/zones.yaml —
+# the room this faction banks in. CREATE-ONLY, exactly like `parent:` below:
+# it seeds the pointer when the faction row is first written and is never
+# re-applied, because a Leader or Treasurer re-points their own silo in play
+# and a re-sync must not drag it back. See docs/systemdocs/FACTIONS.md.
+#
 # `starting_location` (role-level, optional) is a Location **slug** from
 # docs/zones.yaml — it decides which Location channel (and "Location: {Name}"
 # role) the character lands in. If a role gives none, it defaults to the
@@ -89,6 +95,7 @@ zones:
     factions:
       the-court:
         name: The Court
+        silo: storehouse
         roles:
           baron:
             name: Baron
@@ -119,6 +126,8 @@ zones:
                 Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The visionary that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+              - >-
+                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory’s production of Squeeze. Keep close communication with the Banneret to ensure he’s getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: hard
             multiple: false
             starting_resources: 5
@@ -126,6 +135,7 @@ zones:
             extra_starting_points: 7
             leader: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Nobility
               - The Baron's Key
@@ -135,8 +145,9 @@ zones:
               - Sabre
               - Literate
               - Courtier
-              - Obol x5
+              - Obol x25
             doc_elements:
+              - squeeze
               - courtstructure
               - lifewebbasic
               - fortressstarting
@@ -163,7 +174,7 @@ zones:
               - Nobility
               - Jewelry
               - Literate
-              - Obol
+              - Obol x5
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -189,7 +200,7 @@ zones:
               - Courtier
               - Nobility
               - Literate
-              - Obol
+              - Obol x5
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -240,6 +251,8 @@ zones:
                 Eventually you will be attacked by the Bastard. Besides your personal investment, it's clear that that man cannot be allowed to rule Ravenheart. The self-loving "visionary" that he is — he would lose it all. Ravenheart's survival is a delicate balance, one he cannot possibly hope to ever understand.
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+              - >-
+                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory’s production of Squeeze. Keep close communication with the Banneret to ensure he’s getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: normal
             multiple: false
             starting_resources: 1
@@ -247,13 +260,15 @@ zones:
             extra_starting_points: 7
             treasurer: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Courtier
               - Literate
               - Hand's Pin
               - Elevator Key
-              - Obol x2
+              - Obol x10
             doc_elements:
+              - squeeze
               - courtstructure
               - lifewebbasic
               - fortressstarting
@@ -277,6 +292,8 @@ zones:
                 You have minor medical training and you know how to use the Keep's messenger ravens.
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+              - >-
+                The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory’s production of Squeeze. Keep close communication with the Banneret to ensure he’s getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: normal
             multiple: false
             starting_resources: 2
@@ -289,8 +306,9 @@ zones:
               - Medical (Basic)
               - Literate
               - Bird
-              - Obol
+              - Obol x5
             doc_elements:
+              - squeeze
               - courtstructure
               - lifewebbasic
               - fortressstarting
@@ -384,6 +402,7 @@ zones:
               - fortressstarting
       the-watch:
         name: The Watch
+        silo: mess-hall
         parent: The Court
         roles:
           captain:
@@ -410,6 +429,7 @@ zones:
             leader: true
             treasurer: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Watchman
               - Tactician
@@ -447,6 +467,7 @@ zones:
             starting_zone: fortress
             treasurer: true
             starting_tags:
+              - Armory Key
               - Ravenhearter
               - Melee (Basic)
               - Radio Bracelet (Watch)
@@ -535,6 +556,7 @@ zones:
     factions:
       the-church:
         name: The Church
+        silo: pantry
         roles:
           bishop:
             name: Bishop
@@ -555,6 +577,7 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Cathedral Key
               - Ravenhearter
               - Chaplain
               - Pious
@@ -584,6 +607,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Cathedral Key
               - Ravenhearter
               - Chaplain
               - Pious
@@ -607,6 +631,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Cathedral Key
               - Ravenhearter
               - Literate
               - Post-Christian
@@ -617,6 +642,7 @@ zones:
               - church
       the-sanctuary:
         name: The Sanctuary
+        silo: supply-storage
         roles:
           esculap:
             name: Esculap
@@ -639,12 +665,13 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Sanctuary Key
               - Ravenhearter
               - Medical (Expert)
               - Brewing (Skilled)
               - Literate
               - Esculap's Vest
-              - Obol x2
+              - Obol x10
             doc_elements:
               - townstarting
               - medical
@@ -669,6 +696,7 @@ zones:
             starting_resources: 8
             starting_zone: town
             starting_tags:
+              - Sanctuary Key
               - Ravenhearter
               - Medical (Skilled)
               - Brewing (Basic)
@@ -678,6 +706,7 @@ zones:
               - medical
       order-of-the-silver-cross:
         name: Order of the Silver Cross
+        silo: order-chambers
         parent: The Church
         roles:
           inquisitor:
@@ -703,6 +732,8 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Order Key
+              - Cathedral Key
               - Ravenhearter
               - Pious
               - Melee (Basic)
@@ -740,6 +771,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Order Key
               - Ravenhearter
               - Pious
               - Melee (Basic)
@@ -777,6 +809,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Order Key
               - Ravenhearter
               - Pious
               - Post-Christian
@@ -787,6 +820,7 @@ zones:
               - church
       the-town:
         name: The Town
+        silo: warehouse
         roles:
           headman:
             name: Headman
@@ -1027,6 +1061,7 @@ zones:
               - independent
       the-inn:
         name: The Inn
+        silo: cellar
         parent: The Town
         roles:
           innkeeper:
@@ -1046,6 +1081,7 @@ zones:
             starting_zone: town
             leader: true
             starting_tags:
+              - Cellar Key x3
               - Ravenhearter
               - Cooking (Basic)
               - Brewing (Basic)
@@ -1067,6 +1103,7 @@ zones:
             starting_resources: 1
             starting_zone: town
             starting_tags:
+              - Cellar Key
               - Ravenhearter
               - Cooking (Basic)
             doc_elements:
@@ -1077,6 +1114,7 @@ zones:
               - independent
       brigands:
         name: Brigands
+        silo: ravine-camp
         roles:
           brigand-leader:
             name: Brigand Leader
@@ -1098,9 +1136,11 @@ zones:
             difficulty: normal
             multiple: false
             starting_resources: 3
-            starting_zone: town
+            starting_zone: east-forests
+            starting_location: east-forests-26
             leader: true
             starting_tags:
+              - Hills Camp
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1130,8 +1170,10 @@ zones:
             multiple: true
             weight: 2
             starting_resources: 2
-            starting_zone: town
+            starting_zone: east-forests
+            starting_location: east-forests-26
             starting_tags:
+              - Hills Camp
               - Brigand
               - Melee (Basic)
               - Ranged (Basic)
@@ -1150,6 +1192,7 @@ zones:
     factions:
       the-company:
         name: The Company
+        silo: cargo-bay
         roles:
           merchant:
             name: Merchant
@@ -1163,7 +1206,7 @@ zones:
               - >-
                 You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. ‡ You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
-                The Company will advance you up to 60 ¢ against the business. Your licence will be revoked if you fail to pay it. ‡
+                The Company will advance you up to 75 ¢ against the business. Your licence will be revoked if you fail to pay it. ‡
               - >-
                 Try your hand at usury. Lend at high rates and call on your Dockers to collect. That's probably the easiest way to make serious bucks.
               - >-
@@ -1179,8 +1222,10 @@ zones:
               - Merchant's Garb
               - Merchant's License
               - Depot Keycard
+              - Silencer
               - Obol x20
             doc_elements:
+              - squeeze
               - townstarting
           docker:
             name: Docker
@@ -1245,3 +1290,113 @@ zones:
               - Mail Coif
               - Shortbow
             doc_elements: [caving]
+  - name: Marshes
+    situation:
+      - >-
+        A shipment of Squeeze is overdue at the Depot. The Merchant has stopped asking politely, and the Baron has started asking at all.
+      - >-
+        Two refugees walked off in the night and did not come back. Nobody at the Factory seems troubled by it, which is the troubling part.
+      - >-
+        Something has been getting into the vats. The Godflesh comes out of the marsh dead; what is in the boiling room at night is not.
+    factions:
+      the-factory:
+        name: The Factory
+        # Godard is one of the Baron's cadet houses, which is the whole
+        # reason the money goes up to the Keep rather than staying here.
+        parent: The Court
+        silo: logistics-room
+        roles:
+          banneret:
+            name: Banneret
+            intro: >-
+              As the Baron’s cousin, begrudgingly serve Ravenheart by organizing the production of the valuable Squeeze and selling it to the merchant.
+            description:
+              - >-
+                You are one of Ravenheart’s cadet houses, carrying only a fraction of the prestige and responsibility.
+              - >-
+                You have been charged with Godard Factory. While usually looked down upon as a piece of marsh scum, it is very valuable: Squeeze is how Ravenheart obtains obols, functionally funding its warchest.
+              - >-
+                Your whole operation relies on your communication with the merchant and the Keep. It’s your job to go to crate the Squeeze, load it on the cart, and sell it to the merchant—or you can let the Geschef do it. But make sure you’re getting a good price. Keep some to pay your employees and give the rest to the Baron, lest the Watch come knocking.
+              - >-
+                Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners—after all, you can afford to pay them. Or just don’t pay them and keep them in line.
+              - >-
+                Make sure everyone’s wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers—do not eat the Squeeze! You can’t afford to repeat what happened last time…
+            difficulty: hard
+            multiple: false
+            starting_resources: 4
+            starting_zone: marshes
+            starting_location: factory
+            leader: true
+            starting_tags:
+              - Horse
+              - Cart
+              - Nobility
+              - Brigandine
+              - Sabre
+              - Bore Pistol
+              - Melee (Basic)
+              - Ranged (Basic)
+              - Armored Gloves
+              - Factory Key
+              - Banneret's Key
+            doc_elements:
+              - godardfactory
+              - squeeze
+              - ravenhearteconomy
+          geschef:
+            name: Geschef
+            intro: >-
+              Organize operations while the Banneret goes to see the merchant. If the refugees get rowdy, hit them with a stick.
+            description:
+              - >-
+                Your whole operation relies on your communication with the merchant and the Keep.
+              - >-
+                You’ve survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
+              - >-
+                Make sure everyone’s wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers—do not eat the Squeeze! You can’t afford to repeat what happened last time…
+            difficulty: normal
+            multiple: false
+            starting_resources: 4
+            starting_zone: marshes
+            starting_location: factory
+            starting_tags:
+              - Tough
+              - Old
+              - Cudgel
+              - Padded Armor
+              - Melee (Basic)
+              - Brewing (Basic)
+              - Medical (Basic)
+              - Cooking (Basic)
+              - Cleaning Powder
+              - Armored Gloves
+              - Factory Key
+              - Banneret's Key
+            doc_elements:
+              - godardfactory
+              - medical
+          refugee:
+            name: Refugee
+            intro: >-
+              Cut Godflesh out of the marsh for a man who can replace you. Or don’t, and make it to the town.
+            description:
+              - >-
+                Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. ‡
+              - >-
+                On the upside, working at the Factory gives you a chance of social mobility—a good Banneret will pay you much more than the average commoner would make, if only to keep you around.
+              - >-
+                Most refugees don’t stay for long and usually try to make it to the town. You are easily replaced, so it doesn’t matter. ‡
+            difficulty: easy
+            multiple: true
+            weight: 3
+            starting_resources: 1
+            starting_zone: marshes
+            starting_location: factory
+            starting_tags:
+              - Laboring (Basic)
+              - Hatchet
+              - Cleaning Powder
+              - Armored Gloves
+              - Factory Key
+            doc_elements:
+              - godardfactory
