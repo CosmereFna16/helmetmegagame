@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-04 · Soft Hands has never done a day's labor, and cannot be taught otherwise
+
+Soft Hands can no longer be held with any Laboring skill  
+A lesson can no longer teach past a tag conflict, which was the way round every conflict pair in the catalog and not just this one
+
 ## 2026-09-04 · The #info rebuild works again
 
 ✎ The command that rebuilds #info from its master file had been broken since the scripts were reorganised; it looked for a docs folder that isn't there, and then choked on the roles list. #info is rebuilt and carries the new turn cadence
