@@ -26,10 +26,14 @@ const {
   postMessageBatched,
   postAttachment,
 } = require("../../lib/discordRest");
+const { docsPath } = require("../../lib/repoPaths");
 
-const YAML_PATH = path.join(__dirname, "..", "..", "docs", "systemdocs", "infochannel.yaml");
-const ROLES_YAML_PATH = path.join(__dirname, "..", "..", "docs", "roles.yaml");
-const DOCS_DIR = path.join(__dirname, "..", "..", "docs");
+// Through docsPath(), not a count of "..": this file moved into
+// db/scripts/sync/ and its hops were never re-counted, so it had been looking
+// in a db/docs/ that does not exist and dying on ENOENT ever since.
+const YAML_PATH = docsPath("systemdocs", "infochannel.yaml");
+const ROLES_YAML_PATH = docsPath("roles.yaml");
+const DOCS_DIR = docsPath();
 
 // Generator for infochannel.yaml's `generated: roles-intro` thread: every
 // faction's roles (name + intro text only — no description/tags/difficulty,
@@ -54,11 +58,15 @@ const BOLD_ROLE_NAMES = new Set([
 function buildRolesIntroBody() {
   const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
 
+  // `factions` and `roles` are slug-keyed MAPPINGS in roles.yaml, not lists —
+  // db/lib/syncRoles.js reads them the same way. This walked them as arrays
+  // and threw "object is not iterable" the moment it got far enough to try,
+  // which it never did while the YAML path above was also wrong.
   const zoneSections = [];
   for (const zone of rolesDoc.zones ?? []) {
     const factionSections = [];
-    for (const faction of zone.factions ?? []) {
-      const roleLines = (faction.roles ?? []).map((role) => {
+    for (const faction of Object.values(zone.factions ?? {})) {
+      const roleLines = Object.values(faction.roles ?? {}).map((role) => {
         const leaderMark = role.leader === true ? " (★)" : "";
         const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
         return `${marker}${role.name}${marker}${leaderMark} — ${role.intro}`;
