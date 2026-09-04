@@ -134,6 +134,8 @@ function structureLines(ctx = {}) {
         return `The ${typeName} here is damaged. ‡`;
       case "RUINED":
         return `The ruin of a ${typeName} lies here. ‡`;
+      case "ABANDONED":
+        return `The abandoned groundwork of a ${typeName} sits here, gone nowhere. ‡`;
       default:
         return null;
     }

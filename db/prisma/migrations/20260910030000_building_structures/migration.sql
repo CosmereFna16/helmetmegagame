@@ -10,7 +10,7 @@
 -- introduced; expect the generator to re-propose them every time.
 
 -- CreateEnum
-CREATE TYPE "StructureStatus" AS ENUM ('UNDER_CONSTRUCTION', 'COMPLETE', 'DAMAGED', 'RUINED');
+CREATE TYPE "StructureStatus" AS ENUM ('UNDER_CONSTRUCTION', 'COMPLETE', 'DAMAGED', 'RUINED', 'ABANDONED');
 
 -- AlterEnum
 ALTER TYPE "RequestType" ADD VALUE 'BUILD_STRUCTURE';
@@ -28,8 +28,6 @@ CREATE TABLE "Structure" (
     "status" "StructureStatus" NOT NULL DEFAULT 'UNDER_CONSTRUCTION',
     "turnsNeeded" INTEGER NOT NULL,
     "turnsDone" INTEGER NOT NULL DEFAULT 0,
-    "hp" INTEGER NOT NULL,
-    "maxHp" INTEGER NOT NULL,
     "resourcesCost" INTEGER NOT NULL DEFAULT 0,
     "payerKey" TEXT,
     "payerName" TEXT,

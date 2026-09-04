@@ -3771,7 +3771,6 @@ tags:
       resourceCost: 6
       gambit: false
     placement:
-      hp: 1
       fieldwork: true
       examine: "A wayside shrine stands here. ‡"
 
@@ -3787,12 +3786,14 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
+      # The plan priced this at 1 crew-turn; it ships at 2 so the catalog has
+      # a real crew build to exercise before the Palisade lands. Reprice at
+      # will — it is one number here.
       turnsCost: 2
       resourceCost: 6
       skills: [builder-skilled]
       gambit: false
     placement:
-      hp: 2
       fieldwork: true
       examine: "Drying racks stand here, lines strung for the catch. ‡"
       laborBonus: { kind: hunting, amount: 1 }

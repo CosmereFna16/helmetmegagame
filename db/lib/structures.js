@@ -28,7 +28,6 @@ function placementOf(tag) {
   const p = tag?.placement;
   if (!p || typeof p !== "object") return null;
   return {
-    hp: p.hp,
     unique: p.unique !== false,
     fieldwork: p.fieldwork === true,
     examine: typeof p.examine === "string" ? p.examine : null,
@@ -48,7 +47,9 @@ async function structuresAt(prisma, locationId, { statuses = null } = {}) {
   if (!locationId) return [];
   const rows = await prisma.structure.findMany({
     where: { locationId, ...(statuses ? { status: { in: statuses } } : {}) },
-    orderBy: { createdAt: "asc" },
+    // The id tiebreaker keeps two same-instant rows in one stable order —
+    // Examine and the desk must never disagree about which came first.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
   if (!rows.length) return [];
   const types = await prisma.tag.findMany({
@@ -97,10 +98,18 @@ function statusWord(status) {
       return "damaged";
     case "RUINED":
       return "a ruin";
+    case "ABANDONED":
+      return "abandoned groundwork";
     default:
       return String(status ?? "").toLowerCase();
   }
 }
+
+// The statuses that OCCUPY the ground for the one-per-place rule: a wreck —
+// RUINED or ABANDONED — never blocks raising the same type again. Shared so
+// the server's refusal (openBuildSiteImpl) and the Craft menu's filter
+// (web/lib/tagRequests.js#placementOfferedHere) can never drift apart.
+const PRESENT_STATUSES = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
 
 // --- The lines a site speaks -------------------------------------------
 //
@@ -153,6 +162,7 @@ async function stakeholderCharacterIds(prisma, structureId, { except = null, pay
 
 module.exports = {
   STRUCTURE_GROUP_SLUG,
+  PRESENT_STATUSES,
   placementOf,
   structuresAt,
   canBuildHere,

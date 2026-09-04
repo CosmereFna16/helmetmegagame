@@ -32,6 +32,10 @@ export const REQUEST_TYPE_LABELS = {
   ENGRAVE_HEADSTONE: "Engrave ‡",
   BIRD_MESSAGE: "Bird Message",
   BUILD_STRUCTURE: "Build ‡",
+  // Declared in the enum ahead of use (the building migration); nothing
+  // files one until milestone C's damage tools. The label lands with the
+  // value so a first row never renders as a raw enum.
+  DAMAGE_STRUCTURE: "Damage Structure ‡",
   DEPOT_BUY: "Depot Purchase",
   DEPOT_SELL: "Depot Sale",
   DEPOT_CREDIT: "Depot Credit",

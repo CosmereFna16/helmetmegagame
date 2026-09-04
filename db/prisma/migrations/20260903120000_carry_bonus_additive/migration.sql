@@ -16,8 +16,17 @@
 -- 20260910020000_carry_bonus_additive_resorted (a twin with the same guard,
 -- dated after room_stash_carry) does the rename where this one skipped it.
 -- Exactly one of the two ever fires. `migrate deploy` never re-reads an
--- applied migration's contents, so environments that already ran the
--- original are unaffected by this edit.
+-- applied migration's contents (verified against Prisma's own build:
+-- MigrateDeploy only lists directories and applies the unapplied ones), so
+-- production is unaffected by this edit. `migrate dev` is the one that
+-- notices: it checksums applied migrations, so any OTHER dev database that
+-- ran the original file will report this one as modified and offer a full
+-- reset. NEVER accept that reset. Either recreate the throwaway dev DB, or
+-- repair the recorded checksum in place:
+--   UPDATE "_prisma_migrations"
+--   SET checksum = '<sha256 hex of this file>'
+--   WHERE migration_name = '20260903120000_carry_bonus_additive';
+-- (sha256 of the file's exact bytes, e.g. `sha256sum` over it.)
 DO $$
 BEGIN
   IF EXISTS (

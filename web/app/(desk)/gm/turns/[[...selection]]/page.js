@@ -292,7 +292,9 @@ export default async function TurnsWorkspacePage({ params }) {
   const structureRows = moveLocationIds.length
     ? await prisma.structure.findMany({
         where: { locationId: { in: moveLocationIds } },
-        orderBy: { createdAt: "asc" },
+        // The id tiebreaker keeps two same-instant rows in one stable order,
+        // matching structuresAt.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       })
     : [];
   const structureTypeSlugs = [...new Set(structureRows.map((s) => s.typeSlug))];
@@ -389,6 +391,8 @@ export default async function TurnsWorkspacePage({ params }) {
       ]);
       initialHistory = {
         turnId: past.turnId,
+        // No structuresByLocationId, deliberately: a past Move under today's
+        // ground would lie, and the history desk shows no Standing-here line.
         move: moveRow(past, { usernameById, now }),
         effects: pastEffects.map((e) => stagedEffectRow(e, effectCtx)),
         messages: pastMessages.map((m) => stagedMessageRow(m, messageCtx)),

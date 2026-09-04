@@ -55,8 +55,10 @@ export default function CraftDialog({
   const qty = Math.max(1, Number(quantity) || 1);
   const cost = (chosen?.requirementResources ?? 0) * (chosen?.stackable ? qty : 1);
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
-  // sees it before committing; craftRequest re-checks it regardless.
-  const wantsWorkshop = chosen ? needsWorkshop(chosen) : false;
+  // sees it before committing; craftRequest re-checks it regardless — and
+  // grants the same fieldwork exemption the server does, or the hint would
+  // warn about a kit a drying rack never needed.
+  const wantsWorkshop = chosen ? needsWorkshop(chosen) && !chosen.placement?.fieldwork : false;
 
   return (
     <>
@@ -188,7 +190,12 @@ export default function CraftDialog({
                     : "Dead Simple: no Move needed, up to 4 a turn. ‡"
                   : turns === 1
                     ? "One turn of work — this is your Move for the turn. ‡"
-                    : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}
+                    : chosen.placement
+                      ? // The crew-turns pitch, said at the point of decision:
+                        // a build site is anybody's to advance, which is the
+                        // one way it differs from a project of your own.
+                        `${turns} turns of work, and not necessarily yours alone: anyone standing at the site can put their Move into it. This turn is the first. ‡`
+                      : `${turns} turns of work. This turn is the first; come back here to continue. ‡`}
                 {cost > 0 ? ` Costs ${cost} ⬢, paid now. ‡` : " Costs nothing. ‡"}
                 {turns > 0 && hasMoved ? " You've already used your Move this turn. ‡" : ""}
               </p>

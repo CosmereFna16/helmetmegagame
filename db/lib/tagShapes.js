@@ -238,9 +238,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (typeof raw !== "object" || Array.isArray(raw)) {
     throw new Error(`${label}: placement must be a mapping`);
   }
-  const hp = Number(raw.hp);
-  if (!Number.isInteger(hp) || hp < 1) {
-    throw new Error(`${label}: placement.hp must be a positive integer`);
+  // No hp key, deliberately: structure condition is the status enum and the
+  // words printed from it, never a numeric pool (the plan cut HP on purpose).
+  if (raw.hp != null) {
+    throw new Error(`${label}: placement.hp is not a thing — condition is status words, not a pool`);
   }
   if (raw.unique != null && typeof raw.unique !== "boolean") {
     throw new Error(`${label}: placement.unique must be a boolean`);
@@ -276,7 +277,6 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     laborBonus = { kind, amount };
   }
   return {
-    hp,
     unique: raw.unique !== false,
     fieldwork: raw.fieldwork === true,
     examine: raw.examine ?? null,
@@ -317,6 +317,14 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
     if (!knownSlugs.has(provided)) {
       throw new Error(`${label}: tag "${slug}" placement.provides references unknown tag "${provided}"`);
     }
+  }
+  // A 0-turn placement would be born finished with turnsDone above
+  // turnsNeeded — a build takes at least one crew-turn, always.
+  const turns = tag.requirement?.turnsCost ?? 1;
+  if (!Number.isInteger(turns) || turns < 1) {
+    throw new Error(
+      `${label}: tag "${slug}" declares placement but requirement.turnsCost is ${tag.requirement?.turnsCost} — a structure takes at least 1 crew-turn`,
+    );
   }
 }
 

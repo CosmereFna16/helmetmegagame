@@ -94,6 +94,7 @@ import {
   placementOf,
   structuresAt,
   canBuildHere,
+  PRESENT_STATUSES,
   siteOpenedLine,
   siteAdvancedLine,
   siteCompletedLine,
@@ -757,6 +758,25 @@ async function finishStructure(tx, { session, character, site, location, openTur
   return request;
 }
 
+// The one-per-place rule. The wreck statuses (RUINED, ABANDONED) are
+// deliberately absent from the list: clearing a wreck and raising a new one
+// on the same ground is what they are for. Runs twice per open, the Dead
+// Simple pattern: once before the transaction for a fast fail, and again
+// inside it under the Location row lock, since two tabs would otherwise
+// both read the same ground and both pass.
+async function refuseSameTypeHere(db, location, tag, placement) {
+  const standing = await structuresAt(db, location.id, {
+    statuses: PRESENT_STATUSES,
+  });
+  const sameType = standing.filter((s) => s.typeSlug === tag.slug);
+  if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) {
+    throw new UserError(`A ${tag.name} is already going up here — lend a hand to that one instead. ‡`);
+  }
+  if (placement.unique && sameType.length) {
+    throw new UserError(`There is already a ${tag.name} here. ‡`);
+  }
+}
+
 // Opening a site: the gates the recipe carries have already run in
 // craftRequestImpl. What is left is the GROUND, the one-per-place rule, and
 // the charge.
@@ -766,18 +786,7 @@ async function openBuildSiteImpl(character, session, tag, { payerKey, reason }) 
   const ground = canBuildHere(location);
   if (!ground.ok) throw new UserError(ground.reason);
 
-  // RUINED is deliberately absent from the list: clearing a wreck and raising
-  // a new one on the same ground is what that status is for.
-  const standing = await structuresAt(prisma, location.id, {
-    statuses: ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"],
-  });
-  const sameType = standing.filter((s) => s.typeSlug === tag.slug);
-  if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) {
-    throw new UserError(`A ${tag.name} is already going up here — lend a hand to that one instead. ‡`);
-  }
-  if (placement.unique && sameType.length) {
-    throw new UserError(`There is already a ${tag.name} here. ‡`);
-  }
+  await refuseSameTypeHere(prisma, location, tag, placement);
 
   // Always one. A structure is a place, not a stack.
   const cost = tag.requirementResources ?? 0;
@@ -789,6 +798,11 @@ async function openBuildSiteImpl(character, session, tag, { payerKey, reason }) 
   const done = turns <= 1;
   let structureId = null;
   await prisma.$transaction(async (tx) => {
+    // The ground was judged outside this transaction, so two tabs can both
+    // have passed. The Location row is the lock — every open here serialises
+    // on it — and the re-check against tx sees whatever the winner committed.
+    await tx.$queryRaw`SELECT "id" FROM "Location" WHERE "id" = ${location.id} FOR UPDATE`;
+    await refuseSameTypeHere(tx, location, tag, placement);
     if (cost) await moveResources(tx, payer, -cost);
     // A one-turn build is born finished: the row is created inside this
     // transaction, so nobody else can be racing for its completion and the
@@ -801,8 +815,6 @@ async function openBuildSiteImpl(character, session, tag, { payerKey, reason }) 
         status: done ? "COMPLETE" : "UNDER_CONSTRUCTION",
         turnsNeeded: turns,
         turnsDone: 1,
-        hp: done ? placement.hp : 0,
-        maxHp: placement.hp,
         resourcesCost: cost,
         payerKey: `${payer.kind}:${payer.id}`,
         payerName: payer.name,
@@ -922,9 +934,7 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
     // cannot both claim it.
     const claim = await tx.structure.updateMany({
       where: { id: site.id, status: "UNDER_CONSTRUCTION", turnsDone: site.turnsDone },
-      data: done
-        ? { turnsDone: next, status: "COMPLETE", hp: site.maxHp }
-        : { turnsDone: next },
+      data: done ? { turnsDone: next, status: "COMPLETE" } : { turnsDone: next },
     });
     if (claim.count === 0) throw new UserError("The work moved on without you — reload. ‡");
     if (done) {
@@ -978,6 +988,10 @@ async function joinBuildSiteImpl({ structureId, reason: rawReason }) {
 // Calling it off. The opener's alone to call, from anywhere — a builder who
 // walked away can still abandon their own site — and it keeps nothing: the ⬢
 // went into materials when the work began, cancelCraftImpl's rule.
+//
+// The plan says "opener or GM"; the GM half is deliberately not here. It
+// arrives with milestone C's Damage/Destroy surface, which subsumes it — a
+// GM pulling a site down is the same desk action as pulling a wall down.
 async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -997,10 +1011,12 @@ async function cancelBuildSiteImpl({ structureId, reason: rawReason }) {
 
   await prisma.$transaction(async (tx) => {
     // The status flip is the claim: a site somebody finished a moment ago
-    // must not be pulled down out from under them.
+    // must not be pulled down out from under them. ABANDONED, not RUINED —
+    // walked-away-from groundwork and wreckage something made are different
+    // events, and each status wears its own words.
     const claim = await tx.structure.updateMany({
       where: { id: site.id, status: "UNDER_CONSTRUCTION" },
-      data: { status: "RUINED" },
+      data: { status: "ABANDONED" },
     });
     if (claim.count === 0) throw new UserError("The work moved on without you — reload. ‡");
     await logRequest(tx, {

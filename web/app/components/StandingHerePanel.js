@@ -25,7 +25,8 @@ export default function StandingHerePanel({ sites = [] }) {
                 {" "}
                 ({s.turnsDone}/{s.turnsNeeded})
               </span>
-            ) : null}
+            ) : null}{" "}
+            ‡
           </li>
         ))}
       </ul>

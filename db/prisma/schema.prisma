@@ -1972,8 +1972,8 @@ model Tag {
   // pocket; there is deliberately no separate `placeable` boolean, because
   // a bare flag would still need somewhere to put the numbers.
   //
-  // Shape (all keys optional unless noted):
-  //   { hp: Int (required, > 0), unique: Bool (default true),
+  // Shape (all keys optional):
+  //   { unique: Bool (default true),
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
   //     laborBonus: { kind: "hunting"|"farming"|"fishing", amount: Int },
@@ -2747,8 +2747,10 @@ model Structure {
   turnsNeeded Int
   turnsDone   Int @default(0)
 
-  hp    Int
-  maxHp Int
+  // There is deliberately no hp pool. Condition is the status enum and the
+  // words each surface prints from it — the plan cut numeric HP on purpose,
+  // and turnsNeeded/turnsDone is already the effort axis if a later repair
+  // verb wants one.
 
   // Charged to the payer when the site opens, never refunded — the
   // CraftProject rule, and the same party-key snapshot shape.
@@ -2785,11 +2787,17 @@ model Structure {
   @@index([typeSlug])
 }
 
+// ABANDONED and RUINED are different events wearing different words: a site
+// its opener called off before completion reads as abandoned groundwork,
+// while RUINED is wreckage something made — demolition and sabotage (both
+// milestone C) write RUINED, cancel writes ABANDONED. Neither blocks a new
+// build of the same type, and both wait on C's GM Clear tool to be swept.
 enum StructureStatus {
   UNDER_CONSTRUCTION
   COMPLETE
   DAMAGED
   RUINED
+  ABANDONED
 }
 
 /// One character's one turn of work on one site. The unique index IS the

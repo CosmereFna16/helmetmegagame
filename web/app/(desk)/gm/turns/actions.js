@@ -791,12 +791,19 @@ async function resolveRequestImpl({ requestId, mode, edits = {}, gmNotes }) {
     let changed = false;
 
     if (mode === "undo") {
-      // Idempotent: undoing an already-undone request must not re-apply it.
-      if (request.status === "UNDONE") {
+      // Idempotent, and safe against two GMs clicking Undo at once: the
+      // status flip is a conditional claim, not a read-then-write. The loser
+      // blocks on the row lock, re-evaluates, matches nothing, and never runs
+      // the handler — so a refunding undo can only ever refund once.
+      const claim = await tx.request.updateMany({
+        where: { id: requestId, status: { not: "UNDONE" } },
+        data: { status: "UNDONE" },
+      });
+      status = "UNDONE";
+      if (claim.count === 0) {
         note = "Already undone — no changes made.";
       } else {
         note = (await handler.undo(tx, request, ctx)) ?? "Undone.";
-        status = "UNDONE";
       }
     } else {
       if (request.status === "UNDONE") throw new UserError("That request was already undone.");
@@ -1111,6 +1118,9 @@ async function getMoveHistoryImpl({ turnId }) {
   const now = new Date();
 
   return {
+    // structuresByLocationId is deliberately not passed: this lens shows a
+    // PAST turn, and today's ground under a months-old Move would lie. The
+    // history desk renders no Standing-here line, so nothing is missing it.
     moves: actions.map((a) => moveRow(a, { usernameById, now })),
     cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
     effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn })),

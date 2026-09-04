@@ -790,8 +790,9 @@ export const REQUEST_EFFECTS = {
   // DELETES the row rather than winding it back to UNDER_CONSTRUCTION: this
   // request records the completion, but a GM reversing a build is unwinding
   // the whole thing, not handing back a half-raised site nobody asked for.
-  // The mid-build turns survive as Actions a GM can Reject one at a time —
-  // the ADD_TAG precedent, whose undo leaves the auto-filed Routine spent.
+  // The crew's auto-filed Routines stay spent, deliberately — those Moves
+  // were really worked, the ADD_TAG precedent, and nothing here or on the
+  // desk hands one back.
   //
   // Nothing here touches LocationLink: no structure flips a link yet, and an
   // effect with no `linkId` must stay harmless when one does.
