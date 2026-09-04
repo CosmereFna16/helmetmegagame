@@ -655,7 +655,12 @@ zones:
               depot: true
             description: >-
               The merchant's depot: crates of a foreign design scattered around a decayed metal frame, light flowing forth, powered by their own basic generator. Everything imported into Ravenheart comes through this room, and the ledger that says so is the most valuable object in the caves. ‡
-            rooms: {}
+            rooms:
+              landing-pad:
+                name: Landing Pad
+                access: [depot-keycard]
+                description: >-
+                  A scorched circle of plating under a hatch in the rock, wide enough to set a shuttle down on and not one inch wider. Most days it holds nothing but the smell of burnt fuel. On the days it does hold something, the crates are stacked where they fell. ‡
           # map node 14
           caves-14:
             name: Caves 1

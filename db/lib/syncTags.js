@@ -267,6 +267,11 @@ async function syncTagsFromYaml(prisma) {
     if (t.sellablePrice != null && !t.sellable) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sellablePrice without sellable: true`);
     }
+    // Only a ware the station actually stocks can arrive in a crate at all, so
+    // sealing something the Depot does not sell is a typo rather than a rule.
+    if (t.sealedShipping && t.depotPrice == null) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealedShipping but has no depotPrice — the Depot does not stock it, so it can never ship`);
+    }
     // depotPrice is the buy side; carrying a price is what puts it on the shelf.
     if (t.depotPrice != null && !(Number.isInteger(t.depotPrice) && t.depotPrice > 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a depotPrice that is not a positive integer`);
@@ -401,6 +406,7 @@ async function syncTagsFromYaml(prisma) {
       sellable: entry.sellable ?? false,
       sellablePrice: entry.sellablePrice ?? null,
       depotPrice: entry.depotPrice ?? null,
+      sealedShipping: entry.sealedShipping ?? false,
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: entry.removable ?? false,
       craftable: entry.craftable ?? false,

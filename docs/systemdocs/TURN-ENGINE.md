@@ -525,3 +525,31 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 | `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
 | `bot/src/lib/moveConfirm.js` | Resolving a filed Move |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
+
+## The Depot pass
+
+`db/lib/depotPass.js`, registered in `TURN_PASSES` as `"depot"` and run **last**
+— after `lifewebDecay` — so the turret fires on the sheet every other pass left
+behind, in particular the armour the carry pass may have made somebody drop.
+
+It does three things:
+
+- **Generator burn.** `Depot.fuelBurnPerTurn` off `Depot.generatorFuel` while it
+  is running. Reaching zero switches `generatorOn` off, so the Merchant has to
+  deliberately restart it after refuelling rather than having it come back on
+  its own.
+- **Shuttle clock.** A `DOCKED` shuttle leaves on its own after
+  `Depot.shuttleMaxTurns`. A timed departure takes **nothing** with it — the
+  crates stay on the pad. Selling is a deliberate act.
+- **Turret sweep.** Everyone standing in the Depot whose presented name is not
+  `Depot.merchantFace` takes a roll. Only when the generator is running and the
+  turret is armed.
+
+Like every other pass it returns its side effects — `lines` (ambient lines the
+caller speaks into the Depot channel) and `dms` — rather than making a network
+call. The turret's **other** trigger is on arrival, in
+`db/lib/locationMove.js`, deliberately before that function's `DISCORD_TOKEN`
+guard: being shot is a database fact and must not depend on there being a token
+to announce it with.
+
+See `docs/systemdocs/DEPOT.md` §0c, §0d and §0f.

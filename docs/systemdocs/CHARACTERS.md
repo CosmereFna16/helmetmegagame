@@ -740,3 +740,18 @@ never deletes. See `SYNC.md`.
 | Dynasty | `db/lib/dynasty.js`, `web/lib/dynasty.js` |
 | Antagonist catalog | `db/lib/antagonists.js` |
 | Launch gating | `db/lib/roleIds.js`, `web/lib/superadmin.js` |
+
+## Starting obols
+
+A few seats begin the game with coin in their pocket, so the Merchant has
+somebody to trade with on turn one: Baron 5 ¢, Hand 2 ¢, Esculap 2 ¢, and
+Baroness, Heir and Meister 1 ¢ each. The Merchant starts with 20 ¢ and a Depot
+Keycard; every Docker starts with a Keycard.
+
+These are authored in `docs/roles.yaml` with a **count suffix** —
+`- Obol x5` — parsed by `db/lib/startingTags.js`. A bare name still means one,
+which is every other entry in every other role. Repeating the name five times
+could not work: `createCharacter` resolves the list with `name: { in: [...] }`,
+a set lookup that collapses duplicates.
+
+See `docs/systemdocs/DEPOT.md` §0g.

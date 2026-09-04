@@ -1,6 +1,6 @@
 import SubmitButton from "@/app/components/SubmitButton";
 import { redirect } from "next/navigation";
-import { prisma } from "@lifeweb/db";
+import { prisma, loadDepot, turretTable } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
@@ -9,6 +9,7 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { antagonistNames } from "@/lib/antagonists";
 import {
   updateGameConfig,
+  updateDepot,
   updateCurrentTurn,
   updateNextTurn,
   runDoctorAction,
@@ -17,7 +18,7 @@ import {
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import AntagonistRosterButton from "@/app/(app)/gm/dev/AntagonistRosterButton";
-import { CONFIG_HELP } from "@/app/(app)/gm/dev/devHelp";
+import { CONFIG_HELP, DEPOT_HELP } from "@/app/(app)/gm/dev/devHelp";
 import DeskHeader from "@/app/components/DeskHeader";
 import OpsNav from "./OpsNav";
 import Switch from "@/app/components/Switch";
@@ -33,7 +34,23 @@ const WEATHER_OPTIONS = [
   { value: "STORM", label: "Storm" },
 ];
 
-const SECTIONS = new Set(["turn", "config", "move", "reports", "antagonists", "danger"]);
+// Eight numeric Depot knobs share one shape, so they share one component
+// rather than eight copies of the same six lines.
+function DepotField({ name, label, value, help }) {
+  return (
+    <div className="field">
+      <span className="flex items-center gap-2">
+        <label htmlFor={`depot-${name}`} className="field-label">
+          {label}
+        </label>
+        <InfoIcon text={help} />
+      </span>
+      <input type="number" id={`depot-${name}`} name={name} min="0" defaultValue={value} />
+    </div>
+  );
+}
+
+const SECTIONS = new Set(["turn", "config", "depot", "move", "reports", "antagonists", "danger"]);
 
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
@@ -69,10 +86,11 @@ export default async function DevPanelPage({ searchParams }) {
 
   // Always fetched: the header needs the open turn regardless of section,
   // and the turn section derives day/phase/weather from the same rows.
-  const [config, openTurnRecord, lastTurn] = await Promise.all([
+  const [config, openTurnRecord, lastTurn, depot] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     getOpenTurn(),
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
+    loadDepot(prisma),
   ]);
 
   const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
@@ -476,6 +494,127 @@ export default async function DevPanelPage({ searchParams }) {
 
                 <div className="ops-actions">
                   <SubmitButton pendingLabel="Saving…">Save config</SubmitButton>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
+          {section === "depot" ? (
+            <section className="ops-section">
+              <div className="ops-section-head">
+                <h2 className="section-title">The Depot</h2>
+              </div>
+              <p className="ops-lede">
+                The Merchant&apos;s station. The top half is live state you can override; the bottom
+                half is the tuning the game runs on. The turret&apos;s severity table is edited as JSON
+                — every column has to sum to 1 or the save is refused. ‡
+              </p>
+              <form action={updateDepot} className="flex flex-col gap-4">
+                <div className="ops-grid">
+                  <DepotField
+                    name="accountObols"
+                    label="Account (¢)"
+                    value={depot.accountObols}
+                    help={DEPOT_HELP.accountObols}
+                  />
+                  <DepotField
+                    name="debtObols"
+                    label="Drawn on the line (¢)"
+                    value={depot.debtObols}
+                    help={DEPOT_HELP.debtObols}
+                  />
+                  <DepotField
+                    name="generatorFuel"
+                    label="Fuel in the tank"
+                    value={depot.generatorFuel}
+                    help={DEPOT_HELP.generatorFuel}
+                  />
+                  <div className="field">
+                    <span className="flex items-center gap-2">
+                      <label htmlFor="depot-merchantFace" className="field-label">
+                        Face the turret spares
+                      </label>
+                      <InfoIcon text={DEPOT_HELP.merchantFace} />
+                    </span>
+                    <input
+                      type="text"
+                      id="depot-merchantFace"
+                      name="merchantFace"
+                      defaultValue={depot.merchantFace}
+                      placeholder="The Merchant's name"
+                    />
+                  </div>
+                </div>
+
+                <div className="ops-toggles">
+                  <div className="ops-toggle">
+                    <Switch name="generatorOn" defaultChecked={depot.generatorOn}>
+                      Generator running
+                    </Switch>
+                    <InfoIcon text={DEPOT_HELP.generatorOn} />
+                  </div>
+                  <div className="ops-toggle">
+                    <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
+                      Turret armed
+                    </Switch>
+                    <InfoIcon text={DEPOT_HELP.turretArmed} />
+                  </div>
+                </div>
+
+                <div className="ops-grid">
+                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} help={DEPOT_HELP.fuelMax} />
+                  <DepotField
+                    name="fuelBurnPerTurn"
+                    label="Fuel burned per turn"
+                    value={depot.fuelBurnPerTurn}
+                    help={DEPOT_HELP.fuelBurnPerTurn}
+                  />
+                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} help={DEPOT_HELP.coalFuel} />
+                  <DepotField
+                    name="saltpeterFuel"
+                    label="Fuel per Saltpeter"
+                    value={depot.saltpeterFuel}
+                    help={DEPOT_HELP.saltpeterFuel}
+                  />
+                  <DepotField
+                    name="shuttleMaxTurns"
+                    label="Shuttle stays (turns)"
+                    value={depot.shuttleMaxTurns}
+                    help={DEPOT_HELP.shuttleMaxTurns}
+                  />
+                  <DepotField
+                    name="shuttleCooldown"
+                    label="Shuttle cooldown (turns)"
+                    value={depot.shuttleCooldown}
+                    help={DEPOT_HELP.shuttleCooldown}
+                  />
+                  <DepotField
+                    name="creditCapObols"
+                    label="Credit cap (¢)"
+                    value={depot.creditCapObols}
+                    help={DEPOT_HELP.creditCapObols}
+                  />
+                  <DepotField name="obolRate" label="⬢ per obol" value={depot.obolRate} help={DEPOT_HELP.obolRate} />
+                </div>
+
+                <div className="field">
+                  <span className="flex items-center gap-2">
+                    <label htmlFor="depot-turretTable" className="field-label">
+                      Turret severity table
+                    </label>
+                    <InfoIcon text={DEPOT_HELP.turretTable} />
+                  </span>
+                  <textarea
+                    id="depot-turretTable"
+                    name="turretTable"
+                    rows={12}
+                    className="mono"
+                    defaultValue={JSON.stringify(turretTable(depot), null, 2)}
+                  />
+                </div>
+
+                <div className="ops-actions">
+                  <SubmitButton pendingLabel="Saving…">Save the Depot</SubmitButton>
                 </div>
               </form>
             </section>

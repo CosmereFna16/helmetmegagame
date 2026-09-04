@@ -1614,3 +1614,27 @@ SELECT id FROM "Character" ... FOR UPDATE
 
 which serializes equips per character. Without it, a burst of 8 concurrent
 equips all land against a cap of 6 (verified).
+
+## Depot tags: obols, crates and sealed shipping
+
+Three things the Depot rework added to the catalog.
+
+**`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,
+`visible: false`. One obol is worth `Depot.obolRate` ⬢ (5) and only at the
+Depot; everywhere else it is a coin nobody will take. It has no `pointCost` and
+is not purchasable — the only door it enters the world through is the Depot's
+ATM.
+
+**`sealedShipping: true`** — a ware that arrives in a crate printing no
+manifest, openable only with a `depot-keycard`. Authored rather than guessed
+from the category, because "dangerous" is a judgement about the fiction. The
+sync refuses it on a tag with no `depotPrice`: the station cannot ship what it
+does not stock.
+
+**Crates** are not in `docs/tags.yaml` at all. They are `Tag` rows minted at
+runtime by `db/lib/depotCrates.js` with `custom: true`, one per crate, carrying
+their contents in `Tag.crateContents` and their manifest in `description`.
+`db:prune-tags` skips custom rows, so they survive a prune; the row is deleted
+once nothing references it any more.
+
+See `docs/systemdocs/DEPOT.md` §0e.

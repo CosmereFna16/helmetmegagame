@@ -22,6 +22,8 @@ const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runDawnWipe } = require("./lib/dawnWipe");
 const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
+const { runDepotPass } = require("./lib/depotPass");
+const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
@@ -157,6 +159,11 @@ const TURN_PASSES = [
   // writes is what the next turn's labor is worth.
   "laborYield",
   "lifewebDecay",
+  // The Depot's hardware: the generator burns a turn of fuel, the shuttle's
+  // six-turn clock runs out, and the turret sweeps whoever is standing in the
+  // room. Last, so the turret fires on the sheet everything else left behind —
+  // in particular the armour the carry pass may have made someone drop.
+  "depot",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -514,6 +521,34 @@ async function resolveNeeds(turn, config) {
     lifewebBlood = fresh?.lifewebBlood ?? lifewebBlood;
   }
 
+  // The Depot's hardware. Returns the ambient lines and DMs it owes rather
+  // than speaking them — see TURN-ENGINE.md §3.
+  let depot = null;
+  if (!done.has("depot")) {
+    depot = await runDepotPass(prisma, turn).catch(async (err) => {
+      await passFailed("Depot", err);
+      return null;
+    });
+    if (depot) await markDone("depot");
+  }
+  if (depot && (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "depot_resolved",
+          details: {
+            fuelBurned: depot.fuelBurned,
+            generatorDied: depot.generatorDied,
+            shuttleDeparted: depot.shuttleDeparted,
+            turretShots: depot.turretShots,
+            turretOutcomes: depot.turretOutcomes,
+          },
+        },
+      })
+      .catch((err) => console.error("Depot audit log failed:", err));
+  }
+
   // needsResolvedAt is the sole selector for advanceTurn()'s resume query,
   // so it's only stamped once every pass in TURN_PASSES has run.
   const outstanding = TURN_PASSES.filter((name) => !done.has(name));
@@ -552,6 +587,9 @@ async function resolveNeeds(turn, config) {
     zoneMoves,
     routineNotices,
     gambitRollNotices,
+    depotLines: depot?.lines ?? [],
+    depotDms: depot?.dms ?? [],
+    depotLocationId: depot?.locationId ?? null,
   };
 }
 
@@ -578,6 +616,9 @@ async function advanceTurn() {
   let autoLaborDms = [];
   let lessonDms = [];
   let tagExpiryDms = [];
+  let depotLines = [];
+  let depotDms = [];
+  let depotLocationId = null;
   let catatonicDms = [];
   let catatonicRoleUpdates = [];
   let catatonicDeaths = [];
@@ -611,7 +652,7 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+    ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, depotDms, depotLocationId } =
       await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
@@ -661,7 +702,7 @@ async function advanceTurn() {
           },
         })
         .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices } =
+      ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, depotDms, depotLocationId } =
         await resolveNeeds(unfinished, config));
     }
   }
@@ -744,6 +785,28 @@ async function advanceTurn() {
     for (const dm of tagExpiryDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // The Depot's hardware, speaking for itself: the generator dying and the
+    // shuttle leaving on its own clock are both things the room witnesses.
+    if (depotLocationId && depotLines.length) {
+      const depotLocation = await prisma.location
+        .findUnique({ where: { id: depotLocationId }, select: { discordChannelId: true } })
+        .catch(() => null);
+      if (depotLocation?.discordChannelId) {
+        for (const line of depotLines) {
+          await postMessage(
+            depotLocation.discordChannelId,
+            ambientLine(line.text, [], { signed: line.signed }),
+          ).catch((err) => console.error("Depot ambient line failed:", err));
+        }
+      }
+    }
+
+    for (const dm of depotDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Depot turret DM to ${dm.discordUserId} failed:`, err),
       );
     }
 
@@ -1008,6 +1071,10 @@ module.exports = {
   ...require("./lib/roleCapacity"),
   ...require("./lib/production"),
   ...require("./lib/depot"),
+  ...require("./lib/depotState"),
+  ...require("./lib/depotTurret"),
+  ...require("./lib/depotCrates"),
+  ...require("./lib/startingTags"),
   ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),
   ...require("./lib/turnFormat"),

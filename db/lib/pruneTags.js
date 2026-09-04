@@ -8,6 +8,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
+const { startingTagNames } = require("./startingTags");
 const { entriesOf } = require("./yamlEntries");
 
 // Fatal if docs/ can't be found — a missing master would read as "everything
@@ -33,7 +34,10 @@ function yamlGroupSlugs() {
 // Every reason a Tag row must survive, gathered in one pass.
 //
 // Role.startingTagSlugs is misnamed and actually stores names (see
-// `startingTagNames` in syncRoles.js). Document.tagSlugs stores real slugs.
+// `startingTagNames` in syncRoles.js), and an entry may carry a count
+// ("Obol x5"), so it goes through the shared parser rather than being read
+// raw — otherwise a tag only ever granted with a count reads as unreferenced
+// and gets pruned. Document.tagSlugs stores real slugs.
 // expiresInto entries are a bare slug or { oneOf: [slug, slug] }.
 function expiresIntoSlugs(entries) {
   if (!Array.isArray(entries)) return [];
@@ -103,7 +107,7 @@ async function collectReferences(prisma, liveGroupSlugs) {
     requiredBy: required.map((t) => ({ sourceId: t.id, target: t.requiredTagId })),
     gates: new Set(groupGates.map((g) => g.requiredTagId)),
     skillOf: skills.flatMap((t) => from(t.id, t.requirementSkills.map((s) => s.id))),
-    roleStartingNames: new Set(roles.flatMap((r) => r.startingTagSlugs)),
+    roleStartingNames: new Set(roles.flatMap((r) => startingTagNames(r.startingTagSlugs))),
     documentSlugs: new Set(documents.flatMap((d) => d.tagSlugs)),
     conflictIds: conflicts.flatMap((t) =>
       from(t.id, [...t.conflictsWith.map((c) => c.id), ...t.conflictedBy.map((c) => c.id)]),

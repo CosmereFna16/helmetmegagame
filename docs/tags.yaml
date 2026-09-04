@@ -4414,6 +4414,7 @@ tags:
     sellable: true
     sellablePrice: 72
     depotPrice: 164
+    sealedShipping: true
 
   #Cave weapons
   cracked-bone-club:
@@ -5530,6 +5531,7 @@ tags:
     sellable: true
     sellablePrice: 104
     depotPrice: 237
+    sealedShipping: true
 
   dark-eye-lenses:
     name: Dark-Eye Lenses
@@ -5738,7 +5740,24 @@ tags:
     name: Merchant's License
     category: items
     group: items-special
-    description: "It bears the Merchant's face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to use the Depot or call down the Merchant's supply ship: a quick escape route. Additionally, whoever holds this won't be shot at by the Depot's mini-turret. The poor Dockers will, though."
+    description: "It bears the Merchant's name and face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to run the Depot: the account, the generator, the shuttle, the turret. Be careful with that last one. It does not read this card. It reads faces, and the only face it will not fire on is the one printed here. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  # What gets a Docker onto the landing pad and into a sealed crate. Access to
+  # the room is handled entirely by Room.accessTagSlugs — see the landing-pad
+  # entry in docs/zones.yaml — so this tag has no code of its own behind it.
+  # It is emphatically NOT what the turret reads.
+  depot-keycard:
+    name: Depot Keycard
+    category: items
+    group: items-special
+    description: "A worn plastic card on a lanyard. It opens the hangar door and the sealed crates, and it will not stop a single bullet from the thing in the ceiling. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6142,6 +6161,7 @@ tags:
     description: "A bulletproof vest and pad combination. Nothing forged in Ravenheart comes close, and nothing forged in Ravenheart stops a bullet."
     pointCost: 0
     depotPrice: 41
+    sealedShipping: true
     sellable: true
     sellablePrice: 18
     tradeable: true
@@ -6191,6 +6211,7 @@ tags:
     description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
     pointCost: 0
     depotPrice: 55
+    sealedShipping: true
     sellable: true
     sellablePrice: 24
     tradeable: true
@@ -6210,6 +6231,7 @@ tags:
     description: "Let them go wherever you like—they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
     pointCost: 0
     depotPrice: 64
+    sealedShipping: true
     sellable: true
     sellablePrice: 28
     tradeable: true
@@ -6229,6 +6251,7 @@ tags:
     description: "Creates an illusion up to human size. It lasts as long as you want."
     pointCost: 0
     depotPrice: 73
+    sealedShipping: true
     sellable: true
     sellablePrice: 32
     tradeable: true
@@ -6245,6 +6268,7 @@ tags:
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
     depotPrice: 91
+    sealedShipping: true
     sellable: true
     sellablePrice: 40
     tradeable: true
@@ -6301,6 +6325,7 @@ tags:
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     depotPrice: 182
+    sealedShipping: true
     sellable: true
     sellablePrice: 80
     tradeable: true
@@ -6635,6 +6660,7 @@ tags:
     sellable: true
     sellablePrice: 20
     depotPrice: 36
+    sealedShipping: true
 
   advanced-poppy:
     name: Advanced Poppy

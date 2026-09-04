@@ -135,6 +135,7 @@ zones:
               - Sabre
               - Literate
               - Courtier
+              - Obol x5
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -162,6 +163,7 @@ zones:
               - Nobility
               - Jewelry
               - Literate
+              - Obol
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -187,6 +189,7 @@ zones:
               - Courtier
               - Nobility
               - Literate
+              - Obol
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -249,6 +252,7 @@ zones:
               - Literate
               - Hand's Pin
               - Elevator Key
+              - Obol x2
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -285,6 +289,7 @@ zones:
               - Medical (Basic)
               - Literate
               - Bird
+              - Obol
             doc_elements:
               - courtstructure
               - lifewebbasic
@@ -639,6 +644,7 @@ zones:
               - Brewing (Skilled)
               - Literate
               - Esculap's Vest
+              - Obol x2
             doc_elements:
               - townstarting
               - medical
@@ -1153,11 +1159,11 @@ zones:
               - >-
                 Its poor souls are a great source of business, but Ravenheart is a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
               - >-
-                Your Depot sits in the Customs, down inside the Caverns: a shuttle with a hangar door up in the ceiling. Your License opens it. There's a mini-turret, almost always off. It won't shoot you, but it'll shoot anyone else, including the Dockers.
+                Your Depot sits in the Customs, down inside the Caverns: a hangar door up in the ceiling and a shuttle you call down through it. Your Licence runs the place. There's a mini-turret, almost always off, and it does not read papers — it reads faces. It will not fire on yours. It will fire on everyone else's, including your Dockers, and including you if you are wearing somebody else's. ‡
               - >-
-                You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
+                You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. ‡ You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
-                The Company will advance you up to 60 ⬢ against the business. Your license will be revoked if you fail to pay it.
+                The Company will advance you up to 60 ¢ against the business. Your licence will be revoked if you fail to pay it. ‡
               - >-
                 Try your hand at usury. Lend at high rates and call on your Dockers to collect. That's probably the easiest way to make serious bucks.
               - >-
@@ -1172,6 +1178,8 @@ zones:
               - Literate
               - Merchant's Garb
               - Merchant's License
+              - Depot Keycard
+              - Obol x20
             doc_elements:
               - townstarting
           docker:
@@ -1184,13 +1192,14 @@ zones:
               - >-
                 You are the legs of his business. The Depot is at the bottom of the Caves and his customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe him. That is also you.
               - >-
-                One warning about the Depot: the mini-turret only recognises the Merchant's Licence. He has one. You do not.
+                One warning about the Depot: the mini-turret does not recognise your keycard, or anybody's. It recognises the Merchant's face. Yours is not his. ‡
             difficulty: easy
             multiple: true
             weight: 2
             starting_resources: 1
             starting_zone: caves
-            starting_tags: []
+            starting_tags:
+              - Depot Keycard
             doc_elements:
               - townstarting
               - merchant

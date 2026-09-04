@@ -28,6 +28,7 @@ import {
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
+import { validateTurretTable } from "@lifeweb/db/lib/depotTurret";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 
 async function requireSuperadmin() {
@@ -109,6 +110,69 @@ export async function updateGameConfig(formData) {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
   revalidatePath("/store");
+}
+
+// The Depot's live state and its tuning, in one flat clamped allowlist —
+// the same shape updateGameConfig uses, and for the same reason: a loop over
+// formData keys would let a hand-posted field write a column nobody meant to
+// expose.
+//
+// The turret table is the one field that can be REJECTED rather than clamped.
+// A column that does not sum to 1 is not a preference, it is a broken die, and
+// silently normalising it would hide a GM's typo behind subtly wrong odds for
+// a month. validateTurretTable throws; the action swallows it into a returned
+// error so the form can say so.
+export async function updateDepot(formData) {
+  await requireSuperadmin();
+
+  let turretTable;
+  const raw = str(formData, "turretTable");
+  if (raw) {
+    try {
+      turretTable = JSON.parse(raw);
+    } catch {
+      return { error: "The turret table is not valid JSON." };
+    }
+    try {
+      validateTurretTable(turretTable);
+    } catch (err) {
+      return { error: err.message };
+    }
+  }
+
+  const fuelMax = Math.max(1, intOrZero(formData, "fuelMax"));
+
+  await prisma.depot.upsert({
+    where: { id: 1 },
+    create: { id: 1 },
+    update: {
+      // Live state.
+      accountObols: Math.max(0, intOrZero(formData, "accountObols")),
+      debtObols: Math.max(0, intOrZero(formData, "debtObols")),
+      // Clamped to the tank the GM is saving in the same submit, not the one
+      // that was there before — otherwise raising both at once silently loses
+      // the fuel.
+      generatorFuel: Math.max(0, Math.min(fuelMax, intOrZero(formData, "generatorFuel"))),
+      merchantFace: str(formData, "merchantFace"),
+      generatorOn: formData.get("generatorOn") === "on",
+      turretArmed: formData.get("turretArmed") === "on",
+
+      // Tuning.
+      fuelMax,
+      fuelBurnPerTurn: Math.max(0, intOrZero(formData, "fuelBurnPerTurn")),
+      coalFuel: Math.max(0, intOrZero(formData, "coalFuel")),
+      saltpeterFuel: Math.max(0, intOrZero(formData, "saltpeterFuel")),
+      shuttleMaxTurns: Math.max(1, intOrZero(formData, "shuttleMaxTurns")),
+      shuttleCooldown: Math.max(0, intOrZero(formData, "shuttleCooldown")),
+      creditCapObols: Math.max(0, intOrZero(formData, "creditCapObols")),
+      // Never zero: the ⬢-to-obol conversion divides by it.
+      obolRate: Math.max(1, intOrZero(formData, "obolRate")),
+      ...(turretTable ? { turretTable } : {}),
+    },
+  });
+
+  revalidatePath("/gm/dev");
+  revalidatePath("/depot");
 }
 
 // A raw superadmin correction to the current turn's day/phase, not a

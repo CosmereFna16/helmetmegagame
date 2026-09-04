@@ -9,6 +9,7 @@ import {
   isDynastyHead,
   isDynastyMember,
   normalizeAntagonistSlugs,
+  parseStartingTag,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
@@ -166,9 +167,18 @@ export async function createCharacter(formData) {
     return { error: "One of those tags isn't available for purchase." };
   }
 
-  // Role tags come from the catalog by name (roles.yaml, validated by db:sync-roles).
-  const startingTags = role.startingTagSlugs.length
-    ? await prisma.tag.findMany({ where: { name: { in: role.startingTagSlugs } } })
+  // Role tags come from the catalog by name (roles.yaml, validated by
+  // db:sync-roles). An entry may carry a count — "Obol x5" — so the name is
+  // parsed out for the lookup and the count kept beside it. Repeating the name
+  // five times could not have worked: this is a `name: { in: [...] }` set
+  // lookup and would collapse the duplicates. See db/lib/startingTags.js.
+  const startingWanted = new Map();
+  for (const entry of role.startingTagSlugs) {
+    const { name, quantity } = parseStartingTag(entry);
+    startingWanted.set(name, (startingWanted.get(name) ?? 0) + quantity);
+  }
+  const startingTags = startingWanted.size
+    ? await prisma.tag.findMany({ where: { name: { in: [...startingWanted.keys()] } } })
     : [];
 
   // A word this character has no claim to lands as null, not a failed create.
@@ -279,12 +289,15 @@ export async function createCharacter(formData) {
   const tagIdsToGrant = new Map();
   for (const tag of startingTags) {
     const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
-    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn });
+    // A count only means anything on a stackable tag; asking for five of a
+    // non-stackable one still yields the one row CharacterTag allows.
+    const quantity = tag.stackable ? (startingWanted.get(tag.name) ?? 1) : 1;
+    tagIdsToGrant.set(tag.id, { source: "GM_GRANT", expiresTurn, quantity });
   }
   for (const tag of selected) {
     if (!tagIdsToGrant.has(tag.id)) {
       const expiresTurn = await expiryForGrant(prisma, tag, openTurn, { where: "createCharacter" });
-      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn });
+      tagIdsToGrant.set(tag.id, { source: "POINT_BUY", expiresTurn, quantity: 1 });
     }
     // A purchased higher tier replaces a role-granted lower tier of the same
     // chain — the discount above already paid for exactly one rung.
@@ -337,11 +350,12 @@ export async function createCharacter(formData) {
       });
 
       await tx.characterTag.createMany({
-        data: [...tagIdsToGrant].map(([tagId, { source, expiresTurn }]) => ({
+        data: [...tagIdsToGrant].map(([tagId, { source, expiresTurn, quantity }]) => ({
           characterId: character.id,
           tagId,
           source,
           expiresTurn,
+          quantity: quantity ?? 1,
         })),
       });
 

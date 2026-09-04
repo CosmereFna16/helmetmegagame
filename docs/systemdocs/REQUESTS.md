@@ -854,3 +854,23 @@ over the URL, so a filtered view stays linkable.
 | GM review rows | `web/app/(desk)/gm/turns/RequestSections.js`, `web/lib/requestLabels.js` |
 | Gambit roll + modifier | `bot/src/events/interactionCreate.js#handleMoveConfirm` |
 | Expiry sweep | `db/index.js#resolveNeeds` |
+
+## The Depot's request kinds
+
+Eight `DEPOT_*` types, all obol-denominated, all moving `Depot.accountObols`
+rather than anyone's `Character.resources`: the three original
+(`DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT`) plus `DEPOT_ORDER`, `DEPOT_SHIP`,
+`DEPOT_ATM`, `DEPOT_CRATE_OPEN` and `DEPOT_REFUEL`.
+
+**Two have no undo handler, deliberately.** `DEPOT_SHIP` and
+`DEPOT_CRATE_OPEN` are irreversible the way a sent Bird letter is: a shuttle
+that went up cannot be recalled and its cargo no longer exists to hand back,
+and an opened crate has scattered its contents into an inventory that has moved
+on. With no `REQUEST_EFFECTS` entry the rows stay visible on the desk and in
+the Depot's own Ledger — they simply cannot be undone, which is honest. A GM
+corrects one by hand.
+
+The rest follow the ordinary rule: `effect` snapshots what actually moved and
+undo reads only that. `DEPOT_ORDER` restores the manifest to the snapshot taken
+before it rather than subtracting its own lines, so a second order filed since
+is not silently thrown away.

@@ -61,7 +61,8 @@ const {
   KEYED_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
-const { describeLocation } = require("@lifeweb/db/lib/locationAttributes");
+const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
+const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
 const { ROOM_STORAGE_PREFIX, ROOM_INTERCOM_PREFIX } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -903,7 +904,27 @@ async function handleExamine(interaction, locationId) {
     ({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind) ?? null)}`,
   ).join(" | ");
 
-  const lines = [`» *${location.name}.*`, laborLine, ...describeLocation(location, { gates })];
+  // The Depot's machinery is live state, so it is loaded here and handed to
+  // describeLocation as ctx rather than being authored on the Location. Only
+  // for the one room that has any — every other place gets no depot ctx and
+  // prints no depot lines.
+  let depot = null;
+  if (hasAttribute(location, "depot")) {
+    const row = await loadDepot(prisma);
+    depot = {
+      generatorOn: row.generatorOn,
+      powered: depotPowered(row),
+      fuelTurnsLeft: fuelTurnsLeft(row),
+      turretArmed: row.turretArmed,
+      shuttleDocked: row.shuttleState === "DOCKED",
+    };
+  }
+
+  const lines = [
+    `» *${location.name}.*`,
+    laborLine,
+    ...describeLocation(location, { gates, depot }),
+  ];
   await respond(interaction, lines.join("\n"));
 }
 

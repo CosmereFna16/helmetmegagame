@@ -1,4 +1,4 @@
-import { bumpBlood } from "@lifeweb/db";
+import { bumpBlood, bumpAccount, OBOL_SLUG } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { UserError } from "@/lib/actionResult";
@@ -516,21 +516,84 @@ export const REQUEST_EFFECTS = {
     },
   },
 
+  // The Depot's money moved off the Merchant's sheet and onto the station's
+  // own row in the rework, so every undo below moves Depot.accountObols rather
+  // than Character.resources. All five read only `effect` — never live state —
+  // which is what lets them compose in any order (REQUESTS.md §2).
   DEPOT_CREDIT: {
     editableFields: [],
     async undo(tx, request) {
       const { direction, amount } = request.effect;
       const draw = direction === "DRAW";
-      await moveResources(tx, { kind: "character", id: request.characterId }, draw ? -amount : amount);
-      await tx.character.update({
-        where: { id: request.characterId },
-        data: { depotDebt: { [draw ? "decrement" : "increment"]: amount } },
+      await bumpAccount(tx, draw ? -amount : amount);
+      await tx.depot.update({
+        where: { id: 1 },
+        data: { debtObols: { [draw ? "decrement" : "increment"]: amount } },
       });
       return draw
-        ? `Called back the ${amount} ⬢ draw and cleared it off the tab.`
-        : `Re-advanced the ${amount} ⬢ repayment and put it back on the tab.`;
+        ? `Called back the ${amount} ¢ draw and cleared it off the tab.`
+        : `Re-advanced the ${amount} ¢ repayment and put it back on the tab.`;
     },
   },
+
+  DEPOT_ORDER: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { total, manifestBefore = [] } = request.effect;
+      // The manifest is restored to the exact snapshot taken before the order,
+      // not by subtracting these lines from whatever is on it now — a second
+      // order filed since would otherwise be silently thrown away.
+      await tx.depot.update({ where: { id: 1 }, data: { manifest: manifestBefore } });
+      await bumpAccount(tx, total);
+      return `Cancelled the order and refunded ${total} ¢.`;
+    },
+  },
+
+  DEPOT_ATM: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { direction, amount } = request.effect;
+      const withdrew = direction === "WITHDRAW";
+      const obol = await tx.tag.findUnique({ where: { slug: OBOL_SLUG } });
+      if (!obol) throw new UserError("The obol is not in the catalog, so this cannot be reversed.");
+      // Take the coins back FIRST on a withdrawal: if they have been spent
+      // this throws and rolls the whole undo back, rather than crediting the
+      // account for money that is still in somebody's pocket.
+      if (withdrew) await dropCharacterTag(tx, request.characterId, obol.id, amount);
+      else await addToStack(tx, request.characterId, obol.id, amount, { source: "EVENT", stackable: true });
+      await bumpAccount(tx, withdrew ? amount : -amount);
+      return withdrew
+        ? `Put ${amount} ¢ back in the account.`
+        : `Handed ${amount} ¢ back out of the account.`;
+    },
+  },
+
+  DEPOT_REFUEL: {
+    editableFields: [],
+    async undo(tx, request) {
+      const { slug, tagName, quantity, fuelBefore } = request.effect;
+      const fuelTag = await tx.tag.findUnique({ where: { slug } });
+      if (fuelTag) {
+        await addToStack(tx, request.characterId, fuelTag.id, quantity, {
+          source: "EVENT",
+          stackable: true,
+        });
+      }
+      // Restored to the snapshot rather than by subtracting what went in,
+      // because the burn pass has very likely moved it since.
+      await tx.depot.update({ where: { id: 1 }, data: { generatorFuel: fuelBefore } });
+      return `Pulled ${formatStack(tagName, quantity)} back out of the generator.`;
+    },
+  },
+
+  // Deliberately absent: DEPOT_SHIP and DEPOT_CRATE_OPEN.
+  //
+  // Both are irreversible in the way a sent DM is (BIRD.md). A shuttle that
+  // went up cannot be recalled, and its cargo no longer exists to hand back;
+  // a crate that was opened has had its contents scattered into an inventory
+  // that has moved on since. With no REQUEST_EFFECTS entry the rows are still
+  // visible in the Ledger and on the desk — they just cannot be undone, which
+  // is honest. A GM correcting one does it by hand.
 
   // `request.characterId` is the looter; `effect.targetCharacterId` the
   // person looted.

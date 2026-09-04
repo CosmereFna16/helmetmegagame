@@ -72,13 +72,47 @@ function gateLines(gates) {
     );
 }
 
+// The Depot's machinery, read off live state and handed over as ctx.depot —
+// { generatorOn, powered, fuelTurnsLeft, turretArmed, shuttleDocked }. The
+// caller loads it; this module stays Prisma-free.
+//
+// Standing in the room has to tell you what the web console tells the
+// Merchant. A turret you cannot see is a trap rather than a threat, and a
+// threat is the more interesting thing to walk into.
+function depotLines(ctx = {}) {
+  const depot = ctx.depot;
+  if (!depot) return [];
+
+  const lines = [];
+  lines.push(
+    depot.powered
+      ? `The generator is running${depot.fuelTurnsLeft != null ? `, and sounds like it has about ${depot.fuelTurnsLeft} day${depot.fuelTurnsLeft === 1 ? "" : "s"} of coal in it` : ""}. ‡`
+      : "The generator is dead. Everything in here is dark and nothing works. ‡",
+  );
+  lines.push(
+    depot.shuttleDocked
+      ? "A shuttle sits on the landing pad, hold open. ‡"
+      : "The landing pad is empty. ‡",
+  );
+  // Only worth a line when it is a danger. A disarmed turret is a fixture, and
+  // saying so every time would train people to stop reading the line that
+  // matters.
+  if (depot.turretArmed && depot.powered) {
+    lines.push("Something in the ceiling tracks you across the room. ‡");
+  }
+  return lines;
+}
+
 // Everything true about where you stand, as prose lines. The labor readout is
 // NOT here: it is a fixed-order table of its own that predates this module
 // (db/lib/laborYield.js#qualityWord), and the caller prints it first.
 function describeLocation(location, ctx = {}) {
-  return [indoorsLine(location), ...authoredLines(location, ctx), ...gateLines(ctx.gates)].filter(
-    Boolean,
-  );
+  return [
+    indoorsLine(location),
+    ...authoredLines(location, ctx),
+    ...depotLines(ctx),
+    ...gateLines(ctx.gates),
+  ].filter(Boolean);
 }
 
 // Sync-side validation. Returns the attributes to store, pushing a problem for
@@ -109,6 +143,7 @@ function hasAttribute(location, key) {
 }
 
 module.exports = {
+  depotLines,
   ATTRIBUTES,
   authoredLines,
   indoorsLine,

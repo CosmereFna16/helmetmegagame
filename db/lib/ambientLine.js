@@ -18,9 +18,20 @@
 
 // `text` is the line itself; `lines` are quoted extras under it, which take a
 // `»` inside the subtext the way any restated content does.
-function ambientLine(text, lines = []) {
-  const body = [`-# ${text}`, ...lines.map((l) => `-# » ${l}`)];
-  return `${body.join("\n")} ‡`;
+// `signed: false` is for a line Bascinet wrote verbatim. The ‡ marks copy
+// Claude drafted and nobody has signed off yet (CLAUDE.md), so appending one
+// to Bascinet's own words says the opposite of what it means. Everything else
+// gets the mark, which is why it is the default — a caller has to opt out on
+// purpose, and only for a line it can point at in a brief.
+function ambientLine(text, lines = [], { signed = true } = {}) {
+  // `text` is SPLIT on newlines rather than assumed single-line: a two-line
+  // string would otherwise render its second half at full size — the exact
+  // mistake the header warns about, made by the helper that prevents it.
+  const body = [
+    ...String(text).split("\n").map((l) => `-# ${l}`),
+    ...lines.map((l) => `-# » ${l}`),
+  ];
+  return `${body.join("\n")}${signed ? " ‡" : ""}`;
 }
 
 module.exports = { ambientLine };

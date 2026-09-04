@@ -554,3 +554,18 @@ sequentially in `after()` and lands on a `BULK_MOVE` report.
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
 | The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |
+
+## The Depot section
+
+`/gm/dev?s=depot`. The Merchant's station, split into live state you can
+override (account, debt, fuel, the face the turret spares, the two switches)
+and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
+clock and cooldown, credit cap, ⬢-per-obol).
+
+The turret's severity table is edited as JSON, one weighted column per armour
+tier. **The save is refused if any column does not sum to 1** — a broken die is
+a typo, not a preference, and normalising it silently would hide the mistake
+behind subtly wrong odds for a month. `updateDepot` returns the error and the
+form says which column is wrong.
+
+See `docs/systemdocs/DEPOT.md` §0f for the shipped table.

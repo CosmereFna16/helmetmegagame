@@ -217,16 +217,37 @@ enum RequestType {
   // tag, whose catalog text is what this implements. See REQUESTS.md §5d.
   FAST_TRAVEL
 
-  // The Merchant's Depot, three halves of one counter (DEPOT.md). BUY and
-  // SELL are wholesale against the orbital station: Tag.depotPrice is what it
-  // charges him, Tag.sellablePrice what it pays him, and only the holder of
-  // `merchants-license` standing in Customs may file either. CREDIT draws or
-  // repays against the Company's 60 ⬢ line, tracked on Character.depotDebt.
-  // None of the three is GM-editable — a partial edit would desync ⬢ from
+  // The Merchant's Depot counter (DEPOT.md). BUY and SELL are wholesale
+  // against the orbital station: Tag.depotPrice is what it charges him,
+  // Tag.sellablePrice what it pays him, and only the holder of
+  // `merchants-license` standing at the Depot may file either. CREDIT draws or
+  // repays against the Company's line, tracked on Depot.debtObols. None of the
+  // three is GM-editable — a partial edit would desync the money from the
   // stock — so Undo is the only correction.
   DEPOT_BUY
   DEPOT_SELL
   DEPOT_CREDIT
+
+  // The Depot rework's five. Everything here is denominated in obols (¢), not
+  // ⬢, and every one of them moves the Depot singleton's account rather than
+  // a character's resources — the licence is tradeable, so the money belongs
+  // to the station, not to whoever is holding the card this week.
+  //   ORDER      — a manifest bought off the orbital station. Debits the
+  //                account at order time; the goods do not exist yet.
+  //   SHIP       — the shuttle sent back up, loaded. Sweeps the landing pad
+  //                stash and credits the account with what was aboard.
+  //   ATM        — obols withdrawn from or deposited into the account, which
+  //                is the only place physical ¢ enters or leaves the game.
+  //   CRATE_OPEN — a crate cracked, its contents handed over. Filed by
+  //                whoever opened it, which need not be the Merchant.
+  //   REFUEL     — coal or saltpeter fed to the generator.
+  // Ledger reads all eight DEPOT_* kinds off Request; there is no separate
+  // ledger table, and Undo works on these the way it works on anything else.
+  DEPOT_ORDER
+  DEPOT_SHIP
+  DEPOT_ATM
+  DEPOT_CRATE_OPEN
+  DEPOT_REFUEL
 
   // One written letter, carried by a bird to a named person in a GUESSED
   // zone. Gated on holding both `bird` and `literate`; the once-a-day limit
@@ -546,6 +567,95 @@ model GameConfig {
   // model. On by default, since Desires are the only way Tag Points are
   // earned in play.
   desiresEnabled Boolean @default(true)
+}
+
+/// Where the shuttle is. AWAY is the resting state — it lives at the orbital
+/// station and the landing pad is an empty scorch mark. INBOUND is the gap
+/// between calling it down and it arriving, which is what the cooldown buys.
+/// DOCKED means it is sitting on the pad with its hold open, and the clock in
+/// Depot.shuttleTurn is counting toward the automatic departure.
+enum ShuttleState {
+  AWAY
+  INBOUND
+  DOCKED
+}
+
+/// The Merchant's Depot as a machine rather than a shop: one generator, one
+/// shuttle, one turret, one bank account. A singleton on id = 1, reached the
+/// same way GameConfig is (`upsert({ where: { id: 1 } })`).
+///
+/// It is its own model rather than eighteen more columns on GameConfig for two
+/// reasons. GameConfig is game-wide switchboard; this is one location's
+/// hardware, and mixing them makes both harder to read. And the Dev Panel's
+/// Depot section wants to render exactly these fields — a model boundary is
+/// also a form boundary.
+///
+/// Every number here moves through db/lib/depotState.js, never a bare update:
+/// the account and the fuel both clamp inside a single locked statement, the
+/// way lifeweb.js#bumpBlood does, so two people spending at once cannot stomp
+/// each other. See docs/systemdocs/DEPOT.md.
+model Depot {
+  id Int @id @default(1)
+
+  // ─── Live state ───
+
+  // The account. One balance for the whole station, in obols. It is NOT on the
+  // Merchant's character on purpose: the licence is tradeable, so handing it
+  // over hands over the money too, which is what makes the card worth stealing.
+  accountObols Int @default(0)
+
+  // Drawn against the Company's line, in obols. Repaying frees the room back
+  // up immediately. Kept separate from accountObols so a Merchant deep in debt
+  // still reads as having cash on hand — because he does, it just isn't his.
+  debtObols Int @default(0)
+
+  // The generator. With it off, nothing at the Depot works: no ordering, no
+  // shuttle, no ATM, no turret. Fuel burns down every turn it is running, and
+  // hitting zero switches it off rather than going negative.
+  generatorOn   Boolean @default(false)
+  generatorFuel Int     @default(0)
+
+  // The indoor turret. It shoots everyone whose PRESENTED name is not
+  // merchantFace — so a concealed Merchant is shot by his own gun, and anyone
+  // wearing his name is spared. Deliberately not keyed on the keycard or the
+  // role: it reads faces, and that is the whole trap.
+  turretArmed  Boolean @default(false)
+  merchantFace String  @default("")
+
+  // The shuttle, and the turn its current state began. shuttleTurn is what
+  // both clocks read: the cooldown before it can be sent back, and the
+  // automatic departure at shuttleMaxTurns.
+  shuttleState ShuttleState @default(AWAY)
+  shuttleTurn  Int?
+
+  // What has been ordered but not yet flown down. A JSON array of
+  // `{ tagId, quantity, unitPrice }`, paid for at order time and turned into
+  // crates when the shuttle lands. Not a table because it is short-lived, is
+  // only ever read whole, and belongs to exactly one row.
+  manifest Json @default("[]")
+
+  // ─── Tunables, all editable from the Dev Panel's Depot section ───
+
+  fuelMax         Int @default(100)
+  fuelBurnPerTurn Int @default(20)
+  coalFuel        Int @default(50)
+  saltpeterFuel   Int @default(15)
+
+  shuttleMaxTurns Int @default(6)
+  shuttleCooldown Int @default(1)
+
+  creditCapObols Int @default(60)
+
+  // How many ⬢ one obol is worth when the Depot takes Resources in trade.
+  obolRate Int @default(5)
+
+  // The turret's severity distribution, one weighted column per armour tier.
+  // JSON rather than columns because a GM retuning it should not need a
+  // migration, and db/lib/depotTurret.js validates the shape and that every
+  // column sums to 1 at startup — the same posture as cavingLoot.js.
+  turretTable Json @default("{}")
+
+  updatedAt DateTime @updatedAt
 }
 
 // Master-sourced from docs/roles.yaml's zones[].factions[]
@@ -1212,16 +1322,6 @@ model Character {
   status      CharacterStatus @default(ALIVE)
   resources   Int             @default(0)
 
-  // ⬢ currently drawn against the Company's credit line at the Depot, moved
-  // only by DEPOT_CREDIT. It is a debt, not a balance: the ⬢ themselves land
-  // in `resources` above, and this is what he owes back. Capped at
-  // DEPOT_CREDIT_CAP (db/lib/depot.js), and it lives on the Merchant
-  // personally because the line is advanced to him, not to the Company.
-  // Nothing punishes a standing balance in code; it is simply visible to GMs, which is the whole
-  // enforcement. Non-null with a 0 default, so every character has one and
-  // only the licensed one can ever move it. See docs/systemdocs/DEPOT.md §5.
-  depotDebt Int @default(0)
-
   // When this body went into the ground, set by a BURY_CHARACTER request.
   // Nullable, so the column is both the flag and the record of when. A buried
   // corpse is out of the world: it cannot be looted, dragged or bound, and it
@@ -1634,6 +1734,25 @@ model Tag {
   // See docs/systemdocs/DEPOT.md §3.
   depotPrice Int?
 
+  // Whether a shipment of this arrives SEALED. A sealed crate prints no
+  // manifest and only a Depot Keycard opens it, so this is how a dangerous or
+  // valuable ware stays unreadable on the landing pad until the right person
+  // gets to it. Authored in docs/tags.yaml rather than guessed from the
+  // category, because "dangerous" is a judgement about the fiction and the
+  // catalog is where those live. One sealed line item seals the whole crate it
+  // lands in. See docs/systemdocs/DEPOT.md §5.
+  sealedShipping Boolean @default(false)
+
+  // What falls out of a crate when it is opened, as
+  // `[{ tagId, name, quantity }]`. Set only on the runtime crate tags
+  // db/lib/depotCrates.js mints, and null on every catalog row.
+  //
+  // It lives on the crate rather than on the shipment so a crate is entirely
+  // self-describing: it can be carried out of the landing pad, traded away and
+  // opened in a cellar three zones over without anything needing to look up
+  // where it came from. See docs/systemdocs/DEPOT.md §5.
+  crateContents Json?
+
   // Catalog-level default duration in turns, for tags that auto-expire once
   // granted (mirrors CharacterTag.expiresTurn's "absolute turn number, swept
   // by resolveNeeds()" convention). E.g. Drained sets this to 3, so donating
@@ -1795,8 +1914,8 @@ model Tag {
   // DEAD_SIMPLE_PER_TURN (web/lib/requests.js), which is what every Dead
   // Simple rung used before this was a field. See SMITHING.md §2.
   requirementPerTurn Int?
-  requirementSkills    Tag[]   @relation("TagRequirementSkill")
-  requiredForSkillOf   Tag[]   @relation("TagRequirementSkill")
+  requirementSkills  Tag[] @relation("TagRequirementSkill")
+  requiredForSkillOf Tag[] @relation("TagRequirementSkill")
 
   // The INGREDIENT half of a recipe, and the first of these ever enforced —
   // BREWING.md's "no code enforces a recipe, least of all the ingredient" is

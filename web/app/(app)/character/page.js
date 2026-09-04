@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { peopleHere } from "@/lib/peopleHere";
 import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/lib/lessons";
-import { prisma, roleCapacity, isDynastyMember, presentedIdentity } from "@lifeweb/db";
+import { prisma, roleCapacity, isDynastyMember, presentedIdentity, startingTagNames } from "@lifeweb/db";
 import { accessibleRooms, guestRoomIds as roomGuestIds } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
@@ -144,7 +144,9 @@ async function loadCreationData(discordUserId) {
                 startingZoneName: role.startingLocation?.zone?.name ?? null,
                 startingResources: role.startingResources,
                 extraStartingPoints: role.extraStartingPoints,
-                startingTagNames: role.startingTagSlugs,
+                // Parsed, because the wizard matches these against catalog tag names
+                // and an entry may carry a count ("Obol x5").
+                startingTagNames: startingTagNames(role.startingTagSlugs),
                 grantsLeader: role.grantsLeader,
                 // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
                 cap: cap === Infinity ? null : cap,

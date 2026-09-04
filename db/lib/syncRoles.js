@@ -11,6 +11,7 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
 const { entriesOf } = require("./yamlEntries");
+const { parseStartingTag } = require("./startingTags");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -154,7 +155,10 @@ async function syncRolesFromYaml(prisma) {
         throw new Error(`docs/roles.yaml: role "${r.name}": starting_location "${r.startingLocationSlug}" is not in starting_zone "${r.startingZoneSlug}"`);
       }
     }
-    for (const name of r.startingTagNames) {
+    // An entry may carry a count — "Obol x5" — so validate the parsed name
+    // rather than the raw string. See db/lib/startingTags.js.
+    for (const entry of r.startingTagNames) {
+      const { name } = parseStartingTag(entry);
       if (!tagNames.has(name)) {
         throw new Error(`docs/roles.yaml: role "${r.name}" has starting_tag "${name}" not in docs/tags.yaml — run db:sync-tags first`);
       }

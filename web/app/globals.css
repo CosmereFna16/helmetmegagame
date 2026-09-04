@@ -3949,3 +3949,248 @@ input[type="radio"]:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ── The Merchant's Depot console ────────────────────────────────────────
+   The cockpit strip and its tabs. See docs/systemdocs/DEPOT.md.
+
+   The strip is pinned above the tabs and never scrolls away, because the four
+   things it shows — money, fuel, shuttle, turret — all matter whichever job
+   you are doing. Every colour here is a token, so the whole thing follows the
+   active theme. */
+
+.depot-cockpit {
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.depot-cockpit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.depot-greeting {
+  font-size: var(--fs-lg);
+  color: var(--text);
+}
+
+.depot-balance {
+  font-size: var(--fs-xl);
+  color: var(--accent);
+}
+
+.depot-cockpit-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  align-items: center;
+}
+
+.depot-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.depot-stat-label {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+/* The fuel bar. Width is set inline from the percentage; the colour comes
+   from the tone class, so a dying generator is red before you read a number. */
+.depot-gauge {
+  display: inline-block;
+  width: 5rem;
+  height: 0.5rem;
+  border-radius: var(--r-full);
+  background: var(--field-bg);
+  overflow: hidden;
+}
+
+.depot-gauge-fill {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.depot-gauge-positive .depot-gauge-fill { background: var(--positive); }
+.depot-gauge-warning .depot-gauge-fill { background: var(--warning); }
+.depot-gauge-danger .depot-gauge-fill { background: var(--danger); }
+
+.depot-lamp {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.depot-lamp-on { color: var(--positive); border-color: var(--positive); }
+.depot-lamp-off { color: var(--muted); }
+.depot-lamp-armed { color: var(--danger); border-color: var(--danger); }
+
+.depot-notice {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+
+.depot-notice-danger {
+  color: var(--danger);
+  border-left-color: var(--danger);
+}
+
+.depot-tabs {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.depot-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.depot-tab:hover { color: var(--text); }
+
+.depot-tab-on {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Two columns where there is room, stacked where there is not. The aside is
+   the manifest/summary side and is always the narrower of the two. */
+.depot-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .depot-split { grid-template-columns: minmax(0, 1fr); }
+}
+
+.depot-aside { position: sticky; top: var(--sp-4); }
+
+@media (max-width: 60rem) {
+  .depot-aside { position: static; }
+}
+
+.depot-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+.depot-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.depot-list li:last-child { border-bottom: none; }
+
+.depot-totals {
+  margin-top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+}
+
+.depot-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.depot-totals dt { color: var(--muted); }
+
+.depot-subhead {
+  margin-top: var(--sp-5);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.depot-meter {
+  margin-top: var(--sp-3);
+  height: 0.5rem;
+  border-radius: var(--r-full);
+  background: var(--field-bg);
+  overflow: hidden;
+}
+
+.depot-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.depot-stepper-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  justify-content: flex-end;
+}
+
+.depot-stepper-count {
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.depot-seal {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  border-radius: var(--r-sm);
+  padding: 0.05rem 0.3rem;
+}
+
+.depot-crate-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+/* The printed manifest on a crate. Monospaced because it is a waybill, and
+   allowed to wrap because a full crate's line is long. */
+.depot-manifest {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  overflow-wrap: anywhere;
+}
+
+.depot-pending {
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+}

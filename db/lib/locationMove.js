@@ -28,6 +28,7 @@ const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph")
 const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
 const { sendDm } = require("./dm");
+const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
 
 // Mirrors web/lib/discordGuild.js's PERM_VIEW_CHANNEL / PERM_SEND_MESSAGES —
 // duplicated rather than imported because db/ cannot reach into web/.
@@ -177,6 +178,24 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
     return [];
   });
+
+  // Walking into an armed turret. Before the Discord guard, and before the
+  // early return, for the same reason parking a mount is: being shot is a
+  // database fact and must not depend on there being a token to announce it
+  // with. Wrapped, because a gun malfunctioning must never wedge a move.
+  const shot = await rollTurretOnArrival(prisma, {
+    characterId,
+    toLocationId,
+    turn: await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, id: true } }),
+  }).catch((err) => {
+    console.error(`Move: depot turret failed for ${characterId}:`, err.message ?? err);
+    return null;
+  });
+  if (shot?.discordUserId && shot.kind !== "graze") {
+    await sendDm(prisma, shot.discordUserId, TURRET_DM[shot.kind] ?? TURRET_DM.hit).catch((err) =>
+      console.error(`Move: turret DM failed for ${characterId}:`, err.message ?? err),
+    );
+  }
 
   if (!process.env.DISCORD_TOKEN) return;
 

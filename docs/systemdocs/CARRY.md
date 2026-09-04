@@ -418,3 +418,15 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |
 | Load watermark | `Character.carryWeightSeen` / `carryResourcesSeen` |
 | Weight bands | `weight:` in `docs/tags.yaml`; `Tag.weightLbs` |
+
+## Crates
+
+A Depot shipment lands as crates — runtime `Tag` rows, **15 lb each**, one row
+per crate. They are ordinary cargo for every purpose here: they count against
+the cap, they can be transferred, stashed and stolen, and they are why a real
+shipment takes several trips or several people. Opening one replaces its weight
+with whatever was inside, which can easily be heavier.
+
+Obols are the other end of the ladder: `weight: 0`, the Negligible band, the
+same as a key or a letter. Compressing ⬢ into something you can actually carry
+is most of the point of them. See `docs/systemdocs/DEPOT.md` §0e and §0g.
