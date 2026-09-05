@@ -6,6 +6,20 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Confession works, and the Cathedral has something to make
+
+✚ A Confess button. Take one of your addictions to a chaplain standing with you: it's your Gambit, their Routine, and a 5 or 6 gets it off you  
+✚ The chaplain is never told what the confession is about — not in the DM asking them, not on their own Move, not when it's over. Only the penitent and the GMs ever see it  
+✚ Blessing, a 5-point skill only the Church can buy, and Holy Water: one turn and 1 ⬢ a bottle  
+✎ New briefs for the Bishop and the Chaplain. The old ones promised a confession mechanic that didn't exist  
+✚ The Bishop starts able to make Holy Water, and both of them can teach  
+✎ Sixteen tags are now marked psychological and can be confessed — the addictions, the compulsions, and a few habits. Not blindness or muteness, which share a group with them  
+✎ Superstitious is off every role that started with it. The Inquisitor, Practicus and Preacher start Fundamentalist instead  
+✎ Stutter is a 1-point drawback now, not 2  
+− Disgraced and Bad Liar are gone from the game  
+✎ The Bishop can want a confession now; that goal was locked to the Chaplain role  
+✚ Three goals: sprinkle holy water on the unholy, crucify someone, and get the Baron to praise God in the cathedral
+
 ## 2026-09-05 · The cave mouth is one place, and Examine reads like a table
 
 ✎ Customs and the Depot are one place at the cave mouth — the customs yard, the storefront, the landing pad, the watchtower, the merchant's office and the cargo bay all under one roof. They used to be two Locations with no way to walk between them  
