@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The cave mouth is one place, and Examine reads like a table
+
+✎ Customs and the Depot are one place at the cave mouth — the customs yard, the storefront, the landing pad, the watchtower, the merchant's office and the cargo bay all under one roof. They used to be two Locations with no way to walk between them  
+✚ A gate into the caves that can be shut, worked by the Cerberon, the Censor, the Baron, the Hand, or anyone holding a Cerberus Key  
+✚ The Cerberus Key: starting kit for the Baron, the Hand, the Censor, the Incarn and every Cerberus, three spares in the Censor's Office. It opens the watchtower and works the Keep's portcullis  
+✎ Examine now reads as a table — every line is a bolded topic and one short sentence, the shape the labor readout already had. Standing outdoors says so, where it used to say nothing at all  
+✚ The Landing Pad's own description says whether the shuttle is sitting on it, and changes when it leaves  
+✚ A Large Dock on the West Riverbank, and the hunting there is a little better for it  
+− The Depot's back track through the sparse field. The road from the Crossroads is the way in
+
 ## 2026-09-04 · A GM can send anyone a letter, and the picker reads as seven groups
 
 ✚ A Send a Letter button on the Dev Panel: a bird arrives carrying a letter from whoever you say it is from — the God-King, a dead man, nobody at all  
