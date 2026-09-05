@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Saints are pacifists, and the Judge is off the tag catalog
+
+− Saint now says outright that you cannot fight, not even in self-defense  
+− The Judge's seat tag no longer shows up in the player Tag Catalog
+
 ## 2026-09-05 · The Town has doors, and the Cathedral has a bell
 
 ✚ The Old Cock Inn is a real building: a street, a bar, a second floor, a balcony, a kitchen, and three rooms to rent  
