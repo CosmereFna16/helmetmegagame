@@ -17,6 +17,7 @@
 // that is the shelf it belongs on.
 
 const { PAPER_GROUP_SLUG, noteCode } = require("./paper");
+const { createWithRetry } = require("./paperMint");
 const { photoName, BLANK_PHOTO_CAPTION, BLANK_PHOTO_NAME } = require("./photo");
 const { addToStack } = require("./tagWrites");
 
@@ -56,33 +57,17 @@ async function photoGroupId(tx) {
   return group?.id ?? null;
 }
 
-// Tag.name is @unique across the whole catalog, so retry on the violation
-// rather than checking first — two photographers shooting in the same
-// millisecond would both pass a pre-check and then one would throw.
+// createWithRetry comes from db/lib/paperMint.js rather than being retyped —
+// it is the same loop over the same @unique on Tag.name.
 //
-// ** `db` here must be the TOP-LEVEL client, never a transaction. ** Postgres
-// aborts a whole transaction the moment one statement in it fails, so a
-// catch-and-retry inside `$transaction` can only ever raise 25P02 on the
-// second attempt — the retry is dead code there. That matters far more for a
-// photo than for anything else that retries this way: `Photo (Young Man)` is a
-// name the game produces over and over, so the collision is the NORMAL case
-// rather than a millionth-write freak. Both minters below therefore create the
-// row outside any transaction and let their caller attach it.
-//
-// (db/lib/paperMint.js has the same loop and IS called inside a transaction.
-// It gets away with it because a note's name carries a random waybill code, so
-// its collision odds are about one in seven million. Worth fixing, not worth
-// fixing here.)
-async function createWithRetry(db, buildData) {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    try {
-      return await db.tag.create({ data: buildData(attempt) });
-    } catch (err) {
-      if (err?.code !== "P2002") throw err;
-    }
-  }
-  return null;
-}
+// ** Everything below hands it the TOP-LEVEL client, never a transaction. **
+// Postgres aborts a whole transaction the moment one statement in it fails, so
+// a catch-and-retry inside `$transaction` can only raise 25P02 on the second
+// attempt. That matters far more for a photo than for anything else that
+// retries this way: `Photo (Young Man)` is a name the game produces over and
+// over, so the collision is the NORMAL case rather than a millionth-write
+// freak. Hence createPhotoRow, which the transactional caller runs first and
+// attaches afterwards.
 
 // The second and later photos of the same face. A print code rather than a
 // "(2)" suffix, paperMint.js's reasoning exactly: "Photo (Young Man)" and
@@ -152,11 +137,9 @@ async function createBlankPhotoRow(db, ownerId) {
 }
 
 module.exports = {
-  PHOTO_SHAPE,
   CAMERA_SLUG: "instant-camera",
   createPhotoRow,
   createBlankPhotoRow,
   attachPhoto,
   mintPhoto,
-  photoSlug,
 };

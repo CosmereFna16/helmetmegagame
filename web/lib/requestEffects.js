@@ -280,19 +280,17 @@ export const REQUEST_EFFECTS = {
     editableFields: [],
     async undo(tx, request) {
       const { restore, tagName, granted = [], resourcesGranted, cleared, photoTagId } = request.effect;
-      // A camera consumed into a Photo (db/lib/photoMint.js). The print is a
-      // runtime row nothing else can reference, so it goes with its holding
-      // rather than lingering as an orphan — same call BREAK_SEAL makes about
-      // a spent envelope.
-      if (photoTagId) {
-        await dropCharacterTag(tx, request.characterId, photoTagId, 1);
-        await tx.tag.delete({ where: { id: photoTagId } }).catch(() => {});
-      }
       for (const g of granted) {
         // added: 0 means the character already held the tag and this
         // request left it alone — nothing to take back.
         if (g.tagId && g.added > 0) await dropCharacterTag(tx, request.characterId, g.tagId, g.added);
       }
+      // A camera consumed into a Photo (db/lib/photoMint.js). The loop above
+      // already took the print out of their hands like any other grant; this
+      // removes the ROW too, because a runtime print exists for exactly one
+      // shot and nothing else can reference it — the same call BREAK_SEAL
+      // makes about a spent envelope.
+      if (photoTagId) await tx.tag.delete({ where: { id: photoTagId } }).catch(() => {});
       if (restore?.tagId) await restoreCharacterTag(tx, request.characterId, restore);
       if (cleared?.tagId) await restoreCharacterTag(tx, request.characterId, cleared);
       if (resourcesGranted) {
@@ -304,7 +302,6 @@ export const REQUEST_EFFECTS = {
       const notes = [];
       if (took.length) notes.push(`took back ${took.join(", ")}`);
       if (cleared?.tagId) notes.push(`re-applied ${cleared.tagName ?? "Disappointed"}`);
-      if (photoTagId) notes.push("tore up the photo");
       if (resourcesGranted) notes.push(`took back ${resourcesGranted} ⬢`);
       return notes.length
         ? `Restored ${tagName ?? "the tag"} and ${notes.join(", ")}.`

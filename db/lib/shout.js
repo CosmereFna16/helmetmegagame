@@ -31,8 +31,10 @@ function muffle(text, fraction) {
     .join("");
 }
 
-// How much is lost at each remove. Index is the hop count; past the end of the
-// table the words are gone entirely and only the direction survives.
+// How much is lost at each remove. Index IS the hop count, so the table reads
+// off the distance directly; index 0 is never reached, because your own
+// Location returns above before it gets here. Past the end of the table the
+// words are gone entirely and only the direction survives.
 const MUFFLE_BY_DISTANCE = [0, 0, 0.4, 0.7];
 
 // The line one Location gets. `viaName` is the hearer's own neighbour toward
@@ -53,4 +55,4 @@ function shoutLine(text, distance, viaName) {
   return ambientLine(`You hear someone shout${where}:`, [muffle(text, fraction)]);
 }
 
-module.exports = { muffle, shoutLine, MUFFLE_BY_DISTANCE, BLOCKS };
+module.exports = { shoutLine };

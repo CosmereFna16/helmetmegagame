@@ -37,14 +37,6 @@ function photoCaption(readout) {
   return [appearance, tags].filter(Boolean).join(" ") + " ‡";
 }
 
-// The subject's name as the photo files it. Already the PRESENTED identity by
-// the time it reaches here — presentedIdentity resolves a forced name ahead of
-// a concealed alias ahead of the real one — so a photo can never sign a name
-// the room did not see.
-function photoSubject(readout) {
-  return readout.name;
-}
-
 // What the camera prints when nobody is in front of it. Bascinet's line, so no
 // ‡ (CLAUDE.md's verbatim exemption).
 const BLANK_PHOTO_CAPTION = "A nice photo.";
@@ -58,4 +50,4 @@ function photoName(subject) {
   return `Photo (${subject})`;
 }
 
-module.exports = { photoCaption, photoSubject, photoName, BLANK_PHOTO_CAPTION, BLANK_PHOTO_NAME };
+module.exports = { photoCaption, photoName, BLANK_PHOTO_CAPTION, BLANK_PHOTO_NAME };

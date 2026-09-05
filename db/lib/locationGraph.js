@@ -261,25 +261,25 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
   // One query for the whole graph. It is ~56 Locations and a few dozen edges,
   // so paying per-hop for linksFor() would be more round trips than rows.
   const [links, locations] = await Promise.all([
-    prisma.locationLink.findMany({ select: { aId: true, bId: true } }),
+    prisma.locationLink.findMany({ select: { aId: true, bId: true, hidden: true } }),
     prisma.location.findMany({ select: { id: true, slug: true, name: true, discordChannelId: true } }),
   ]);
 
   const byId = new Map(locations.map((loc) => [loc.id, loc]));
   const adjacency = new Map();
-  const link = (from, to) => {
+  const link = (from, to, hidden) => {
     if (!adjacency.has(from)) adjacency.set(from, []);
-    adjacency.get(from).push(to);
+    adjacency.get(from).push({ id: to, hidden });
   };
   for (const edge of links) {
-    link(edge.aId, edge.bId);
-    link(edge.bId, edge.aId);
+    link(edge.aId, edge.bId, edge.hidden);
+    link(edge.bId, edge.aId, edge.hidden);
   }
   // Sorted by slug so a tie between two equally-short ways back resolves the
   // same on every run — otherwise one shout could name a different direction
   // than the next for no reason a player could see.
   for (const [, list] of adjacency) {
-    list.sort((x, y) => (byId.get(x)?.slug ?? "").localeCompare(byId.get(y)?.slug ?? ""));
+    list.sort((x, y) => (byId.get(x.id)?.slug ?? "").localeCompare(byId.get(y.id)?.slug ?? ""));
   }
 
   const out = [];
@@ -287,7 +287,7 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
   // `via` is the hearer's own step BACK toward the origin, and it is always
   // just the node this one was reached FROM — BFS guarantees that node is
   // exactly one hop nearer the origin. No path reconstruction needed.
-  let frontier = [{ id: originLocationId, via: null }];
+  let frontier = [{ id: originLocationId, via: null, viaHidden: false }];
 
   for (let distance = 0; distance <= maxHops && frontier.length > 0; distance += 1) {
     const next = [];
@@ -299,14 +299,25 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
           name: loc.name,
           discordChannelId: loc.discordChannelId,
           distance,
-          viaName: node.via ? (byId.get(node.via)?.name ?? null) : null,
+          // NULL when the step back runs through a HIDDEN edge. Sound still
+          // carries — that is the rule, and the row is still here — but the
+          // DIRECTION is withheld, because naming it would tell a player that
+          // a way exists where they have been told none does. A hidden edge is
+          // absent from every travel list for exactly that reason
+          // (crossingCheck below), and a shout must not be the hole in it.
+          viaName: node.viaHidden ? null : node.via ? (byId.get(node.via)?.name ?? null) : null,
         });
       }
       if (distance === maxHops) continue;
-      for (const neighborId of adjacency.get(node.id) ?? []) {
-        if (seen.has(neighborId)) continue;
-        seen.add(neighborId);
-        next.push({ id: neighborId, via: node.id });
+      for (const neighbor of adjacency.get(node.id) ?? []) {
+        if (seen.has(neighbor.id)) continue;
+        seen.add(neighbor.id);
+        // Only the hearer's OWN step counts, deliberately not sticky. The
+        // direction names one adjacent Location and nothing else, so if that
+        // neighbour is reachable by an open way there is nothing to give away
+        // — a shout from deep in the caves should still tell somebody on the
+        // road which way down the road it came from.
+        next.push({ id: neighbor.id, via: node.id, viaHidden: neighbor.hidden });
       }
     }
     frontier = next;
@@ -323,7 +334,6 @@ const KEYED_OPEN_MS = 24 * 60 * 60 * 1000;
 module.exports = {
   LINK_INCLUDE,
   KEYED_OPEN_MS,
-  SOUND_HOPS,
   soundRange,
   endpoints,
   orderEndpoints,

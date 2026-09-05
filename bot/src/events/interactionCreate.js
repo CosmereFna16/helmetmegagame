@@ -1958,6 +1958,17 @@ async function handleShoutCommand(interaction) {
   // Location CHANNELS only, never the Room threads under them: somebody in a
   // private back room is behind a door.
   let posted = 0;
+
+  // Shouting from inside a Room or a Conversation: the thread is where you are
+  // STANDING, and the people beside you must hear it before the street does.
+  // The loop below writes to Location channels only, so without this the one
+  // room that certainly heard you would be the only room that didn't.
+  if (interaction.channel.isThread()) {
+    await interaction.channel
+      .send({ content: shoutLine(text, 0, null), allowedMentions: { parse: [] } })
+      .catch((err) => console.error("Shout into the room failed:", err));
+  }
+
   for (const place of heard) {
     if (!place.discordChannelId) continue;
     try {

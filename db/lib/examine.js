@@ -131,11 +131,23 @@ function examineReadout({
   lastDesire = null,
   viewerFactionId = null,
   viewerIsOfficer = false,
+  wasConcealedAs = null,
 }) {
   const identity = presentedIdentity(subject, {
     forcedName: forcedNameFrom(subject.tags),
     concealment: concealmentFrom(subject.tags),
   });
+  // A reader answering for a MOMENT rather than for now — the 🔍 and 📸
+  // reactions, which both hang off a message that was posted at some point in
+  // the past. Concealment is derived from live equipment
+  // (db/lib/presentedIdentity.js), so a subject who has since taken the hood
+  // off would otherwise be unmasked retroactively by a reaction on a message
+  // the room saw a masked person write. The camera made that permanent — the
+  // print would be filed under a real name nobody present ever heard — so the
+  // caller passes the alias the room actually saw and it wins outright.
+  if (wasConcealedAs && !identity.concealed) {
+    return concealedReadout({ ...identity, name: wasConcealedAs, alias: wasConcealedAs }, subject);
+  }
   // `concealed` is false for a forced name (Apex Form): a Beast is not hiding,
   // it is being something else, so it gets the ordinary read under its own
   // presented name. presentedIdentity.js carries that distinction.

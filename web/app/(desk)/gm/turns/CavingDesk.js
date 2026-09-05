@@ -128,6 +128,7 @@ export default function CavingDesk({
           </h2>
           <p className="text-xs text-muted">
             {roll.roleTitle && <>{roll.roleTitle} · </>}
+            {roll.locationName ? <>{roll.locationName} · </> : null}
             {roll.factionZoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
             {readOnly && turnLabel ? <> · {turnLabel}</> : null}
           </p>

@@ -10,7 +10,7 @@ const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
 const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
-const { photoCaption, photoSubject } = require("@lifeweb/db/lib/photo");
+const { photoCaption } = require("@lifeweb/db/lib/photo");
 const { CAMERA_SLUG, mintPhoto } = require("@lifeweb/db/lib/photoMint");
 
 // Discord embed limits: a breach rejects the whole embed silently. Trim with
@@ -203,7 +203,12 @@ async function handleDossierReaction(reaction, proxy, user) {
 // The subject is read off the PROXY, not the live row: the hood the room saw
 // when this was posted is the hood this answers for, even if they have since
 // taken it off.
-async function readoutForReaction(proxy, user) {
+// `bystander: true` strips the viewer's own sight before the readout is built
+// — no doctor's eye, no Seductive. That is what the CAMERA sees: a lens has no
+// medical training, and without this a surgeon's photograph would carry their
+// diagnosis into the hands of whoever they gave the print to, which is the one
+// way the doctor's-eye gate could be laundered.
+async function readoutForReaction(proxy, user, { bystander = false } = {}) {
   const viewer = await prisma.character.findFirst({
     where: { discordUserId: user.id, status: "ALIVE" },
     select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
@@ -230,12 +235,14 @@ async function readoutForReaction(proxy, user) {
   ]);
 
   const hooded = Boolean(proxy.concealed);
+  // Sight the READOUT is allowed to use. A camera gets none of the viewer's.
+  const sightTags = bystander ? [] : (viewer?.tags ?? []);
   const officer =
     !hooded && subject.factionId
       ? (await getMyFactionRole(prisma, user.id, subject.factionId)).isOfficer
       : false;
   const lastDesire =
-    !hooded && canSeeDesire(viewer?.tags ?? [])
+    !hooded && canSeeDesire(sightTags)
       ? await prisma.desire.findFirst({
           where: { characterId: subject.id, status: "FULFILLED" },
           orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
@@ -247,15 +254,19 @@ async function readoutForReaction(proxy, user) {
     // Faked onto the subject shape so one readout serves both — see
     // db/lib/examine.js.
     subject: hooded ? { ...subject, concealed: true } : subject,
-    viewerTags: viewer?.tags ?? [],
-    satisfied: satisfiedSkillIds(
-      (viewer?.tags ?? []).map((ct) => ct.tagId),
-      buildSkillAncestry(skillCatalog),
-    ),
+    viewerTags: sightTags,
+    satisfied: bystander
+      ? new Set()
+      : satisfiedSkillIds(
+          (viewer?.tags ?? []).map((ct) => ct.tagId),
+          buildSkillAncestry(skillCatalog),
+        ),
     openTurnNumber: openTurn?.number,
     lastDesire,
     viewerFactionId: viewer?.factionId ?? null,
     viewerIsOfficer: officer,
+    // The hood the room SAW, which outlives the hood they are wearing now.
+    wasConcealedAs: hooded ? (proxy.alias ?? null) : null,
   });
 
   return { readout, viewer };
@@ -306,6 +317,18 @@ function examineEmbed(readout) {
 // The camera is NOT spent. Holding one is the whole gate; film is not a system
 // anybody asked for. (Consuming a camera is the separate "point it at nothing"
 // path, in web/app/(app)/character/requestActions.js.)
+// One shot per message per photographer. The camera is reusable on purpose, so
+// nothing SPENDS here — which leaves re-reacting the same message as a way to
+// mint unbounded Tag rows, and every one of those is a permanent catalog row
+// that /gm/dev/tags loads unpaginated. This is the bound, and it costs the
+// player nothing real: photographing the same moment twice is the same photo.
+//
+// In memory and volatile across a restart, like recentProxies itself — which
+// this is keyed against anyway, so a shot can never outlive the proxy entry
+// that made it possible.
+const photographed = new Set();
+const photographKey = (messageId, characterId) => `${messageId}:${characterId}`;
+
 async function handleCameraReaction(reaction, proxy, user) {
   const held = await prisma.characterTag.findFirst({
     where: {
@@ -322,7 +345,15 @@ async function handleCameraReaction(reaction, proxy, user) {
     return;
   }
 
-  const result = await readoutForReaction(proxy, user);
+  const key = photographKey(reaction.message.id, held.characterId);
+  if (photographed.has(key)) {
+    await sendDm(user, "» *You already have that shot.* ‡", { source: "system_notice" }).catch((err) =>
+      console.error(`Couldn't tell ${user.id} they already shot that:`, err),
+    );
+    return;
+  }
+
+  const result = await readoutForReaction(proxy, user, { bystander: true });
   if (!result) return;
   if (result.blind) {
     await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
@@ -335,10 +366,16 @@ async function handleCameraReaction(reaction, proxy, user) {
   // No transaction: the camera is not spent, so there is nothing that has to
   // be atomic with the print — and mintPhoto's collision retry cannot run
   // inside one (db/lib/photoMint.js#createWithRetry).
+  // readout.name is already the PRESENTED identity — presentedIdentity resolves
+  // a forced name ahead of a concealed alias ahead of the real one — so a photo
+  // can never file a name the room did not see.
   const photo = await mintPhoto(prisma, held.characterId, {
-    subject: photoSubject(readout),
+    subject: readout.name,
     caption: photoCaption(readout),
   });
+  // Claimed only once the print exists, so a failed mint leaves the shot
+  // available to try again rather than burning it.
+  photographed.add(key);
 
   // The photographer is shown what they caught, in the same embed 🔍 builds —
   // the print is in their hands either way, so hiding it would only make them

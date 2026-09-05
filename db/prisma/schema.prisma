@@ -3202,22 +3202,21 @@ enum CavingRollKind {
   FIND
 }
 
-// Which of the two triggers in db/lib/cavingPass.js produced a roll. The
-// turn-start pass rolls for everyone already standing in the Depths when the
-// new turn opens; an arrival (travel, a GM relocation, fast travel) rolls
-// again for whoever just walked in. See the @@unique below.
+// What produced a roll. Only ARRIVAL can be written now — walking into a cave
+// Location is the one trigger left (db/lib/cavingPass.js). TURN_START is the
+// retired turn-start sweep, kept because historic rows still carry it, the
+// same posture every other dead enum value in this schema gets.
 enum CavingTrigger {
   TURN_START
   ARRIVAL
 }
 
-// Up to two rolls per character per turn while standing in a CAVE_LEVEL zone —
-// one for TURN_START, one for ARRIVAL — rolled by db/lib/cavingPass.js. A
-// character already in the Depths when the turn opens gets the pass's roll; one
-// who arrives mid-turn gets a bonus roll on top. The @@unique below is what
-// caps each trigger at one hit per character per turn, so neither a retried
-// pass nor a character bounced in and out (free travel, a GM's Bulk Move) can
-// farm more than the two.
+// One roll per LOCATION per turn, written when a character arrives somewhere in
+// a CAVE_LEVEL zone — db/lib/cavingPass.js. Walking is the only thing that
+// rolls it: push deeper and each new place pays, turn back and the way out
+// pays too, stand still and nothing happens at all. The @@unique below is what
+// stops a character pacing between two rooms to farm it, and what makes a
+// retried write or a double-fire idempotent.
 //
 // Shaped like a Move on purpose — it is adjudicated the same way, on the
 // same /gm/turns desk, with the same staging attachments. See
@@ -3230,7 +3229,9 @@ model CavingRoll {
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   // Which trigger produced this roll. Load-bearing in the @@unique below.
-  trigger CavingTrigger @default(TURN_START)
+  // Defaulted to ARRIVAL rather than TURN_START: a default nothing can produce
+  // any more is a trap for the next writer. Every caller passes it explicitly.
+  trigger CavingTrigger @default(ARRIVAL)
 
   // The presence zone the character stood in when it rolled. Snapshot,
   // because they may have moved since.

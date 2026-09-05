@@ -188,6 +188,16 @@ the only part of it a person standing there could actually tell. Ties between
 two equally-short ways back resolve by lowest slug, so a shout cannot name one
 direction on Tuesday and another on Wednesday for no reason a player can see.
 
+**And it is withheld entirely when that step is a hidden way.** Sound still
+carries through a secret crawl — that is the rule — but the line drops to "you
+hear someone shout somewhere nearby", because naming the crawl would tell a
+player a way exists where every travel list has told them none does. That is
+the whole reason `hidden` refuses in the same words a nonexistent edge does
+(`MAP.md` §2a), and a shout must not be the hole in it. The suppression is
+**not** sticky: only the hearer's own step counts, so a shout from deep in the
+caves still tells somebody out on the road which way down the road it came
+from.
+
 **Nobody is ever named**, at any distance including zero. That is what lets a
 concealed character shout without unmasking, and it is also just true — you
 hear a shout before you find out whose it was.
@@ -196,6 +206,11 @@ Distance 0 is full size and everything past it is `ambientLine` subtext, the
 same split `/play` makes: the room hears the performance, the street outside
 only notices it. Only Location **channels** get it, never the Room threads under
 them — somebody in a private back room is behind a door.
+
+**Except the room you are standing in.** Shout from inside a Room or a
+Conversation and the thread gets the full-size line too, before the loop runs.
+Without that one exception the only room that certainly heard you would be the
+only room that didn't.
 
 **Rate limits.** One shout is up to a couple of dozen REST posts, so the posting
 loop is sequential with every post individually caught, the discipline
@@ -503,8 +518,24 @@ the other wouldn't. The difference is what happens next. 🔍 DMs the embed and
 that is the end of it; 📸 also freezes the readout onto a runtime `Tag` row
 (`db/lib/photoMint.js`), which is a real object — it can be handed over,
 stashed, stolen, and shown to somebody who was not there, long after the
-subject has changed clothes. A hood photographs as a hood, since the readout is
-the readout. Both refuse a blind reactor.
+subject has changed clothes. Both refuse a blind reactor.
+
+Three rules follow from a print being permanent and transferable where a DM is
+neither:
+
+- **The camera reads as a bystander** (`bystander: true`). No doctor's eye, no
+  Seductive — a lens has no medical training. Without it a surgeon could
+  photograph their own diagnosis and hand the print to a layman, which is the
+  one way that gate could be laundered.
+- **A hood photographs as a hood, even one since taken off.** Concealment is
+  derived from live equipment, so a plain re-read would unmask somebody
+  retroactively; the reaction passes `wasConcealedAs` (the alias the room
+  actually saw, off `recentProxies`) and `examineReadout` honours it outright.
+  For 🔍 that was one wrong DM; for 📸 it would be a print filed forever under
+  a real name nobody present ever heard.
+- **One shot per message per photographer.** Nothing is spent, so re-reacting
+  would otherwise mint unbounded permanent catalog rows. Photographing the same
+  moment twice is the same photo.
 
 **The camera is not spent.** Holding one is the entire gate; film is not a
 system anybody asked for. The *other* thing you can do with a camera is Consume

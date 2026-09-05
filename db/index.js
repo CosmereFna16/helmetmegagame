@@ -1251,6 +1251,7 @@ async function advanceTurn() {
     }
 
     const { applyLocationMoveSideEffects } = require("./lib/locationMove");
+    const { rollCavingOnArrival } = require("./lib/cavingPass");
     for (const move of zoneMoves) {
       await applyLocationMoveSideEffects(prisma, move).catch((err) =>
         console.error(
@@ -1258,6 +1259,31 @@ async function advanceTurn() {
           err,
         ),
       );
+
+      // The Caving Die, for a GM's staged "Relocate to". It could not run
+      // inside applyOneStagedEffect — rollCaving opens its own transaction and
+      // that function is already in one — but out here the write has committed
+      // and this is the same post-commit half every other DM goes out from.
+      //
+      // It has to happen SOMEWHERE, and this is the only place left: the
+      // turn-start pass used to sweep up anyone a GM had dropped underground,
+      // and with that pass gone a staged relocation into the Depths would
+      // otherwise roll nothing at all until the character walked. Being
+      // *dropped* into the dark being the one free walk in is exactly how the
+      // die first looked broken (CAVING.md §2).
+      const landed = move.toLocationId
+        ? await prisma.location
+            .findUnique({ where: { id: move.toLocationId }, include: { zone: true } })
+            .catch(() => null)
+        : null;
+      if (landed) {
+        const dm = await rollCavingOnArrival(prisma, { id: move.characterId, discordUserId: move.discordUserId }, landed);
+        if (dm) {
+          await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+            console.error(`Staged relocation caving DM to ${dm.discordUserId} failed:`, err),
+          );
+        }
+      }
     }
 
     // Staged-arbitration deliveries (docs/systemdocs/ADJUDICATION.md).

@@ -37,8 +37,14 @@ function findDm(die, tagName) {
 // responsible for that check. Returns { roll, dm } — `roll` is null if this
 // character already rolled for this Location this turn (P2002); never sends
 // the DM itself.
-async function rollCaving(prisma, character, turn, location, trigger) {
+//
+// `trigger` used to be a parameter, back when a turn-start pass shared this
+// function. ARRIVAL is the only value anything can write now, so it is written
+// here rather than threaded through — but the COLUMN stays, because historic
+// rows carry TURN_START and the @@unique reads it.
+async function rollCaving(prisma, character, turn, location) {
   const zone = location.zone;
+  const trigger = "ARRIVAL";
   const die = rollDie(6);
   const kind = die === 1 ? "TROUBLE" : die === 6 ? "FIND" : "QUIET";
 
@@ -162,7 +168,7 @@ async function rollCavingOnArrival(prisma, character, location) {
   if (!turn) return null;
 
   try {
-    const { dm } = await rollCaving(prisma, character, turn, location, "ARRIVAL");
+    const { dm } = await rollCaving(prisma, character, turn, location);
     return dm;
   } catch (err) {
     console.error(`Caving arrival roll failed for character ${character.id}:`, err);
@@ -170,4 +176,4 @@ async function rollCavingOnArrival(prisma, character, location) {
   }
 }
 
-module.exports = { rollCaving, rollCavingOnArrival };
+module.exports = { rollCavingOnArrival };

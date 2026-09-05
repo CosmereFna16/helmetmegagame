@@ -65,6 +65,11 @@ export const CAVING_ROLL_INCLUDE = {
     },
   },
   zone: { select: { name: true } },
+  // Where they walked in. The Die rolls once per LOCATION now, so one
+  // character can hold several rolls in a turn and the zone alone no longer
+  // tells them apart — which matters most for the TROUBLE row a GM has to
+  // narrate, since "somewhere in the Caves" is not a place to set a scene in.
+  location: { select: { name: true } },
   lootTag: { select: { name: true } },
   lootRequest: { select: { id: true, status: true } },
 };
@@ -255,6 +260,7 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     discordUsername: nameFor,
     roleTitle: c.character.roleTitle ?? "",
     factionZoneName: c.character.faction?.zone?.name ?? c.zone?.name ?? "",
+    locationName: c.location?.name ?? null,
     die: c.die,
     kind: c.kind,
     kindLabel: CAVING_KIND_LABELS[c.kind] ?? c.kind,

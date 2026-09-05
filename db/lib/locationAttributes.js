@@ -66,7 +66,7 @@ const ATTRIBUTES = {
   // place down there you can stand without rolling. Says so out loud, because
   // a player choosing where to camp should be able to read the answer.
   safe: {
-    describe: () => "**Safe**: nothing down here stalks this place. ‡",
+    describe: () => "**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on

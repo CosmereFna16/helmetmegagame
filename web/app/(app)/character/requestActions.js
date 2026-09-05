@@ -1749,7 +1749,11 @@ async function photographNothingImpl({ session, character, held, reason }) {
         quantity: 1,
       },
       photoTagId: photo.id,
-      photoName: photo.name,
+      // The shape every other consumable files, so the GM desk's "Became" line
+      // renders the print (web/app/(desk)/gm/turns/RequestSections.js) and the
+      // shared CONSUME_TAG undo takes it back out of their hands. `photoTagId`
+      // above only tells that undo to delete the ROW as well, which is the one
+      // thing a runtime print needs that a catalog grant does not.
     };
     await createRequest(tx, {
       characterId: character.id,

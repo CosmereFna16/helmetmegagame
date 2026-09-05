@@ -65,6 +65,17 @@ const PAPER_SHAPE = {
 // rather than checking first: two players writing in the same millisecond
 // would both pass a pre-check and then one would throw. Six attempts is far
 // past anything the game can produce.
+//
+// Exported, because db/lib/photoMint.js mints runtime rows the same way and a
+// second copy of this loop is exactly the drift a shared helper prevents.
+//
+// ONE TRAP, and it is the caller's to avoid: Postgres aborts an entire
+// transaction the moment a statement in it fails, so passing a `tx` here means
+// every attempt after the first raises 25P02 instead of retrying. It is safe
+// inside a transaction only where a collision is vanishingly unlikely — a
+// note's name carries a random waybill code, so paper gets away with it. A
+// photo does not (`Photo (Young Man)` is a name the game makes over and over),
+// which is why photoMint.js creates its row outside the transaction.
 // The Paper group, looked up once per mint. It carries the chip colour, and it
 // is also what any future "is this paper?" check should match on — the same
 // reason corpses are grouped rather than flagged.
@@ -287,6 +298,7 @@ async function breakSeal(tx, characterId, sealedTag) {
 
 module.exports = {
   PAPER_SHAPE,
+  createWithRetry,
   writeNewPaper,
   bindBook,
   tearUpBook,

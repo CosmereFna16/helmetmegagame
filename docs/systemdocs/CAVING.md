@@ -76,11 +76,14 @@ Three callers:
   one free walk in, which is exactly how the die first looked broken. Both send
   the DM plainly rather than through `notifyCharacter()`, since the die is the
   game speaking, not the GM.
-- The staged **"Relocate to"** on `/gm/turns` still does not call it —
-  `rollCaving` opens its own transaction and `applyOneStagedEffect` is already
-  inside one. With the turn-start pass gone, that character is now caught by
-  their *next* move rather than by the next turn. A GM who wants the roll can
-  use the Dev Panel instead.
+- The staged **"Relocate to"** on `/gm/turns`, which calls it from
+  `db/index.js`'s side-effect half rather than from the staging code — it could
+  not run inside `applyOneStagedEffect`, because `rollCaving` opens its own
+  transaction and that function is already in one. Out in the side effects the
+  write has committed, and it is where every other staged DM goes out from.
+  It has to happen somewhere: the turn-start pass used to sweep up anyone a GM
+  had dropped underground, and without this a staged relocation into the Depths
+  would roll nothing at all until the character walked.
 
 ### 2a. Customs is safe
 
@@ -92,9 +95,18 @@ somebody's first step into the game was the worst first impression the map had.
 
 It is an attribute rather than a slug comparison in `cavingPass.js` for the
 reason `MAP.md` §1b gives: a system that owns a place should ask what is true
-about the place. Examine prints it on the spot — "**Safe**: nothing down here
-stalks this place." — so a player choosing where to camp can read the answer
-instead of inferring it from a week of quiet rolls.
+about the place. Examine prints it on the spot — "**Safe**: the Caving Die
+doesn't roll here." — so a player choosing where to camp can read the answer
+instead of inferring it from a week of quiet rolls. The line names the Die
+rather than just promising safety, because the attribute means *this* one
+specific thing and a surface Location's silence must not read as a warning.
+
+**One consequence worth stating plainly.** Same-zone travel is free, and the
+Caves and the Depths hold eight non-safe Locations between them, so a caver who
+walks the level now rolls up to eight times in a turn where the old turn-start
+pass rolled once. Camping is free and exploring is expensive — which is the
+design, but it is roughly an eight-fold increase in TROUBLE for anyone actually
+moving, and the GM load on the Caving lens rises with it.
 
 ### 2b. One roll per Location per turn
 
