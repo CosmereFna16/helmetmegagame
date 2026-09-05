@@ -1251,14 +1251,21 @@ zones:
               items:
                 packaging-equipment: 1
                 armored-gloves: 2
+                hatchet: 1
           factory-main-floor:
             name: Main Floor
             description: >-
               The production room. Godflesh, suspended by hooks, slowly boils in big, wood-fired vats. Hydraulic pistons then senselessly compress it into cubes. Outside, the bridges have a few tables for people to kick their feet and relax. The Days Since Last Incident ticker is covered over by a hastily painted sign saying: "DO NOT EAT THE CUBES." A level up, the overseer box looks out onto the working floor.
+            stash:
+              items:
+                hatchet: 1
           factory-pub:
             name: Pub
             description: >-
               An old barge converted into a pub for the factory workers. When the nearby village was more active, there was an actual bar. Well, at least you have moonshine, and some interesting folks still pass by.
+            stash:
+              items:
+                hatchet: 1
           # `destroys` is the only room in the game with it. See CARRY.md.
           factory-spillway:
             name: Spillway
