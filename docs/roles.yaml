@@ -142,6 +142,7 @@ zones:
             multiple: false
             starting_resources: 5
             starting_zone: fortress
+            starting_location: keep
             extra_starting_points: 7
             leader: true
             whitelist: true
@@ -182,6 +183,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            starting_location: keep
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -210,6 +212,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            starting_location: keep
             extra_starting_points: 5
             starting_tags:
               - Ravenhearter
@@ -236,6 +239,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            starting_location: keep
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -277,6 +281,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            starting_location: keep
             extra_starting_points: 7
             treasurer: true
             whitelist: true
@@ -321,6 +326,7 @@ zones:
             multiple: false
             starting_resources: 2
             starting_zone: fortress
+            starting_location: keep
             treasurer: true
             whitelist: true
             starting_tags:
@@ -382,6 +388,7 @@ zones:
             weight: 6
             starting_resources: 1
             starting_zone: fortress
+            starting_location: keep
             starting_tags:
               - Ravenhearter
               - Courtier
@@ -403,6 +410,7 @@ zones:
             weight: 1
             starting_resources: 1
             starting_zone: fortress
+            starting_location: keep
             starting_tags:
               - Ravenhearter
               - Musician
@@ -426,6 +434,7 @@ zones:
             weight: 3
             starting_resources: 1
             starting_zone: fortress
+            starting_location: servant-wing
             starting_tags:
               - Ravenhearter
               - Cooking (Basic)
@@ -454,6 +463,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: fortress
+            starting_location: garrison
             leader: true
             whitelist: true
             treasurer: true
@@ -496,6 +506,7 @@ zones:
             multiple: false
             starting_resources: 2
             starting_zone: fortress
+            starting_location: garrison
             treasurer: true
             starting_tags:
               - Armory Key
@@ -533,6 +544,7 @@ zones:
             weight: 6
             starting_resources: 1
             starting_zone: fortress
+            starting_location: garrison
             starting_tags:
               - Cerberus Helmet
               - Ravenhearter
@@ -566,6 +578,7 @@ zones:
             weight: 2
             starting_resources: 1
             starting_zone: fortress
+            starting_location: garrison
             starting_tags:
               - Ravenhearter
               - Cerberon
@@ -609,6 +622,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: town
+            starting_location: cathedral
             leader: true
             whitelist: true
             starting_tags:
@@ -642,6 +656,7 @@ zones:
             weight: 3
             starting_resources: 1
             starting_zone: town
+            starting_location: cathedral
             starting_tags:
               - Cathedral Key
               - Ravenhearter
@@ -666,6 +681,7 @@ zones:
             weight: 1
             starting_resources: 1
             starting_zone: town
+            starting_location: cathedral
             starting_tags:
               - Cathedral Key
               - Ravenhearter
@@ -698,6 +714,7 @@ zones:
             multiple: false
             starting_resources: 26
             starting_zone: town
+            starting_location: sanctuary
             leader: true
             whitelist: true
             starting_tags:
@@ -731,6 +748,7 @@ zones:
             weight: 4
             starting_resources: 8
             starting_zone: town
+            starting_location: sanctuary
             starting_tags:
               - Sanctuary Key
               - Ravenhearter
@@ -766,6 +784,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: town
+            starting_location: cathedral
             leader: true
             whitelist: true
             starting_tags:
@@ -807,6 +826,7 @@ zones:
             weight: 2
             starting_resources: 1
             starting_zone: town
+            starting_location: cathedral
             starting_tags:
               - Order Key
               - Ravenhearter
@@ -845,6 +865,7 @@ zones:
             weight: 1
             starting_resources: 1
             starting_zone: town
+            starting_location: cathedral
             starting_tags:
               - Order Key
               - Ravenhearter
@@ -880,6 +901,7 @@ zones:
             multiple: false
             starting_resources: 1
             starting_zone: town
+            starting_location: square
             leader: true
             whitelist: true
             starting_tags:
@@ -909,6 +931,7 @@ zones:
             weight: 1
             starting_resources: 1
             starting_zone: town
+            starting_location: square
             starting_tags:
               - Ravenhearter
               - Melee (Basic)
@@ -939,6 +962,7 @@ zones:
             weight: 2
             starting_resources: 20
             starting_zone: town
+            starting_location: square
             starting_tags:
               - Ravenhearter
               - Smithing
@@ -963,6 +987,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: town
+            starting_location: square
             starting_tags:
               - Ravenhearter
               - Laboring (Skilled)
@@ -990,6 +1015,7 @@ zones:
             weight: 3
             starting_resources: 1
             starting_zone: town
+            starting_location: underquarter
             starting_tags:
               - Ravenhearter
               - Mortus
@@ -1012,6 +1038,7 @@ zones:
             weight: 4
             starting_resources: 1
             starting_zone: town
+            starting_location: underquarter
             extra_starting_points: -3
             starting_tags:
               - Ravenhearter
@@ -1032,6 +1059,7 @@ zones:
             multiple: false
             starting_resources: 8
             starting_zone: town
+            starting_location: underquarter
             starting_tags:
               - Ravenhearter
               - Brewing (Skilled)
@@ -1064,6 +1092,7 @@ zones:
             multiple: false
             starting_resources: 9
             starting_zone: town
+            starting_location: old-cock-inn
             leader: true
             whitelist: true
             starting_tags:
@@ -1088,6 +1117,7 @@ zones:
             weight: 2
             starting_resources: 1
             starting_zone: town
+            starting_location: old-cock-inn
             starting_tags:
               - Cellar Key
               - Ravenhearter
@@ -1128,6 +1158,7 @@ zones:
             multiple: false
             starting_resources: 10
             starting_zone: caves
+            starting_location: customs
             leader: true
             whitelist: true
             starting_tags:
@@ -1158,6 +1189,7 @@ zones:
             weight: 2
             starting_resources: 1
             starting_zone: caves
+            starting_location: customs
             starting_tags:
               - Depot Keycard
             doc_elements:
@@ -1178,6 +1210,7 @@ zones:
             weight: unlimited
             starting_resources: 1
             starting_zone: caves
+            starting_location: caves-stairhead
             extra_starting_points: 10
             starting_tags: [Pale]
             doc_elements: [caving]
@@ -1195,6 +1228,7 @@ zones:
             weight: 2
             starting_resources: 4
             starting_zone: caves
+            starting_location: customs
             starting_tags:
               - Melee (Basic)
               - Ranged (Basic)
