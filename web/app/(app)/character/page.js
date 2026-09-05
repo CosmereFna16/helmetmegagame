@@ -1,19 +1,48 @@
 import { redirect } from "next/navigation";
 import { peopleHere } from "@/lib/peopleHere";
-import { LESSON_CATALOG_SELECT, teachableSkills, isTeacher } from "@lifeweb/db/lib/lessons";
-import { prisma, roleCapacity, isDynastyMember, presentedIdentity, startingTagNames } from "@lifeweb/db";
-import { accessibleRooms, guestRoomIds as roomGuestIds } from "@lifeweb/db/lib/roomAccess";
+import {
+  LESSON_CATALOG_SELECT,
+  teachableSkills,
+  isTeacher,
+} from "@lifeweb/db/lib/lessons";
+import {
+  prisma,
+  roleCapacity,
+  isDynastyMember,
+  presentedIdentity,
+  startingTagNames,
+} from "@lifeweb/db";
+import {
+  accessibleRooms,
+  guestRoomIds as roomGuestIds,
+} from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
-import { BUTCHER_SLUG, WORKSHOP_EQUIPMENT_SLUG, PACKAGING_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
-import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
+import {
+  BUTCHER_SLUG,
+  WORKSHOP_EQUIPMENT_SLUG,
+  PACKAGING_EQUIPMENT_SLUG,
+} from "@lifeweb/db/lib/constants";
+import {
+  hasAttribute,
+  GODFLESH_ATTRIBUTE,
+} from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { canRead } from "@lifeweb/db/lib/reading";
-import { PAPER_SLUG, isPaper, isSeal, sealLabel, paperDescription } from "@lifeweb/db/lib/paper";
-import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
+import {
+  PAPER_SLUG,
+  isPaper,
+  isSeal,
+  sealLabel,
+  paperDescription,
+} from "@lifeweb/db/lib/paper";
+import {
+  freeMovesLeft,
+  freeZoneMovesReason,
+} from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { groupFactions } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
@@ -28,7 +57,10 @@ import {
   bottomSlotAddiction,
   unlockedBy,
 } from "@lifeweb/db/lib/desireGates";
-import { desireFamilies, desireFamilyGroups } from "@lifeweb/db/lib/desireFamilies";
+import {
+  desireFamilies,
+  desireFamilyGroups,
+} from "@lifeweb/db/lib/desireFamilies";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -52,9 +84,15 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { isTradeable } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
-import { canSendBird as holdsBirdAndLetters, birdZones as birdZonesOf } from "@lifeweb/db/lib/bird";
+import {
+  canSendBird as holdsBirdAndLetters,
+  birdZones as birdZonesOf,
+} from "@lifeweb/db/lib/bird";
 import { describeTurn } from "@/lib/turnFormat";
-import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import {
+  INCAPACITATING_SLUGS,
+  FINISHABLE_SLUGS,
+} from "@lifeweb/db/lib/incapacitation";
 import { parseSelection } from "@/lib/portrait/catalog";
 import {
   HEALABLE_CATEGORY,
@@ -99,7 +137,9 @@ async function loadCreationData(discordUserId) {
 
   // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
   // else's live wizard-in-progress hold; excludes the viewer's own hold.
-  const roleRows = zones.flatMap((zone) => zone.factions.flatMap((faction) => faction.roles));
+  const roleRows = zones.flatMap((zone) =>
+    zone.factions.flatMap((faction) => faction.roles),
+  );
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
   const cursed = isCursed(member);
@@ -111,7 +151,9 @@ async function loadCreationData(discordUserId) {
   };
   // `=== false`, not falsy: no config row means the gate stays enforced.
   const leaderWhitelisted =
-    superadmin || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
+    superadmin ||
+    config?.leaderWhitelistEnabled === false ||
+    isLeaderWhitelisted(member);
   const playtestMode = config?.playtestModeEnabled === true;
   const playerCount = config?.playerCount ?? 100;
 
@@ -127,7 +169,11 @@ async function loadCreationData(discordUserId) {
     // Seven social buckets, not five zones — db/lib/roleGroups.js says which
     // faction lands where, and the zone a role starts in is printed on its own
     // card instead of being a heading over it.
-    groups: groupFactions(zones.flatMap((zone) => zone.factions.map((f) => ({ ...f, zoneName: zone.name }))))
+    groups: groupFactions(
+      zones.flatMap((zone) =>
+        zone.factions.map((f) => ({ ...f, zoneName: zone.name })),
+      ),
+    )
       .map((group) => ({
         slug: group.slug,
         name: group.name,
@@ -136,7 +182,8 @@ async function loadCreationData(discordUserId) {
             const cap = roleCapacity(role, playerCount);
             // Locked roles stay in the tree; the card greys itself and says why.
             const playtestLocked =
-              playtestMode && isPlaytestLocked({ role, zoneName: faction.zoneName });
+              playtestMode &&
+              isPlaytestLocked({ role, zoneName: faction.zoneName });
             return {
               id: role.id,
               name: role.name,
@@ -163,7 +210,12 @@ async function loadCreationData(discordUserId) {
               // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
               cap: cap === Infinity ? null : cap,
               taken: takenByRole.get(role.id) ?? 0,
-              selectable: isRoleSelectable({ role, cursed, leaderWhitelisted, playtestLocked }),
+              selectable: isRoleSelectable({
+                role,
+                cursed,
+                leaderWhitelisted,
+                playtestLocked,
+              }),
               playtestLocked,
               // Resolved server-side so a client component never drags
               // PrismaClient into the browser bundle.
@@ -196,7 +248,12 @@ export default async function CharacterPage() {
       // silently drop it rather than fail.
       tags: {
         include: {
-          tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
+          tag: {
+            include: {
+              group: true,
+              requirementSkills: { select: { name: true } },
+            },
+          },
         },
       },
     },
@@ -205,7 +262,8 @@ export default async function CharacterPage() {
   // No living character — this IS the create-a-character screen.
   if (!character) {
     const { gate, ...creation } = await loadCreationData(session.discordUserId);
-    if (!gate.open || !gate.approved) return <CreationClosed open={gate.open} />;
+    if (!gate.open || !gate.approved)
+      return <CreationClosed open={gate.open} />;
     return <CreateCharacterWizard {...creation} />;
   }
 
@@ -219,117 +277,127 @@ export default async function CharacterPage() {
     { action: currentAction },
   ] = await Promise.all([
     getOpenTurn(),
-      // getVisibleTags doesn't select purchasable/craftable, so this comes
-      // down as its own props, same as the creation wizard.
-      prisma.tag.findMany({
-        where: { OR: [{ purchasable: true }, { craftable: true }] },
-        orderBy: { name: "asc" },
-        select: {
-          id: true,
-          name: true,
-          // slug so needsWorkshop() can exempt workshop-equipment itself
-          // (web/lib/tagRequests.js) — you build your first forge in the open.
-          slug: true,
-          description: true,
-          category: true,
-          pointCost: true,
-          purchasable: true,
-          // addableTags' purchasable branch requires this or it reads
-          // undefined and drops purchasable-only tags from the Add Tag menu.
-          purchasableAfterStart: true,
-          craftable: true,
-          // A craftable carrying `placement` is raised on the ground instead
-          // of landing in a pocket (db/lib/structures.js). The whole JSON
-          // crosses rather than a boolean: the menu needs `unique` too, and
-          // the column is three or four small keys.
-          placement: true,
-          stackable: true,
-          parentTagId: true,
-          requiredTagId: true,
-          requiredTag: { select: { name: true } },
-          group: {
-            select: {
-              name: true,
-              color: true,
-              requiredTagId: true,
-              requiredTag: { select: { name: true } },
-            },
+    // getVisibleTags doesn't select purchasable/craftable, so this comes
+    // down as its own props, same as the creation wizard.
+    prisma.tag.findMany({
+      where: { OR: [{ purchasable: true }, { craftable: true }] },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        // slug so needsWorkshop() can exempt workshop-equipment itself
+        // (web/lib/tagRequests.js) — you build your first forge in the open.
+        slug: true,
+        description: true,
+        category: true,
+        pointCost: true,
+        purchasable: true,
+        // addableTags' purchasable branch requires this or it reads
+        // undefined and drops purchasable-only tags from the Add Tag menu.
+        purchasableAfterStart: true,
+        craftable: true,
+        // A craftable carrying `placement` is raised on the ground instead
+        // of landing in a pocket (db/lib/structures.js). The whole JSON
+        // crosses rather than a boolean: the menu needs `unique` too, and
+        // the column is three or four small keys.
+        placement: true,
+        stackable: true,
+        parentTagId: true,
+        requiredTagId: true,
+        requiredTag: { select: { name: true } },
+        group: {
+          select: {
+            name: true,
+            color: true,
+            requiredTagId: true,
+            requiredTag: { select: { name: true } },
           },
-          // Craft enforces recipe skills (CRAFTING.md); `knownRecipeIds`
-          // below is the server's verdict per recipe.
-          requirementSkills: { select: { id: true, name: true, slug: true } },
-          requirementTurns: true,
-          requirementResources: true,
-          requirementPerTurn: true,
-          conflictsWith: { select: { id: true } },
         },
-      }),
-      // id -> parentTagId for the whole catalog, to resolve a held tier back
-      // down its chain to its gate.
-      prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-      // ALL statuses — the gate evaluator needs the whole history.
-      prisma.desire.findMany({
-        where: { characterId: character.id },
-        select: {
-          id: true,
-          templateId: true,
-          slotIndex: true,
-          status: true,
-          text: true,
-          points: true,
-          setTurnNumber: true,
-          endedTurnNumber: true,
-          template: { select: { tier: true, cooldownTurns: true, onceEver: true } },
+        // Craft enforces recipe skills (CRAFTING.md); `knownRecipeIds`
+        // below is the server's verdict per recipe.
+        requirementSkills: { select: { id: true, name: true, slug: true } },
+        requirementTurns: true,
+        requirementResources: true,
+        requirementPerTurn: true,
+        conflictsWith: { select: { id: true } },
+      },
+    }),
+    // id -> parentTagId for the whole catalog, to resolve a held tier back
+    // down its chain to its gate.
+    prisma.tag.findMany({
+      select: { id: true, slug: true, parentTagId: true },
+    }),
+    // ALL statuses — the gate evaluator needs the whole history.
+    prisma.desire.findMany({
+      where: { characterId: character.id },
+      select: {
+        id: true,
+        templateId: true,
+        slotIndex: true,
+        status: true,
+        text: true,
+        points: true,
+        setTurnNumber: true,
+        endedTurnNumber: true,
+        template: {
+          select: { tier: true, cooldownTurns: true, onceEver: true },
         },
-      }),
-      // Gate fields db/lib/desireGates.js needs, projected through
-      // web/lib/desireProjection.js below.
-      prisma.desireTemplate.findMany({
-        where: { retired: false },
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          description: true,
-          tier: true,
-          families: true,
-          onceEver: true,
-          cooldownTurns: true,
-          retired: true,
-          requiresAnyOf: true,
-          requiresAnyRoleSlugs: true,
-          requiresNotRoleSlugs: true,
-          requiresAnyTags: { select: { id: true, name: true } },
-          requiresAllTags: { select: { id: true, name: true } },
-          requiresNotTags: { select: { id: true, name: true } },
-        },
-      }),
-      prisma.gameConfig.findUnique({
-        where: { id: 1 },
-        select: {
-          equipSlots: true,
-          avatarUploadsEnabled: true,
-          portraitMakerEnabled: true,
-          portraitFantasyPartsEnabled: true,
-          desiresEnabled: true,
-          desireSlots: true,
-          desireSlotLockTurns: true,
-          maxDrawbackTags: true,
-          maxDrawbackPoints: true,
-          autoTurnAdvanceDisabled: true,
-        },
-      }),
-      findOpenTurnAction(prisma, character.id),
-    ]);
+      },
+    }),
+    // Gate fields db/lib/desireGates.js needs, projected through
+    // web/lib/desireProjection.js below.
+    prisma.desireTemplate.findMany({
+      where: { retired: false },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        tier: true,
+        families: true,
+        onceEver: true,
+        cooldownTurns: true,
+        retired: true,
+        requiresAnyOf: true,
+        requiresAnyRoleSlugs: true,
+        requiresNotRoleSlugs: true,
+        requiresAnyTags: { select: { id: true, name: true } },
+        requiresAllTags: { select: { id: true, name: true } },
+        requiresNotTags: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: {
+        equipSlots: true,
+        avatarUploadsEnabled: true,
+        portraitMakerEnabled: true,
+        portraitFantasyPartsEnabled: true,
+        desiresEnabled: true,
+        desireSlots: true,
+        desireSlotLockTurns: true,
+        maxDrawbackTags: true,
+        maxDrawbackPoints: true,
+        autoTurnAdvanceDisabled: true,
+      },
+    }),
+    findOpenTurnAction(prisma, character.id),
+  ]);
 
   // Desires. Every evaluation happens HERE, server-side — the client never
   // runs the gate logic or receives a hidden template.
   const desireSlots = gameConfig?.desireSlots ?? 2;
   const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
   const heldDesireTagIds = new Set(character.tags.map((ct) => ct.tagId));
-  const hiddenTagIds = await computeHiddenDesireTagIds(prisma, heldDesireTagIds);
-  const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplateRows);
+  const hiddenTagIds = await computeHiddenDesireTagIds(
+    prisma,
+    heldDesireTagIds,
+  );
+  const roleBySlugForDesires = await loadRoleBySlugForTemplates(
+    prisma,
+    desireTemplateRows,
+  );
   const projectedDesireTemplates = desireTemplateRows.map((t) =>
     projectDesireTemplateForGates(roleBySlugForDesires, t),
   );
@@ -374,7 +442,9 @@ export default async function CharacterPage() {
     desireSlots,
     lockTurns: desireSlotLockTurns,
   });
-  const desireAddiction = bottomSlotAddiction(character.tags.map((ct) => ct.tag));
+  const desireAddiction = bottomSlotAddiction(
+    character.tags.map((ct) => ct.tag),
+  );
 
   // Held ids widen the store catalog so unpurchasable held tags (a
   // GM-granted item) still reach the client's byId map.
@@ -414,7 +484,10 @@ export default async function CharacterPage() {
     },
   });
   const selfEntry = { id: character.id, name: character.name };
-  const peopleParties = [selfEntry, ...here.map(({ id, name }) => ({ id, name }))];
+  const peopleParties = [
+    selfEntry,
+    ...here.map(({ id, name }) => ({ id, name })),
+  ];
 
   // Plus every Room stash at this Location the character can get into
   // (CARRY.md) — with its contents, since pulling out of one means seeing
@@ -440,24 +513,33 @@ export default async function CharacterPage() {
               quantity: true,
               // weightLbs/category ride along so the Transfer dialog can
               // project what pulling a stash out would do to your load.
-              tag: { select: { name: true, stackable: true, weightLbs: true, category: true } },
+              tag: {
+                select: {
+                  name: true,
+                  stackable: true,
+                  weightLbs: true,
+                  category: true,
+                },
+              },
             },
           },
         },
       })
     : [];
-  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map((r) => ({
-    id: r.id,
-    name: r.name,
-    resources: r.resources,
-    tags: r.tags.map((rt) => ({
-      tagId: rt.tagId,
-      name: rt.tag.name,
-      quantity: rt.quantity,
-      stackable: rt.tag.stackable,
-      weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
-    })),
-  }));
+  const rooms = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map(
+    (r) => ({
+      id: r.id,
+      name: r.name,
+      resources: r.resources,
+      tags: r.tags.map((rt) => ({
+        tagId: rt.tagId,
+        name: rt.tag.name,
+        quantity: rt.quantity,
+        stackable: rt.tag.stackable,
+        weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+      })),
+    }),
+  );
   // Every body in reach, for Butcher and Bury (docs/systemdocs/CORPSES.md).
   // Handed the ALREADY-FILTERED room list so it costs no second round-trip and
   // — more importantly — so the menu is built from exactly the rooms the
@@ -495,7 +577,9 @@ export default async function CharacterPage() {
     : null;
   const siloRoom = siloFaction?.siloRoom ?? null;
   const transferSilo =
-    siloRoom && character.zoneId && siloRoom.location.zoneId === character.zoneId
+    siloRoom &&
+    character.zoneId &&
+    siloRoom.location.zoneId === character.zoneId
       ? {
           id: siloRoom.id,
           name: siloRoom.name,
@@ -503,7 +587,13 @@ export default async function CharacterPage() {
           here: siloRoom.locationId === character.locationId,
           canOpen:
             accessibleRooms(
-              [{ id: siloRoom.id, kind: siloRoom.kind, accessTagSlugs: siloRoom.accessTagSlugs }],
+              [
+                {
+                  id: siloRoom.id,
+                  kind: siloRoom.kind,
+                  accessTagSlugs: siloRoom.accessTagSlugs,
+                },
+              ],
               heldSlugsForRooms,
               guestRoomIds,
             ).length === 1,
@@ -511,7 +601,11 @@ export default async function CharacterPage() {
       : null;
   // Is a forge within reach? Resolved server-side so the Craft dialog can say
   // so before a player commits, and re-checked by craftRequest either way.
-  const hasWorkshop = await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG);
+  const hasWorkshop = await hasEquipmentInReach(
+    prisma,
+    character,
+    WORKSHOP_EQUIPMENT_SLUG,
+  );
   // The Godard Factory's two buttons (docs/systemdocs/FACTORY.md). Both HIDE
   // where the place is wrong rather than greying — a fact about where this
   // character is standing, which is theirs already, so nothing about the room
@@ -519,10 +613,15 @@ export default async function CharacterPage() {
   const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
   const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
   const canExtract = Boolean(extractTool);
-  const extractBlocked = canSeeExtract && !canExtract
-    ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
-    : null;
-  const canSeePackage = await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG);
+  const extractBlocked =
+    canSeeExtract && !canExtract
+      ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
+      : null;
+  const canSeePackage = await hasEquipmentInReach(
+    prisma,
+    character,
+    PACKAGING_EQUIPMENT_SLUG,
+  );
   const carry = carryStatus(character, gameConfig);
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so
   // no allowance math reaches the client bundle.
@@ -550,7 +649,11 @@ export default async function CharacterPage() {
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
   const knownRecipeIds = tagCatalog
-    .filter((t) => t.craftable && (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)))
+    .filter(
+      (t) =>
+        t.craftable &&
+        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)),
+    )
     .map((t) => t.id);
   const craftProjects = (
     await prisma.craftProject.findMany({
@@ -585,16 +688,18 @@ export default async function CharacterPage() {
   // dialog narrows to UNDER_CONSTRUCTION itself. Projected rather than passed
   // whole — the Prisma row carries Dates and a payer key that no client
   // surface has any business with.
-  const sitesHere = (await structuresAt(prisma, character.locationId)).map((s) => ({
-    id: s.id,
-    typeSlug: s.typeSlug,
-    typeName: s.typeName,
-    status: s.status,
-    turnsDone: s.turnsDone,
-    turnsNeeded: s.turnsNeeded,
-    // Only the opener may call a site off, and cancelBuildSite re-checks it.
-    mine: s.builderCharacterId === character.id,
-  }));
+  const sitesHere = (await structuresAt(prisma, character.locationId)).map(
+    (s) => ({
+      id: s.id,
+      typeSlug: s.typeSlug,
+      typeName: s.typeName,
+      status: s.status,
+      turnsDone: s.turnsDone,
+      turnsNeeded: s.turnsNeeded,
+      // Only the opener may call a site off, and cancelBuildSite re-checks it.
+      mine: s.builderCharacterId === character.id,
+    }),
+  );
   // Whether this ground takes a structure at all, so the Craft menu can drop
   // the placements rather than offer a refusal. craftRequest judges the same
   // ground again with the same function.
@@ -645,15 +750,23 @@ export default async function CharacterPage() {
   // not have to be able to read what they are carrying, which is rather the
   // use of an illiterate one.
   const letterOptions = character.tags
-    .filter((ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED")
+    .filter(
+      (ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED",
+    )
     .map((ct) => ({
       tagId: ct.tagId,
       name: ct.tag.name,
       excerpt:
-        canReadNow && ct.tag.paperKind === "PAPER" ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
+        canReadNow && ct.tag.paperKind === "PAPER"
+          ? (ct.tag.paperText ?? "").trim().slice(0, 60)
+          : null,
     }));
   const sealOptions = {
-    stamps: seals.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, label: sealLabel(ct.tag) })),
+    stamps: seals.map((ct) => ({
+      tagId: ct.tagId,
+      name: ct.tag.name,
+      label: sealLabel(ct.tag),
+    })),
     letters: sealables.map((ct) => ({
       tagId: ct.tagId,
       name: ct.tag.name,
@@ -679,13 +792,17 @@ export default async function CharacterPage() {
     tags: character.tags.map((ct) => {
       if (!isPaper(ct.tag)) return ct;
       const { paperText, ...tag } = ct.tag;
-      return { ...ct, tag: { ...tag, description: paperDescription(ct.tag, viewer) } };
+      return {
+        ...ct,
+        tag: { ...tag, description: paperDescription(ct.tag, viewer) },
+      };
     }),
   };
   // Compared against the in-game DAY (birdTurnId stores the day), not the
   // turn. Advisory only — the server's conditional claim is the real gate.
   const birdSentToday =
-    Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
+    Boolean(openTurn) &&
+    character.birdTurnId === String(describeTurn(openTurn).day);
 
   // Patients: yourself and everyone here, filtered to treatable tags HERE,
   // not the client, so nobody else's full sheet crosses the wire. Skipped for
@@ -740,7 +857,10 @@ export default async function CharacterPage() {
                   },
                   select: { effect: true },
                 })
-              ).filter((r) => !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0).length
+              ).filter(
+                (r) =>
+                  !r.effect?.gambit && (r.effect?.requirement?.turns ?? 0) > 0,
+              ).length
             : 0),
       )
     : 0;
@@ -761,7 +881,15 @@ export default async function CharacterPage() {
         select: {
           tagId: true,
           quantity: true,
-          tag: { select: { name: true, slug: true, category: true, stackable: true, tradeable: true } },
+          tag: {
+            select: {
+              name: true,
+              slug: true,
+              category: true,
+              stackable: true,
+              tradeable: true,
+            },
+          },
         },
       },
     },
@@ -772,15 +900,27 @@ export default async function CharacterPage() {
   // could learn cross the wire, never their sheet. `learners`: when I hold
   // Teaching, everyone here with what I could teach them. Both empty lists
   // otherwise. `pendingOffers`: the handshakes I'm part of this turn.
-  const lessonCatalog = await prisma.tag.findMany({ select: LESSON_CATALOG_SELECT });
-  const meForLessons = { id: character.id, tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })) };
-  const hereForLessons = here.map((c) => ({ id: c.id, name: c.name, tags: c.tags }));
+  const lessonCatalog = await prisma.tag.findMany({
+    select: LESSON_CATALOG_SELECT,
+  });
+  const meForLessons = {
+    id: character.id,
+    tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
+  };
+  const hereForLessons = here.map((c) => ({
+    id: c.id,
+    name: c.name,
+    tags: c.tags,
+  }));
   const teachers = hereForLessons
     .filter((c) => isTeacher(c))
     .map((c) => ({
       id: c.id,
       name: c.name,
-      skills: teachableSkills(c, meForLessons, lessonCatalog).map((t) => ({ id: t.id, name: t.name })),
+      skills: teachableSkills(c, meForLessons, lessonCatalog).map((t) => ({
+        id: t.id,
+        name: t.name,
+      })),
     }))
     .filter((c) => c.skills.length > 0);
   const canTeach = isTeacher(meForLessons);
@@ -789,10 +929,29 @@ export default async function CharacterPage() {
         .map((c) => ({
           id: c.id,
           name: c.name,
-          skills: teachableSkills(meForLessons, c, lessonCatalog).map((t) => ({ id: t.id, name: t.name })),
+          skills: teachableSkills(meForLessons, c, lessonCatalog).map((t) => ({
+            id: t.id,
+            name: t.name,
+          })),
         }))
         .filter((c) => c.skills.length > 0)
     : [];
+  // Confession (CONFESSION.md). Only the penitent gets a menu: `confessors`
+  // is everyone here holding the Chaplain tag, `mySins` my own psychological
+  // tags. There is deliberately NO list built for a chaplain — one would show
+  // them everybody's addictions before they had agreed to hear a word.
+  const confessors = here
+    .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
+    .map((c) => ({ id: c.id, name: c.name }));
+  const mySins = (
+    await prisma.characterTag.findMany({
+      where: { characterId: character.id, tag: { psychological: true } },
+      select: { tag: { select: { id: true, name: true } } },
+    })
+  )
+    .map((ct) => ct.tag)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   const pendingOffers = openTurn
     ? (
         await prisma.offer.findMany({
@@ -802,26 +961,43 @@ export default async function CharacterPage() {
             OR: [{ initiatorId: character.id }, { responderId: character.id }],
           },
           orderBy: { createdAt: "asc" },
-          select: { id: true, kind: true, initiatorId: true, responderId: true, tag: { select: { name: true } } },
+          select: {
+            id: true,
+            kind: true,
+            initiatorId: true,
+            responderId: true,
+            tag: { select: { name: true } },
+          },
         })
       ).map((o) => {
-        const otherId = o.initiatorId === character.id ? o.responderId : o.initiatorId;
+        const otherId =
+          o.initiatorId === character.id ? o.responderId : o.initiatorId;
         const other = [...here, ...zoneRoster].find((c) => c.id === otherId);
         return {
           id: o.id,
           kind: o.kind,
           mine: o.initiatorId === character.id,
           otherName: other?.name ?? "someone",
-          tagName: o.tag?.name ?? null,
+          // A chaplain waiting on a confession is not told what it is about,
+          // here or anywhere else. The penitent sees their own.
+          tagName:
+            o.kind === "CONFESSION" && o.responderId === character.id
+              ? null
+              : (o.tag?.name ?? null),
         };
       })
     : [];
 
   // The catalog name of whichever incapacitating tag they hold.
   function conditionOf(c) {
-    return c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ?? null;
+    return (
+      c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ??
+      null
+    );
   }
-  const helpless = zoneRoster.filter((c) => c.status === "DEAD" || conditionOf(c));
+  const helpless = zoneRoster.filter(
+    (c) => c.status === "DEAD" || conditionOf(c),
+  );
 
   // A body, or anyone who can't stop you. Only `tradeable` tags come off.
   const lootTargets = helpless.map((c) => ({
@@ -842,7 +1018,11 @@ export default async function CharacterPage() {
 
   // Everyone here, not just who you may move: the server's own gate says
   // who follows, and a menu that narrowed to the bound would announce them.
-  const moveTargets = zoneRoster.map(({ id, name, status }) => ({ id, name, status }));
+  const moveTargets = zoneRoster.map(({ id, name, status }) => ({
+    id,
+    name,
+    status,
+  }));
 
   // Where you may walk someone: the neighbours of YOUR OWN location, the same
   // edge an ordinary walk uses, gated the same way. travelOptions drops the
@@ -866,13 +1046,11 @@ export default async function CharacterPage() {
   // Only fetched for someone who holds a bird. Recipient list is EVERY
   // character regardless of status; a letter to a dead name never arrives.
   const birdTargets = hasBird
-    ? (
-        await prisma.character.findMany({
-          where: { id: { not: character.id } },
-          select: { id: true, name: true },
-          orderBy: { name: "asc" },
-        })
-      )
+    ? await prisma.character.findMany({
+        where: { id: { not: character.id } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
     : [];
   // Everywhere standable except the two deep cave levels (birdZones()).
   const birdZoneOptions = hasBird
@@ -927,24 +1105,36 @@ export default async function CharacterPage() {
   // A forced identity (Tag.forcedName — Apex Form's "Beast") shows the player
   // what the room sees: the forced name's letter plaque, not their own face.
   const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
-  const forcedIdentity = forcedTag ? { name: forcedTag.forcedName, tagName: forcedTag.name } : null;
+  const forcedIdentity = forcedTag
+    ? { name: forcedTag.forcedName, tagName: forcedTag.name }
+    : null;
   // And what is over their face, which decides whether the conceal switch is
   // usable at all (PROXYING.md §5). Named here rather than in AvatarField so
   // the refusal can say WHICH thing is doing it.
   const concealingTag =
     character.tags
       .filter((ct) => ct.equipped && ct.tag.concealsIdentity)
-      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]?.tag ?? null;
+      .sort((a, b) => (b.tag.equipLayer ?? 0) - (a.tag.equipLayer ?? 0))[0]
+      ?.tag ?? null;
   const concealGear = concealingTag
-    ? { tagName: concealingTag.name, forced: Boolean(concealingTag.forcesConceal) }
+    ? {
+        tagName: concealingTag.name,
+        forced: Boolean(concealingTag.forcesConceal),
+      }
     : null;
   const avatarSrc = forcedIdentity
-    ? presentedIdentity(character, { forcedName: forcedIdentity.name }).avatarPath
+    ? presentedIdentity(character, { forcedName: forcedIdentity.name })
+        .avatarPath
     : `/api/avatar/${character.id}?v=${character.updatedAt.getTime()}`;
 
   // The Move cutoff for StatusPanel's "This turn" row.
   const openTurnWithWindow = openTurn
-    ? { ...openTurn, moveWindow: moveWindow(openTurn, { autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false }) }
+    ? {
+        ...openTurn,
+        moveWindow: moveWindow(openTurn, {
+          autoTurnAdvanceDisabled: gameConfig?.autoTurnAdvanceDisabled ?? false,
+        }),
+      }
     : openTurn;
 
   // A Gambit's die is rolled at submit but revealed only in the turn-end DM;
@@ -989,6 +1179,8 @@ export default async function CharacterPage() {
       buildable={buildable}
       teachers={teachers}
       learners={learners}
+      confessors={confessors}
+      mySins={mySins}
       pendingOffers={pendingOffers}
       hasBird={hasBird}
       canRead={canReadNow}
@@ -1004,7 +1196,9 @@ export default async function CharacterPage() {
       equipSlots={gameConfig?.equipSlots ?? 6}
       avatarUploadsEnabled={gameConfig?.avatarUploadsEnabled ?? false}
       portraitMakerEnabled={gameConfig?.portraitMakerEnabled ?? false}
-      portraitFantasyPartsEnabled={gameConfig?.portraitFantasyPartsEnabled ?? false}
+      portraitFantasyPartsEnabled={
+        gameConfig?.portraitFantasyPartsEnabled ?? false
+      }
       // Re-validated here: a stored index can outlive a catalog change.
       portraitSelection={parseSelection(character.portrait, {
         allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,

@@ -617,8 +617,7 @@ has since been deleted outright along with the channel it opened.
   **THE RULE, and it is catalog-wide.** `visible: true` means *a stranger
   looking you over would notice*: your body, your face, your gait; your
   clothes and anything large enough that you are visibly hauling it; and a
-  reputation already attached to your name in public (Disgraced, Wanted,
-  Knighted). **Never** your appetites, your beliefs, your opinions, your
+  reputation already attached to your name in public (Wanted, Knighted). **Never** your appetites, your beliefs, your opinions, your
   skills, or your secrets. Hot-Headed, Pacifist, Alcoholic, Eunuch, every
   Belief and every Skill in the catalog are `false`, and that is not an
   oversight — a temper is a thing you find out about someone, not a thing you

@@ -601,6 +601,7 @@ async function syncTagsFromYaml(prisma) {
       craftable: entry.craftable ?? false,
       healable: entry.healable ?? false,
       teachable: entry.teachable ?? false,
+      psychological: entry.psychological ?? false,
       consumable: entry.consumable ?? false,
       consumesIntoResources: entry.consumesIntoResources ?? null,
       expiresInto: normalizeExpiresInto(entry.expiresInto),

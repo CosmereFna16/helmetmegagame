@@ -9,13 +9,15 @@
 const { prisma } = require("@lifeweb/db");
 const { acceptLesson, declineOffer } = require("@lifeweb/db/lib/lessons");
 const { acceptBind } = require("@lifeweb/db/lib/bind");
+const { acceptConfession } = require("@lifeweb/db/lib/confession");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { syncCharacterRoomAccess } = require("@lifeweb/db/lib/roomAccess");
 const { sendDm } = require("./dm");
 
 async function loadOfferFor(interaction, offerId) {
   const offer = await prisma.offer.findUnique({ where: { id: offerId } });
-  if (!offer) return { offer: null, responder: null, problem: "That offer's gone. ‡" };
+  if (!offer)
+    return { offer: null, responder: null, problem: "That offer's gone. ‡" };
   const responder = await prisma.character.findFirst({
     where: { id: offer.responderId, status: "ALIVE" },
     select: { id: true, name: true, discordUserId: true },
@@ -31,24 +33,38 @@ async function loadOfferFor(interaction, offerId) {
 async function settle(interaction, line) {
   const original = interaction.message?.content ?? "";
   await interaction
-    .update({ content: `${original}\n» ${line}`.slice(0, 2000), components: [] })
+    .update({
+      content: `${original}\n» ${line}`.slice(0, 2000),
+      components: [],
+    })
     .catch((err) => console.error("Offer button update failed:", err));
 }
 
 async function fanOut(interaction, dms) {
   for (const dm of dms ?? []) {
-    const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
+    const user = await interaction.client.users
+      .fetch(dm.discordUserId)
+      .catch(() => null);
     if (!user) continue;
-    await sendDm(user, `» ${dm.content}`).catch((err) => console.error(`Offer DM to ${dm.discordUserId} failed:`, err));
+    await sendDm(user, `» ${dm.content}`).catch((err) =>
+      console.error(`Offer DM to ${dm.discordUserId} failed:`, err),
+    );
   }
 }
 
 async function handleOfferAccept(interaction, offerId) {
-  const { offer, responder, problem } = await loadOfferFor(interaction, offerId);
+  const { offer, responder, problem } = await loadOfferFor(
+    interaction,
+    offerId,
+  );
   if (problem) return void (await settle(interaction, problem));
 
   const result =
-    offer.kind === "BIND" ? await acceptBind(prisma, offer, responder) : await acceptLesson(prisma, offer, responder);
+    offer.kind === "BIND"
+      ? await acceptBind(prisma, offer, responder)
+      : offer.kind === "CONFESSION"
+        ? await acceptConfession(prisma, offer, responder)
+        : await acceptLesson(prisma, offer, responder);
   await settle(interaction, result.ok ? result.line : result.reason);
   await fanOut(interaction, result.dms);
 
@@ -58,7 +74,9 @@ async function handleOfferAccept(interaction, offerId) {
   if (result.ok && result.boundId) {
     try {
       const drop = await settleCarry(prisma, result.boundId);
-      const row = await prisma.character.findUnique({ where: { id: result.boundId } });
+      const row = await prisma.character.findUnique({
+        where: { id: result.boundId },
+      });
       if (row) await syncCharacterRoomAccess(prisma, row).catch(() => {});
       if (drop) await deliverCarryDrop(prisma, drop).catch(() => {});
     } catch (err) {
@@ -68,13 +86,20 @@ async function handleOfferAccept(interaction, offerId) {
       where: { id: result.boundId },
       select: { discordUserId: true },
     });
-    const user = target?.discordUserId ? await interaction.client.users.fetch(target.discordUserId).catch(() => null) : null;
+    const user = target?.discordUserId
+      ? await interaction.client.users
+          .fetch(target.discordUserId)
+          .catch(() => null)
+      : null;
     if (user) await sendDm(user, "» Someone bound you.").catch(() => {});
   }
 }
 
 async function handleOfferDecline(interaction, offerId) {
-  const { offer, responder, problem } = await loadOfferFor(interaction, offerId);
+  const { offer, responder, problem } = await loadOfferFor(
+    interaction,
+    offerId,
+  );
   if (problem) return void (await settle(interaction, problem));
   const result = await declineOffer(prisma, offer, responder);
   await settle(interaction, result.ok ? result.line : result.reason);

@@ -42,7 +42,15 @@ const LESSON_CHARACTER_SELECT = {
     select: {
       tagId: true,
       quantity: true,
-      tag: { select: { id: true, slug: true, name: true, parentTagId: true, groupId: true } },
+      tag: {
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          parentTagId: true,
+          groupId: true,
+        },
+      },
     },
   },
 };
@@ -85,11 +93,15 @@ function holdsTier(heldIds, tagId, parentOf) {
 }
 
 function heldTagIds(character) {
-  return (character?.tags ?? []).map((ct) => ct.tagId ?? ct.tag?.id).filter(Boolean);
+  return (character?.tags ?? [])
+    .map((ct) => ct.tagId ?? ct.tag?.id)
+    .filter(Boolean);
 }
 
 function heldSlugs(character) {
-  return new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  return new Set(
+    (character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+  );
 }
 
 // Holds Teaching, or Lecturing (its upgrade replaces it on the sheet).
@@ -113,9 +125,18 @@ function teachableSkills(teacher, learner, catalog) {
     if (!tag.teachable) return false;
     if (!holdsTier(teacherHeld, tag.id, parentOf)) return false;
     if (holdsTier(learnerHeld, tag.id, parentOf)) return false;
-    if (tag.parentTagId && !holdsTier(learnerHeld, tag.parentTagId, parentOf)) return false;
-    if (tag.requiredTagId && !holdsTier(learnerHeld, tag.requiredTagId, parentOf)) return false;
-    if (tag.group?.requiredTagId && !holdsTier(learnerHeld, tag.group.requiredTagId, parentOf)) return false;
+    if (tag.parentTagId && !holdsTier(learnerHeld, tag.parentTagId, parentOf))
+      return false;
+    if (
+      tag.requiredTagId &&
+      !holdsTier(learnerHeld, tag.requiredTagId, parentOf)
+    )
+      return false;
+    if (
+      tag.group?.requiredTagId &&
+      !holdsTier(learnerHeld, tag.group.requiredTagId, parentOf)
+    )
+      return false;
     // Exact ids, not holdsTier: a conflict is with the named tag itself, and
     // walking the chain would let one conflicting tier shut out its siblings.
     // db:sync-tags writes conflictsWith both ways, so one direction is enough.
@@ -127,7 +148,9 @@ function teachableSkills(teacher, learner, catalog) {
 
 // 5, or 4 for a fighting skill under a Drill Instructor. On the modified die.
 function lessonThreshold(teacher, skill) {
-  const drill = heldSlugs(teacher).has(DRILL_INSTRUCTOR_SLUG) && skill?.group?.slug === FIGHTING_GROUP_SLUG;
+  const drill =
+    heldSlugs(teacher).has(DRILL_INSTRUCTOR_SLUG) &&
+    skill?.group?.slug === FIGHTING_GROUP_SLUG;
   return drill ? DRILL_THRESHOLD : LESSON_THRESHOLD;
 }
 
@@ -144,50 +167,85 @@ const LOCKED_IN = "You've already locked in a Move this turn. ‡";
 async function openTurnAndWindow(db) {
   const [turn, config] = await Promise.all([
     db.turn.findFirst({ where: { status: "OPEN" } }),
-    db.gameConfig.findUnique({ where: { id: 1 }, select: { autoTurnAdvanceDisabled: true } }),
+    db.gameConfig.findUnique({
+      where: { id: 1 },
+      select: { autoTurnAdvanceDisabled: true },
+    }),
   ]);
   if (!turn) return { turn: null, locked: true };
-  const { locked } = moveWindow(turn, { autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false });
+  const { locked } = moveWindow(turn, {
+    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
+  });
   return { turn, locked };
 }
 
 // A teacher's Move slot: free, or an existing lesson Routine with room on it
 // (Lecturing). Returns { ok, action, reason }.
 async function teacherSlot(db, teacher, turnId) {
-  const action = await db.action.findFirst({ where: { characterId: teacher.id, turnId } });
+  const action = await db.action.findFirst({
+    where: { characterId: teacher.id, turnId },
+  });
   if (!action) return { ok: true, action: null };
-  if (!(action.gmNotes ?? "").includes("auto:lesson")) return { ok: false, reason: `${teacher.name} has already locked in a Move this turn. ‡` };
+  if (!(action.gmNotes ?? "").includes("auto:lesson"))
+    return {
+      ok: false,
+      reason: `${teacher.name} has already locked in a Move this turn. ‡`,
+    };
   const taken = await db.offer.count({
-    where: { teacherActionId: action.id, status: { in: ["ACCEPTED", "RESOLVED"] } },
+    where: {
+      teacherActionId: action.id,
+      status: { in: ["ACCEPTED", "RESOLVED"] },
+    },
   });
   if (taken >= teacherCapacity(teacher)) {
-    return { ok: false, reason: `${teacher.name} can't take on another student this turn. ‡` };
+    return {
+      ok: false,
+      reason: `${teacher.name} can't take on another student this turn. ‡`,
+    };
   }
   return { ok: true, action };
 }
 
 async function learnerSlot(db, learner, turnId) {
-  const action = await db.action.findFirst({ where: { characterId: learner.id, turnId }, select: { id: true } });
-  return action ? { ok: false, reason: `${learner.name} has already locked in a Move this turn. ‡` } : { ok: true };
+  const action = await db.action.findFirst({
+    where: { characterId: learner.id, turnId },
+    select: { id: true },
+  });
+  return action
+    ? {
+        ok: false,
+        reason: `${learner.name} has already locked in a Move this turn. ‡`,
+      }
+    : { ok: true };
 }
 
 // Everything a lesson needs true, checked the same way at offer time and
 // again at accept time. `initiatorId` decides whose Move slot is checked
 // now (at accept, both are).
-async function validateLesson(db, { teacher, learner, tag, turnId, checkSlotsFor }) {
-  if (!teacher || teacher.status !== "ALIVE") return "That teacher isn't around any more. ‡";
-  if (!learner || learner.status !== "ALIVE") return "That student isn't around any more. ‡";
+async function validateLesson(
+  db,
+  { teacher, learner, tag, turnId, checkSlotsFor },
+) {
+  if (!teacher || teacher.status !== "ALIVE")
+    return "That teacher isn't around any more. ‡";
+  if (!learner || learner.status !== "ALIVE")
+    return "That student isn't around any more. ‡";
   if (teacher.id === learner.id) return "You can't teach yourself. ‡";
   if (!isHere(teacher, learner)) return notHereMessage(learner);
   if (!isHere(learner, teacher)) return notHereMessage(teacher);
   if (!isTeacher(teacher)) return `${teacher.name} can't teach. ‡`;
   if (!tag) return "Unknown skill. ‡";
   const catalog = await db.tag.findMany({ select: LESSON_CATALOG_SELECT });
-  if (!teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id)) {
+  if (
+    !teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id)
+  ) {
     return `${teacher.name} can't teach ${learner.name} ${tag.name} right now. ‡`;
   }
   for (const who of checkSlotsFor) {
-    const slot = who === teacher.id ? await teacherSlot(db, teacher, turnId) : await learnerSlot(db, learner, turnId);
+    const slot =
+      who === teacher.id
+        ? await teacherSlot(db, teacher, turnId)
+        : await learnerSlot(db, learner, turnId);
     if (!slot.ok) return slot.reason;
   }
   return null;
@@ -195,7 +253,10 @@ async function validateLesson(db, { teacher, learner, tag, turnId, checkSlotsFor
 
 async function loadCharacter(db, id) {
   if (!id) return null;
-  return db.character.findUnique({ where: { id }, select: LESSON_CHARACTER_SELECT });
+  return db.character.findUnique({
+    where: { id },
+    select: LESSON_CHARACTER_SELECT,
+  });
 }
 
 // --- the offer -------------------------------------------------------------
@@ -204,7 +265,10 @@ async function loadCharacter(db, id) {
 // initiator is whichever side pressed the button; the other side answers.
 // Returns { ok: true, offer, dm: { discordUserId, content, components } } or
 // { ok: false, reason }.
-async function createLessonOffer(prisma, { initiatorId, teacherId, learnerId, tagId, reason = null }) {
+async function createLessonOffer(
+  prisma,
+  { initiatorId, teacherId, learnerId, tagId, reason = null },
+) {
   const { turn, locked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open. ‡" };
   if (locked) return { ok: false, reason: "Moves are locked for this turn. ‡" };
@@ -212,21 +276,45 @@ async function createLessonOffer(prisma, { initiatorId, teacherId, learnerId, ta
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, teacherId),
     loadCharacter(prisma, learnerId),
-    tagId ? prisma.tag.findUnique({ where: { id: tagId }, select: LESSON_CATALOG_SELECT }) : null,
+    tagId
+      ? prisma.tag.findUnique({
+          where: { id: tagId },
+          select: LESSON_CATALOG_SELECT,
+        })
+      : null,
   ]);
-  if (initiatorId !== teacherId && initiatorId !== learnerId) return { ok: false, reason: "That isn't your lesson. ‡" };
+  if (initiatorId !== teacherId && initiatorId !== learnerId)
+    return { ok: false, reason: "That isn't your lesson. ‡" };
 
-  const problem = await validateLesson(prisma, { teacher, learner, tag, turnId: turn.id, checkSlotsFor: [initiatorId] });
+  const problem = await validateLesson(prisma, {
+    teacher,
+    learner,
+    tag,
+    turnId: turn.id,
+    checkSlotsFor: [initiatorId],
+  });
   if (problem) return { ok: false, reason: problem };
 
   const responder = initiatorId === teacherId ? learner : teacher;
-  if (!responder.discordUserId) return { ok: false, reason: `${responder.name} can't be reached. ‡` };
+  if (!responder.discordUserId)
+    return { ok: false, reason: `${responder.name} can't be reached. ‡` };
 
   const duplicate = await prisma.offer.findFirst({
-    where: { kind: "LESSON", status: "PENDING", turnId: turn.id, teacherId, learnerId, tagId },
+    where: {
+      kind: "LESSON",
+      status: "PENDING",
+      turnId: turn.id,
+      teacherId,
+      learnerId,
+      tagId,
+    },
     select: { id: true },
   });
-  if (duplicate) return { ok: false, reason: "That offer is already waiting on an answer. ‡" };
+  if (duplicate)
+    return {
+      ok: false,
+      reason: "That offer is already waiting on an answer. ‡",
+    };
 
   const offer = await prisma.offer.create({
     data: {
@@ -249,7 +337,11 @@ async function createLessonOffer(prisma, { initiatorId, teacherId, learnerId, ta
   return {
     ok: true,
     offer,
-    dm: { discordUserId: responder.discordUserId, content, components: offerButtonRow(offer.id) },
+    dm: {
+      discordUserId: responder.discordUserId,
+      content,
+      components: offerButtonRow(offer.id),
+    },
   };
 }
 
@@ -263,7 +355,11 @@ function confirmLines(action, teacherName, learnerName) {
         "🎲 *The die is cast. You'll see how it fell when the turn ends.*",
         "» *Locked in. Results land when the turn ends.*",
       ].join("\n")
-    : [`» ${action.description}`, "Kind: **Routine**", "» *Locked in. Results land when the turn ends.*"].join("\n");
+    : [
+        `» ${action.description}`,
+        "Kind: **Routine**",
+        "» *Locked in. Results land when the turn ends.*",
+      ].join("\n");
 }
 
 // Claims the offer and files both Moves in one transaction. Returns
@@ -278,16 +374,28 @@ function confirmLines(action, teacherName, learnerName) {
 // claim is the claimant's own and cancels the ACCEPTED row it just made.
 async function acceptLesson(prisma, offer, responder) {
   const fresh = await prisma.offer.findUnique({ where: { id: offer.id } });
-  if (!fresh || fresh.status !== "PENDING") return { ok: false, reason: GONE, dms: [] };
+  if (!fresh || fresh.status !== "PENDING")
+    return { ok: false, reason: GONE, dms: [] };
 
   const { turn, locked } = await openTurnAndWindow(prisma);
-  if (!turn || turn.id !== offer.turnId) return await cancelWith(prisma, offer, "That offer was for a turn that's over. ‡");
-  if (locked) return await cancelWith(prisma, offer, "Moves are locked for this turn. ‡");
+  if (!turn || turn.id !== offer.turnId)
+    return await cancelWith(
+      prisma,
+      offer,
+      "That offer was for a turn that's over. ‡",
+    );
+  if (locked)
+    return await cancelWith(prisma, offer, "Moves are locked for this turn. ‡");
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, offer.teacherId),
     loadCharacter(prisma, offer.learnerId),
-    offer.tagId ? prisma.tag.findUnique({ where: { id: offer.tagId }, select: LESSON_CATALOG_SELECT }) : null,
+    offer.tagId
+      ? prisma.tag.findUnique({
+          where: { id: offer.tagId },
+          select: LESSON_CATALOG_SELECT,
+        })
+      : null,
   ]);
   const problem = await validateLesson(prisma, {
     teacher,
@@ -322,7 +430,9 @@ async function acceptLesson(prisma, offer, responder) {
           moveReviewStatus: "OPEN",
           description: `Learning ${tag.name} from ${teacher.name}. ‡`,
           diceRoll: rollDie(),
-          diceModifier: gambitModifierTotal(learner.tags, { hungerStreak: learner.hungerStreak }),
+          diceModifier: gambitModifierTotal(learner.tags, {
+            hungerStreak: learner.hungerStreak,
+          }),
           zoneId: learner.zoneId ?? null,
           gmNotes: "auto:lesson",
         },
@@ -358,7 +468,11 @@ async function acceptLesson(prisma, offer, responder) {
 
       await tx.offer.update({
         where: { id: offer.id },
-        data: { threshold, learnerActionId: learnerAction.id, teacherActionId: teacherAction.id },
+        data: {
+          threshold,
+          learnerActionId: learnerAction.id,
+          teacherActionId: teacherAction.id,
+        },
       });
 
       await tx.auditLog.create({
@@ -393,13 +507,21 @@ async function acceptLesson(prisma, offer, responder) {
       line: responderIsLearner ? learnerLines : teacherLines,
       dms: [
         responderIsLearner
-          ? { discordUserId: teacher.discordUserId, content: `${learner.name} accepted. ‡\n${teacherLines}` }
-          : { discordUserId: learner.discordUserId, content: `${teacher.name} accepted. ‡\n${learnerLines}` },
+          ? {
+              discordUserId: teacher.discordUserId,
+              content: `${learner.name} accepted. ‡\n${teacherLines}`,
+            }
+          : {
+              discordUserId: learner.discordUserId,
+              content: `${teacher.name} accepted. ‡\n${learnerLines}`,
+            },
       ].filter((dm) => dm.discordUserId),
     };
   } catch (err) {
-    if (err instanceof LessonRefused) return await cancelWith(prisma, offer, err.message, { claimed: true });
-    if (err?.code === "P2002") return await cancelWith(prisma, offer, LOCKED_IN, { claimed: true });
+    if (err instanceof LessonRefused)
+      return await cancelWith(prisma, offer, err.message, { claimed: true });
+    if (err?.code === "P2002")
+      return await cancelWith(prisma, offer, LOCKED_IN, { claimed: true });
     throw err;
   }
 }
@@ -424,7 +546,12 @@ async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
     ok: false,
     reason,
     dms: initiator?.discordUserId
-      ? [{ discordUserId: initiator.discordUserId, content: `Your offer fell through: ${reason}` }]
+      ? [
+          {
+            discordUserId: initiator.discordUserId,
+            content: `Your offer fell through: ${reason}`,
+          },
+        ]
       : [],
   };
 }
@@ -442,11 +569,16 @@ async function declineOffer(prisma, offer, responder) {
     select: { discordUserId: true },
   });
   const content =
-    offer.kind === "BIND" ? `${responder.name} won't be bound. ‡` : `${responder.name} declined the lesson. ‡`;
+    offer.kind === "BIND"
+      ? `${responder.name} won't be bound. ‡`
+      : `${responder.name} declined the lesson. ‡`;
   return {
     ok: true,
-    line: offer.kind === "BIND" ? "You said no. ‡" : "You passed on the lesson. ‡",
-    dms: initiator?.discordUserId ? [{ discordUserId: initiator.discordUserId, content }] : [],
+    line:
+      offer.kind === "BIND" ? "You said no. ‡" : "You passed on the lesson. ‡",
+    dms: initiator?.discordUserId
+      ? [{ discordUserId: initiator.discordUserId, content }]
+      : [],
   };
 }
 
@@ -467,7 +599,11 @@ async function cancelOffersForAction(tx, actionId) {
   for (const offer of offers) {
     await tx.offer.update({
       where: { id: offer.id },
-      data: { status: "CANCELLED", resolvedAt: new Date(), outcome: { cancelledBy: "gm_reject" } },
+      data: {
+        status: "CANCELLED",
+        resolvedAt: new Date(),
+        outcome: { cancelledBy: "gm_reject" },
+      },
     });
     if (offer.teacherActionId === actionId && offer.learnerActionId) {
       // The learner's Gambit has no lesson behind it any more.
@@ -476,11 +612,19 @@ async function cancelOffersForAction(tx, actionId) {
         where: { id: offer.learnerId },
         select: { discordUserId: true },
       });
-      const teacher = await tx.character.findUnique({ where: { id: offer.teacherId }, select: { name: true } });
+      const teacher = await tx.character.findUnique({
+        where: { id: offer.teacherId },
+        select: { name: true },
+      });
       if (learner?.discordUserId) {
+        // This hook is shared with Confession, whose "teacher" is a chaplain.
+        const what = offer.kind === "CONFESSION" ? "confession" : "lesson";
+        const who =
+          teacher?.name ??
+          (offer.kind === "CONFESSION" ? "your chaplain" : "your teacher");
         dms.push({
           discordUserId: learner.discordUserId,
-          content: `Your lesson with ${teacher?.name ?? "your teacher"} was called off by a GM. Your Move is free again. ‡`,
+          content: `Your ${what} with ${who} was called off by a GM. Your Move is free again. ‡`,
         });
       }
     }
@@ -492,7 +636,10 @@ async function cancelOffersForAction(tx, actionId) {
 // resolves — it happened when it was accepted.
 async function cancelOffersForCharacter(db, characterId) {
   await db.offer.updateMany({
-    where: { status: "PENDING", OR: [{ initiatorId: characterId }, { responderId: characterId }] },
+    where: {
+      status: "PENDING",
+      OR: [{ initiatorId: characterId }, { responderId: characterId }],
+    },
     data: { status: "CANCELLED", respondedAt: new Date() },
   });
 }

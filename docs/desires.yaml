@@ -1940,13 +1940,40 @@ desires:
       anyTags: [cruel]
     cooldownTurns: 3
 
+  # Gated on the {tag:chaplain} TAG, not the role — the Bishop holds the tag
+  # and is not the role, and a Bishop who cannot want a confession is absurd.
   hear-a-confession:
     name: Have someone confess to you
     tier: 2
     families: [faith, social]
     requires:
-      anyRoles: [chaplain]
+      anyTags: [chaplain]
     cooldownTurns: 4
+
+  sprinkle-holy-water:
+    name: Sprinkle holy water on the unholy
+    tier: 2
+    families: [faith]
+    requires:
+      anyTags: [blessing]
+    cooldownTurns: 4
+
+  crucify-someone:
+    name: Crucify someone
+    tier: 2
+    families: [faith, violence]
+    requires:
+      anyRoles: [bishop]
+
+  # "Bishop and Chaplain" has to mean EITHER — anyRoles is an OR list and one
+  # character holds one role, so an AND would gate this to nobody.
+  baron-praises-god:
+    name: Get the Baron to praise God in the cathedral
+    tier: 3
+    families: [faith, status]
+    requires:
+      anyRoles: [bishop, chaplain]
+    cooldownTurns: 3
 
   expose-a-converter:
     name: Expose someone after they attempt to convert you

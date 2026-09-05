@@ -48,8 +48,8 @@
 #                     means a stranger looking you over would notice — your
 #                     body, your face, your gait, your clothes, anything large
 #                     enough that you are visibly hauling it, and a reputation
-#                     already public under your name (Disgraced, Wanted,
-#                     Knighted). NEVER your appetites, beliefs, opinions,
+#                     already public under your name (Wanted, Knighted).
+#                     NEVER your appetites, beliefs, opinions,
 #                     skills or secrets: Hot-Headed, Pacifist, Alcoholic,
 #                     Eunuch, every Belief and every Skill are `false`, and a
 #                     temper is a thing you find out about someone rather than
@@ -288,6 +288,7 @@ tags:
   nobility:
     catalog: gm
     name: Nobility
+    psychological: true
     category: general
     group: general-personality
     description: "You are a person of noble breeding, accustomed to comfort in all aspects. You must eat a {tag:fine-meal} or better each day, or you wake up {tag:disappointed}. You can't take 1 point Desires, or any Desire related to something below your station."
@@ -369,17 +370,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  disgraced:
-    catalog: gm
-    name: Disgraced
-    category: general
-    group: general-court
-    description: "Your name brings dishonor."
-    pointCost: -3
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-
   old-blood:
     catalog: gm
     name: Old Blood
@@ -441,6 +431,7 @@ tags:
   vain:
     catalog: all
     name: Vain
+    psychological: true
     category: general
     group: general-addictions
     description: "You are inwardly inconsolable if anyone outshines you. Your bottom Desire slot is locked to Desires about being admired."
@@ -462,6 +453,7 @@ tags:
   glutton:
     catalog: all
     name: Glutton
+    psychological: true
     category: general
     group: general-addictions
     description: "Just one more sweet... Your bottom Desire slot is locked to Desires about food."
@@ -561,7 +553,7 @@ tags:
     catalog: gm
     name: Chaplain
     category: general
-    description: "Ordained to the Church. May take confession, read the rites over the dead, and remove people's negative mental traits."
+    description: "You can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If they confessor rolls a 5 or a 6, the tag is removed."
     pointCost: 0
     purchasable: false
 
@@ -749,6 +741,7 @@ tags:
   heavy-sleeper:
     catalog: all
     name: Heavy Sleeper
+    psychological: true
     category: general
     group: general-traits
     description: "Not a good thing to be in Ravenheart."
@@ -760,6 +753,7 @@ tags:
   depressed:
     catalog: all
     name: Depressed
+    psychological: true
     category: general
     group: general-personality
     description: "Nothing is worth wanting. Locks all Desires. Can be cured by a Chaplain."
@@ -775,6 +769,7 @@ tags:
   alcoholic:
     catalog: all
     name: Alcoholic
+    psychological: true
     category: general
     group: general-addictions
     description: "Drink comes first and there is no second. Your bottom Desire slot is locked to drinking Desires."
@@ -1105,6 +1100,7 @@ tags:
   craven:
     catalog: all
     name: Craven
+    psychological: true
     category: general
     group: general-personality
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. Locks all courage-related Desires. If you act bravely, a GM may bonk you."
@@ -1144,6 +1140,7 @@ tags:
   kleptomaniac:
     catalog: all
     name: Kleptomaniac
+    psychological: true
     category: general
     group: general-personality
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Locks Desires about wealth, but unlocks Desires about thievery."
@@ -1166,16 +1163,6 @@ tags:
     group: general-traits
     description: "You consume 2 ⬢ per turn. ‡"
     pointCost: -6
-    purchasable: true
-    purchasableAfterStart: false
-
-  bad-liar:
-    catalog: all
-    name: Bad Liar
-    category: general
-    group: general-traits
-    description: "Um… er… uh… If you try to lie, embed huge hints, stutters, or other tells."
-    pointCost: -2
     purchasable: true
     purchasableAfterStart: false
 
@@ -1237,6 +1224,7 @@ tags:
   insomniac:
     catalog: all
     name: Insomniac
+    psychological: true
     category: general
     group: general-traits
     description: "You sleep badly, and are often tired."
@@ -1260,6 +1248,7 @@ tags:
   drug-habit:
     catalog: all
     name: "Drug Habit"
+    psychological: true
     category: general
     group: general-addictions
     description: "You need the poppy and its cousins. It stops the sweating. Your bottom Desire slot is locked to drug-related Desires."
@@ -1382,6 +1371,7 @@ tags:
   gambler:
     catalog: all
     name: "Gambler"
+    psychological: true
     category: general
     group: general-addictions
     description: "Just one more card. Just one more spin. Just one more roll. Just one more…! Your bottom Desire slot is locked to Desires about play and wagers."
@@ -1401,6 +1391,7 @@ tags:
   devoted-follower:
     catalog: all
     name: Devoted Follower
+    psychological: true
     category: general
     group: general-personality
     description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming. Drifters and hustlers can't take it — you have to be sworn to somebody. ‡"
@@ -1437,6 +1428,7 @@ tags:
   prudish:
     catalog: all
     name: Prudish
+    psychological: true
     category: general
     group: general-personality
     description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four."
@@ -1738,6 +1730,7 @@ tags:
   green:
     catalog: gm
     name: Green
+    psychological: true
     category: general
     group: general-cerberon
     description: "Your Fighting skill counts as 1 tier lower in your first real fight. Remove the tag afterwards."
@@ -1809,6 +1802,19 @@ tags:
     teachable: true
     description: "You can climb mountains, granting you access to certain locations. ‡"
     pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  # The Cathedral's one craft. requiredTag keeps it off everybody else's
+  # point-buy: `chaplain` is catalog: gm and unpurchasable, so the only people
+  # who can ever spend the 5 are the Bishop and the Chaplains.
+  blessing:
+    catalog: all
+    name: Blessing
+    category: skills
+    requiredTag: chaplain
+    description: "You can craft {tag:holy-water}. Poured on the offender, it reduces the efficacy of unholy activity."
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -3543,6 +3549,7 @@ tags:
   shell-shocked:
     catalog: all
     name: Shell Shocked
+    psychological: true
     category: health
     group: health-mind
     description: "The trauma from an event is uncurable. Loud noises or sudden bangs jolt you back to that time."
@@ -3609,10 +3616,11 @@ tags:
   stutter:
     catalog: all
     name: Stutter
+    psychological: true
     category: health
     group: health-mind
     description: "You come off as a mess."
-    pointCost: -2
+    pointCost: -1
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -7698,6 +7706,27 @@ tags:
     # not wait on a brewer. Six against a sell-back of four, so importing it
     # and dumping it straight back is a losing trade. See DEPOT.md §3.
     depotPrice: 5
+
+  holy-water:
+    catalog: all
+    name: Holy Water
+    category: items
+    group: items-special
+    description: "Water that was prayed over. Poured on the offender, it reduces the efficacy of unholy activity."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 1
+      skills: [blessing]
+      gambit: false
 
   bliss:
     catalog: all

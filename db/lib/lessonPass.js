@@ -6,7 +6,8 @@
 // grants the skill (TagSource LESSON) and drops the tiers below it; either
 // way the learner's Action is SOLVED with a result line, so the staged push
 // closes it as adjudicated rather than silently. Every PENDING offer on the
-// turn — lesson or bind — expires.
+// turn expires here, whatever its kind — lesson, bind or confession — so
+// db/lib/confessionPass.js deliberately does no expiring of its own.
 //
 // Returns Discord work as data for advanceTurn()'s runSideEffects(), never
 // sends it. Returns an object even when idle: db/index.js treats null as a
@@ -17,15 +18,30 @@ const { LESSON_THRESHOLD } = require("./constants");
 function rollLine(turn, action) {
   const mod = action.diceModifier ?? 0;
   const total = (action.diceRoll ?? 0) + mod;
-  const die = mod ? `**${action.diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${total}**` : `**${action.diceRoll}**`;
+  const die = mod
+    ? `**${action.diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${total}**`
+    : `**${action.diceRoll}**`;
   return { text: `🎲 Your Gambit for turn ${turn.number}: ${die}`, total };
 }
 
 async function runLessonPass(prisma, turn) {
-  const idle = { turnNumber: turn.number, resolved: 0, learned: 0, expired: 0, failed: 0, dms: [] };
+  const idle = {
+    turnNumber: turn.number,
+    resolved: 0,
+    learned: 0,
+    expired: 0,
+    failed: 0,
+    dms: [],
+  };
   const [accepted, pending] = await Promise.all([
-    prisma.offer.findMany({ where: { kind: "LESSON", status: "ACCEPTED", turnId: turn.id }, include: { tag: true } }),
-    prisma.offer.findMany({ where: { status: "PENDING", turnId: turn.id }, include: { tag: true } }),
+    prisma.offer.findMany({
+      where: { kind: "LESSON", status: "ACCEPTED", turnId: turn.id },
+      include: { tag: true },
+    }),
+    prisma.offer.findMany({
+      where: { status: "PENDING", turnId: turn.id },
+      include: { tag: true },
+    }),
   ]);
   if (accepted.length === 0 && pending.length === 0) return idle;
 
@@ -47,7 +63,9 @@ async function runLessonPass(prisma, turn) {
   const nameOf = (id) => people.get(id)?.name ?? "someone";
   const dmTo = (id, content) => {
     const c = people.get(id);
-    return c?.discordUserId ? { discordUserId: c.discordUserId, content } : null;
+    return c?.discordUserId
+      ? { discordUserId: c.discordUserId, content }
+      : null;
   };
 
   const dms = [];
@@ -65,7 +83,11 @@ async function runLessonPass(prisma, turn) {
         if (!action) {
           await tx.offer.update({
             where: { id: offer.id },
-            data: { status: "CANCELLED", resolvedAt: new Date(), outcome: { cancelledBy: "missing_action" } },
+            data: {
+              status: "CANCELLED",
+              resolvedAt: new Date(),
+              outcome: { cancelledBy: "missing_action" },
+            },
           });
           return null;
         }
@@ -73,7 +95,11 @@ async function runLessonPass(prisma, turn) {
         if (action.moveReviewStatus === "SOLVED") {
           await tx.offer.update({
             where: { id: offer.id },
-            data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { gmDecided: true } },
+            data: {
+              status: "RESOLVED",
+              resolvedAt: new Date(),
+              outcome: { gmDecided: true },
+            },
           });
           return null;
         }
@@ -85,11 +111,22 @@ async function runLessonPass(prisma, turn) {
         let replaced = [];
         if (succeeded && offer.tag) {
           const already = await tx.characterTag.findUnique({
-            where: { characterId_tagId: { characterId: offer.learnerId, tagId: offer.tagId } },
+            where: {
+              characterId_tagId: {
+                characterId: offer.learnerId,
+                tagId: offer.tagId,
+              },
+            },
           });
           if (!already) {
-            replaced = await replaceLowerTiers(tx, offer.learnerId, offer.tagId);
-            await addToStack(tx, offer.learnerId, offer.tagId, 1, { source: "LESSON" });
+            replaced = await replaceLowerTiers(
+              tx,
+              offer.learnerId,
+              offer.tagId,
+            );
+            await addToStack(tx, offer.learnerId, offer.tagId, 1, {
+              source: "LESSON",
+            });
           }
         }
         const resultMessage = succeeded
@@ -97,14 +134,25 @@ async function runLessonPass(prisma, turn) {
           : `Failed to learn ${skill} from ${nameOf(offer.teacherId)} (${total} vs ${threshold}). ‡`;
         await tx.action.update({
           where: { id: action.id },
-          data: { moveReviewStatus: "SOLVED", reviewedAt: new Date(), resultMessage },
+          data: {
+            moveReviewStatus: "SOLVED",
+            reviewedAt: new Date(),
+            resultMessage,
+          },
         });
         await tx.offer.update({
           where: { id: offer.id },
           data: {
             status: "RESOLVED",
             resolvedAt: new Date(),
-            outcome: { diceRoll: action.diceRoll, diceModifier: action.diceModifier ?? 0, total, threshold, succeeded, replaced },
+            outcome: {
+              diceRoll: action.diceRoll,
+              diceModifier: action.diceModifier ?? 0,
+              total,
+              threshold,
+              succeeded,
+              replaced,
+            },
           },
         });
         return { text, succeeded, skill, replaced };
@@ -146,9 +194,13 @@ async function runLessonPass(prisma, turn) {
       const content =
         offer.kind === "BIND"
           ? `${other} never answered, and the turn is over. ‡`
-          : offer.initiatorId === offer.learnerId
-            ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move went unspent. ‡`
-            : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move went unspent. ‡`;
+          : offer.kind === "CONFESSION"
+            ? // Never names the tag: an expiry notice is not the place to
+              // start writing somebody's sins into a DM log.
+              `${other} never heard your confession. Your Move went unspent. ‡`
+            : offer.initiatorId === offer.learnerId
+              ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move went unspent. ‡`
+              : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move went unspent. ‡`;
       const dm = dmTo(offer.initiatorId, content);
       if (dm) dms.push(dm);
     } catch (err) {

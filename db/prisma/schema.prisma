@@ -2219,6 +2219,13 @@ model Tag {
   // (docs/systemdocs/LESSONS.md).
   teachable Boolean @default(false)
 
+  // Not a capability flag — a classification. True on the drawbacks a
+  // Chaplain can lift in Confession (docs/systemdocs/CONFESSION.md): the
+  // addictions and the compulsions, never a sensory affliction. It fills the
+  // penitent's Confess dropdown and nothing else. `health-mind` could not
+  // stand in for it — half that group is blindness and muteness.
+  psychological Boolean @default(false)
+
   // What it costs a character to gain or shed this tag through play (e.g.
   // curing Arthritis needs Medical (Skilled), some turns, and resources;
   // forging a sword tag costs turns, resources, Smithing, no Gambit). One
@@ -2948,6 +2955,7 @@ model JournalEntry {
 enum OfferKind {
   LESSON
   BIND
+  CONFESSION
 }
 
 enum OfferStatus {

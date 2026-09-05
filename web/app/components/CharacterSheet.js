@@ -17,13 +17,20 @@ function Avatar({ avatarSrc, name }) {
       src={avatarSrc}
       alt={name}
       className="h-16 w-16 object-cover"
-      style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+      style={{
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--border)",
+      }}
     />
   ) : (
     <div
       aria-hidden="true"
       className="h-16 w-16"
-      style={{ background: "var(--field-bg)", borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+      style={{
+        background: "var(--field-bg)",
+        borderRadius: "var(--radius)",
+        border: "1px solid var(--border)",
+      }}
     />
   );
 }
@@ -64,6 +71,8 @@ export default function CharacterSheet({
   buildable = false,
   teachers = [],
   learners = [],
+  confessors = [],
+  mySins = [],
   pendingOffers = [],
   hasBird = false,
   canRead = false,
@@ -120,7 +129,10 @@ export default function CharacterSheet({
         subtitle={
           <>
             {character.roleTitle ?? "No role"} —{" "}
-            <FactionLink factionId={character.factionId} name={character.faction?.name ?? "No faction"} />
+            <FactionLink
+              factionId={character.factionId}
+              name={character.faction?.name ?? "No faction"}
+            />
           </>
         }
         actions={<Avatar avatarSrc={avatarSrc} name={character.name} />}
@@ -163,6 +175,8 @@ export default function CharacterSheet({
             buildable={buildable}
             teachers={teachers}
             learners={learners}
+            confessors={confessors}
+            mySins={mySins}
             hasBird={hasBird}
             canRead={canRead}
             canWrite={canWrite}
@@ -229,7 +243,6 @@ export default function CharacterSheet({
               openTurnNumber={openTurn?.number ?? null}
               desiresEnabled={desiresEnabled}
             />
-
           )}
         </div>
 

@@ -595,16 +595,16 @@ zones:
           bishop:
             name: Bishop
             intro: >-
-              In the animal world, who can choose good but Man? Even if Ravenheart falls, O Bishop, do not let the people's souls fall with it!
+              Keep people's souls on the straight and narrow. Prevent the world from descending into animalness.
             description:
               - >-
-                I must ask you, Bishop: do you know the Truth? If not, why do you pose as its Servant? These are questions you must ask before you take office.
+                It's not the first time dark days have come to Ravenheart; God will ensure the people survive. Your task is to serve as a shining example of goodness during the transition.
               - >-
-                It is not the first time dark days have come to Ravenheart, but they are difficult times still. You hope the people will survive — God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness.
+                At some point, you'll have to decide between peacefulness or the Order of the Silver Cross.
               - >-
-                At some point, you will have to decide between peacefulness or the Order of the Silver Cross.
+                You can make Holy Water.
               - >-
-                Along with the Chaplain, you have the power to dispel negative Tags of the psychological kind — the person must first confess to you, then spend a whole day in prayer (2 Efforts).
+                Along with the Chaplains, you have the power to take confessions, dispelling psychological drawback tags.
             difficulty: normal
             multiple: false
             starting_resources: 1
@@ -615,6 +615,8 @@ zones:
               - Cathedral Key
               - Ravenhearter
               - Chaplain
+              - Blessing
+              - Teaching
               - Pious
               - Literate
               - Post-Christian
@@ -630,11 +632,11 @@ zones:
               Care for the needy, lend an ear, and kindle goodness in others.
             description:
               - >-
-                It is not the first time dark days have come to Ravenheart. The people will survive — God will ensure it. During this difficult transition, ensure you serve as a shining example of goodness. Evil can only be held back with Truth — do not stoop to violence or zealotry.
+                It's not the first time dark days have come to Ravenheart; God will ensure the people survive. Your task is to serve as a shining example of goodness during the transition.
               - >-
-                Care for the needy, lend an ear, and kindle goodness in others. Pay visits to the Fortress. Practice pacifism or support the Inquisition.
+                You can do whatever you want, including caring for bums, taking confessions, or spending your time criticizing sinners.
               - >-
-                Along with the Bishop, you have the power to dispel negative Tags of the psychological kind — the person must first confess to you, then spend a whole day in prayer (2 Efforts).
+                Along with the Bishop, you have the power to take confessions, dispelling psychological drawback tags.
             difficulty: easy
             multiple: true
             weight: 3
@@ -644,10 +646,10 @@ zones:
               - Cathedral Key
               - Ravenhearter
               - Chaplain
+              - Teaching
               - Pious
               - Literate
               - Post-Christian
-              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -669,7 +671,6 @@ zones:
               - Ravenhearter
               - Literate
               - Post-Christian
-              - Superstitious
             doc_elements:
               - townstarting
               - postchristianity
@@ -779,7 +780,7 @@ zones:
               - Mail Shirt
               - Post-Christian
               - Inquisitor's Longcoat
-              - Superstitious
+              - Fundamentalist
             doc_elements:
               - townstarting
               - postchristianity
@@ -815,7 +816,7 @@ zones:
               - Cudgel
               - Post-Christian
               - Practicii's Robes
-              - Superstitious
+              - Fundamentalist
             doc_elements:
               - townstarting
               - postchristianity
@@ -849,7 +850,7 @@ zones:
               - Ravenhearter
               - Pious
               - Post-Christian
-              - Superstitious
+              - Fundamentalist
             doc_elements:
               - townstarting
               - postchristianity

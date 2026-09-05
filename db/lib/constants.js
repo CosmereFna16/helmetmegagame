@@ -69,6 +69,12 @@ const LECTURE_CAPACITY = 3;
 const LESSON_THRESHOLD = 5;
 const DRILL_THRESHOLD = 4;
 
+// Confession (docs/systemdocs/CONFESSION.md). Holding CHAPLAIN_SLUG is what
+// lets you hear one — the Bishop holds it too, which is why the gate is the
+// tag and never the role. Same threshold as a lesson, on the modified die.
+const CHAPLAIN_SLUG = "chaplain";
+const CONFESSION_THRESHOLD = 5;
+
 // The one "read someone else's sheet" tag — see db/lib/inspectVision.js, the
 // only reader. This is the Demoness Seductive, not its general-category cousin
 // Empathetic (`empathetic`), which is deliberately NOT here; nor is
@@ -131,6 +137,8 @@ module.exports = {
   LECTURE_CAPACITY,
   LESSON_THRESHOLD,
   DRILL_THRESHOLD,
+  CHAPLAIN_SLUG,
+  CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
   INSCRUTABLE_SLUG,
 };

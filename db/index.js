@@ -20,7 +20,12 @@ const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 // By path, not the barrel — same reason as db/lib/dm.js below.
 const { runDawnWipe } = require("./lib/dawnWipe");
-const { runHungerPass, hungerDm, disappointedDm, DYING_DM } = require("./lib/hungerPass");
+const {
+  runHungerPass,
+  hungerDm,
+  disappointedDm,
+  DYING_DM,
+} = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
@@ -39,12 +44,23 @@ const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { runLessonPass } = require("./lib/lessonPass");
+const { runConfessionPass } = require("./lib/confessionPass");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
 const { loadForcedName } = require("./lib/presentedIdentity");
-const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole, deleteGuildRole, addMemberRole, getGuildMember, setGuildNickname } = require("./lib/discordRest");
+const {
+  postAsCharacter,
+  postMessage,
+  postMessageBatched,
+  attachBreakerStore,
+  patchGuildRole,
+  deleteGuildRole,
+  addMemberRole,
+  getGuildMember,
+  setGuildNickname,
+} = require("./lib/discordRest");
 const { bumpBlood, LIFEWEB_SPUTTER_THRESHOLD } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
 const { syncZonesFromYaml, refreshLiveRooms } = require("./lib/syncZones");
@@ -53,7 +69,12 @@ const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDesiresFromYaml } = require("./lib/syncDesires");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
-const { SPECIAL_CHANNELS, NARROWCAST_SLUGS, buildNarrowcastContext, computeNarrowcastAccess } = require("./lib/specialChannels");
+const {
+  SPECIAL_CHANNELS,
+  NARROWCAST_SLUGS,
+  buildNarrowcastContext,
+  computeNarrowcastAccess,
+} = require("./lib/specialChannels");
 const { syncSpecialChannels } = require("./lib/syncSpecialChannels");
 
 const globalForPrisma = globalThis;
@@ -94,8 +115,6 @@ attachBreakerStore({
   write: (data) => prisma.gameConfig.updateMany({ where: { id: 1 }, data }),
 });
 
-
-
 // The stackable half of resolveNeeds()' expiry sweep: each expired stack
 // loses one unit and the remainder's clock restarts from the tag's catalog
 // duration, so a stack sheds one unit at a time rather than all at once.
@@ -104,7 +123,11 @@ attachBreakerStore({
 async function sweepExpiredStacks(turn, model = "characterTag") {
   const expired = await prisma[model].findMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: true } },
-    select: { id: true, quantity: true, tag: { select: { defaultDurationTurns: true } } },
+    select: {
+      id: true,
+      quantity: true,
+      tag: { select: { defaultDurationTurns: true } },
+    },
   });
   if (expired.length === 0) return;
 
@@ -122,7 +145,9 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
   }
 
   await prisma.$transaction([
-    ...(spent.length ? [prisma[model].deleteMany({ where: { id: { in: spent } } })] : []),
+    ...(spent.length
+      ? [prisma[model].deleteMany({ where: { id: { in: spent } } })]
+      : []),
     // decrement, not a computed literal, so a concurrent grant on the same
     // row can't be clobbered between the read above and this write.
     ...[...rescheduled].map(([expiresTurn, ids]) =>
@@ -140,6 +165,7 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
 const TURN_PASSES = [
   "autoLabor",
   "lessons",
+  "confessions",
   "stagedPush",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
@@ -187,13 +213,17 @@ const RESUME_LEASE_MS = 30 * 60 * 1000;
 async function resolveNeeds(turn, config) {
   // Passes already applied — non-empty only when a previous advance died
   // part-way through. See Turn.resolvedPasses in the schema.
-  const done = new Set(Array.isArray(turn.resolvedPasses) ? turn.resolvedPasses : []);
+  const done = new Set(
+    Array.isArray(turn.resolvedPasses) ? turn.resolvedPasses : [],
+  );
 
   async function markDone(name) {
     done.add(name);
     await prisma.turn
       .update({ where: { id: turn.id }, data: { resolvedPasses: [...done] } })
-      .catch((err) => console.error(`Failed to record completed pass "${name}":`, err));
+      .catch((err) =>
+        console.error(`Failed to record completed pass "${name}":`, err),
+      );
   }
 
   // A failed pass leaves the turn advancing anyway, logged and left
@@ -205,10 +235,19 @@ async function resolveNeeds(turn, config) {
         data: {
           actorDiscordUserId: "system",
           actionType: "turn_pass_failed",
-          details: { turnNumber: turn.number, pass: name, error: String(err?.message ?? err) },
+          details: {
+            turnNumber: turn.number,
+            pass: name,
+            error: String(err?.message ?? err),
+          },
         },
       })
-      .catch((logErr) => console.error("Failed to log turn_pass_failed — this failure now has no record:", logErr));
+      .catch((logErr) =>
+        console.error(
+          "Failed to log turn_pass_failed — this failure now has no record:",
+          logErr,
+        ),
+      );
   }
 
   // Auto-labor first: income has to land before Hunger's upkeep charge, and it
@@ -227,7 +266,11 @@ async function resolveNeeds(turn, config) {
   if (autoLabor?.filed) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "auto_labor_resolved", details: autoLaborSummary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "auto_labor_resolved",
+          details: autoLaborSummary,
+        },
       })
       .catch((err) => console.error("Auto-labor audit log failed:", err));
   }
@@ -246,8 +289,38 @@ async function resolveNeeds(turn, config) {
   const { dms: lessonDms = [], ...lessonSummary } = lessons ?? {};
   if (lessons && (lessons.resolved || lessons.expired || lessons.failed)) {
     await prisma.auditLog
-      .create({ data: { actorDiscordUserId: "system", actionType: "lessons_resolved", details: lessonSummary } })
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "lessons_resolved",
+          details: lessonSummary,
+        },
+      })
       .catch((err) => console.error("Lessons audit log failed:", err));
+  }
+
+  // Confessions (db/lib/confessionPass.js): same slot and the same reason as
+  // lessons, and AFTER them, because the lesson pass is what expires every
+  // PENDING offer on the turn — confessions included.
+  let confessions = null;
+  if (!done.has("confessions")) {
+    confessions = await runConfessionPass(prisma, turn).catch(async (err) => {
+      await passFailed("Confessions", err);
+      return null;
+    });
+    if (confessions) await markDone("confessions");
+  }
+  const { dms: confessionDms = [], ...confessionSummary } = confessions ?? {};
+  if (confessions && (confessions.resolved || confessions.failed)) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "confessions_resolved",
+          details: confessionSummary,
+        },
+      })
+      .catch((err) => console.error("Confessions audit log failed:", err));
   }
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
@@ -256,10 +329,12 @@ async function resolveNeeds(turn, config) {
   // hunger (deferred Routine/Labor income must land before upkeep).
   let stagedPush = null;
   if (!done.has("stagedPush")) {
-    stagedPush = await runStagedPushPass(prisma, turn, config).catch(async (err) => {
-      await passFailed("Staged push", err);
-      return null;
-    });
+    stagedPush = await runStagedPushPass(prisma, turn, config).catch(
+      async (err) => {
+        await passFailed("Staged push", err);
+        return null;
+      },
+    );
     if (stagedPush) await markDone("stagedPush");
   }
   const {
@@ -300,12 +375,17 @@ async function resolveNeeds(turn, config) {
     });
     if (progressed) await markDone("tagExpiry");
   }
-  const { dms: tagExpiryDmsFromProgression = [], ...tagExpirySummary } = progressed ?? {};
+  const { dms: tagExpiryDmsFromProgression = [], ...tagExpirySummary } =
+    progressed ?? {};
   const tagExpiryDms = [...tagExpiryDmsFromProgression];
   if (progressed) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "tag_expiry_resolved", details: tagExpirySummary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "tag_expiry_resolved",
+          details: tagExpirySummary,
+        },
       })
       .catch((err) => console.error("Tag expiry audit log failed:", err));
   }
@@ -327,7 +407,11 @@ async function resolveNeeds(turn, config) {
       const { dms: _visionDms, ...visionSummary } = visionDecay;
       await prisma.auditLog
         .create({
-          data: { actorDiscordUserId: "system", actionType: "vision_decay_resolved", details: visionSummary },
+          data: {
+            actorDiscordUserId: "system",
+            actionType: "vision_decay_resolved",
+            details: visionSummary,
+          },
         })
         .catch((err) => console.error("Vision decay audit log failed:", err));
     }
@@ -344,11 +428,19 @@ async function resolveNeeds(turn, config) {
     });
     if (dyingDeath) await markDone("dyingDeath");
   }
-  const { deaths: dyingDeaths = [], warnings: dyingDeathWarnings = [], ...dyingDeathSummary } = dyingDeath ?? {};
+  const {
+    deaths: dyingDeaths = [],
+    warnings: dyingDeathWarnings = [],
+    ...dyingDeathSummary
+  } = dyingDeath ?? {};
   if (dyingDeath) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "dying_deaths_resolved", details: dyingDeathSummary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "dying_deaths_resolved",
+          details: dyingDeathSummary,
+        },
       })
       .catch((err) => console.error("Dying death audit log failed:", err));
   }
@@ -387,7 +479,11 @@ async function resolveNeeds(turn, config) {
       if (rot.rotted > 0) {
         await prisma.auditLog
           .create({
-            data: { actorDiscordUserId: "system", actionType: "corpses_rotted", details: rot },
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "corpses_rotted",
+              details: rot,
+            },
           })
           .catch((err) => console.error("Corpse rot audit log failed:", err));
       }
@@ -433,7 +529,9 @@ async function resolveNeeds(turn, config) {
         await prisma.noticePost.deleteMany({ where: { id: { in: ids } } });
         // Only the runtime paper rows, never a catalog tag that somehow found
         // its way onto a board — `ephemeral` is the whole guard.
-        await prisma.tag.deleteMany({ where: { id: { in: tagIds }, ephemeral: true } });
+        await prisma.tag.deleteMany({
+          where: { id: { in: tagIds }, ephemeral: true },
+        });
       }
       await markDone("noticeboard");
     } catch (err) {
@@ -451,11 +549,19 @@ async function resolveNeeds(turn, config) {
     });
     if (catatonic) await markDone("catatonic");
   }
-  const { dms: catatonicDms = [], roleUpdates: catatonicRoleUpdates = [], ...catatonicSummary } = catatonic ?? {};
+  const {
+    dms: catatonicDms = [],
+    roleUpdates: catatonicRoleUpdates = [],
+    ...catatonicSummary
+  } = catatonic ?? {};
   if (catatonic) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "catatonic_resolved", details: catatonicSummary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "catatonic_resolved",
+          details: catatonicSummary,
+        },
       })
       .catch((err) => console.error("Catatonic audit log failed:", err));
   }
@@ -465,10 +571,12 @@ async function resolveNeeds(turn, config) {
   // See db/lib/catatonicDeathPass.js.
   let catatonicDeath = null;
   if (!done.has("catatonicDeath")) {
-    catatonicDeath = await runCatatonicDeathPass(prisma, turn).catch(async (err) => {
-      await passFailed("Catatonic death", err);
-      return null;
-    });
+    catatonicDeath = await runCatatonicDeathPass(prisma, turn).catch(
+      async (err) => {
+        await passFailed("Catatonic death", err);
+        return null;
+      },
+    );
     if (catatonicDeath) await markDone("catatonicDeath");
   }
   const {
@@ -479,7 +587,11 @@ async function resolveNeeds(turn, config) {
   if (catatonicDeath) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "catatonic_deaths_resolved", details: catatonicDeathSummary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "catatonic_deaths_resolved",
+          details: catatonicDeathSummary,
+        },
       })
       .catch((err) => console.error("Catatonic death audit log failed:", err));
   }
@@ -497,11 +609,19 @@ async function resolveNeeds(turn, config) {
     if (hunger) await markDone("hunger");
   }
 
-  const { hungerNotices = [], disappointedNotices = [], ...summary } = hunger ?? {};
+  const {
+    hungerNotices = [],
+    disappointedNotices = [],
+    ...summary
+  } = hunger ?? {};
   if (hunger) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "hunger_resolved", details: summary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "hunger_resolved",
+          details: summary,
+        },
       })
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
@@ -521,7 +641,11 @@ async function resolveNeeds(turn, config) {
   if (carry) {
     await prisma.auditLog
       .create({
-        data: { actorDiscordUserId: "system", actionType: "carry_resolved", details: carrySummary },
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "carry_resolved",
+          details: carrySummary,
+        },
       })
       .catch((err) => console.error("Carry audit log failed:", err));
   }
@@ -544,7 +668,9 @@ async function resolveNeeds(turn, config) {
               details: { moved: followed.length },
             },
           })
-          .catch((err) => console.error("Corpse follow audit log failed:", err));
+          .catch((err) =>
+            console.error("Corpse follow audit log failed:", err),
+          );
       }
     }
   }
@@ -562,7 +688,13 @@ async function resolveNeeds(turn, config) {
       await markDone("laborYield");
       if (yields.drifted) {
         await prisma.auditLog
-          .create({ data: { actorDiscordUserId: "system", actionType: "labor_yields_drifted", details: yields } })
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "labor_yields_drifted",
+              details: yields,
+            },
+          })
           .catch((err) => console.error("Labor yield audit log failed:", err));
       }
     }
@@ -574,7 +706,10 @@ async function resolveNeeds(turn, config) {
   let lifewebBlood = config?.lifewebBlood ?? 100;
   if (!done.has("lifewebDecay")) {
     try {
-      const moved = await bumpBlood(prisma, -(config?.lifewebDecayPerTurn ?? 10));
+      const moved = await bumpBlood(
+        prisma,
+        -(config?.lifewebDecayPerTurn ?? 10),
+      );
       lifewebBlood = moved.after;
       await markDone("lifewebDecay");
     } catch (err) {
@@ -597,10 +732,12 @@ async function resolveNeeds(turn, config) {
   }
   let gatehouse = null;
   if (!done.has("gatehouseTurret")) {
-    gatehouse = await runGatehouseTurretPass(prisma, turn).catch(async (err) => {
-      await passFailed("Gatehouse turret", err);
-      return null;
-    });
+    gatehouse = await runGatehouseTurretPass(prisma, turn).catch(
+      async (err) => {
+        await passFailed("Gatehouse turret", err);
+        return null;
+      },
+    );
     if (gatehouse) await markDone("gatehouseTurret");
   }
   if (gatehouse?.turretShots) {
@@ -609,13 +746,19 @@ async function resolveNeeds(turn, config) {
         data: {
           actorDiscordUserId: "system",
           actionType: "gatehouse_turret_fired",
-          details: { turretShots: gatehouse.turretShots, turretOutcomes: gatehouse.turretOutcomes },
+          details: {
+            turretShots: gatehouse.turretShots,
+            turretOutcomes: gatehouse.turretOutcomes,
+          },
         },
       })
       .catch((err) => console.error("Gatehouse turret audit log failed:", err));
   }
 
-  if (depot && (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)) {
+  if (
+    depot &&
+    (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)
+  ) {
     await prisma.auditLog
       .create({
         data: {
@@ -657,6 +800,7 @@ async function resolveNeeds(turn, config) {
     disappointedNotices,
     autoLaborDms,
     lessonDms,
+    confessionDms,
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
@@ -680,7 +824,11 @@ async function resolveNeeds(turn, config) {
 }
 
 async function getConfig() {
-  return prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
+  return prisma.gameConfig.upsert({
+    where: { id: 1 },
+    update: {},
+    create: { id: 1 },
+  });
 }
 
 // Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
@@ -701,6 +849,7 @@ async function advanceTurn() {
   let disappointedNotices = [];
   let autoLaborDms = [];
   let lessonDms = [];
+  let confessionDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
   let turretDms = [];
@@ -738,8 +887,31 @@ async function advanceTurn() {
       };
     }
 
-    ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, turretDms, depotLocationId } =
-      await resolveNeeds(openTurn, config));
+    ({
+      lifewebBlood,
+      hungerNotices,
+      disappointedNotices,
+      autoLaborDms,
+      lessonDms,
+      confessionDms,
+      tagExpiryDms,
+      catatonicDms,
+      catatonicRoleUpdates,
+      catatonicDeaths,
+      catatonicDeathWarnings,
+      dyingDeaths,
+      dyingDeathWarnings,
+      birdNotices,
+      carryDrops,
+      privateDeliveries,
+      publicPosts,
+      zoneMoves,
+      routineNotices,
+      gambitRollNotices,
+      depotLines,
+      turretDms,
+      depotLocationId,
+    } = await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
     // claimed the turn and died before creating the next one. A RESOLVED
@@ -758,7 +930,10 @@ async function advanceTurn() {
         where: {
           id: unfinished.id,
           needsResolvedAt: null,
-          OR: [{ needsResumeClaimedAt: null }, { needsResumeClaimedAt: { lt: staleBefore } }],
+          OR: [
+            { needsResumeClaimedAt: null },
+            { needsResumeClaimedAt: { lt: staleBefore } },
+          ],
         },
         data: { needsResumeClaimedAt: new Date() },
       });
@@ -784,24 +959,66 @@ async function advanceTurn() {
           data: {
             actorDiscordUserId: "system",
             actionType: "turn_resume",
-            details: { turnNumber: unfinished.number, alreadyApplied: unfinished.resolvedPasses ?? [] },
+            details: {
+              turnNumber: unfinished.number,
+              alreadyApplied: unfinished.resolvedPasses ?? [],
+            },
           },
         })
-        .catch((logErr) => console.error("Failed to log turn_resume — the resume now has no record:", logErr));
-      ({ lifewebBlood, hungerNotices, disappointedNotices, autoLaborDms, lessonDms, tagExpiryDms, catatonicDms, catatonicRoleUpdates, catatonicDeaths, catatonicDeathWarnings, dyingDeaths, dyingDeathWarnings, birdNotices, carryDrops, privateDeliveries, publicPosts, zoneMoves, routineNotices, gambitRollNotices, depotLines, turretDms, depotLocationId } =
-        await resolveNeeds(unfinished, config));
+        .catch((logErr) =>
+          console.error(
+            "Failed to log turn_resume — the resume now has no record:",
+            logErr,
+          ),
+        );
+      ({
+        lifewebBlood,
+        hungerNotices,
+        disappointedNotices,
+        autoLaborDms,
+        lessonDms,
+        confessionDms,
+        tagExpiryDms,
+        catatonicDms,
+        catatonicRoleUpdates,
+        catatonicDeaths,
+        catatonicDeathWarnings,
+        dyingDeaths,
+        dyingDeathWarnings,
+        birdNotices,
+        carryDrops,
+        privateDeliveries,
+        publicPosts,
+        zoneMoves,
+        routineNotices,
+        gambitRollNotices,
+        depotLines,
+        turretDms,
+        depotLocationId,
+      } = await resolveNeeds(unfinished, config));
     }
   }
 
-  const lastTurn = openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
+  const lastTurn =
+    openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
   const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
   // A GM override (config.nextWeather) always wins over the rolled weather.
   const weather = config.nextWeather ?? rollWeather(lastTurn?.weather, phase);
-  const lifewebFlavor = lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD ? "The Lifeweb sputters, failing." : null;
-  const note = [lifewebFlavor, config.nextTurnNote].filter(Boolean).join("\n\n") || null;
+  const lifewebFlavor =
+    lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
+      ? "The Lifeweb sputters, failing."
+      : null;
+  const note =
+    [lifewebFlavor, config.nextTurnNote].filter(Boolean).join("\n\n") || null;
 
   const newTurn = await prisma.turn.create({
-    data: { number: (lastTurn?.number ?? 0) + 1, phase, weather, gameDate: new Date(), status: "OPEN" },
+    data: {
+      number: (lastTurn?.number ?? 0) + 1,
+      phase,
+      weather,
+      gameDate: new Date(),
+      status: "OPEN",
+    },
   });
 
   await prisma.gameConfig.update({
@@ -812,7 +1029,11 @@ async function advanceTurn() {
   await recordArchiveEvent(prisma, {
     kind: "TURN_START",
     turn: newTurn,
-    content: [`Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`, weather, note]
+    content: [
+      `Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`,
+      weather,
+      note,
+    ]
       .filter(Boolean)
       .join("\n"),
   });
@@ -842,10 +1063,16 @@ async function advanceTurn() {
         data: {
           actorDiscordUserId: "system",
           actionType: "turn_pass_failed",
-          details: { turnNumber: newTurn.number, pass: "caving", error: String(err?.message ?? err) },
+          details: {
+            turnNumber: newTurn.number,
+            pass: "caving",
+            error: String(err?.message ?? err),
+          },
         },
       })
-      .catch((logErr) => console.error("Failed to log turn_pass_failed for caving:", logErr));
+      .catch((logErr) =>
+        console.error("Failed to log turn_pass_failed for caving:", logErr),
+      );
   }
 
   // Everything below this line is the only place in the turn-advance path
@@ -868,6 +1095,12 @@ async function advanceTurn() {
       );
     }
 
+    for (const dm of confessionDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Confession DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
     for (const dm of tagExpiryDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
@@ -878,7 +1111,10 @@ async function advanceTurn() {
     // shuttle leaving on its own clock are both things the room witnesses.
     if (depotLocationId && depotLines.length) {
       const depotLocation = await prisma.location
-        .findUnique({ where: { id: depotLocationId }, select: { discordChannelId: true } })
+        .findUnique({
+          where: { id: depotLocationId },
+          select: { discordChannelId: true },
+        })
         .catch(() => null);
       if (depotLocation?.discordChannelId) {
         for (const line of depotLines) {
@@ -913,7 +1149,10 @@ async function advanceTurn() {
 
     for (const result of carryDrops) {
       await deliverCarryDrop(prisma, result).catch((err) =>
-        console.error(`Carry drop delivery for ${result.characterId} failed:`, err),
+        console.error(
+          `Carry drop delivery for ${result.characterId} failed:`,
+          err,
+        ),
       );
     }
 
@@ -924,14 +1163,21 @@ async function advanceTurn() {
     }
 
     for (const update of catatonicRoleUpdates) {
-      await patchGuildRole(update.roleId, { name: update.name, color: update.color }).catch((err) =>
+      await patchGuildRole(update.roleId, {
+        name: update.name,
+        color: update.color,
+      }).catch((err) =>
         console.error(`Catatonic role rename for ${update.name} failed:`, err),
       );
     }
 
     for (const warning of [...catatonicDeathWarnings, ...dyingDeathWarnings]) {
-      await sendDm(prisma, warning.discordUserId, warning.content).catch((err) =>
-        console.error(`Death warning DM to ${warning.discordUserId} failed:`, err),
+      await sendDm(prisma, warning.discordUserId, warning.content).catch(
+        (err) =>
+          console.error(
+            `Death warning DM to ${warning.discordUserId} failed:`,
+            err,
+          ),
       );
     }
 
@@ -946,10 +1192,15 @@ async function advanceTurn() {
         return null;
       });
 
-      const revoked = await revokeAllCharacterAccess(prisma, death).catch((err) => {
-        console.error(`Failed to revoke access for ${death.name} on an automatic death:`, err);
-        return null;
-      });
+      const revoked = await revokeAllCharacterAccess(prisma, death).catch(
+        (err) => {
+          console.error(
+            `Failed to revoke access for ${death.name} on an automatic death:`,
+            err,
+          );
+          return null;
+        },
+      );
       if (!revoked || revoked.failed > 0) {
         await prisma.auditLog
           .create({
@@ -958,28 +1209,49 @@ async function advanceTurn() {
               actionType: "access_revoke_incomplete",
               targetCharacterId: death.characterId,
               targetName: death.name,
-              details: { failed: revoked?.failed ?? null, attempted: revoked?.attempted ?? null },
+              details: {
+                failed: revoked?.failed ?? null,
+                attempted: revoked?.attempted ?? null,
+              },
             },
           })
-          .catch((err) => console.error("Failed to log an incomplete access revoke:", err));
+          .catch((err) =>
+            console.error("Failed to log an incomplete access revoke:", err),
+          );
       }
 
       if (death.discordRoleId) {
         await deleteGuildRole(death.discordRoleId).catch((err) =>
-          console.error(`Failed to delete ${death.name}'s role on an automatic death:`, err.message),
+          console.error(
+            `Failed to delete ${death.name}'s role on an automatic death:`,
+            err.message,
+          ),
         );
       }
 
       if (member) {
         if (process.env.DISCORD_CURSED_ROLE_ID) {
-          await addMemberRole(death.discordUserId, process.env.DISCORD_CURSED_ROLE_ID).catch((err) =>
-            console.error(`Failed to grant Cursed to ${death.discordUserId}:`, err.message),
+          await addMemberRole(
+            death.discordUserId,
+            process.env.DISCORD_CURSED_ROLE_ID,
+          ).catch((err) =>
+            console.error(
+              `Failed to grant Cursed to ${death.discordUserId}:`,
+              err.message,
+            ),
           );
         }
         await setGuildNickname(death.discordUserId, null).catch((err) =>
-          console.error(`Failed to clear ${death.name}'s nickname:`, err.message),
+          console.error(
+            `Failed to clear ${death.name}'s nickname:`,
+            err.message,
+          ),
         );
-        await sendDm(prisma, death.discordUserId, `You have died. ${death.reason}`).catch((err) =>
+        await sendDm(
+          prisma,
+          death.discordUserId,
+          `You have died. ${death.reason}`,
+        ).catch((err) =>
           console.error(`Death DM to ${death.discordUserId} failed:`, err),
         );
       }
@@ -987,8 +1259,12 @@ async function advanceTurn() {
     if (turnDeaths.length > 0) {
       await postMessage(
         LEAVE_ANNOUNCE_CHANNEL_ID,
-        turnDeaths.map((death) => `${death.name} has died — ${death.reason}`).join("\n"),
-      ).catch((err) => console.error("Automatic-death alert to #leave failed:", err));
+        turnDeaths
+          .map((death) => `${death.name} has died — ${death.reason}`)
+          .join("\n"),
+      ).catch((err) =>
+        console.error("Automatic-death alert to #leave failed:", err),
+      );
     }
 
     for (const dm of cavingDms) {
@@ -998,8 +1274,9 @@ async function advanceTurn() {
     }
 
     for (const notice of hungerNotices) {
-      await sendDm(prisma, notice.discordUserId, hungerDm(notice)).catch((err) =>
-        console.error(`Hunger DM to ${notice.discordUserId} failed:`, err),
+      await sendDm(prisma, notice.discordUserId, hungerDm(notice)).catch(
+        (err) =>
+          console.error(`Hunger DM to ${notice.discordUserId} failed:`, err),
       );
       if (notice.justDied) {
         await sendDm(prisma, notice.discordUserId, DYING_DM).catch((err) =>
@@ -1009,15 +1286,22 @@ async function advanceTurn() {
     }
 
     for (const notice of disappointedNotices) {
-      await sendDm(prisma, notice.discordUserId, disappointedDm(notice)).catch((err) =>
-        console.error(`Disappointed DM to ${notice.discordUserId} failed:`, err),
+      await sendDm(prisma, notice.discordUserId, disappointedDm(notice)).catch(
+        (err) =>
+          console.error(
+            `Disappointed DM to ${notice.discordUserId} failed:`,
+            err,
+          ),
       );
     }
 
     const { applyLocationMoveSideEffects } = require("./lib/locationMove");
     for (const move of zoneMoves) {
       await applyLocationMoveSideEffects(prisma, move).catch((err) =>
-        console.error(`Staged relocation side effects failed for ${move.characterId}:`, err),
+        console.error(
+          `Staged relocation side effects failed for ${move.characterId}:`,
+          err,
+        ),
       );
     }
 
@@ -1044,15 +1328,30 @@ async function advanceTurn() {
       await prisma.stagedMessage
         .update({
           where: { id: delivery.stagedMessageId },
-          data: { sentAt: new Date(), deliveryFailures: failed.length ? failed : Prisma.DbNull },
+          data: {
+            sentAt: new Date(),
+            deliveryFailures: failed.length ? failed : Prisma.DbNull,
+          },
         })
-        .catch((err) => console.error(`Failed to stamp staged message ${delivery.stagedMessageId} sent:`, err));
-      if (failed.length) deliveryFailures.push({ stagedMessageId: delivery.stagedMessageId, failed });
+        .catch((err) =>
+          console.error(
+            `Failed to stamp staged message ${delivery.stagedMessageId} sent:`,
+            err,
+          ),
+        );
+      if (failed.length)
+        deliveryFailures.push({
+          stagedMessageId: delivery.stagedMessageId,
+          failed,
+        });
     }
 
     for (const notice of routineNotices) {
       await sendDm(prisma, notice.discordUserId, notice.content).catch((err) =>
-        console.error(`Passed-Routine DM to ${notice.discordUserId} failed:`, err),
+        console.error(
+          `Passed-Routine DM to ${notice.discordUserId} failed:`,
+          err,
+        ),
       );
     }
 
@@ -1065,14 +1364,26 @@ async function advanceTurn() {
     for (const post of publicPosts) {
       const targetChannelId = post.zoneSummaryChannelId;
       if (!targetChannelId) {
-        console.error(`Public declaration ${post.stagedMessageId} skipped: its zone has no summary channel.`);
+        console.error(
+          `Public declaration ${post.stagedMessageId} skipped: its zone has no summary channel.`,
+        );
         await prisma.stagedMessage
           .update({
             where: { id: post.stagedMessageId },
-            data: { deliveryFailures: [{ error: "no summary channel configured" }] },
+            data: {
+              deliveryFailures: [{ error: "no summary channel configured" }],
+            },
           })
-          .catch((err) => console.error(`Failed to mark public post ${post.stagedMessageId}:`, err));
-        deliveryFailures.push({ stagedMessageId: post.stagedMessageId, failed: [{ error: "no summary channel configured" }] });
+          .catch((err) =>
+            console.error(
+              `Failed to mark public post ${post.stagedMessageId}:`,
+              err,
+            ),
+          );
+        deliveryFailures.push({
+          stagedMessageId: post.stagedMessageId,
+          failed: [{ error: "no summary channel configured" }],
+        });
         continue;
       }
       try {
@@ -1084,16 +1395,34 @@ async function advanceTurn() {
             where: { id: post.stagedMessageId },
             data: { sentAt: new Date(), deliveryFailures: Prisma.DbNull },
           })
-          .catch((err) => console.error(`Failed to stamp public post ${post.stagedMessageId} sent:`, err));
+          .catch((err) =>
+            console.error(
+              `Failed to stamp public post ${post.stagedMessageId} sent:`,
+              err,
+            ),
+          );
       } catch (err) {
-        console.error(`Public declaration ${post.stagedMessageId} failed to post:`, err);
+        console.error(
+          `Public declaration ${post.stagedMessageId} failed to post:`,
+          err,
+        );
         await prisma.stagedMessage
           .update({
             where: { id: post.stagedMessageId },
-            data: { deliveryFailures: [{ error: String(err?.message ?? err) }] },
+            data: {
+              deliveryFailures: [{ error: String(err?.message ?? err) }],
+            },
           })
-          .catch((markErr) => console.error(`Failed to mark public post ${post.stagedMessageId}:`, markErr));
-        deliveryFailures.push({ stagedMessageId: post.stagedMessageId, failed: [{ error: String(err?.message ?? err) }] });
+          .catch((markErr) =>
+            console.error(
+              `Failed to mark public post ${post.stagedMessageId}:`,
+              markErr,
+            ),
+          );
+        deliveryFailures.push({
+          stagedMessageId: post.stagedMessageId,
+          failed: [{ error: String(err?.message ?? err) }],
+        });
       }
     }
 
@@ -1106,7 +1435,9 @@ async function advanceTurn() {
             details: { failures: deliveryFailures },
           },
         })
-        .catch((err) => console.error("Failed to log staged_push_delivery_failed:", err));
+        .catch((err) =>
+          console.error("Failed to log staged_push_delivery_failed:", err),
+        );
     }
 
     await postTurnsAnnouncement(prisma, newTurn, note).catch((err) =>
@@ -1114,20 +1445,26 @@ async function advanceTurn() {
     );
 
     if (newTurn.phase === "DAWN" && config.messageWipeEnabled) {
-      await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch((err) =>
-        console.error("Dawn message wipe failed:", err),
+      await runDawnWipe(prisma, { cutoffMs: sideEffectsStartedAt }).catch(
+        (err) => console.error("Dawn message wipe failed:", err),
       );
     }
 
     if (config.autoReconcileEnabled) {
       const { runChannelDoctor } = require("./lib/channelDoctor");
-      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch((err) =>
-        console.error("Post-turn channel doctor failed:", err),
+      await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
+        (err) => console.error("Post-turn channel doctor failed:", err),
       );
     }
   };
 
-  return { advanced: true, previousTurn: openTurn, newTurn, note, runSideEffects };
+  return {
+    advanced: true,
+    previousTurn: openTurn,
+    newTurn,
+    note,
+    runSideEffects,
+  };
 }
 
 module.exports = {
