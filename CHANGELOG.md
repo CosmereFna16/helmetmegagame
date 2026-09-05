@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · A tag now says which Desires it unlocks
+
+✚ Hover any tag and it now lists the Desires it unlocks, with what each one pays. 66 tags gate a Desire and not one of them said so — a player deciding whether to buy Cruel had no way to learn it opens seven goals
+✚ The same list on the point-buy screen and in the Tag Catalog, so it's there at the moment you're actually spending points
+✎ A Desire that needs more than the one tag says so quietly — "with Butcher", or "+ role". A tag that opens something on its own says nothing extra, because it doesn't need to
+✎ Only what a tag OPENS is listed. Nothing about what it shuts — Addictions and forbidden-tag gates stay out, so the list never has to be read twice
+✎ Confess your sins is now open to any Post-Christian. It's the ordinary practice of the faith, not an advanced one
+✎ Fundamentalist and Pilgrim used to announce their Desires in their own descriptions. They don't have to any more
+
 ## 2026-09-05 · Scrap armour is scrap again
 
 − Salvage Plate protects a lot less: it now sits just above padded armour and below a mail shirt, which is what scrap metal strapped to your chest is worth
