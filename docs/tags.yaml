@@ -5127,6 +5127,31 @@ tags:
       - forester
       - shortbow
 
+  # A one-off prop, not a shipment. It sits in the Rockside Washup with the
+  # sewer key, and it is written to be indistinguishable from a crate the
+  # shuttle set down: manifest in crateDescription() format, an ID in
+  # shipmentId() format, weight by crateWeight() (2 Coal = 4 lb, a Squeeze
+  # cube = 20 lb, halved and rounded up = 12). Opens on Consume, the way a
+  # player-packed crate does -- the Depot's openCrate only lives on /depot.
+  crate-rv-6207-m:
+    catalog: gm
+    name: Crate RV-6207-M
+    category: items
+    group: items-gear
+    description: "[SHIPMENT ID RV-6207-M]: Coal x 2 | Squeeze"
+    pointCost: 0
+    tradeable: true
+    weight: 12
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto:
+      - coal
+      - coal
+      - squeeze
+
   cargo-crate:
     catalog: all
     name: Cargo Crate

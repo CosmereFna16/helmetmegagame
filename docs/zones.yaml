@@ -1005,7 +1005,7 @@ zones:
                 skinned-cave-rat: 1
                 feces: 4
                 alcohol: 3
-                cargo-crate: 1
+                crate-rv-6207-m: 1
       farms:
         name: Farms
         description: >-
