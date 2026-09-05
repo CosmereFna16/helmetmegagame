@@ -1342,6 +1342,7 @@ zones:
             attributes:
               depot: true
               noticeboard: true
+              safe: true
             description: >-
               Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. Steel grate bridges a cave stream, leading to the merchant's neon-lit, concrete depot. It's all illuminated by a pair of floodlights, connected by a suspended cable.
             rooms:

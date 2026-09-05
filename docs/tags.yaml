@@ -10093,12 +10093,18 @@ tags:
   # An Instant Camera can be handed to anyone. Purchasable at
   # start like every other item (TAGS.md §4a: items are never
   # purchasableAfterStart).
+  #
+  # Reusable: the 📸 reaction reads the film-holder's camera as a gate and
+  # never spends it. `consumable` is the OTHER thing you can do with one —
+  # point it at nothing and keep the print — and it deliberately carries no
+  # consumesInto:, because db/lib/photoMint.js mints the row instead. Same
+  # special-case shape a SEALED letter already has in consumeTagRequestImpl.
   instant-camera:
     catalog: all
     name: Instant Camera
     category: items
     group: items-gear
-    description: "An analog camera. It prints the photo out right there."
+    description: "An instant camera. You can 📸 react a person's message to take a picture of them."
     pointCost: 2
     tradeable: true
     weight: 2
@@ -10107,6 +10113,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     removable: true
+    consumable: true
     sellable: true
     sellablePrice: 14
     depotPrice: 32
