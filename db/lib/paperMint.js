@@ -27,23 +27,15 @@ const { addToStack, dropCharacterTag } = require("./tagWrites");
 // YAML's namespace forever. Unlike a corpse, a sheet has no natural name to
 // slugify — two notes by one hand on one day are genuinely different objects —
 // so the uniquifier is the character and the clock rather than a suffix.
-function paperSlug(characterId, attempt = 0) {
+function customSlug(kind, characterId, attempt = 0) {
   const stamp = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 7);
-  return `custom-paper-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
+  return `custom-${kind}-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
 }
 
-function bookSlug(characterId, attempt = 0) {
-  const stamp = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 7);
-  return `custom-book-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
-}
-
-function sealSlug(characterId, attempt = 0) {
-  const stamp = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 7);
-  return `custom-envelope-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
-}
+const paperSlug = (characterId, attempt) => customSlug("paper", characterId, attempt);
+const bookSlug = (characterId, attempt) => customSlug("book", characterId, attempt);
+const sealSlug = (characterId, attempt) => customSlug("envelope", characterId, attempt);
 
 // Every runtime paper row wears the same shape. Weightless on purpose: a sheet
 // of paper against a carry cap measured in pounds is noise, and CARRY.md's

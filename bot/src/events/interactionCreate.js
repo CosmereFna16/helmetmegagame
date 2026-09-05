@@ -697,8 +697,10 @@ async function handleTravelOpen(interaction) {
 
 // loc:gate:{linkId} — the Open/Close button on a modular gate's two anchors.
 //
-// The button is only rendered on the anchor, which anyone standing in the
-// location can see, so authority is re-checked here rather than trusted:
+// The button is only rendered on the watchtower's starter post, which every
+// member of that room can see, so authority is re-checked here rather than
+// trusted — the room's access list and the gate's opener list are two
+// different predicates and need not agree:
 // holding one of the gate's opener tags, or playing one of its opener Roles.
 // A rendered button is a hint, not a lock.
 //

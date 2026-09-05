@@ -82,6 +82,10 @@ import {
 // and numbers with no requires at all, so importing it drags no part of the
 // @lifeweb/db barrel into the bundle.
 import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
+// Safe in a "use client" bundle for the same reason constants.js is: paper.js
+// requires only ./reading -> ./examineVision, and neither touches prisma. One
+// definition, so the counter under the box and the server's own cap agree.
+import { WRITE_MAX, BOOK_MAX, TITLE_MAX } from "@lifeweb/db/lib/paper";
 
 // Every player action on the character sheet: mode state, the menus each
 // mode draws from, and one RequestDialog per mode. Renders no chrome of its
@@ -325,16 +329,6 @@ const NO_REQUEST_MODES = new Set(["examine"]);
 // record a GM reads (docs/systemdocs/PAPERWORK.md).
 const NO_REASON_MODES = new Set(["bird", "write", "seal", "bindbook", "tearbook"]);
 
-// Mirrors WRITE_MAX in web/app/(app)/character/paperActions.js, which is the
-// real gate — this only stops the counter and the box promising more than the
-// server will take.
-const WRITE_MAX = 2000;
-
-// Both mirror paperActions.js the same way WRITE_MAX does — the counter under
-// the box has to agree with the cap the server actually applies.
-const BOOK_MAX = 12000;
-const TITLE_MAX = 60;
-
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
 function targetNote(t) {
@@ -425,7 +419,7 @@ export default function RequestActionsProvider({
   // Books (docs/systemdocs/PAPERWORK.md). No excerpts here — a book's name IS
   // its title, unlike a note's deliberately anonymous waybill code.
   canBindBook = false,
-  hasBook = false,
+  bindBlocked = null,
   bookOptions = [],
   // The Godard Factory (docs/systemdocs/FACTORY.md). All three are facts about
   // where this character is standing and what is in their hands, resolved
@@ -1013,7 +1007,7 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked, extract: extractBlocked },
+      gateReason: { examine: examineBlocked, extract: extractBlocked, bindbook: bindBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // Your own sheet only. Greying this on whether a chaplain happens to be
@@ -1028,7 +1022,8 @@ export default function RequestActionsProvider({
       hasSeal,
       canSeal,
       canBindBook,
-      hasBook,
+      // Holding a book IS having one to tear up — no second prop for it.
+      hasBook: bookOptions.length > 0,
       canSendBirdToday: !birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1044,6 +1039,7 @@ export default function RequestActionsProvider({
       canHeal,
       examineBlocked,
       extractBlocked,
+      bindBlocked,
       teachers,
       canTeach,
       mySins,
@@ -1053,7 +1049,7 @@ export default function RequestActionsProvider({
       hasSeal,
       canSeal,
       canBindBook,
-      hasBook,
+      bookOptions,
       birdSentToday,
       canButcher,
       canSeeExtract,

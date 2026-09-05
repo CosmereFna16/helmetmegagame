@@ -1373,34 +1373,37 @@ async function refreshLocationAnchor(prisma, locationId) {
   return syncLocationAnchor(prisma, location, rooms);
 }
 
-// Re-renders every room carrying one live key and edits the starter messages
-// whose body actually moved. Called from wherever the state behind a key
-// changes — the Depot's shuttle buttons, the turn pass, the Dev Panel — the
-// same way refreshLocationAnchor is called after a gate flips.
+// Re-renders the room starters matching `where` and edits the ones whose post
+// actually moved. Two callers, below: a live key changing (the Depot's shuttle
+// buttons, the turn pass, the Dev Panel) and a gate flipping. Both want the
+// same thing — the starter as syncRoomThread would draw it right now.
 //
-// It edits in place rather than going through syncRoomThread: a room whose
-// thread is missing is a job for the sync or the channel doctor, not for a
-// shuttle taking off.
-async function refreshLiveRooms(prisma, key) {
-  const rooms = await prisma.room.findMany({ where: { live: key } });
+// One loop rather than two on purpose. The hash MUST be composed exactly as
+// syncRoomThread composes it, or a starter reposts on every call forever, and
+// that recipe is a trap worth having in a single place. roomComponents is what
+// guarantees it.
+//
+// Edits in place rather than going through syncRoomThread: a room whose thread
+// is missing is a job for the sync or the channel doctor, not for a shuttle
+// taking off or a gate closing.
+async function refreshRoomStarters(prisma, where, label) {
+  const rooms = await prisma.room.findMany({ where });
   if (!rooms.length) return 0;
-  const states = await loadLiveStates(prisma, [key]);
-  const state = states.get(key);
+
+  const liveKeys = [...new Set(rooms.map((r) => r.live).filter(Boolean))];
+  const states = liveKeys.length ? await loadLiveStates(prisma, liveKeys) : new Map();
 
   let edited = 0;
   for (const room of rooms) {
     if (!room.discordThreadId || !room.starterMessageId) continue;
-    const body = buildRoomBody(room, state);
-    // Through roomComponents, not roomStarterRow alone: no watchtower carries
-    // a `live:` key today, but if one ever did, a hash computed differently
-    // here than in syncRoomThread would repost the starter forever.
+    const body = buildRoomBody(room, room.live ? states.get(room.live) : null);
     const components = await roomComponents(prisma, room, room.locationId);
     const hash = hashBody(body + JSON.stringify(components));
     if (room.postHash === hash) continue;
     try {
       await editMessage(room.discordThreadId, room.starterMessageId, chunkMessage(body)[0], components);
     } catch (err) {
-      console.error(`live room refresh failed (${room.slug}):`, err.message);
+      console.error(`${label} room refresh failed (${room.slug}):`, err.message);
       continue;
     }
     await prisma.room.update({ where: { id: room.id }, data: { postHash: hash } });
@@ -1409,42 +1412,23 @@ async function refreshLiveRooms(prisma, key) {
   return edited;
 }
 
-// Reposts the watchtower starter that carries a location's gate button, the
-// room-thread twin of refreshLocationAnchor. Every caller of that one calls
-// this too: the anchor no longer renders a gate at all, so this is the only
-// repost that shows a flip anywhere.
-//
-// Same posture as refreshLiveRooms — edits in place, hash-gated, and never
-// creates a missing thread. A watchtower whose thread is gone renders the flip
-// nowhere until the sync or the channel doctor puts the thread back, which is
-// the trade for having exactly one place the button lives.
+// Every room carrying one live key.
+async function refreshLiveRooms(prisma, key) {
+  return refreshRoomStarters(prisma, { live: key }, "live");
+}
+
+// The watchtower that carries this location's gate button — the room-thread
+// twin of refreshLocationAnchor, and every caller of that one calls this too.
+// The anchor no longer renders a gate at all, so this is the only repost that
+// shows a flip anywhere. A watchtower whose thread is gone therefore shows it
+// nowhere until the sync or the doctor puts the thread back, which is the
+// trade for having exactly one place the button lives.
 async function refreshGateRooms(prisma, locationId) {
-  const rooms = await prisma.room.findMany({
-    where: { locationId, slug: { in: [...WATCHTOWER_ROOM_SLUGS] } },
-  });
-  if (!rooms.length) return 0;
-
-  const gateRow = locationGateRow(await gatesFor(prisma, locationId));
-  const liveKeys = [...new Set(rooms.map((r) => r.live).filter(Boolean))];
-  const states = liveKeys.length ? await loadLiveStates(prisma, liveKeys) : new Map();
-
-  let edited = 0;
-  for (const room of rooms) {
-    if (!room.discordThreadId || !room.starterMessageId) continue;
-    const body = buildRoomBody(room, room.live ? states.get(room.live) : null);
-    const components = [roomStarterRow(room), gateRow].filter(Boolean);
-    const hash = hashBody(body + JSON.stringify(components));
-    if (room.postHash === hash) continue;
-    try {
-      await editMessage(room.discordThreadId, room.starterMessageId, chunkMessage(body)[0], components);
-    } catch (err) {
-      console.error(`gate room refresh failed (${room.slug}):`, err.message);
-      continue;
-    }
-    await prisma.room.update({ where: { id: room.id }, data: { postHash: hash } });
-    edited += 1;
-  }
-  return edited;
+  return refreshRoomStarters(
+    prisma,
+    { locationId, slug: { in: [...WATCHTOWER_ROOM_SLUGS] } },
+    "gate",
+  );
 }
 
 module.exports = {

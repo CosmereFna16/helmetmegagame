@@ -75,7 +75,10 @@ function repostAnchors(locationIds) {
         console.error(`Structure anchor refresh failed for ${locationId}:`, err?.message ?? err),
       );
       // A structural gate's mechanism EXISTS only while something built holds
-      // it, so destroying one takes the watchtower's button away with it.
+      // it, so destroying one takes its button away with it. No-ops unless the
+      // location has a watchtower — a player-built edge out in the forest has
+      // none, and so has no button anywhere. Nothing authors `structural:`
+      // today; give one a control room before anything does.
       await refreshGateRooms(prisma, locationId).catch((err) =>
         console.error(`Structure gate room refresh failed for ${locationId}:`, err?.message ?? err),
       );

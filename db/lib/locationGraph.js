@@ -129,7 +129,11 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
         refusal: "Nothing spans the way here — it would have to be built. ‡",
       };
     }
-    return { listed: true, passable: false, refusal: "The way is shut. ‡" };
+    return {
+      listed: true,
+      passable: false,
+      refusal: "The way is shut. Somebody in the watchtower would have to work the winch. ‡",
+    };
   }
   // Last, because it is the one refusal the traveller can fix on the spot: a
   // way too tight for a horse is listed, and unequipping the horse is the way
@@ -149,8 +153,11 @@ function crossingCheck(link, { tagSlugs, mounted = false, now = new Date() } = {
 // edge has one only while a structure holds it (the HOLDS_EDGE include on
 // LINK_INCLUDE) AND openers are authored — an unheld ford is open water,
 // and a held one with no openers (a bridge) is a fixture, not a gate.
-// Fails closed when `structures` wasn't loaded. Gate buttons render off
-// this, on BOTH endpoints, and canToggleGate re-checks it server-side.
+// Fails closed when `structures` wasn't loaded. The gate button renders off
+// this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js), and
+// canToggleGate re-checks it server-side. Note the corollary: an edge with no
+// watchtower has no button anywhere, which is why nothing authors
+// `structural:` yet — one would need a control room first.
 function gateOperable(link) {
   if (!link?.modular) return false;
   if (!link.structural) return true;

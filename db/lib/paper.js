@@ -36,8 +36,19 @@ const PAPER_GROUP_SLUG = "items-paper";
 // both directions, so binding and tearing up can never disagree.
 const BOOK_SHEETS = 10;
 
+// What the text boxes will take. Here rather than beside the server actions
+// because BOTH faces need them — the counter under the box has to promise
+// exactly what the action will accept, and three mirrored numbers is three
+// things to drift. This file is prisma-free (it requires only ./reading, which
+// requires only ./examineVision), so a "use client" component may import it.
+//
+// A sheet can be written on again, so WRITE_MAX is a per-pass cap, not a
+// lifetime one. A book cannot, so BOOK_MAX is the whole thing.
+const WRITE_MAX = 2000;
+const BOOK_MAX = 12000;
+const TITLE_MAX = 60;
+
 const BLANK_LINE = "*Blank paper.* ‡";
-const BLANK_BOOK_LINE = "*A bound book with nothing written in it.* ‡";
 
 // What a book says when you are not holding it. Every other catalog tag's
 // description is the same sentence for everybody, but a book's is its whole
@@ -99,15 +110,12 @@ function paperDescription(tag, viewer = null) {
   }
 
   const text = (tag.paperText ?? "").trim();
-  if (isBook(tag)) {
-    // `held` is passed only by callers that ship the whole catalog at once
-    // (web/lib/referenceData.js). Everywhere else the row IS the thing in the
-    // reader's hands, so an absent flag means "yes".
-    if (viewer && viewer.holdsIt === false) return CLOSED_BOOK_LINE;
-    if (!text) return BLANK_BOOK_LINE;
-  } else if (!text) {
-    return BLANK_LINE;
-  }
+  // `holdsIt` is passed only by callers that ship the whole catalog at once
+  // (web/lib/referenceData.js). Everywhere else the row IS the thing in the
+  // reader's hands, so an absent flag means "yes". A book always has text —
+  // both writers refuse an empty one — so there is no blank-book case.
+  if (isBook(tag) && viewer?.holdsIt === false) return CLOSED_BOOK_LINE;
+  if (!text) return BLANK_LINE;
 
   const blocked = readBlock(viewer?.tags ?? [], {
     phase: viewer?.phase ?? null,
@@ -194,8 +202,10 @@ function appendText(existing, addition) {
 module.exports = {
   PAPER_SLUG,
   PAPER_GROUP_SLUG,
+  WRITE_MAX,
+  BOOK_MAX,
+  TITLE_MAX,
   BLANK_LINE,
-  BLANK_BOOK_LINE,
   CLOSED_BOOK_LINE,
   UNMARKED_SEAL,
   isPaper,

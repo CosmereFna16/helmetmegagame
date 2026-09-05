@@ -737,9 +737,14 @@ export default async function CharacterPage() {
   // or hide their button. Binding needs letters as well, because you write the
   // whole thing in one pass; tearing one up needs none at all.
   const blankStock = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
-  const canBindBook = canReadNow && (blankStock?.quantity ?? 0) >= BOOK_SHEETS;
+  const sheetsHeld = blankStock?.quantity ?? 0;
+  const canBindBook = canReadNow && sheetsHeld >= BOOK_SHEETS;
+  // Why the button is dead, so a player reads it off the tooltip instead of
+  // writing a whole book into the box and finding out at the submit.
+  const bindBlocked = canBindBook
+    ? null
+    : `You have ${sheetsHeld} of the ${BOOK_SHEETS} blank sheets a book takes. ‡`;
   const books = character.tags.filter((ct) => isBook(ct.tag));
-  const hasBook = books.length > 0;
 
   // What the two dialogs list. The TEXT is deliberately not sent — the dialog
   // asks for it on demand (paperActions.js#readMyPaper) so an unreadable sheet
@@ -1205,7 +1210,7 @@ export default async function CharacterPage() {
       letterOptions={letterOptions}
       sealOptions={sealOptions}
       canBindBook={canBindBook}
-      hasBook={hasBook}
+      bindBlocked={bindBlocked}
       bookOptions={bookOptions}
       birdSentToday={birdSentToday}
       birdTargets={birdTargets}

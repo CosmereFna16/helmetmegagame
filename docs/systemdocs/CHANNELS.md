@@ -581,9 +581,11 @@ size also means the body may carry newlines safely — there is no per-line
 prefix left to break, which is what `ambientLine` has to handle for everyone
 else.
 
-- **The gate is standing in the Council Room**, and nothing else. Getting into
-  the Keep and up to that table is the whole barrier. Re-checked at *submit*,
-  never at open — an ephemeral modal outlives somebody walking out of the Keep.
+- **The gate is standing in the Council Room**, and nothing else the code
+  checks. That table is now behind a door — `access: [barons-key, hands-key,
+  meisters-key, censors-key]` — so in practice the PA belongs to those four
+  seats. Re-checked at *submit*, never at open — an ephemeral modal outlives
+  somebody walking out of the Keep.
 - **The button must not be `ack()`'d.** `showModal` **is** the acknowledgement,
   and a deferred interaction can no longer open one (`COMMANDS.md`), so the
   button handler does no database work at all.

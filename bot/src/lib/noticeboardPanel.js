@@ -169,7 +169,10 @@ async function handleNoticePin(interaction, locationId) {
 
   const tagId = interaction.values?.[0];
   const held = ctx.character.tags.find((ct) => ct.tagId === tagId);
-  if (!held || !held.tag.paperKind) {
+  // The same two kinds the picker above offers. "has a paperKind" is not the
+  // check: a spent envelope and a bound book both have one, and neither goes
+  // up on a wall.
+  if (!held || (held.tag.paperKind !== "PAPER" && held.tag.paperKind !== "SEALED")) {
     return respond(interaction, { content: "You aren't holding that. ‡", ephemeral: true });
   }
 

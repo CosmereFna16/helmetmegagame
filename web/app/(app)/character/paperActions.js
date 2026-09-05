@@ -4,7 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { readBlock } from "@lifeweb/db/lib/reading";
-import { PAPER_SLUG, BOOK_SHEETS, isBook, isPaper, isSeal, paperDescription } from "@lifeweb/db/lib/paper";
+import {
+  PAPER_SLUG,
+  BOOK_SHEETS,
+  WRITE_MAX,
+  BOOK_MAX,
+  TITLE_MAX,
+  isBook,
+  isPaper,
+  isSeal,
+  paperDescription,
+} from "@lifeweb/db/lib/paper";
 import { writeNewPaper, appendToPaper, sealPaper, bindBook, tearUpBook } from "@lifeweb/db/lib/paperMint";
 import {
   CONCEALMENT_TAG_FIELDS,
@@ -28,19 +38,6 @@ import { auth } from "@/lib/auth";
 // The one paper verb that IS a Request is breaking a seal, because that
 // destroys something and has to be undoable — it lives in requestActions.js
 // with the rest of Consume.
-
-// Long enough for a real letter, short enough that nobody pastes a novel into
-// a column every browser then loads. A sheet can be written on again, so this
-// is a per-pass cap, not a lifetime one.
-const WRITE_MAX = 2000;
-
-// A book holds more than a letter does — that is most of why anyone would bind
-// one — but it is still one column every reader of that book then loads.
-const BOOK_MAX = 12000;
-
-// Long enough for a real title, short enough to read off a shelf. Tag.name has
-// the suffix bookName adds on top of this.
-const TITLE_MAX = 60;
 
 // The same shape readBlock and paperDescription both want, resolved once.
 async function requireWriter() {
@@ -178,6 +175,8 @@ async function bindBookImpl({ title: rawTitle, text: rawText }) {
   const text = String(rawText ?? "").trim().slice(0, BOOK_MAX);
   if (!text) throw new UserError("Write something first. ‡");
 
+  // The snapshot only decides whether to bother. The count that matters is
+  // re-read under a row lock below.
   const blank = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
   if (!blank || (blank.quantity ?? 0) < BOOK_SHEETS) {
     throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
@@ -187,6 +186,19 @@ async function bindBookImpl({ title: rawTitle, text: rawText }) {
 
   let book;
   await prisma.$transaction(async (tx) => {
+    // Ten sheets is a big enough stake to race for, and dropCharacterTag
+    // CLAMPS rather than failing — it deletes the row and returns quietly when
+    // you ask for more than is there. So two submits a millisecond apart would
+    // both pass a check made outside the transaction, and the second would
+    // mint a free book off a stack the first already spent. Lock the holding
+    // and re-count inside, the same shape handleGateToggle uses for a gate.
+    const [locked] = await tx.$queryRaw`
+      SELECT "quantity" FROM "CharacterTag"
+      WHERE "characterId" = ${character.id} AND "tagId" = ${blank.tagId}
+      FOR UPDATE`;
+    if (!locked || locked.quantity < BOOK_SHEETS) {
+      throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
+    }
     book = await bindBook(tx, { id: character.id, name: hand }, blank.tagId, title, text);
   });
 

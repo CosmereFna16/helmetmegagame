@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Fixes from the Fortress review
+
+✎ Squires start with a Cerberus Key, so they can get into the garrison they live in — the Barracks, the Mess Hall, the Training Yard and the Kennels were all shut to them  
+− The Mess Hall's door. It's the Cerberon's silo, and a locked silo hands its key to everyone who accepts an invitation — which would have made a Cerberon invite a dispenser for the key that works every gate in the game  
+✎ Binding a book now counts your paper under a lock, so two quick clicks can't turn ten sheets into two books  
+✎ A shut gate now tells you where the winch is, and the Bind a Book button says how many sheets short you are  
+✚ A bird and a noticeboard now refuse a book by name rather than by accident
+
 ## 2026-09-05 · Nine more books on the shelves, and the sewer is filthier
 
 ✚ Eight books in the Keep's Library: three baking guides by Madam Molley, three short pieces, and two chapters of a novel  

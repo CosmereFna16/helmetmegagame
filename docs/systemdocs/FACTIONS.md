@@ -116,10 +116,18 @@ Cathedral. A silo must be **in the faction's own zone** — deposits are
 zone-scoped, so one anywhere else could never be used; both pickers filter to
 that zone and `setSiloRoom` re-checks.
 
-Four of the nine authored silos — the Storehouse, the Warehouse, the Mess Hall
-and the Cargo Bay — are **public rooms**, and that is deliberate. Anyone
-standing there can walk off with the faction's treasury. A faction that wants a
-door has to move its silo behind one.
+Two of the ten authored silos — the Storehouse and the Mess Hall — are
+**public rooms**, and that is deliberate. Anyone standing there can walk off
+with the faction's treasury. A faction that wants a door has to move its silo
+behind one.
+
+**Think twice before authoring a door onto a silo**, and never one whose key
+means something elsewhere. `web/app/(app)/faction/actions.js#siloKeySlugs`
+grants a silo's whole access list on an accepted **INVITE**, no picker — so a
+lock on the Mess Hall would have handed every new Cerberon a `cerberus-key`,
+which is an opener tag on all four modular gates. That is the faucet the
+comment at `actions.js:561` refuses, arriving through `docs/zones.yaml`
+instead of through that file.
 
 - **Deposit** works from anywhere in the silo room's **zone**. You walk your
   loot home to the district, not to the exact door.
@@ -132,9 +140,10 @@ door has to move its silo behind one.
 
 ### 4a. A locked silo is a mail slot
 
-Five of the authored silos are private rooms: the Inn's Cellar, the Order
-Chambers, the Cathedral's Pantry, the Sanctuary's Supply Storage and the
-Ravine Camp. A member without the key **can still deposit** from across the
+Eight of the authored silos are private rooms: the Inn's Cellar, the Order
+Chambers, the Cathedral's Pantry, the Sanctuary's Supply Storage, the Ravine
+Camp, the Town's Warehouse, the Depot's Cargo Bay and the Factory's Logistics
+Room. A member without the key **can still deposit** from across the
 zone. They cannot withdraw, and they cannot see what is inside.
 
 This is deliberate: refusing the deposit would make a locked silo useless to

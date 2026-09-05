@@ -127,7 +127,9 @@ async function handleBirdReplyPick(interaction, birdMessageId) {
 
   // Resolved against what they actually hold, never against what was posted.
   const held = replier.tags.find((ct) => ct.tagId === tagId);
-  if (!held || !held.tag.paperKind) {
+  // The two kinds the picker offers, named rather than "has a paperKind" —
+  // a bird carries letters, not spent envelopes or books.
+  if (!held || (held.tag.paperKind !== "PAPER" && held.tag.paperKind !== "SEALED")) {
     return respond(interaction, { content: "You aren't holding that. ‡", ephemeral: true });
   }
 

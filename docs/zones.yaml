@@ -704,9 +704,13 @@ zones:
             access: [cerberus-key]
             description: >-
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
+          # No door, deliberately. This is the Cerberon's silo, and a public
+          # silo is the authored default (FACTIONS.md 4) — a faction that wants
+          # a door moves its silo behind one. Locking it would also hand every
+          # accepted Cerberon invite a cerberus-key through siloKeySlugs, and
+          # that key works every gate in the game.
           mess-hall:
             name: Mess Hall
-            access: [cerberus-key]
             description: >-
               The Cerberon's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
             stash:

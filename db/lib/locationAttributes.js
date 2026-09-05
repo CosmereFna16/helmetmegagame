@@ -111,8 +111,8 @@ function gateLines(gates) {
         return `**${gate.farName}**: nothing spans the way — it would have to be built. ‡`;
       }
       return gate.isOpen
-        ? `**${gate.farName}**: the way stands open. ‡`
-        : `**${gate.farName}**: the way is closed. ‡`;
+        ? `**${gate.farName}**: the way stands open. Worked from the watchtower. ‡`
+        : `**${gate.farName}**: the way is closed. Worked from the watchtower. ‡`;
     });
 }
 
