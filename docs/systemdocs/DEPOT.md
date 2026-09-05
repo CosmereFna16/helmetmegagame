@@ -490,7 +490,7 @@ buying one mid-game is still a real decision.
 | `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
-| `horse` | 120 | 53 | **The dearest thing that is not a weapon.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
+| `horse` | 110 | 48 | **The dearest thing that is not a weapon.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
 | `silver-sword` | 150 | 66 | |
 | `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
