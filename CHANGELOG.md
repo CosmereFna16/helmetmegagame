@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Changelog notes stop getting cut off mid-sentence
+
+✎ A note written as a wrapped bullet in a commit message used to lose everything after its first line break, so entries reached Discord as half-sentences ending in 'which may'. The whole bullet is posted now
+
 ## 2026-09-05 · A tag now says which Desires it unlocks
 
 ✚ Hover any tag and it now lists the Desires it unlocks, with what each one pays. 66 tags gate a Desire and not one of them said so — a player deciding whether to buy Cruel had no way to learn it opens seven goals

@@ -31,7 +31,8 @@
 //
 // Committed by hand instead? `npm run changelog` reads HEAD and does both. It
 // takes its notes from the commit message body — any body line starting with a
-// glyph, a "-", or a "*" counts.
+// glyph, a "-", or a "*" counts, and a bullet wrapped over several lines is
+// folded back into one note.
 require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
@@ -123,14 +124,54 @@ function sensitiveHits(paths) {
 
 // Notes from a hand-written commit body: any line that opens with a glyph or an
 // ordinary list marker. Prose paragraphs in the body are left alone.
+//
+// A bullet is a NOTE, not a line, and the two stopped being the same thing the
+// moment somebody wrapped a commit message at 72 columns. This used to filter
+// line by line, which kept the first physical line of each bullet and silently
+// dropped every continuation — so a wrapped body announced itself to the GMs as
+// half-sentences ending in "spread into all four of the" and "which may". The
+// entry read as if the tooling had cut it off, because it had.
+//
+// So: a bullet opens a note, and every following line folds into it until a
+// blank line, the next bullet, or a trailer ends it. Folding with a single
+// space is what un-wraps it — the line breaks were the author's typography, not
+// their meaning.
+const BULLET = /^[✚−✎+\-*]\s*\S/;
+
+// Git trailers (Co-Authored-By, Claude-Session, Signed-off-by) sit at the foot
+// of the body with no blank line above them in some editors, and folding one
+// into the last note would publish it to the GM channel. `Word-word:` followed
+// by a space is the trailer shape; a wrapped prose line almost never looks like
+// that, and erring here just leaves the note where it already ended.
+const TRAILER = /^[A-Za-z][A-Za-z0-9-]*:[ \t]/;
+
 function notesFromCommitBody() {
   const body = git(["log", "-1", "--pretty=%b"]);
-  return body
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => /^[✚−✎+\-*]\s*\S/.test(l))
-    .map((l) => normalizeNote(l.replace(/^\*/, "✎")))
-    .filter(Boolean);
+  const notes = [];
+  let open = null;
+  const close = () => {
+    if (open) notes.push(open);
+    open = null;
+  };
+
+  for (const raw of body.split("\n")) {
+    const line = raw.trim();
+    if (!line || TRAILER.test(line)) {
+      close();
+      continue;
+    }
+    if (BULLET.test(line)) {
+      close();
+      open = line.replace(/^\*/, "✎");
+      continue;
+    }
+    // Anything else is either the rest of the bullet above or ordinary prose.
+    // Only the first case has somewhere to go.
+    if (open) open += ` ${line}`;
+  }
+  close();
+
+  return notes.map(normalizeNote).filter(Boolean);
 }
 
 // Two trailing spaces per line: without a hard break GitHub reflows the notes

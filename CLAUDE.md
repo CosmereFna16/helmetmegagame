@@ -765,7 +765,9 @@ one.
 
 Commit by hand and nothing is logged, so run `npm run changelog` afterwards. It
 reads HEAD, and takes its notes from the **commit message body** — any body line
-starting with a glyph, a `-` or a `*`.
+starting with a glyph, a `-` or a `*`. A bullet wrapped over several lines is
+folded back into one note, so a body wrapped at 72 columns announces whole
+sentences rather than first lines.
 
 **Two things stay out of it.**
 
