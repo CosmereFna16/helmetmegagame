@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Every room id says where it is
+
+✎ Room ids are now always <location-stem>-<room>: keep-throne-room, inn-cellar, customs-watchtower. 98 of the 127 rooms were renamed  
+✎ Nothing a player sees changed. Display names are untouched, so there are still four rooms called Watchtower and two called Road  
+✎ The rule is written down in the zones.yaml header and CHANNELS.md, and it replaces the three comments that used to explain which id was already taken
+
 ## 2026-09-05 · Cameras take photos, /shout carries, and the caves only bite when you walk
 
 ✚ The Instant Camera works. React 📸 or 📷 to somebody's message and you get a Photo of them, frozen exactly as they looked right then — a real object you can hand over, stash, or have stolen. The camera is reusable; consuming one instead prints a photo of nothing.
