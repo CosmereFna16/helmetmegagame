@@ -30,7 +30,7 @@ const DANGER = 4;
 // The one room with a big red button on the wall (docs/zones.yaml). Named here
 // rather than imported from gatehouseTurret.js because that module pulls in the
 // whole turret engine, and this file is loaded by the sync to draw a row.
-const CENSOR_OFFICE_ROOM_SLUG = "censors-office";
+const CENSOR_OFFICE_ROOM_SLUG = "garrison-censors-office";
 
 // The four rooms that work a gate. Every modular edge in docs/zones.yaml has
 // exactly one of these at one of its ends, and the Open/Close button renders
@@ -47,10 +47,10 @@ const CENSOR_OFFICE_ROOM_SLUG = "censors-office";
 // The gates themselves still come from the graph — db/lib/syncZones.js#gatesFor
 // answers which ones touch a location. This set only says who shows them.
 const WATCHTOWER_ROOM_SLUGS = new Set([
-  "fortress-watchtower", // fortress/gatehouse <-> fortress/road
-  "watchtower", //          caves/customs      <-> caves/caves-narrows
-  "north-watchtower", //    town/north-gate    <-> forest/forest-north-road
-  "south-watchtower", //    town/south-gate    <-> forest/forest-crossroads
+  "gatehouse-watchtower", //  fortress/gatehouse <-> fortress/road
+  "customs-watchtower", //    caves/customs      <-> caves/caves-narrows
+  "north-gate-watchtower", // town/north-gate    <-> forest/forest-north-road
+  "south-gate-watchtower", // town/south-gate    <-> forest/forest-crossroads
 ]);
 
 const ROOM_STORAGE_PREFIX = "room:storage:";

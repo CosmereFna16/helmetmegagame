@@ -21,7 +21,7 @@ const { postMessage } = require("./discordRest");
 // The Cathedral's Bell Tower, hardcoded for the db/lib/roleIds.js reason: one
 // guild, one correct value, and a missing env var would have been a silent
 // no-op.
-const BELL_ROOM_SLUG = "bell-tower";
+const BELL_ROOM_SLUG = "cathedral-bell-tower";
 
 // Zone slugs within earshot. An allowlist rather than the intercom's
 // exclusion list, because this one is a sound travelling over hills and the

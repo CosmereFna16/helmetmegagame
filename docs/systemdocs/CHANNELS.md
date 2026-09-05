@@ -328,6 +328,20 @@ thread mentions.
 
 A Room is a thread under its Location's channel, authored in `docs/zones.yaml`
 (`SYNC.md`) and owned end-to-end by the sync — **players cannot create one.**
+
+**A room's id is always `<location-stem>-<room>`** — `keep-throne-room`,
+`inn-cellar`, `customs-watchtower`. Zones, locations and rooms share one slug
+namespace, so without the stem the obvious id is often already gone: there are
+four rooms called "Watchtower" and two called "Road". Display names are
+unaffected. Four room slugs are also hardcoded in JS and must move with the
+YAML — `INTERCOM_ROOM_SLUG` (`db/lib/intercom.js`), `BELL_ROOM_SLUG`
+(`db/lib/bell.js`), `CENSOR_OFFICE_ROOM_SLUG` and `WATCHTOWER_ROOM_SLUGS`
+(`db/lib/roomStarterRow.js`) — as must every `silo:` in `docs/roles.yaml`,
+which `db/lib/syncRoles.js` resolves by slug and *throws* on a miss.
+
+Note what a rename costs: a changed id is a **new room**, so the sync prunes
+the old one, deletes its Discord thread, and cascades away its `RoomTag`
+stash and `RoomGuest` rows. Safe before launch and destructive after it.
 Public rooms are ordinary public threads; private rooms are non-invitable
 private threads (`Room.accessTagSlugs` non-empty makes a room PRIVATE), never
 locked, so nothing here stops the roleplay inside once you're in. Both

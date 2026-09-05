@@ -105,7 +105,7 @@ zones:
     factions:
       the-court:
         name: The Court
-        silo: storehouse
+        silo: servants-storehouse
         roles:
           baron:
             name: Baron
@@ -450,7 +450,7 @@ zones:
               - fortressstarting
       cerberon:
         name: Cerberon
-        silo: mess-hall
+        silo: garrison-mess-hall
         parent: The Court
         roles:
           censor:
@@ -610,7 +610,7 @@ zones:
     factions:
       the-church:
         name: The Church
-        silo: pantry
+        silo: cathedral-pantry
         roles:
           bishop:
             name: Bishop
@@ -704,7 +704,7 @@ zones:
               - church
       the-sanctuary:
         name: The Sanctuary
-        silo: supply-storage
+        silo: sanctuary-supply-storage
         roles:
           esculap:
             name: Esculap
@@ -771,7 +771,7 @@ zones:
               - medical
       order-of-the-silver-cross:
         name: Order of the Silver Cross
-        silo: order-chambers
+        silo: cathedral-order-chambers
         parent: The Church
         roles:
           inquisitor:
@@ -890,7 +890,7 @@ zones:
               - church
       the-town:
         name: The Town
-        silo: warehouse
+        silo: square-warehouse
         roles:
           headman:
             name: Headman
@@ -1090,7 +1090,7 @@ zones:
               - independent
       the-inn:
         name: The Inn
-        silo: cellar
+        silo: inn-cellar
         parent: The Town
         roles:
           innkeeper:
@@ -1154,7 +1154,7 @@ zones:
     factions:
       the-company:
         name: The Company
-        silo: cargo-bay
+        silo: customs-cargo-bay
         roles:
           merchant:
             name: Merchant
@@ -1273,7 +1273,7 @@ zones:
         # Godard is one of the Baron's cadet houses, which is the whole
         # reason the money goes up to the Keep rather than staying here.
         parent: The Court
-        silo: logistics-room
+        silo: factory-logistics-room
         roles:
           banneret:
             name: Banneret

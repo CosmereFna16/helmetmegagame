@@ -18,7 +18,7 @@ const { postMessage } = require("./discordRest");
 
 // The Council Room, hardcoded for the db/lib/roleIds.js reason: one guild, one
 // correct value, and a missing env var would have been a silent no-op.
-const INTERCOM_ROOM_SLUG = "council-room";
+const INTERCOM_ROOM_SLUG = "keep-council-room";
 
 // Zone slugs the PA does not reach. `hills` is the Black Hills.
 const OUT_OF_RANGE_ZONE_SLUGS = ["hills"];

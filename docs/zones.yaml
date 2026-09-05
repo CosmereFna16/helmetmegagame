@@ -25,7 +25,17 @@
 # Rooms.
 #
 # - id: a stable slug, used to match this entry to its DB row across syncs.
-#   Zones, locations and rooms share ONE slug namespace. Renaming an entry
+#   Zones, locations and rooms share ONE slug namespace.
+#
+#   **A ROOM's id is always `<location-stem>-<room>`** — `keep-throne-room`,
+#   `inn-cellar`, `customs-watchtower`. The stem is the Location's short name,
+#   not always its literal id (`old-cock-inn` gives `inn-`, `forest-headwaters`
+#   gives `headwaters-`). Follow it and a collision is impossible; three rooms
+#   in this file used to carry a comment explaining which id was already taken,
+#   and the rule replaces all of them. Display `name` is untouched by this:
+#   two rooms may both be called "Road" as long as their ids differ.
+#
+#   Renaming an entry
 #   later means changing `name` here, NOT `id` — a changed `id` is treated as
 #   a brand-new entry (old one pruned, new one provisioned from scratch)
 #   instead of a rename. A Location's id is also its Discord channel name.
@@ -177,19 +187,19 @@ zones:
         description: >-
           An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
         rooms:
-          courtyard:
+          square-courtyard:
             name: Courtyard
             description: >-
               A rectangular patch of salted earth. Spectator stands awaiting bloodshed surround it. Perfect place for a duel, competition or random bout of violence!
-          market-row:
+          square-market-row:
             name: Market Row
             description: >-
               Lines of stalls and tents perched against buildings. You can find all sorts of bargains here, if buying random crap is your kind of thing.
-          smithery:
+          square-smithery:
             name: Smithery
             description: >-
               The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
-          warehouse:
+          square-warehouse:
             name: Warehouse
             description: >-
               A long building storing food and other public goods.
@@ -198,7 +208,7 @@ zones:
               resources: 4
               items:
                 hatchet: 1
-          smithery-storeroom:
+          square-smithery-storeroom:
             name: Smithery Storeroom
             description: >-
               Bar iron, charcoal, and the tools too good to leave out where a customer could lift them. ‡
@@ -215,28 +225,28 @@ zones:
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
         rooms:
-          street:
+          inn-street:
             name: Street
             description: >-
               The street outside the inn, where unlucky people end up. There's a porch—a fine place to smoke a cigarette.
-          bar:
+          inn-bar:
             name: Bar
             description: >-
               Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers.
-          second-floor:
+          inn-second-floor:
             name: Second Floor
             description: >-
               Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: “DENNIS’S WING”
-          balcony:
+          inn-balcony:
             name: Balcony
             description: >-
               Sometimes it's busy out here, sometimes relaxing. You can look out onto the streets.
-          kitchen:
+          inn-kitchen:
             name: Kitchen
             description: >-
               Where the staff hangs out. There's a big oven.
             access: [inn-key]
-          cellar:
+          inn-cellar:
             name: Cellar
             description: >-
               A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
@@ -246,32 +256,31 @@ zones:
               items:
                 alcohol: 1
                 cigarette: 3
-          room-a:
+          inn-room-a:
             name: Room A
             description: >-
               A room to stay.
             access: [room-a-key]
-          room-b:
+          inn-room-b:
             name: Room B
             description: >-
               A room to stay.
             access: [room-b-key]
-          room-c:
+          inn-room-c:
             name: Room C
             description: >-
               A room to stay. Two beds.
             access: [room-c-key]
       # Named "Gate" in play; the id is north-gate because the Gatehouse
-      # already owns the slug "gate" for its own room.
+      # already owns "gate".
       north-gate:
         name: North Gate
         description: >-
           A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
         rooms:
-          # `north-watchtower`, not `watchtower` — zones, locations and rooms
-          # share one slug namespace, and Customs already holds that one. Both
-          # town gates are named "Watchtower" in play all the same.
-          north-watchtower:
+          # Both town gates, the fortress and Customs all have a room named
+          # "Watchtower" in play; the stem is what tells them apart.
+          north-gate-watchtower:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
             description: >-
@@ -283,15 +292,15 @@ zones:
         description: >-
           Stained limestone erected modestly upon a sedimentary-like stack of ancient buildings. Hundreds of candles light the ornate interior.
         rooms:
-          bell-tower:
+          cathedral-bell-tower:
             name: Bell Tower
             description: >-
               A grand, bronze bell sits up here watching over the town, waiting for a tug from below to let it sound across the land. Some vagrant has painstakingly scraped their initials into it.
-          confessionals:
+          cathedral-confessionals:
             name: Confessionals
             description: >-
               Cramped and dark, the confession box was the church's primary source of information until the arrival of the inquisition and their more proactive methods. If the bishop is feeling generous, he may even take your confession free of charge.
-          order-chambers:
+          cathedral-order-chambers:
             name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
@@ -300,11 +309,11 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
-          hall:
+          cathedral-hall:
             name: Hall
             description: >-
               Lines of pews illuminated by stained glass, facing an ornate altar.
-          pantry:
+          cathedral-pantry:
             name: Pantry
             description: >-
               Shelves of bread, oil, and candles.
@@ -313,7 +322,7 @@ zones:
               resources: 3
               items:
                 cooking-all-you-need-to-know: 1
-          vestry:
+          cathedral-vestry:
             name: Vestry
             description: >-
               The Chaplains and Bishop privately congregate here.
@@ -322,7 +331,7 @@ zones:
               items:
                 vestments: 2
                 cross: 1
-          scriptorium:
+          cathedral-scriptorium:
             name: Scriptorium
             description: >-
               It's a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
@@ -337,11 +346,11 @@ zones:
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
         rooms:
-          ward:
+          sanctuary-ward:
             name: Ward
             description: >-
               A long, tiled room. There are small bedframes on either side. Potted plants offer the patients a quiet hope.
-          esculaps-office:
+          sanctuary-esculaps-office:
             name: Esculap's Office
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
@@ -350,13 +359,13 @@ zones:
               items:
                 paper: 15
                 esculaps-wax-stamp: 1
-          operating-theater:
+          sanctuary-operating-theater:
             name: Operating Theater
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
             access: [sanctuary-key]
             stash: [surgical-equipment]
-          supply-storage:
+          sanctuary-supply-storage:
             name: Supply Storage
             description: >-
               Neatly organized shelves, labeled, archived, illuminated by standardized electric lights. Possibly the most valuable place in Ravenheart.
@@ -367,7 +376,7 @@ zones:
                 obol: 15
                 cleaning-powder: 1
                 surgical-equipment: 2
-          garden:
+          sanctuary-garden:
             name: Garden
             description: >-
               A nice place to sit and think.
@@ -376,23 +385,23 @@ zones:
         description: >-
           Squat buildings, piled into discomfort.
         rooms:
-          shacks:
+          underquarter-shacks:
             name: Shacks
             description: >-
               These crudely constructed dwellings — scrap metal, wood — were never designed to last, and yet here they remain. Very few have proper owners, even fewer have working locks. An endless cycle of vagrants staking claim to an empty shack, before being turfed off by another. There are old abandoned lots too, dozens of empty buildings without purpose.
-          abandoned-theater:
+          underquarter-abandoned-theater:
             name: Abandoned Theater
             description: >-
               Once a bustling center of culture, this place now serves as a home for an ever-growing population of the destitute. A side room functions as a gambling den. Neon lights soak the interior, illuminating the felted gambling tables. There is a counter at the far end of the room with a bell waiting for patrons to ring it and have their worldly desires fulfilled.
-          bathhouse:
+          underquarter-bathhouse:
             name: Bathhouse
             description: >-
               One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color — it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for a coin inserted into a slot.
-          alleyways:
+          underquarter-alleyways:
             name: Alleyways
             description: >-
               It's dark and dirty in here.
-          sewers:
+          underquarter-sewers:
             name: Sewers
             description: >-
               Automated machineries used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
@@ -400,12 +409,12 @@ zones:
             stash:
               items:
                 feces: 6
-          pushers-room:
+          underquarter-pushers-room:
             name: Pusher's Room
             description: >-
               A den to conduct shady deals, lit by neon. Connected to the Abandoned Theater.
             access: [pushers-key]
-          organ-shop:
+          underquarter-organ-shop:
             name: Organ Shop
             description: >-
               A dark room below street level with a crude operating table. A small window near the roof lets in some of the street's light.
@@ -419,7 +428,7 @@ zones:
         description: >-
           A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
         rooms:
-          south-watchtower:
+          south-gate-watchtower:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
             description: >-
@@ -444,15 +453,15 @@ zones:
 
           There is a triple-barreled machinegun in the center of the yard, on a rotor. It seems to be off.
         rooms:
-          gate:
+          gatehouse-gate:
             name: Gate
             description: >-
               Menacing iron, with several inset windows, built by a paranoid man. There are old logs to the side, piled and bound.
-          yard:
+          gatehouse-yard:
             name: Yard
             description: >-
               The constant rains have raised vines across the fortress walls, which flower white and pink.
-          stables:
+          gatehouse-stables:
             name: Stables
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
@@ -464,7 +473,7 @@ zones:
           # anchor and not from the Road: db/lib/roomStarterRow.js puts the
           # gate button on this room's starter. Hence the access list, which is
           # everyone the gate's own opener list names.
-          fortress-watchtower:
+          gatehouse-watchtower:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
@@ -482,12 +491,12 @@ zones:
             name: Outside
             description: >-
               The door to the Lifeweb is in front of you. The grass is especially alive here.
-          inner-lifeweb:
+          lifeweb-inner:
             name: Inner Lifeweb
             access: [mortus-key]
             description: >-
               Pistons and machinery connect to pumps and tubes, all terminating in the chair in the center of the room. Strap someone in, adjust the ventricles, prepare the injection site, and decide whether to drain them fully or leave them alive. Sealed hatches lead into maintenance tunnels.
-          mortus-shacks:
+          lifeweb-mortus-shacks:
             name: Mortus Shacks
             access: [mortus-key]
             description: >-
@@ -504,7 +513,7 @@ zones:
         description: >-
           Where the fortress actually runs from: laundries, sculleries, a back stair that reaches every floor without passing a single door the nobility use. The people here know more about the Keep than anyone in it, and are paid partly in the understanding that they will not say so. ‡
         rooms:
-          storehouse:
+          servants-storehouse:
             name: Storehouse
             description: >-
               A larder and a cellar combined in one, holding the keep's goods.
@@ -520,19 +529,19 @@ zones:
             description: >-
               Bunks, a stove and a long table, all of it worn smooth. The one room in the Keep the nobility has no reason to enter. ‡
           # `fortress-kitchen`, not `kitchen` — the Old Cock Inn holds that slug.
-          fortress-kitchen:
+          servants-kitchen:
             name: Kitchen
             description: >-
               An industrial operation, with racks of ovens, a heavy granite table, and thick cleavers.
             stash: [work-knife]
-          fortress-workshop:
+          servants-workshop:
             name: Workshop
             description: >-
               A place to sew, do laundry, and build simple things.
             stash: [workshop-equipment]
           # The second `destroys` room in the game, after the Factory's
           # Spillway. See docs/systemdocs/CARRY.md.
-          latrines:
+          servants-latrines:
             name: Latrines
             description: >-
               A chute into the darkness. Anything stored here is lost permanently.
@@ -546,22 +555,22 @@ zones:
           The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
         yield: { farming: 0.2 }
         rooms:
-          throne-room:
+          keep-throne-room:
             name: Throne Room
             description: |-
               Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a trapdoor directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
 
               There's a trapdoor in the center. You can hear something rumbling in the darkness.
-          great-hall:
+          keep-great-hall:
             name: Great Hall
             description: >-
               The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest. There is a huge painting of Baron Casimir the Great.
-          nook:
+          keep-nook:
             name: Nook
             access: [behind-the-painting]
             description: >-
               An empty room. It has unfinished sketches of a nude man in various poses across the walls.
-          council-room:
+          keep-council-room:
             name: Council Room
             access: [barons-key, hands-key, meisters-key, censors-key]
             description: >-
@@ -569,11 +578,11 @@ zones:
             stash:
               items:
                 paper: 4
-          swimming-pool:
+          keep-swimming-pool:
             name: Swimming Pool
             description: >-
               An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown. You swear you can see something shiny at the bottom.
-          library:
+          keep-library:
             name: Library
             description: >-
               Rows upon rows of bookcases, most of which lie empty. Various offices of members of the court branch off from here.
@@ -600,7 +609,7 @@ zones:
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
           # the Baron.
-          barons-chambers:
+          keep-barons-chambers:
             name: Baron's Chambers
             access: [barons-key]
             description: >-
@@ -610,7 +619,7 @@ zones:
                 obol: 19
                 paper: 2
                 dagger: 1
-          heirs-chamber:
+          keep-heirs-chamber:
             name: Heir's Chamber
             access: [heirs-key, barons-key]
             description: >-
@@ -619,7 +628,7 @@ zones:
               items:
                 obol: 2
                 broadsword: 1
-          successors-chamber:
+          keep-successors-chamber:
             name: Successor's Chamber
             access: [successors-key, barons-key]
             description: >-
@@ -628,11 +637,11 @@ zones:
               items:
                 obol: 1
                 tea: 1
-          terrace:
+          keep-terrace:
             name: Terrace
             description: >-
               A sprawling terrace with herbs, flowers, and even a mini-hedge maze. The perfect place for a nighttime party.
-          meisters-office:
+          keep-meisters-office:
             name: Meister's Office
             access: [meisters-key, barons-key]
             description: >-
@@ -640,7 +649,7 @@ zones:
             stash:
               items:
                 states-of-matter: 1
-          hands-office:
+          keep-hands-office:
             name: Hand's Office
             access: [hands-key, barons-key]
             description: >-
@@ -652,27 +661,27 @@ zones:
                 hands-wax-stamp: 1
           # The far end of the throne room's trapdoor. `in-the-pit` is GM-given
           # on the way down, which is the only way anybody arrives.
-          graga-pit:
+          keep-graga-pit:
             name: Graga Pit
             access: [in-the-pit]
             description: >-
               Wet stone, a long way down, and something breathing in the dark that is much larger than you are. ‡
-          the-charon:
+          keep-the-charon:
             name: The Charon
             description: >-
               A sealed gate. The Baron's key opens this.
             access: [barons-key]
-          reliquary-chapel:
+          keep-reliquary-chapel:
             name: Reliquary Chapel
             description: >-
               Courtiers come here to pray. The Silver Cross of Ravenheart is locked away behind the altar, accessible by the Incarn's key. ‡
-          cross-room:
+          keep-cross-room:
             name: Cross Room
             access: [incarns-key]
             description: >-
               Behind the chapel, the cross itself is stored in an ornate altar.
             stash: [silver-cross]
-          barons-study:
+          keep-barons-study:
             name: Baron's Study
             description: >-
               Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
@@ -696,7 +705,7 @@ zones:
             name: Entrance
             description: >-
               A wolf's head hangs over the counter, which is separated from the room by metal bars. There's a bust of a former baron.
-          censors-office:
+          garrison-censors-office:
             name: Censor's Office
             access: [censors-key, cerberus-key]
             description: >-
@@ -706,7 +715,7 @@ zones:
                 paper: 8
                 censors-wax-stamp: 1
                 cerberus-key: 3
-          barracks:
+          garrison-barracks:
             name: Barracks
             access: [cerberus-key]
             description: >-
@@ -716,7 +725,7 @@ zones:
           # a door moves its silo behind one. Locking it would also hand every
           # accepted Cerberon invite a cerberus-key through siloKeySlugs, and
           # that key works every gate in the game.
-          mess-hall:
+          garrison-mess-hall:
             name: Mess Hall
             description: >-
               The Cerberon's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
@@ -724,7 +733,7 @@ zones:
               resources: 2
               items:
                 alcohol: 1
-          armory:
+          garrison-armory:
             name: Armory
             description: >-
               Gargoyles flank a statue of the good Baron Casimir the Great. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
@@ -748,22 +757,22 @@ zones:
                 mail-shirt: 4
                 padded-armor: 5
                 padded-cap: 3
-          dungeons:
+          garrison-dungeons:
             name: Dungeons
             access: [censors-key, incarns-key, cerberus-key]
             description: >-
               Rows of cells behind iron bars, each with a lock only accessible by members of the garrison.
-          oubliette:
+          garrison-oubliette:
             name: Oubliette
             access: [censors-key, incarns-key, cerberus-key]
             description: >-
               If you throw a man in here, they're not getting out.
-          training-yard:
+          garrison-training-yard:
             name: Training Yard
             access: [cerberus-key]
             description: >-
               In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
-          kennels:
+          garrison-kennels:
             name: Kennels
             access: [cerberus-key]
             description: >-
@@ -777,29 +786,29 @@ zones:
         description: >-
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
         rooms:
-          sauna:
+          undercroft-sauna:
             name: Sauna
             description: >-
               A bath and a sauna. The Baron's preferred way to wash. The water is kept at a comfortably warm temperature, and is actually changed, unlike the public bathhouse.
-          cistern:
+          undercroft-cistern:
             name: Cistern
             description: >-
               Dark, connected rooms with ornate pillars, full of knee-high water. A starry tile mosaic is visible beneath the water.
-          tombs:
+          undercroft-tombs:
             name: Tombs
             description: >-
               The Baron's progenitors bear faces of varying humanity.
-          bricked-up-door:
+          undercroft-bricked-up-door:
             name: Bricked-up Door
             description: >-
               Where does this go…? It wouldn't be easy to open this passageway.
-          ancient-shrine:
+          undercroft-ancient-shrine:
             name: Ancient Shrine
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
           # The near end of the Baron's lift. The edge itself is
           # `hidden: elevator-key` in `connections:`; this is the cage.
-          elevator-room:
+          undercroft-elevator-room:
             name: Elevator Room
             access: [elevator-key]
             description: >-
@@ -809,8 +818,6 @@ zones:
         description: >-
           Green hills and a long white road, sinuous as a snake: grasshoppers buzz in the daisies. The Gatehouse bristles with Cerberi.
         rooms:
-          # `road-stretch`, not `road` — the Location above already holds that
-          # id, and zones, locations and rooms share one namespace.
           road-stretch:
             name: Road
             description: >-
@@ -903,7 +910,7 @@ zones:
           The mountains loom overhead. Blue pines crop out from lichen-covered granite. The cliffs have inaccessible gaps in them. It's very thickly forested here and hard to see.
         yield: { hunting: 0.5, farming: 0.3 }
         rooms:
-          cliffside-path:
+          cliffs-path:
             name: Cliffside Path
             description: >-
               A dirt path in the shadow of the keep. The river banks are further south. There's a distinctive boulder overhead, twice a person's height. It looks like a head. You can see dark gaps behind it—there are small caves in the cliffside.
@@ -949,7 +956,7 @@ zones:
           The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark mark the territory of fishermen.
         yield: { hunting: 0.8, farming: 0.3 }
         rooms:
-          large-dock:
+          riverbank-large-dock:
             name: Large Dock
             description: >-
               This dock is larger than the others, enough for several people to stand together. There's a bench. It juts out nearly halfway over the river, luring fish.
@@ -957,7 +964,7 @@ zones:
             name: River Banks
             description: >-
               A small drop from the road, the banks are muddy. The water is warm and shallow the water grows warm and shallow. A common place for bathing.
-          beaver-dam:
+          riverbank-beaver-dam:
             name: Beaver Dam
             description: >-
               You can't fit in here, but it's a good place to store things.
@@ -978,7 +985,7 @@ zones:
             description: >-
               A huge tree fell here and took down other trees with it. There's a clearing with soft grass.
             access: [forester]
-          sylvan-shrine:
+          deep-forest-sylvan-shrine:
             name: Sylvan Shrine
             # TODO: a "Pray" button here should strip a character's belief tags
             # and grant old-ways-sylvia, unless they hold `fundamentalist`. A
@@ -987,7 +994,7 @@ zones:
             description: >-
               An old, broken sculpture of antlers. Make your obeisance.
             access: [old-ways-sylvia, forester]
-          metal-wreckage:
+          deep-forest-metal-wreckage:
             name: Metal Wreckage
             description: >-
               Old metal buried in the Earth.
@@ -1031,7 +1038,7 @@ zones:
           Sparse, muddy fields, collecting puddles in the deepest spots. There's a lot of fallen trees here. You can see all the way south to the Depot.
         yield: { hunting: 0.5, farming: 0.5 }
         rooms:
-          lumber-field:
+          sparse-field-lumber-field:
             name: Lumber Field
             description: >-
               The trees that were too thin to take lay fallen on the bare soil.
@@ -1062,7 +1069,7 @@ zones:
             name: Bridge
             description: >-
               An old wooden bridge.
-          rockside-washup:
+          east-river-washup:
             name: Rockside Washup
             description: >-
               Accessible by boat, there's a still pond on the side of the river where some of the town's washup has collected.
@@ -1082,15 +1089,15 @@ zones:
           Smoke rises from thatch-roofed houses on the other side of the river from the town. They're slightly elevated, just above the cattails, but still vulnerable. There's a small guard tower.
         yield: { farming: 1.0 }
         rooms:
-          fields:
+          farms-fields:
             name: Fields
             description: >-
               Low walls of piled rocks separate the road from expansive fields of wheat. There's carts and empty crates, used for the harvest.
-          village-green:
+          farms-village-green:
             name: Village Green
             description: >-
               Several plum trees surround a large, dead oak. The hamlet's informal gathering place.
-          old-church:
+          farms-old-church:
             name: Old Church
             description: >-
               A miniature stone church with a cross inside. There's a cart laid on its side.
@@ -1198,17 +1205,17 @@ zones:
         attributes:
           godflesh: true
         rooms:
-          bridges:
+          village-bridges:
             name: Bridges
             description: >-
               Algae clings to the bridges, connecting flooded homes.
-          bighook-maw:
+          village-bighook-maw:
             name: Bighook Maw
             description: >-
               An abandoned pub. The cellar's still there, but it's flooded. You'd have to be a good swimmer to get in there.
           # Private, so the thread itself is invisible to anyone who can't
           # swim — the nearest thing the schema has to a hidden room.
-          flooded-cellar:
+          village-flooded-cellar:
             name: Cellar
             description: >-
               A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
@@ -1225,7 +1232,7 @@ zones:
           refinery: true
           noticeboard: true
         rooms:
-          logistics-room:
+          factory-logistics-room:
             name: Logistics Room
             description: >-
               The Godflesh is prepared for production here while Squeeze is stacked into neat little crates. There's a ramp leading down to dry ground, where the cart is usually staged.
@@ -1235,7 +1242,7 @@ zones:
               items:
                 packaging-equipment: 1
                 armored-gloves: 2
-          main-floor:
+          factory-main-floor:
             name: Main Floor
             description: >-
               The production room. Godflesh, suspended by hooks, slowly boils in big, wood-fired vats. Hydraulic pistons then senselessly compress it into cubes. Outside, the bridges have a few tables for people to kick their feet and relax. The Days Since Last Incident ticker is covered over by a hastily painted sign saying: "DO NOT EAT THE CUBES." A level up, the overseer box looks out onto the working floor.
@@ -1244,12 +1251,12 @@ zones:
             description: >-
               An old barge converted into a pub for the factory workers. When the nearby village was more active, there was an actual bar. Well, at least you have moonshine, and some interesting folks still pass by.
           # `destroys` is the only room in the game with it. See CARRY.md.
-          spillway:
+          factory-spillway:
             name: Spillway
             description: >-
               An open-air wooden trough where acidic, pink-stained wastewater cascades into the lake. Anything you drop here is gone for good.
             destroys: true
-          overseer-box:
+          factory-overseer-box:
             name: Overseer Box
             description: >-
               Clear sightways into the factory and out to the surrounding marsh, leading to a walkway that wraps around the factory's upper levels.
@@ -1346,37 +1353,35 @@ zones:
             description: >-
               Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. Steel grate bridges a cave stream, leading to the merchant's neon-lit, concrete depot. It's all illuminated by a pair of floodlights, connected by a suspended cable.
             rooms:
-              # `customs-yard`, not `customs` — zones, locations and rooms share
-              # one slug namespace and the Location above already holds that one.
               customs-yard:
                 name: Customs
                 description: >-
                   Migrants set up tents here, awaiting for someone to create their necessary paperwork.
                 stash: [skinned-cave-rat]
-              storefront:
+              customs-storefront:
                 name: Storefront
                 description: >-
                   An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
                 stash: [tea, sweets]
-              landing-pad:
+              customs-landing-pad:
                 name: Landing Pad
                 live: shuttle
                 description: >-
                   A grated steel bay. The roof automatically opens and closes.
-              watchtower:
+              customs-watchtower:
                 name: Watchtower
                 access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
                 description: >-
                   Set into the gate. The tower's windows allow peering into the caves, where a floodlight is pointed. Metal grates on the floor allow pouring oil onto any invaders.
                 stash: [shortbow, spear]
-              merchants-office:
+              customs-merchants-office:
                 name: Merchant's Office
                 access: [merchants-license]
                 description: >-
                   A desk, filing cabinets, and a big red button.
               # The lock moved off the Landing Pad and onto here: the pad is
               # just a hole in the roof, but the goods are worth a door.
-              cargo-bay:
+              customs-cargo-bay:
                 name: Cargo Bay
                 access: [depot-keycard]
                 description: >-
