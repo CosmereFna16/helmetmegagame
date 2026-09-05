@@ -332,9 +332,13 @@ async function handleCameraReaction(reaction, proxy, user) {
   }
 
   const { readout } = result;
-  const photo = await prisma.$transaction((tx) =>
-    mintPhoto(tx, held.characterId, { subject: photoSubject(readout), caption: photoCaption(readout) }),
-  );
+  // No transaction: the camera is not spent, so there is nothing that has to
+  // be atomic with the print — and mintPhoto's collision retry cannot run
+  // inside one (db/lib/photoMint.js#createWithRetry).
+  const photo = await mintPhoto(prisma, held.characterId, {
+    subject: photoSubject(readout),
+    caption: photoCaption(readout),
+  });
 
   // The photographer is shown what they caught, in the same embed 🔍 builds —
   // the print is in their hands either way, so hiding it would only make them

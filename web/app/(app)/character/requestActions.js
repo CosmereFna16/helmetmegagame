@@ -99,7 +99,7 @@ import {
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
-import { CAMERA_SLUG, mintBlankPhoto } from "@lifeweb/db/lib/photoMint";
+import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
@@ -1727,10 +1727,16 @@ async function breakSealRequestImpl({ session, character, held, reason }) {
 async function photographNothingImpl({ session, character, held, reason }) {
   const openTurn = await getOpenTurn();
 
-  let photo;
+  // The row is created BEFORE the transaction, because its name-collision
+  // retry cannot survive inside one — Postgres aborts a transaction on the
+  // first failed statement (db/lib/photoMint.js#createWithRetry). If the
+  // transaction below then rolls back, the print is left in nobody's hands,
+  // which reaches no browser and gets swept at the next Restart Game.
+  const photo = await createBlankPhotoRow(prisma, character.id);
+
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, held.tagId, 1);
-    photo = await mintBlankPhoto(tx, character.id);
+    await attachPhoto(tx, character.id, photo);
 
     const effect = {
       tagId: held.tagId,

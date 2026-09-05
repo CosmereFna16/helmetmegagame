@@ -16,7 +16,7 @@
 // literacy gate. A printed photograph is a piece of card in your pocket, and
 // that is the shelf it belongs on.
 
-const { PAPER_GROUP_SLUG } = require("./paper");
+const { PAPER_GROUP_SLUG, noteCode } = require("./paper");
 const { photoName, BLANK_PHOTO_CAPTION, BLANK_PHOTO_NAME } = require("./photo");
 const { addToStack } = require("./tagWrites");
 
@@ -58,12 +58,25 @@ async function photoGroupId(tx) {
 
 // Tag.name is @unique across the whole catalog, so retry on the violation
 // rather than checking first — two photographers shooting in the same
-// millisecond would both pass a pre-check and then one would throw. The
-// suffix is bindBook's: `Photo (Young Man) (2)`.
-async function createWithRetry(tx, buildData) {
+// millisecond would both pass a pre-check and then one would throw.
+//
+// ** `db` here must be the TOP-LEVEL client, never a transaction. ** Postgres
+// aborts a whole transaction the moment one statement in it fails, so a
+// catch-and-retry inside `$transaction` can only ever raise 25P02 on the
+// second attempt — the retry is dead code there. That matters far more for a
+// photo than for anything else that retries this way: `Photo (Young Man)` is a
+// name the game produces over and over, so the collision is the NORMAL case
+// rather than a millionth-write freak. Both minters below therefore create the
+// row outside any transaction and let their caller attach it.
+//
+// (db/lib/paperMint.js has the same loop and IS called inside a transaction.
+// It gets away with it because a note's name carries a random waybill code, so
+// its collision odds are about one in seven million. Worth fixing, not worth
+// fixing here.)
+async function createWithRetry(db, buildData) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
-      return await tx.tag.create({ data: buildData(attempt) });
+      return await db.tag.create({ data: buildData(attempt) });
     } catch (err) {
       if (err?.code !== "P2002") throw err;
     }
@@ -71,47 +84,79 @@ async function createWithRetry(tx, buildData) {
   return null;
 }
 
-// The core. `subject` is the PRESENTED name (db/lib/photo.js#photoSubject) and
-// `caption` the frozen readout (#photoCaption). Puts the print straight into
-// `ownerId`'s hands and spends nothing — the camera is reusable, so there is
-// nothing to charge.
-async function mintPhoto(tx, ownerId, { subject, caption }) {
-  const groupId = await photoGroupId(tx);
+// The second and later photos of the same face. A print code rather than a
+// "(2)" suffix, paperMint.js's reasoning exactly: "Photo (Young Man)" and
+// "Photo (Young Man) (2)" would look related and are not — they are two
+// different young men as often as they are two shots of one.
+function disambiguated(subject, attempt) {
+  return attempt === 0 ? photoName(subject) : photoName(`${subject} · ${noteCode()}`);
+}
 
-  const tag = await createWithRetry(tx, (attempt) => ({
+// The row, and nothing else. `db` must be the top-level client (see
+// createWithRetry). Creating it puts it in nobody's hands — `attachPhoto`
+// does that — so the two halves can straddle a transaction boundary.
+//
+// An orphaned row, if the caller's transaction then rolls back, costs nothing:
+// it is `ephemeral`, so a Restart Game sweeps it, and
+// web/lib/referenceData.js only ships an ephemeral row to whoever HOLDS it, so
+// a photo in nobody's hands reaches no browser at all.
+async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility }) {
+  const groupId = await photoGroupId(db);
+
+  const tag = await createWithRetry(db, (attempt) => ({
     ...PHOTO_SHAPE,
     groupId,
     slug: photoSlug(ownerId, attempt),
-    name: attempt ? `${photoName(subject)} (${attempt + 1})` : photoName(subject),
-    // Unlike paper, the description IS the content and it is stored plainly.
-    // Safe because web/lib/referenceData.js only ships an `ephemeral` row to
-    // whoever is holding it — a photo nobody holds reaches no browser.
+    name: name(attempt),
+    // Unlike paper, the description IS the content and it is stored plainly —
+    // safe for the referenceData reason above. There is no literacy gate on a
+    // picture, which is the whole point of one.
     description: caption,
+    ...(inspectVisibility ? { inspectVisibility } : {}),
   }));
   if (!tag) throw new Error("Could not name the photo.");
+  return tag;
+}
 
+// Puts a created row into somebody's hands. Safe inside a transaction — it is
+// the half that has to be atomic with whatever the caller is also writing.
+async function attachPhoto(tx, ownerId, tag) {
   await addToStack(tx, ownerId, tag.id, 1, {});
   return tag;
 }
 
-// What comes out when the camera is pointed at nothing — the Consume path.
-// Same row, no subject.
-async function mintBlankPhoto(tx, ownerId) {
-  const groupId = await photoGroupId(tx);
+// The whole thing, for a caller with nothing else to make atomic: the 📸
+// reaction, which spends nothing — the camera is reusable, so there is no
+// charge to keep in step with the print.
+//
+// `subject` is the PRESENTED name (db/lib/photo.js#photoSubject) and `caption`
+// the frozen readout (#photoCaption).
+async function mintPhoto(db, ownerId, { subject, caption }) {
+  const tag = await createPhotoRow(db, ownerId, {
+    name: (attempt) => disambiguated(subject, attempt),
+    caption,
+  });
+  return attachPhoto(db, ownerId, tag);
+}
 
-  const tag = await createWithRetry(tx, (attempt) => ({
-    ...PHOTO_SHAPE,
-    groupId,
-    slug: photoSlug(ownerId, attempt),
-    name: attempt ? `${BLANK_PHOTO_NAME} (${attempt + 1})` : BLANK_PHOTO_NAME,
-    description: BLANK_PHOTO_CAPTION,
+// What comes out when the camera is pointed at nothing — the Consume path,
+// which DOES have something to keep atomic (the camera coming off the stack),
+// so it uses createPhotoRow + attachPhoto rather than this.
+async function createBlankPhotoRow(db, ownerId) {
+  return createPhotoRow(db, ownerId, {
+    name: (attempt) => (attempt === 0 ? BLANK_PHOTO_NAME : `${BLANK_PHOTO_NAME} (${noteCode()})`),
+    caption: BLANK_PHOTO_CAPTION,
     // Nobody is in it, so there is nothing to keep private.
     inspectVisibility: "ALWAYS",
-  }));
-  if (!tag) throw new Error("Could not name the photo.");
-
-  await addToStack(tx, ownerId, tag.id, 1, {});
-  return tag;
+  });
 }
 
-module.exports = { PHOTO_SHAPE, CAMERA_SLUG: "instant-camera", mintPhoto, mintBlankPhoto, photoSlug };
+module.exports = {
+  PHOTO_SHAPE,
+  CAMERA_SLUG: "instant-camera",
+  createPhotoRow,
+  createBlankPhotoRow,
+  attachPhoto,
+  mintPhoto,
+  photoSlug,
+};
