@@ -65,5 +65,5 @@ export const DEPOT_HELP = {
   shuttleCooldown: "Turns that must pass after it lands before it can be sent back up. ‡",
   creditCapObols: "The ceiling on the Company's credit line, in obols. ‡",
   turretTable:
-    "The turret's severity odds, one column per armour tier. Each column must sum to exactly 1, and the save is refused if any does not. Severities: graze, minor-wound, deep-wound, grievous-wound, dying, dead. ‡",
+    "What a burst does to somebody wearing NOTHING. Armour bends this curve rather than replacing it, so tuning here moves every outcome at once — a piece of gear's own protection lives on its tag. Must sum to exactly 1, and the save is refused if it does not. Severities: graze, minor-wound, deep-wound, grievous-wound, dying, dead. ‡",
 };

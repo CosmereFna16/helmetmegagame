@@ -1906,6 +1906,30 @@ model Tag {
   // counts. ADDITIVE across held rows, floored at ×0.25; see db/lib/carry.js.
   carryBonus Float?
 
+  // How much this piece of gear turns a blow aside, 0.0 to 1.0. Two numbers
+  // because the two things that hit you in Ravenheart are nothing alike: a
+  // breastplate is excellent against a sword and paper against a rifle, and the
+  // catalog's own line about Light Infantry Armour ("nothing forged in
+  // Ravenheart stops a bullet") only means something once those can differ.
+  //
+  // Counted only while EQUIPPED, and combined across pieces with diminishing
+  // returns rather than added — see db/lib/armorValue.js, which owns both the
+  // combination and the word scale.
+  //
+  // NEVER shown to a player as the number. Armour reads as a word — None,
+  // Meager, Sufficient, Good, Strong, Overkill — the same posture Laboring
+  // yields take (db/lib/laborYield.js#qualityWord): working out that Strong
+  // beats Good is the player's job, and a decimal on a chip would turn kit
+  // choice into arithmetic.
+  //
+  // meleeArmor is authored and displayed but nothing reads it mechanically yet.
+  // There is no melee resolver in the codebase — melee is GM-adjudicated or a
+  // Gambit outcome — so the number is here so the catalog is complete and
+  // consistent on the day one lands. ballisticArmor is live: it is what the
+  // turrets roll against.
+  meleeArmor     Float?
+  ballisticArmor Float?
+
   // Whether this tag is a thing a character can wear or carry readied, and so
   // occupies one of their GameConfig.equipSlots. Equipped state lives on
   // CharacterTag.equipped; equipping is instant and writes no Request.

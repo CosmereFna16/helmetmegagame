@@ -1,5 +1,6 @@
 import { formatCost, costColor, prerequisiteNames } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { formatTagArmor } from "@/lib/formatTagArmor";
 import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import ChipLabel from "./ChipLabel";
 import ChipText from "./ChipText";
@@ -49,6 +50,10 @@ export default function TagChip({
   // Minified "cost to add/remove this tag in play" — see Tag.requirement* in
   // schema.prisma. Null when unset, so the row is simply omitted.
   const requirement = formatTagRequirement(tag);
+
+  // "Melee: Good | Ballistic: Meager". Null for everything that turns nothing
+  // aside, which is most of the catalog.
+  const armor = formatTagArmor(tag);
 
   // Pass the CharacterTag's expiresTurn (not the Tag's defaultDurationTurns) —
   // the clock started when it was granted. Null for a bare catalog reference,
@@ -115,6 +120,7 @@ export default function TagChip({
             {requirement}
           </Meta>
         )}
+        {armor && <Meta label="Armour">{armor}</Meta>}
         {/* Tag.inspectVisibility — whether another player sees this on the 🔍
             inspect embed. Only the affirmative renders; hidden is the default,
             so a "No" on most of the catalog would be noise. "Only while worn"

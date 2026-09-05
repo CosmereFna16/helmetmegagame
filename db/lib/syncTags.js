@@ -376,6 +376,25 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a negative weight`);
     }
 
+    // Armour values: a fraction of a blow turned aside, so 0..1 and nothing
+    // else. Rejected on a tag nobody can wear for the same reason a laborBonus
+    // is — armour that never gets equipped is dead config, and combineArmor
+    // skips unequipped rows, so it would silently do nothing rather than fail.
+    for (const field of ["melee", "ballistic"]) {
+      const v = t[field];
+      if (v === undefined || v === null) continue;
+      if (typeof v !== "number" || Number.isNaN(v) || v < 0 || v > 1) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" has ${field}: ${v} — armour runs 0 to 1, the fraction of a blow it turns aside`,
+        );
+      }
+      if (!t.equippable) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets ${field} but is not equippable — armour only counts while worn, so this would protect nobody`,
+        );
+      }
+    }
+
     // consumesInto is validated here, against slugs already known from this
     // document, so a typo fails cleanly instead of half-applying.
     for (const { slug, unlessTags, oneOf } of normalizeConsumesInto(t.consumesInto)) {
@@ -606,6 +625,11 @@ async function syncTagsFromYaml(prisma) {
       tradeable: entry.tradeable ?? false,
       weightLbs: entry.weight ?? null,
       carryBonus: entry.carryBonus ?? null,
+      // Authored as the short `melee:`/`ballistic:` a catalog line reads well
+      // with; stored under the fuller column names, since "melee" alone on a
+      // Tag row says nothing about what it measures.
+      meleeArmor: entry.melee ?? null,
+      ballisticArmor: entry.ballistic ?? null,
       equippable: entry.equippable ?? false,
       concealsIdentity: entry.concealsIdentity ?? false,
       forcesConceal: entry.forcesConceal ?? false,

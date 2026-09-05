@@ -133,7 +133,7 @@ export async function updateGameConfig(formData) {
 // expose.
 //
 // The turret table is the one field that can be REJECTED rather than clamped.
-// A column that does not sum to 1 is not a preference, it is a broken die, and
+// A table that does not sum to 1 is not a preference, it is a broken die, and
 // silently normalising it would hide a GM's typo behind subtly wrong odds for
 // a month. validateTurretTable throws; the action swallows it into a returned
 // error so the form can say so.

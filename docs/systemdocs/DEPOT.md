@@ -60,7 +60,7 @@ the line lives on `Depot.debtObols`.
 | Piece | Where it lives | Notes |
 |---|---|---|
 | Station state and tuning | `Depot` singleton, `id = 1` | `db/lib/depotState.js` — every mover is a locked clamp, per `lifeweb.js#bumpBlood` |
-| The turret | `db/lib/depotTurret.js` | Weighted severity table, one column per armour tier |
+| The turret | `db/lib/depotTurret.js` | Weighted severity table, bent by the target's `Tag.ballisticArmor` |
 | Crates | `db/lib/depotCrates.js` | Runtime `Tag` rows with `custom: true` |
 | Per-turn upkeep | `db/lib/depotPass.js` | Fuel burn, shuttle clock, turret sweep |
 | The console | `web/app/(app)/depot/`, `web/app/components/Depot*.js` | Cockpit strip + six tabs |
@@ -188,8 +188,8 @@ columns must sum to 1.
 Gatehouse yard (`db/lib/gatehouseTurret.js`, §0g below). They share everything
 except where they stand, what turns them on and who they spare, so the sweep,
 the arrival roll and what a bullet does to a sheet live once in
-`db/lib/turretPass.js`. The ballistics — the severity ladder, the armour
-columns, the weighted draw — stay in `db/lib/depotTurret.js`, which is the file
+`db/lib/turretPass.js`. The ballistics — the severity ladder, the armour curve,
+the weighted draw — stay in `db/lib/depotTurret.js`, which is the file
 both of them roll against.
 
 **It reads faces, not papers.** The turret spares exactly one thing: a
@@ -225,29 +225,79 @@ being shot is a database fact) and **again at the end of every turn**
 (`db/lib/depotPass.js`), the way Caving rolls do. It only fires when the
 generator is running.
 
-**Armour picks a column, not a step.** A vest does not downgrade one wound by
-one rung; it moves the whole distribution. Best-equipped-armour-first, and only
-`equipped` armour counts.
+**Being shot is very bad.** This is what a burst does to somebody wearing
+nothing — the shipped table, `DEFAULT_TURRET_TABLE` in `db/lib/depotTurret.js`:
 
-| Tier | graze | minor | deep | grievous | dying | dead |
-|---|---|---|---|---|---|---|
-| No armour | 10% | 25% | 30% | 20% | 10% | 5% |
-| Padded | 25% | 30% | 25% | 13% | 5% | 2% |
-| Mail | 30% | 30% | 23% | 11% | 4% | 2% |
-| Plate | 38% | 30% | 19% | 9% | 3% | 1% |
-| Salvage Plate | 45% | 29% | 16% | 7% | 2% | 1% |
-| Light Infantry | 55% | 28% | 12% | 4% | 1% | 0% |
-| Energy Shield | 85% | 10% | 4% | 1% | 0% | 0% |
+| graze | minor | deep | grievous | dying | dead |
+|---|---|---|---|---|---|
+| 6% | 14% | 16% | 24% | 22% | 18% |
 
-Light Infantry Armour being the best column is the catalog's own claim about
-it — "nothing forged in Ravenheart stops a bullet". The turret is where that
-line finally means something mechanical.
+Two fifths dying or dead, two fifths badly hurt, one fifth walking. Standing in
+front of an armed machinegun in shirtsleeves is not meant to be a coin flip on
+being fine, and until this table it was — the old bare column gave a 35% chance
+of a graze or a minor wound.
 
-A GM retunes any column from `/gm/dev?s=depot`. **The save is refused** if a
-column does not sum to 1 — a broken die is a typo, not a preference, and
-silently normalising it would hide the mistake behind subtly wrong odds for a
-month. A column that somehow reaches the database invalid (a hand-edited row, a
-restored backup) is ignored at roll time in favour of the shipped one.
+**Armour bends that curve; it does not replace it.** Every piece of gear carries
+`Tag.ballisticArmor`, 0.0–1.0, and only while `equipped`. Worn pieces combine
+multiplicatively on what gets *through*, capped at 0.95, and the combined figure
+raises the roll to a power:
+
+```
+protection = min(0.95, 1 - Π(1 - ballisticArmor))
+h          = random() ^ (1 + ARMOR_GAIN * protection)   // ARMOR_GAIN = 3
+```
+
+`h` then walks the table above. At zero protection the exponent is 1, so the
+draw *is* the table. The exponent is deliberate rather than a subtraction or a
+scale: both of those reach a point where death becomes literally impossible, and
+"there exists a jacket that makes a machinegun safe" is a worse rule than any
+number could fix.
+
+| kit | protection | graze | minor | deep | grievous | dying | dead |
+|---|---|---|---|---|---|---|---|
+| nothing | 0.00 | 6% | 14% | 16% | 24% | 22% | 18% |
+| a Censor's Helmet | 0.35 | 25% | 20% | 15% | 17% | 13% | 9% |
+| plate and a helm | 0.51 | 33% | 20% | 14% | 15% | 11% | 8% |
+| Light Infantry Armour | 0.80 | 44% | 19% | 12% | 12% | 8% | 6% |
+| shield and armour both | 0.95 | 48% | 18% | 11% | 11% | 7% | 5% |
+
+The best kit in the game still buries about one wearer in twenty.
+
+This replaced a hardcoded list of seven body-armour slugs, which knew about
+plate and mail and knew nothing about a single helmet, shield, buckler, pavise
+or the spacesuit — so a character in a closed steel helm rolled bare. A number
+on the tag cannot fall behind the catalog the way that list did the moment
+somebody added a helmet. See §TAGS.md for the two columns and the word scale
+players actually see.
+
+Light Infantry Armour carrying the highest ballistic value in the game is the
+catalog's own claim about it — "nothing forged in Ravenheart stops a bullet".
+The turret is where that line finally means something mechanical, and it is why
+nothing forged sits above 0.3 ballistic.
+
+A GM retunes the unarmoured table from `/gm/dev?s=depot`. **The save is
+refused** if it does not sum to 1 — a broken die is a typo, not a preference,
+and silently normalising it would hide the mistake behind subtly wrong odds for
+a month. A table that somehow reaches the database invalid (a hand-edited row, a
+restored backup) is ignored at roll time in favour of the shipped one. Note that
+tuning here moves *every* outcome at once, armoured included; a single piece of
+gear is retuned on its own tag.
+
+**The gun makes a noise, and it is heard past the room.**
+`db/lib/turretBurst.js` posts `RRATATAT!` full-size into the Location the gun
+stands in, and the same word as `-#` subtext into every other Location channel
+in that zone. It fires on **every** burst, grazes included — a gun that only
+made noise when it drew blood would be one nobody could learn to avoid — and
+**once per burst, never once per victim**: the turn-end sweep shoots everyone
+standing there in one go, and five identical lines for five people would read as
+five guns. An empty room makes no noise at all.
+
+**The DM names the wound.** The gun's own flavour line comes first, then the
+plain fact on its own line: *"It does not check who you are first."* is the
+right thing for a machinegun to say and tells a player nothing about whether
+they are walking away or bleeding out, which they then had to open the web app
+to discover (`turretDmFor` in `db/lib/turretPass.js`). A graze still sends no
+DM — the channel burst already says the gun fired.
 
 A `dead` result goes through `db/lib/characterDeath.js#applyDeathToRow`, so it
 gets a corpse, an archive line and the Discord role owed back like any other

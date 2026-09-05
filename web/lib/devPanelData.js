@@ -98,6 +98,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         requirementResources: true,
         requirementGambit: true,
         requirementSkills: { select: { id: true } },
+        meleeArmor: true,
+        ballisticArmor: true,
         group: { select: { name: true, color: true } },
       },
     }),

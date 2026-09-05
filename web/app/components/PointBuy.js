@@ -22,6 +22,7 @@ import {
   conflictingTag,
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { formatTagArmor } from "@/lib/formatTagArmor";
 import ChipText from "./ChipText";
 import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
@@ -63,6 +64,7 @@ function BuildTagName({ tag }) {
       {formatTagRequirement(tag) && (
         <p className="text-muted">{formatTagRequirement(tag)}</p>
       )}
+      {formatTagArmor(tag) && <p className="text-muted">{formatTagArmor(tag)}</p>}
       {prerequisiteNames(tag).length > 0 && (
         <p style={{ color: "var(--accent-text)" }}>
           Requires: {prerequisiteNames(tag).join(", ")}
@@ -115,6 +117,11 @@ function TagRow({ tag, isSelected, cost, unaffordable, conflictName, onToggle })
           )}
           {formatTagRequirement(tag) && (
             <span className="text-sm text-muted">{formatTagRequirement(tag)}</span>
+          )}
+          {/* What this piece of kit is worth in a fight — the one number a
+              player buying armour is actually shopping on. */}
+          {formatTagArmor(tag) && (
+            <span className="text-sm text-muted">{formatTagArmor(tag)}</span>
           )}
           {/* The gate that unlocked this row — a Brigand's gear or a Fighting
               sidegrade would otherwise be indistinguishable from the open

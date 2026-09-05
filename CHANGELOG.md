@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Armour is a number on the gear now, and the turrets are lethal
+
+✚ Every piece of armour, headgear and shield carries a Melee and a Ballistic rating, shown as a word — None, Meager, Sufficient, Good, Strong, Overkill  
+✎ The turrets used to read a hardcoded list of seven body armours, so every helmet, shield and the spacesuit counted for nothing; a helmet now protects you  
+✎ Being shot unarmoured is properly dangerous: two fifths dying or dead, two fifths badly hurt, one fifth walking away. The best kit in the game still buries one wearer in twenty  
+✚ A turret firing now shouts RRATATAT into its own Location and echoes it across every other Location in the zone, on every burst, once per burst  
+✚ The turret DM names the wound you took instead of leaving you to go and look it up  
+✎ Adding someone to a private room or a conversation no longer leaves an 'added X to the thread' line in the middle of the scene  
+✎ Equipping something no longer freezes the sheet for five seconds — the Discord work moved off the click, and it stopped calling about rooms nobody is standing in  
+✎ /conceal under a forced mask said 'take it off first', which read as the mask breaking concealment when it was granting it. It now says you are already hidden, and names the piece  
+✎ Helm avatars are bigger and fade into their plate the way portraits do
+
 ## 2026-09-05 · The Caving document is in Bascinet's words now
 
 ✎ A new player-facing Caving brief: what the caves and the depths are, that moving is what triggers an encounter, that sitting still is safer, and that dangerous ones get settled at the end of the turn  

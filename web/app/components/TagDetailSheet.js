@@ -6,6 +6,7 @@ import ChipText from "@/app/components/ChipText";
 import ChipLabel from "@/app/components/ChipLabel";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { formatTagArmor } from "@/lib/formatTagArmor";
 
 // The read-only detail sheet behind a row click on the Tag Catalog: the full
 // description plus everything the table can't fit — the tier chain, the
@@ -149,6 +150,12 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     tag.concealSprite ? `Conceal sprite: ${tag.concealSprite} ‡` : null,
     tag.equipSlot
       ? `Worn: ${tag.equipSlot.toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer} ‡` : " ‡"}`
+      : null,
+    // This sheet is the GM's door onto a tag, so it carries the raw numbers
+    // the word scale hides everywhere else — tuning a piece of gear against
+    // "Sufficient" would be guesswork.
+    formatTagArmor(tag)
+      ? `Armour: ${formatTagArmor(tag)} (${tag.meleeArmor ?? 0} / ${tag.ballisticArmor ?? 0}) ‡`
       : null,
   ].filter(Boolean);
   const requirement = formatTagRequirement(tag);

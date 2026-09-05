@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require("discord.js");
-const { prisma, formatTagRequirement, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
+const { prisma, formatTagRequirement, formatTagArmor, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
 const { getMyFactionRole } = require("@lifeweb/db/lib/factionPermissions");
 // The 🔍 readout is shared with the Look at button on /character — see
 // db/lib/examine.js for why it is one module and not two embeds.
@@ -153,6 +153,7 @@ async function handleDossierReaction(reaction, proxy, user) {
     const rendered = character.tags.map((ct) => {
       const bits = [
         formatTagRequirement(ct.tag),
+        formatTagArmor(ct.tag),
         formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurn?.number)),
         ct.equipped ? "worn" : null,
         ct.quantity > 1 ? `x${ct.quantity}` : null,

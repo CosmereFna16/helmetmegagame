@@ -10,7 +10,7 @@
 //
 // Everything else — the sweep at turn end, the roll on arrival, and what a
 // bullet actually does to a sheet — is identical, so it lives here once. The
-// severity ladder, the armour columns and the weighted draw stay in
+// severity ladder, the armour curve and the weighted draw stay in
 // db/lib/depotTurret.js: that file is the ballistics, this one is the trigger.
 //
 // `rollTurret(tags, source)` reads only `source.turretTable`, so a turret with
@@ -20,6 +20,7 @@
 //
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
 const { rollTurret } = require("./depotTurret");
+const { ARMOR_TAG_FIELDS } = require("./armorValue");
 const {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -33,15 +34,23 @@ const { expiryFrom } = require("./turnFormat");
 const { applyDeathToRow } = require("./characterDeath");
 
 // Everything a shot needs off a character. Shared because the sweep and the
-// arrival roll must judge the same sheet — `equipped` decides the armour
-// column, and the concealment fields decide the face.
+// arrival roll must judge the same sheet — `equipped` plus ARMOR_TAG_FIELDS is
+// what the armour curve reads, and the concealment fields decide the face.
+//
+// Miss the armour fields here and combineArmor sees undefined on every piece,
+// so the whole guard shoots everyone as if they were naked. It is the one
+// silent way this can fail, which is why both field sets are spread from their
+// owning modules rather than listed by hand.
 const TURRET_CHARACTER_SELECT = {
   id: true,
   name: true,
   discordUserId: true,
   concealed: true,
   tags: {
-    select: { equipped: true, tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+    select: {
+      equipped: true,
+      tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS, ...ARMOR_TAG_FIELDS } },
+    },
   },
 };
 
@@ -100,7 +109,11 @@ async function applyTurretShot(prisma, shot, turn, { deathContent }) {
 
   const tag = await prisma.tag.findUnique({
     where: { slug: tagSlug },
-    select: { id: true, defaultDurationTurns: true, stackable: true },
+    // `name` so the DM can say what landed. "It does not check who you are
+    // first" is good flavour and tells a player nothing about whether they are
+    // walking or bleeding out, and they should not have to open the web app to
+    // find out which.
+    select: { id: true, name: true, defaultDurationTurns: true, stackable: true },
   });
   if (!tag) return { kind: "graze", discordUserId: character.discordUserId };
 
@@ -116,7 +129,24 @@ async function applyTurretShot(prisma, shot, turn, { deathContent }) {
     create: { characterId: character.id, tagId: tag.id, source: "EVENT", expiresTurn },
   });
 
-  return { kind: "hit", severity, discordUserId: character.discordUserId };
+  return { kind: "hit", severity, wound: tag.name, discordUserId: character.discordUserId };
+}
+
+// The DM one victim gets: the gun's own flavour line, then the plain mechanical
+// fact under it.
+//
+// Those two want to be separate sentences. "It does not check who you are
+// first" is the right thing for a machinegun to say and tells a player nothing
+// about whether they are walking away or bleeding out — which they then had to
+// open the web app to discover. Naming the wound is not flavour, so it does not
+// get dressed up as any.
+//
+// The ‡ is moved rather than added: one per message, at the very end
+// (CLAUDE.md), and every one of these flavour lines already carries its own.
+function turretDmFor(lines, outcome) {
+  const flavour = lines[outcome.kind === "hit" ? "hit" : outcome.kind] ?? lines.hit;
+  if (!outcome.wound) return flavour;
+  return `${flavour.replace(/\s*‡\s*$/, "")}\n**${outcome.wound}.** ‡`;
 }
 
 // The OTHER trigger: walking in while it is hot.
@@ -157,12 +187,16 @@ async function rollTurretOnArrivalAt(
   // corpseMint's `turn ? expiryFrom(turn.number + 1, …)` would take it and rot
   // the body off turn 1.
   const outcome = await applyTurretShot(prisma, shot, turn ?? null, { deathContent });
-  return { ...outcome, severity: shot.severity, tier: shot.tier };
+  // `locationId` rides back so the caller can make the noise — announcing is
+  // Discord work and lives above the token guard in locationMove.js, well away
+  // from the roll itself.
+  return { ...outcome, severity: shot.severity, protection: shot.protection, locationId: toLocationId };
 }
 
 module.exports = {
   TURRET_CHARACTER_SELECT,
   presentedNameOf,
+  turretDmFor,
   sweepTurretAt,
   applyTurretShot,
   rollTurretOnArrivalAt,

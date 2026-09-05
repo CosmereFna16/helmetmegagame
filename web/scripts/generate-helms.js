@@ -12,9 +12,10 @@
 //
 //   npm run assets:helms --workspace=web
 //
-// The plate is the same tinted stone a built portrait sits on, for the same
-// reason generate-letters.js shares it: a helm and a face turn up side by side
-// in one Discord channel, and two plates free to drift would stop matching.
+// The plate is the same tinted stone a built portrait sits on, and the bottom
+// fade is the same gradient, for the same reason generate-letters.js shares the
+// plate: a helm and a face turn up side by side in one Discord channel, and two
+// treatments free to drift would stop matching.
 
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -38,14 +39,49 @@ const SIZE = 256; // CANVAS in web/lib/portrait/catalog.js
 //        on a 256px canvas, and most of the hat is cropped away.
 //
 // sqrt(w*h) splits the difference and holds apparent visual MASS constant
-// instead of any one edge, which is what the eye actually compares. Across the
-// current 21 sprites it needs no clipping at all: the widest lands at 252px
-// and the tallest at 238px, both inside SIZE.
-const TARGET = 190;
+// instead of any one edge, which is what the eye actually compares.
+//
+// Raised from 190. At 190 the mean landed well inside the frame and a helm read
+// as a small object floating on a large plate, next to a portrait that fills
+// its frame edge to edge. At 215 one sprite of the 21 — knight0, the tallest —
+// hits the ceiling and is clamped down to fit; the other twenty land between
+// 195 and 237 on their long edge. The clamp below is what makes the higher
+// number safe, and it is what to reach for before lowering this again.
+const TARGET = 215;
 // Fraction of the canvas height the sprite's centre sits at. Dead centre reads
 // as floating; a portrait bust puts the face high and fills the bottom with
 // shoulders, so nudging up matches the framing of the thing this sits beside.
 const CENTRE_Y = 0.47;
+
+// The bottom fade a built portrait gets (web/lib/portrait/render.js#fadeSvg,
+// constants in web/lib/portrait/catalog.js). There it dissolves the bust's hard
+// chin cut into the plate; here there is no cut to hide, but the effect is the
+// other half of why a face sits IN its frame and a helm sat ON one. Drawn over
+// the sprite, not under it, exactly as the portrait does.
+//
+// Duplicated rather than imported: catalog.js is ESM and this script is CJS,
+// and generate-letters.js already keeps its own copy of the same pair for the
+// same reason. Must match TINT/DARKEN in web/scripts/generate-letters.js and
+// FADE_TINT/FADE_DARKEN/FADE_HEIGHT in web/lib/portrait/catalog.js.
+const FADE_HEIGHT = 0.3;
+const FADE_TINT = { r: 0x27, g: 0x44, b: 0x3e };
+const FADE_DARKEN = 0.5;
+
+// Built once — it never varies — and reused across all 21 sprites.
+function fadeSvg() {
+  const h = Math.round(SIZE * FADE_HEIGHT);
+  const { r, g, b } = FADE_TINT;
+  const c = `rgb(${Math.round(r * FADE_DARKEN)},${Math.round(g * FADE_DARKEN)},${Math.round(b * FADE_DARKEN)})`;
+  return Buffer.from(
+    `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">` +
+      `<defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="${c}" stop-opacity="0"/>` +
+      `<stop offset="1" stop-color="${c}" stop-opacity="1"/>` +
+      `</linearGradient></defs>` +
+      `<rect x="0" y="${SIZE - h}" width="${SIZE}" height="${h}" fill="url(#f)"/></svg>`,
+  );
+}
+const FADE = fadeSvg();
 
 // The tight bounding box of everything non-transparent, so the normalisation
 // measures the ART and not the 32x32 cell it was cut from. Every sprite here
@@ -74,7 +110,15 @@ async function build(file) {
   const box = boundingBox(data, info.width, info.height);
   if (!box) throw new Error(`${file} is entirely transparent`);
 
-  const scale = TARGET / Math.sqrt(box.width * box.height);
+  // The geometric-mean rule, then a clamp. TARGET holds apparent visual MASS
+  // constant, which is the right rule for everything that fits — but it says
+  // nothing about either edge, so a wide brim or a tall plume can overshoot the
+  // canvas at a target the rest of the sheet is comfortable at. Scaling that one
+  // sprite down to fit costs it a little mass and keeps every other sprite at
+  // the size the rule chose, which beats lowering TARGET for all 21 to
+  // accommodate the widest.
+  let scale = TARGET / Math.sqrt(box.width * box.height);
+  scale = Math.min(scale, SIZE / box.width, SIZE / box.height);
   const w = Math.round(box.width * scale);
   const h = Math.round(box.height * scale);
 
@@ -88,10 +132,15 @@ async function build(file) {
   const scaled = await sharp(cropped).resize(w, h, { kernel: "nearest" }).png().toBuffer();
 
   const left = Math.round((SIZE - w) / 2);
-  const top = Math.round(SIZE * CENTRE_Y - h / 2);
+  // CENTRE_Y wants the sprite high on the plate, but a sprite that now fills
+  // the full height has nowhere to go: at h === SIZE the ideal top is -8, and a
+  // negative offset silently shaves the crown off a helmet. Clamped into the
+  // canvas, so the framing rule applies wherever there is room for it and
+  // quietly gives way where there is not.
+  const top = Math.max(0, Math.min(SIZE - h, Math.round(SIZE * CENTRE_Y - h / 2)));
 
   await sharp(PLATE)
-    .composite([{ input: scaled, left, top }])
+    .composite([{ input: scaled, left, top }, { input: FADE, left: 0, top: 0 }])
     .webp({ quality: 90 })
     .toFile(path.join(OUT_DIR, `${name}.webp`));
 

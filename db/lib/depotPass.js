@@ -14,7 +14,7 @@ const { DEPOT_LOCATION_SLUG } = require("./depot");
 // Gatehouse turret (db/lib/gatehouseTurret.js). Everything left in this file is
 // what makes THIS gun the Merchant's: it needs the generator running, and it
 // reads faces against Depot.merchantFace.
-const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt } = require("./turretPass");
+const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = require("./turretPass");
 
 // What the world says when the generator finally coughs out. Bascinet's
 // register: a thing that happens TO the room, not an announcement about it.
@@ -139,12 +139,9 @@ async function runDepotPass(prisma, turn) {
   const outcomes = [];
   for (const shot of shots) {
     const outcome = await applyTurretShot(prisma, shot, turn, { deathContent: DEATH_CONTENT });
-    outcomes.push({ ...outcome, severity: shot.severity, tier: shot.tier });
+    outcomes.push({ ...outcome, severity: shot.severity, protection: shot.protection });
     if (outcome.discordUserId) {
-      dms.push({
-        discordUserId: outcome.discordUserId,
-        content: TURRET_DM[outcome.kind === "hit" ? "hit" : outcome.kind] ?? TURRET_DM.hit,
-      });
+      dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(TURRET_DM, outcome) });
     }
   }
 
@@ -160,6 +157,11 @@ async function runDepotPass(prisma, turn) {
     turretShots: outcomes.length,
     turretOutcomes: outcomes,
     locationId,
+    // One burst for the whole sweep, and only when it actually rolled at
+    // somebody — see db/lib/turretBurst.js. Distinct from `locationId` above,
+    // which is set whenever the Depot exists, because the generator and the
+    // shuttle have lines to speak in an empty room and a gun does not.
+    burstLocationId: outcomes.length ? locationId : null,
     lines,
     dms,
   };

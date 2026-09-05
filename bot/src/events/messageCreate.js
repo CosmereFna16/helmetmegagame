@@ -27,15 +27,32 @@ module.exports = {
   async execute(message) {
     // Discord narrates the bot's own housekeeping into the channels players
     // read: a "pinned a message" line for every Location anchor (57 of them on
-    // a fresh provision, plus one per Room thread) and a "started a thread"
-    // line wherever a thread is made from a message. Neither is for anybody.
+    // a fresh provision, plus one per Room thread), a "started a thread" line
+    // wherever a thread is made from a message, and an "added X to the thread"
+    // line every time somebody is let into a private Room or a Conversation.
+    // None of it is for anybody. The last one is the worst of the three,
+    // because it lands mid-scene in the thread people are actually reading and
+    // it names the character being let in, which the DM to that character has
+    // already said in better words.
+    //
+    // RecipientAdd/RecipientRemove are Discord's group-DM message types reused
+    // for thread membership, which is why the names read oddly here. There is
+    // no flag on PUT /thread-members to suppress the notice and no other
+    // endpoint that joins a private thread, so deleting it afterwards is the
+    // only lever — same reason the two above are handled this way.
     //
     // Scoped to notices the BOT itself caused, so a human pinning something in
-    // #general still leaves the usual trace. And placed ABOVE the bot guard on
-    // purpose: these are bot-authored by definition, so the guard below would
-    // return before ever seeing them.
+    // #general still leaves the usual trace. Every in-game add runs on the bot
+    // token (db/lib/discordRest.js#addThreadMember and the two
+    // channel.members.add call sites), so that scoping costs us nothing and
+    // still leaves a GM's hand-add in the Discord UI visible. And placed ABOVE
+    // the bot guard on purpose: these are bot-authored by definition, so the
+    // guard below would return before ever seeing them.
     if (
-      (message.type === MessageType.ChannelPinnedMessage || message.type === MessageType.ThreadCreated) &&
+      (message.type === MessageType.ChannelPinnedMessage ||
+        message.type === MessageType.ThreadCreated ||
+        message.type === MessageType.RecipientAdd ||
+        message.type === MessageType.RecipientRemove) &&
       message.author?.id === message.client.user.id
     ) {
       await message.delete().catch((err) =>

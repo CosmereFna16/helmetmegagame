@@ -43,6 +43,7 @@ const UNSLOTTED = { sprite: null, forced: false };
 // stops working at that surface only, which is the worst way for this to fail.
 // Pair it with `equipped: true` on the CharacterTag itself.
 const CONCEALMENT_TAG_FIELDS = {
+  name: true,
   concealsIdentity: true,
   concealSprite: true,
   forcesConceal: true,
@@ -75,6 +76,10 @@ async function loadForcedName(prisma, characterId) {
 // coif nobody can see. `forced` is true when ANY equipped piece forces it, not
 // just the outermost, so a sack over a helmet still cannot be talked off.
 //
+// `name` rides along for one reason: /conceal has to refuse a forced piece, and
+// "not while you are wearing that" is a much worse sentence than one that says
+// which thing. It is the outermost piece's name, so it matches the sprite.
+//
 // Returns null when nothing conceals, which is what gates /conceal.
 function concealmentFrom(tags) {
   if (!Array.isArray(tags)) return null;
@@ -90,9 +95,9 @@ function concealmentFrom(tags) {
     // A concealing tag with no slot sorts below every slotted one rather than
     // being dropped — it still conceals, it just loses a tie.
     const layer = Number.isInteger(tag.equipLayer) ? tag.equipLayer : 0;
-    if (!best || layer > best.layer) best = { sprite: tag.concealSprite, layer };
+    if (!best || layer > best.layer) best = { sprite: tag.concealSprite, layer, name: tag.name ?? null };
   }
-  return best ? { sprite: best.sprite, forced } : null;
+  return best ? { sprite: best.sprite, name: best.name ?? null, forced } : null;
 }
 
 // The query form, for a caller holding a bare Character. Selects only what
@@ -102,7 +107,7 @@ async function loadConcealment(prisma, characterId) {
     where: { characterId, equipped: true, tag: { concealsIdentity: true } },
     select: {
       equipped: true,
-      tag: { select: { concealsIdentity: true, concealSprite: true, forcesConceal: true, equipLayer: true } },
+      tag: { select: { ...CONCEALMENT_TAG_FIELDS } },
     },
   });
   return concealmentFrom(held);

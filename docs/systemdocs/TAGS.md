@@ -1653,6 +1653,83 @@ dagger stays hidden even from someone standing next to it. What conceal takes
 away is the *identity* — name, appearance, Desire, Resources — not the
 inventory.
 
+## `melee` / `ballistic`: what a piece of gear turns aside
+
+Every piece of armour, headgear and shield carries two numbers, authored in
+`docs/tags.yaml` as `melee:` and `ballistic:` and stored as `Tag.meleeArmor` /
+`Tag.ballisticArmor`. Both run **0.0 to 1.0**, the fraction of a blow the piece
+turns aside, and both count **only while equipped** — a vest in your cart stops
+nothing, and letting it would make a turret survivable by shopping.
+
+Two numbers because the two things that hit you in Ravenheart are nothing alike.
+A breastplate is excellent against a sword and paper against a rifle, and the
+catalog's own line about Light Infantry Armour — *"nothing forged in Ravenheart
+stops a bullet"* — only means something once those can differ. Nothing forged in
+the city sits above **0.3 ballistic**; the four things that do are all imported
+or GM-granted.
+
+**`ballistic` is live. `melee` is not, yet.** The turrets are the only thing in
+the game that rolls damage (`docs/systemdocs/DEPOT.md` §0f), and they are
+ballistic. Melee is still GM-adjudicated or a Gambit outcome, so `melee` is
+authored and displayed but read by nothing. It is there so the catalog is
+complete and consistent on the day a melee resolver lands, rather than becoming
+a 35-tag authoring job at that point.
+
+### Words, never numbers
+
+A player is never shown the decimal. `db/lib/armorValue.js#armorWord` turns it
+into one of six words, the same posture Laboring yields take
+(`db/lib/laborYield.js#qualityWord`):
+
+| value | word |
+|---|---|
+| absent or 0 | None |
+| < 0.20 | Meager |
+| < 0.40 | Sufficient |
+| < 0.60 | Good |
+| < 0.80 | Strong |
+| ≥ 0.80 | Overkill |
+
+`db/lib/formatTagArmor.js` renders the pair as `Melee: Good | Ballistic: Meager`
+wherever a tag's description already shows — the chip, the detail sheet, the
+point-buy shelf, Examine, and the 🔍 inspect embed. **Both halves always print
+once either exists**, `None` included: a breastplate reading `Melee: Strong |
+Ballistic: Meager` is the whole point of there being two numbers, and dropping
+the weak half would hide exactly the fact somebody needs before walking into a
+yard with a gun in it.
+
+Working out that Strong beats Good is the player's job. A decimal on a chip
+would turn kit choice into arithmetic.
+
+### How pieces combine
+
+Multiplicatively on what gets **through**, not additively on what is stopped
+(`db/lib/armorValue.js#combineArmor`):
+
+```
+protection = min(0.95, 1 - Π(1 - value))
+```
+
+A helmet at 0.4 and a breastplate at 0.25 leave `0.6 × 0.75 = 45%` coming
+through, so together they are 0.55. A full kit is meaningfully better than one
+piece, and the second and third pieces are each worth less than the first —
+which is both how armour actually works and what stops somebody in six
+overlapping layers from being untouchable. The 0.95 cap is the same idea said
+absolutely: nothing is ever bulletproof.
+
+### Authoring one
+
+`db/lib/syncTags.js` rejects a value outside 0..1, and rejects either key on a
+tag that is not `equippable` — armour nobody can wear is dead config, and
+`combineArmor` skips unequipped rows, so it would silently protect nobody rather
+than fail the sync. A GM can set both from the tag form on `/gm/dev/tags`, which
+takes the raw number: tuning a piece against the word "Sufficient" would be
+guesswork.
+
+Anything without a value turns nothing aside, which is most of the catalog —
+skills, statuses, beliefs, and every cloth hood and mask. Those last are faces,
+not armour.
+
 ## `forcesName`
 
 `forcesName: Beast` is the opposite of a hood: a tag that **fixes** how its

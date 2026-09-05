@@ -55,6 +55,19 @@ function optionalCount(raw, label) {
   return n;
 }
 
+// A nullable armour value out of a form field: 0 to 1, decimals allowed, an
+// empty box meaning "turns nothing aside". Separate from optionalCount because
+// this is the only fractional field on the form, and parseInt would silently
+// read 0.35 as 0 — which is the worst possible way for armour to fail.
+function optionalArmor(raw, label) {
+  if (raw === "" || raw == null) return null;
+  const n = Number.parseFloat(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 1) {
+    throw new UserError(`${label} must be between 0 and 1, or blank.`);
+  }
+  return n;
+}
+
 // The subset of Tag a GM may set from the UI. Everything absent from this
 // list — parentTagId, requiredTagId, exclusive, depotPrice, consumesInto — is
 // catalog structure that belongs in docs/tags.yaml, where it can be reviewed
@@ -153,6 +166,11 @@ function scalarsFrom(input) {
     requirementTurns: optionalCount(input.requirementTurns, "Requirement turns"),
     requirementResources: optionalCount(input.requirementResources, "Requirement resources"),
     requirementGambit: Boolean(input.requirementGambit),
+    // Armour, as a fraction of a blow turned aside. Players never see these
+    // numbers — db/lib/armorValue.js turns them into a word — but a GM tuning
+    // a piece of gear needs the number itself, so the form takes it raw.
+    meleeArmor: optionalArmor(input.meleeArmor, "Melee armour"),
+    ballisticArmor: optionalArmor(input.ballisticArmor, "Ballistic armour"),
   };
 }
 

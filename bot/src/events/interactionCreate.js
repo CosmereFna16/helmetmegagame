@@ -1394,13 +1394,24 @@ async function handleConcealCommand(interaction) {
   // there is no choice to make in either direction. The column is left alone in
   // that second case, so whatever the player last chose is what they go back to
   // when the thing comes off.
+  //
+  // The forced line has to say which way the refusal points, and the old one
+  // ("take it off first") said the opposite of the truth: a forcesConceal piece
+  // is ALREADY hiding you — presentedIdentity conceals on piece.forced alone —
+  // so a player who read that reasonably concluded their helmet had broken
+  // concealment rather than granted it. Name the piece where we know it.
   const concealment = await loadConcealment(prisma, character.id);
   if (!concealment) {
     await respond(interaction, "» *Your face is bare. Put something over it first.* ‡");
     return;
   }
   if (concealment.forced) {
-    await respond(interaction, "» *Not while you are wearing that. Take it off first.* ‡");
+    await respond(
+      interaction,
+      concealment.name
+        ? `» *The ${concealment.name} already hides you, and it does not come off by asking.* ‡`
+        : "» *That already hides you, and it does not come off by asking.* ‡",
+    );
     return;
   }
 

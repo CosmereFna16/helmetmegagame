@@ -67,12 +67,27 @@ async function roomAccessKeys(prisma, characterId) {
 // Every private room in the character's location gets exactly one idempotent
 // call (add or remove); private rooms elsewhere get a remove. A miss is
 // logged and left for the doctor.
-async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = {}) {
+//
+// `locationOnly` drops the elsewhere-removes. Each of those is a Discord round
+// trip, they run one at a time, and there are as many of them as there are
+// private rooms in the game — so a caller that cannot possibly have changed
+// where somebody is standing was paying the whole bill for nothing. Leaving a
+// Location already spends the membership, so there is nothing there to remove.
+// The MOVER must never pass it: crossing a Location is precisely the case those
+// removes exist for. The doctor's room-occupancy check is the backstop either
+// way.
+async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null, locationOnly = false } = {}) {
   const result = { added: 0, removed: 0 };
   if (!character?.discordUserId) return result;
 
   const rooms = await prisma.room.findMany({
-    where: { kind: "PRIVATE", discordThreadId: { not: null } },
+    where: {
+      kind: "PRIVATE",
+      discordThreadId: { not: null },
+      // Narrowed in the QUERY rather than filtered after it, so a locationOnly
+      // caller does not even read the rows it has no calls to make for.
+      ...(locationOnly && character.locationId ? { locationId: character.locationId } : {}),
+    },
     select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, discordThreadId: true },
   });
 

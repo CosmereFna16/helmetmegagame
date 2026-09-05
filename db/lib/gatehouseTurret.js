@@ -11,11 +11,12 @@
 //
 // It carries no tunable table of its own, so it rolls on the shipped one
 // (db/lib/depotTurret.js#DEFAULT_TURRET_TABLE) — see turretPass.js's header for
-// why that needs no code. Armour still decides the column, which is the point
-// of the Cerberon's mail: the gun is survivable if you are dressed for it.
+// why that needs no code. Armour still bends the curve, which is the point of
+// the Cerberon's mail: the gun is survivable if you are dressed for it, and
+// very much not if you are not.
 //
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
-const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt } = require("./turretPass");
+const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = require("./turretPass");
 
 const GATEHOUSE_LOCATION_SLUG = "gatehouse";
 
@@ -56,25 +57,31 @@ async function gatehouseTurretArmed(prisma) {
 // pass does — see TURN-ENGINE.md §3.
 async function runGatehouseTurretPass(prisma, turn) {
   if (!(await gatehouseTurretArmed(prisma))) {
-    return { turretShots: 0, turretOutcomes: [], dms: [] };
+    return { turretShots: 0, turretOutcomes: [], dms: [], burstLocationId: null };
   }
 
-  const { shots } = await sweepTurretAt(prisma, { locationSlug: GATEHOUSE_LOCATION_SLUG });
+  const { shots, locationId } = await sweepTurretAt(prisma, { locationSlug: GATEHOUSE_LOCATION_SLUG });
 
   const dms = [];
   const outcomes = [];
   for (const shot of shots) {
     const outcome = await applyTurretShot(prisma, shot, turn, { deathContent: DEATH_CONTENT });
-    outcomes.push({ ...outcome, severity: shot.severity, tier: shot.tier });
+    outcomes.push({ ...outcome, severity: shot.severity, protection: shot.protection });
     if (outcome.discordUserId) {
-      dms.push({
-        discordUserId: outcome.discordUserId,
-        content: GATEHOUSE_TURRET_DM[outcome.kind === "hit" ? "hit" : outcome.kind] ?? GATEHOUSE_TURRET_DM.hit,
-      });
+      dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(GATEHOUSE_TURRET_DM, outcome) });
     }
   }
 
-  return { turretShots: outcomes.length, turretOutcomes: outcomes, dms };
+  // One burst for the whole sweep, not one per victim — see
+  // db/lib/turretBurst.js. Null when it rolled at nobody: an empty yard makes
+  // no noise, and a gun that announced itself every turn to an empty room
+  // would be wallpaper by day three.
+  return {
+    turretShots: outcomes.length,
+    turretOutcomes: outcomes,
+    dms,
+    burstLocationId: outcomes.length ? locationId : null,
+  };
 }
 
 // Walking into the yard while it is hot. `armed` is passed as a thunk so the

@@ -65,6 +65,8 @@ export const BLANK_TAG = {
   requirementTurns: "",
   requirementResources: "",
   requirementGambit: false,
+  meleeArmor: "",
+  ballisticArmor: "",
   skillTagIds: [],
 };
 
@@ -84,6 +86,10 @@ export function tagToFormValues(tag) {
     defaultDurationTurns: tag?.defaultDurationTurns ?? "",
     requirementTurns: tag?.requirementTurns ?? "",
     requirementResources: tag?.requirementResources ?? "",
+    // ?? "", not the BLANK_TAG loop above: that skips a null, which would
+    // leave a cleared armour box holding the previous tag's number.
+    meleeArmor: tag?.meleeArmor ?? "",
+    ballisticArmor: tag?.ballisticArmor ?? "",
     skillTagIds: (tag?.requirementSkills ?? []).map((s) => s.id).filter(Boolean),
   };
 }
@@ -299,6 +305,38 @@ export default function TagFieldset({
               >
                 Conceals identity {!equippable && "(needs Equippable)"}
               </CheckField>
+            </div>
+
+            {/* Numbers here, words everywhere a player looks — the same split
+                Laboring yields take. 0 turns nothing aside, 1 turns everything;
+                a helmet is around 0.5 against a blade and 0.35 against a
+                bullet. Nothing forged in Ravenheart should go far above 0.3
+                ballistic. */}
+            <div className="grid gap-1.5 sm:grid-cols-2">
+              <label className="field">
+                <span className="field-label">Melee armour (0–1)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  disabled={!equippable}
+                  value={values.meleeArmor ?? ""}
+                  onChange={(e) => set("meleeArmor", e.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">Ballistic armour (0–1)</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  disabled={!equippable}
+                  value={values.ballisticArmor ?? ""}
+                  onChange={(e) => set("ballisticArmor", e.target.value)}
+                />
+              </label>
             </div>
           </section>
 

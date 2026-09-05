@@ -58,6 +58,11 @@ export const TAG_CHIP_FIELDS = {
   expiresInto: true,
   // Drives TagChip's "Seen by others" line (Tag.inspectVisibility).
   inspectVisibility: true,
+  // TagChip's "Armour" line, via formatTagArmor. Both halves, always: a chip
+  // that showed only the strong number would hide the fact a breastplate is
+  // paper against a rifle, which is the one thing that line exists to say.
+  meleeArmor: true,
+  ballisticArmor: true,
   // Drives TagChip's "Conceals you" line. Both, not just the first: the row
   // has to say whether the wearer keeps a choice, and concealsIdentity alone
   // cannot tell you that.

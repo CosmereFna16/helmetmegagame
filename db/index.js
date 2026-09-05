@@ -29,6 +29,7 @@ const {
 const { runCarryPass } = require("./lib/carryPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
+const { announceTurretBurst } = require("./lib/turretBurst");
 const { ambientLine } = require("./lib/ambientLine");
 const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
@@ -819,6 +820,9 @@ async function resolveNeeds(turn, config) {
     // only the one turret.
     turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
     depotLocationId: depot?.locationId ?? null,
+    // Where each gun fired, if either did. Two entries rather than one, because
+    // both can go off in the same turn and each is heard by its own zone.
+    turretBursts: [depot?.burstLocationId, gatehouse?.burstLocationId].filter(Boolean),
   };
 }
 
@@ -853,6 +857,7 @@ async function advanceTurn() {
   let depotLines = [];
   let turretDms = [];
   let depotLocationId = null;
+  let turretBursts = [];
   let catatonicDms = [];
   let catatonicRoleUpdates = [];
   let catatonicDeaths = [];
@@ -909,6 +914,7 @@ async function advanceTurn() {
       depotLines,
       turretDms,
       depotLocationId,
+      turretBursts,
     } = await resolveNeeds(openTurn, config));
   } else {
     // No OPEN turn: either this is the first turn ever, or a previous advance
@@ -1065,6 +1071,15 @@ async function advanceTurn() {
     for (const dm of tagExpiryDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    // A gun going off is heard well past the room it is in. Before the DMs
+    // below rather than after, so the zone hears the burst at about the moment
+    // the people it hit are told what it did to them.
+    for (const burstLocationId of turretBursts) {
+      await announceTurretBurst(prisma, burstLocationId).catch((err) =>
+        console.error("Turret burst failed:", err.message ?? err),
       );
     }
 
@@ -1486,10 +1501,13 @@ module.exports = {
   ...require("./lib/depot"),
   ...require("./lib/depotState"),
   ...require("./lib/depotTurret"),
+  ...require("./lib/turretBurst"),
   ...require("./lib/depotCrates"),
   ...require("./lib/startingTags"),
   ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),
+  ...require("./lib/armorValue"),
+  ...require("./lib/formatTagArmor"),
   ...require("./lib/turnFormat"),
   ...require("./lib/turnClock"),
   ...require("./lib/lifeweb"),

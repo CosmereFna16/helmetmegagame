@@ -20,6 +20,8 @@
 const { concealedLine } = require("./concealedIdentity");
 const { inRealFaction } = require("./factionConstants");
 const { formatTagRequirement } = require("./formatTagRequirement");
+const { formatTagArmor } = require("./formatTagArmor");
+const { ARMOR_TAG_FIELDS } = require("./armorValue");
 const { inspectVision, isInscrutable } = require("./inspectVision");
 const {
   HEALTH_CATEGORY,
@@ -67,6 +69,7 @@ const EXAMINE_SUBJECT_SELECT = {
           requirementResources: true,
           requirementItems: true,
           requirementSkills: { select: { id: true, name: true } },
+          ...ARMOR_TAG_FIELDS,
         },
       },
       expiresTurn: true,
@@ -82,6 +85,10 @@ const EXAMINE_SUBJECT_SELECT = {
 function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
   const bits = [
     ct.tag.category === HEALTH_CATEGORY ? formatTagRequirement(ct.tag) : null,
+    // Armour is public in a way a treat cost is not: a breastplate is a thing
+    // you can see somebody wearing, and how good it looks is exactly what a
+    // person sizing them up would take in.
+    formatTagArmor(ct.tag),
     formatTurnsLeft(turnsLeft(ct.expiresTurn, openTurnNumber)),
     viaSkill ? "your diagnosis" : null,
   ].filter(Boolean);

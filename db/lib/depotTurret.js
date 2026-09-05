@@ -1,11 +1,9 @@
-// The Depot's indoor turret: the first automated harm mechanic in Bascinet.
+// The turret's ballistics: what a burst does to a sheet. db/lib/turretPass.js
+// is the trigger, this is the damage.
 //
-// Nothing else in this codebase rolls damage. Injuries have always been either
-// GM-adjudicated (HARM_CHARACTER) or a narrative Gambit outcome, so there was
-// no armour model to extend and no damage table to reuse. What this borrows
-// instead is the SHAPE of db/lib/cavingLoot.js: a weighted draw whose columns
-// are asserted to sum to 1 once at startup rather than per roll, so a mistuned
-// table fails loudly on boot instead of quietly skewing a month of play.
+// Nothing else in this codebase rolls damage. Injuries are otherwise
+// GM-adjudicated (HARM_CHARACTER) or a narrative Gambit outcome, so this is
+// still the only automated harm mechanic in Bascinet.
 //
 // Two things about it are deliberate and easy to get wrong.
 //
@@ -15,11 +13,15 @@
 // Docker who steals the card is still shot, and anyone who comes back wearing
 // the Merchant's name walks past it. That trap is the point of the feature.
 //
-// It is the whole distribution that moves, not a single step. Armour picks a
-// COLUMN, so a vest does not merely downgrade a grievous wound to a deep one —
-// it makes a graze the likely outcome and a death nearly impossible. That
-// reads better at the table than subtracting one rung, and it lets a GM retune
-// lethality per tier without touching code.
+// And armour bends a CURVE rather than picking a column. This used to be seven
+// hand-written probability columns selected by a hardcoded list of body-armour
+// slugs, which meant every helmet, shield, buckler, pavise and the spacesuit
+// counted for exactly nothing — somebody in a closed steel helm rolled on the
+// bare column. Armour is now Tag.ballisticArmor, a number on the gear itself
+// (db/lib/armorValue.js), so a new piece protects the moment it is authored and
+// no second list can fall behind the catalog.
+
+const { combineArmor } = require("./armorValue");
 
 // Worst to best. `null` is a clean miss with a story attached; `dead` is
 // handled by the caller, since killing a character is not a tag grant.
@@ -37,139 +39,113 @@ const TURRET_SEVERITY_TAGS = {
   dead: null,
 };
 
-// Armour columns, best protection FIRST. The first slug a character has
-// equipped picks their column, so the ladder is a priority order rather than a
-// score — someone in plate under a vest gets the vest's column, which is right,
-// because the vest is the thing stopping the round.
+// What a burst does to somebody wearing nothing. Roughly: a fifth walk away, two
+// fifths are badly hurt, two fifths are dying or dead. Standing in front of an
+// armed machinegun in shirtsleeves should not be a coin flip on being fine, and
+// for a while it was — the old bare column gave a 35% chance of a graze or a
+// minor wound.
 //
-// Light Infantry Armour is the best column by a distance and that is the
-// catalog's own claim about it: "nothing forged in Ravenheart stops a bullet."
-// The turret is where that line finally means something mechanical.
-const TURRET_ARMOR_TIERS = [
-  { key: "energy-shield", slugs: ["energy-shield"], label: "Energy Shield" },
-  { key: "light-infantry", slugs: ["light-infantry-armour"], label: "Light Infantry Armour" },
-  { key: "salvage-plate", slugs: ["salvage-plate"], label: "Salvage Plate" },
-  { key: "plate", slugs: ["plate-armor", "breastplate", "brigandine"], label: "Plate" },
-  { key: "mail", slugs: ["mail-shirt", "mail-coif"], label: "Mail" },
-  { key: "padded", slugs: ["padded-armor", "padded-cap"], label: "Padded" },
-  { key: "none", slugs: [], label: "No armour" },
-];
-
-// The shipped tuning. Every column sums to 1. A GM overrides any part of this
-// from the Dev Panel's Depot section; Depot.turretTable holds the override and
-// anything it omits falls back to here, so a half-filled table is still valid.
+// Sums to 1, and validateTurretTable enforces that on the write path.
 const DEFAULT_TURRET_TABLE = {
-  none: { graze: 0.1, "minor-wound": 0.25, "deep-wound": 0.3, "grievous-wound": 0.2, dying: 0.1, dead: 0.05 },
-  padded: { graze: 0.25, "minor-wound": 0.3, "deep-wound": 0.25, "grievous-wound": 0.13, dying: 0.05, dead: 0.02 },
-  mail: { graze: 0.3, "minor-wound": 0.3, "deep-wound": 0.23, "grievous-wound": 0.11, dying: 0.04, dead: 0.02 },
-  plate: { graze: 0.38, "minor-wound": 0.3, "deep-wound": 0.19, "grievous-wound": 0.09, dying: 0.03, dead: 0.01 },
-  "salvage-plate": { graze: 0.45, "minor-wound": 0.29, "deep-wound": 0.16, "grievous-wound": 0.07, dying: 0.02, dead: 0.01 },
-  "light-infantry": { graze: 0.55, "minor-wound": 0.28, "deep-wound": 0.12, "grievous-wound": 0.04, dying: 0.01, dead: 0 },
-  "energy-shield": { graze: 0.85, "minor-wound": 0.1, "deep-wound": 0.04, "grievous-wound": 0.01, dying: 0, dead: 0 },
+  graze: 0.06,
+  "minor-wound": 0.14,
+  "deep-wound": 0.16,
+  "grievous-wound": 0.24,
+  dying: 0.22,
+  dead: 0.18,
 };
 
 // Floating point will not give you exactly 1.0 from six decimals, so the
 // assertion has to have a tolerance. Same posture as cavingLoot's column sums.
 const SUM_EPSILON = 0.0001;
 
-function columnSumsToOne(column) {
-  let sum = 0;
-  for (const [key, weight] of Object.entries(column)) {
-    if (!TURRET_SEVERITIES.includes(key)) return false;
-    if (typeof weight !== "number" || Number.isNaN(weight) || weight < 0) return false;
-    sum += weight;
-  }
-  return Math.abs(sum - 1) <= SUM_EPSILON;
-}
+// How hard armour bends the curve. The roll is a uniform draw raised to the
+// power (1 + ARMOR_GAIN * protection): at zero protection the exponent is 1 and
+// the draw is exactly the table above, and every step of armour pushes the
+// distribution toward the mild end WITHOUT ever closing the top of it.
+//
+// That last property is why this is an exponent and not a subtraction or a
+// scaling. Both of those hit a point where death becomes literally impossible,
+// and "there exists a jacket that makes a machinegun safe" is a worse rule than
+// any number could fix. Here the best kit in the game still buries about one
+// wearer in twenty.
+//
+// At 3, roughly: nothing -> 18% dead, plate and a helm -> 9%, light infantry
+// armour -> 6%, an energy shield -> 5%. Turn it up to make armour matter more.
+const ARMOR_GAIN = 3;
 
-// A GM's stored table merged over the defaults, column by column. A column the
-// override does not mention keeps its shipped weights entirely; a column it
-// does mention is taken WHOLE rather than merged key-by-key, because a
-// half-overridden column would silently stop summing to 1.
+// A GM's stored weights over the shipped ones, taken WHOLE rather than merged
+// key-by-key: a half-overridden table would silently stop summing to 1.
 function turretTable(depot) {
   const stored = depot?.turretTable;
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) return DEFAULT_TURRET_TABLE;
-  const merged = { ...DEFAULT_TURRET_TABLE };
-  for (const tier of TURRET_ARMOR_TIERS) {
-    const column = stored[tier.key];
-    if (!column || typeof column !== "object") continue;
-    // Belt and braces against a column written by something other than the
-    // validated Dev Panel form — a hand-edited row, a restored backup from
-    // before a severity was renamed. A column that cannot be rolled against
-    // falls back to the shipped one rather than quietly skewing every shot.
-    if (!columnSumsToOne(column)) continue;
-    merged[tier.key] = column;
+  // Belt and braces against a table written by something other than the
+  // validated Dev Panel form — a hand-edited row, a restored backup from
+  // before a severity was renamed. A table that cannot be rolled against falls
+  // back to the shipped one rather than quietly skewing every shot.
+  let sum = 0;
+  for (const [key, weight] of Object.entries(stored)) {
+    if (!TURRET_SEVERITIES.includes(key)) return DEFAULT_TURRET_TABLE;
+    if (typeof weight !== "number" || Number.isNaN(weight) || weight < 0) return DEFAULT_TURRET_TABLE;
+    sum += weight;
   }
-  return merged;
+  if (Math.abs(sum - 1) > SUM_EPSILON) return DEFAULT_TURRET_TABLE;
+  return stored;
 }
 
 // Throws on a table that cannot be rolled against.
 //
 // The write path is where this runs: web/app/(app)/gm/dev/actions.js#updateDepot
-// refuses a save whose columns do not sum to 1, so a mistuned table never
+// refuses a save whose weights do not sum to 1, so a mistuned table never
 // reaches the database in the first place. That is deliberately stricter than
 // validating at startup — by then the bad odds are already live, and a GM
-// staring at a rejected form is told exactly which column is wrong while they
-// still have it in front of them.
+// staring at a rejected form is told exactly what is wrong while they still
+// have it in front of them.
 function validateTurretTable(table = DEFAULT_TURRET_TABLE) {
-  for (const tier of TURRET_ARMOR_TIERS) {
-    const column = table[tier.key];
-    if (!column) throw new Error(`Depot turret table: no column for armour tier "${tier.key}"`);
-    let sum = 0;
-    for (const severity of TURRET_SEVERITIES) {
-      const w = column[severity];
-      if (w === undefined) continue;
-      if (typeof w !== "number" || Number.isNaN(w) || w < 0) {
-        throw new Error(`Depot turret table: column "${tier.key}" has a bad weight for "${severity}"`);
-      }
-      sum += w;
+  if (!table || typeof table !== "object" || Array.isArray(table)) {
+    throw new Error("Turret table: not a mapping of severity to weight");
+  }
+  for (const key of Object.keys(table)) {
+    if (!TURRET_SEVERITIES.includes(key)) {
+      throw new Error(`Turret table: unknown severity "${key}"`);
     }
-    for (const key of Object.keys(column)) {
-      if (!TURRET_SEVERITIES.includes(key)) {
-        throw new Error(`Depot turret table: column "${tier.key}" has unknown severity "${key}"`);
-      }
+  }
+  let sum = 0;
+  for (const severity of TURRET_SEVERITIES) {
+    const w = table[severity];
+    if (w === undefined) continue;
+    if (typeof w !== "number" || Number.isNaN(w) || w < 0) {
+      throw new Error(`Turret table: bad weight for "${severity}"`);
     }
-    if (Math.abs(sum - 1) > SUM_EPSILON) {
-      throw new Error(`Depot turret table: column "${tier.key}" sums to ${sum}, not 1`);
-    }
+    sum += w;
+  }
+  if (Math.abs(sum - 1) > SUM_EPSILON) {
+    throw new Error(`Turret table: weights sum to ${sum}, not 1`);
   }
   return true;
 }
 
-// Which column this character rolls on. Accepts the CharacterTag[] shape used
-// everywhere else (`{ tag: { slug }, equipped }`) and tolerates a bare Tag[].
-//
-// Armour only counts EQUIPPED. A vest in your cart does not stop anything, and
-// letting it would make the turret trivially survivable by shopping.
-function armorTierFor(characterTags = []) {
-  const worn = new Set(
-    characterTags
-      .filter((ct) => ct?.equipped !== false)
-      .map((ct) => ct?.tag?.slug ?? ct?.slug)
-      .filter(Boolean),
-  );
-  for (const tier of TURRET_ARMOR_TIERS) {
-    if (tier.slugs.some((slug) => worn.has(slug))) return tier;
-  }
-  return TURRET_ARMOR_TIERS[TURRET_ARMOR_TIERS.length - 1];
-}
-
 // One shot. `rng` is injectable so a test can pin the outcome; nothing in
 // production passes it.
+//
+// The draw is bent, then walked down the cumulative ladder — so the table stays
+// readable as "what happens to somebody wearing nothing" no matter how much
+// armour is involved, and there is exactly one place to retune lethality.
 function rollTurret(characterTags, depot, rng = Math.random) {
-  const tier = armorTierFor(characterTags);
-  const column = turretTable(depot)[tier.key] ?? DEFAULT_TURRET_TABLE.none;
+  const protection = combineArmor(characterTags, "ballisticArmor");
+  const table = turretTable(depot);
+  const bent = Math.pow(rng(), 1 + ARMOR_GAIN * protection);
 
-  let roll = rng();
+  let roll = bent;
   for (const severity of TURRET_SEVERITIES) {
-    roll -= column[severity] ?? 0;
+    roll -= table[severity] ?? 0;
     if (roll <= 0) {
-      return { severity, tier: tier.key, tierLabel: tier.label, tagSlug: TURRET_SEVERITY_TAGS[severity] };
+      return { severity, protection, tagSlug: TURRET_SEVERITY_TAGS[severity] };
     }
   }
-  // Only reachable on a column that sums under 1, which validate rejects.
+  // Only reachable on a table that sums under 1, which validate rejects.
   // Falling out the bottom as a graze is the harmless direction.
-  return { severity: "graze", tier: tier.key, tierLabel: tier.label, tagSlug: null };
+  return { severity: "graze", protection, tagSlug: null };
 }
 
 // Does the turret spare this character? The one question the whole gun asks.
@@ -186,10 +162,9 @@ function turretSpares(presentedName, depot) {
 }
 
 module.exports = {
-  // Only what crosses a module boundary. The severity ladder, the armour
-  // tiers, the shipped table and the per-column check are all internals of
-  // this file; exporting them put four names on the @lifeweb/db barrel that
-  // read as API and had no readers.
+  // Only what crosses a module boundary. The severity ladder, the shipped
+  // table and the gain constant are all internals of this file; exporting them
+  // put names on the @lifeweb/db barrel that read as API and had no readers.
   turretTable,
   validateTurretTable,
   rollTurret,

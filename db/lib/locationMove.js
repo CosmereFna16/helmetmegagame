@@ -33,6 +33,12 @@ const {
   rollGatehouseTurretOnArrival,
   GATEHOUSE_TURRET_DM,
 } = require("./gatehouseTurret");
+// The gun's own DM wording lives with each gun; naming the wound underneath it
+// is the same job for both, so that half is shared.
+const { turretDmFor } = require("./turretPass");
+// Announcing carries its own DISCORD_TOKEN guard, so calling it beside the
+// roll is safe even though the roll itself deliberately runs above that guard.
+const { announceTurretBurst } = require("./turretBurst");
 
 // Mirrors web/lib/discordGuild.js's PERM_VIEW_CHANNEL / PERM_SEND_MESSAGES —
 // duplicated rather than imported because db/ cannot reach into web/.
@@ -204,11 +210,18 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
       console.error(`Move: ${turret.label} turret failed for ${characterId}:`, err.message ?? err);
       return null;
     });
-    if (shot?.discordUserId && shot.kind !== "graze") {
-      await sendDm(prisma, shot.discordUserId, turret.dms[shot.kind] ?? turret.dms.hit).catch((err) =>
+    if (!shot) continue;
+    if (shot.discordUserId && shot.kind !== "graze") {
+      await sendDm(prisma, shot.discordUserId, turretDmFor(turret.dms, shot)).catch((err) =>
         console.error(`Move: turret DM failed for ${characterId}:`, err.message ?? err),
       );
     }
+    // The noise carries whatever the roll was — a graze is still a machinegun
+    // going off, and a zone that only hears the shots that land can never learn
+    // to stay out of the yard.
+    await announceTurretBurst(prisma, shot.locationId).catch((err) =>
+      console.error(`Move: turret burst failed for ${characterId}:`, err.message ?? err),
+    );
   }
 
   if (!process.env.DISCORD_TOKEN) return;

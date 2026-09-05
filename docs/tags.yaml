@@ -8133,6 +8133,8 @@ tags:
     tradeable: true
     weight: 12
     equippable: true
+    melee: 0.8
+    ballistic: 0.8
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -9245,6 +9247,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.6
+    ballistic: 0.5
     concealsIdentity: true
     concealSprite: soulbreaker1
     visible: true
@@ -9263,6 +9267,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.5
+    ballistic: 0.35
     concealsIdentity: true
     forcesConceal: true
     concealSprite: cerberus
@@ -9282,6 +9288,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.5
+    ballistic: 0.35
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hero0
@@ -9308,6 +9316,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.35
+    ballistic: 0.1
     concealsIdentity: true
     concealSprite: fighterhelmet
     visible: true
@@ -9334,6 +9344,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.45
+    ballistic: 0.4
     concealsIdentity: true
     forcesConceal: true
     concealSprite: tribhelm
@@ -9353,6 +9365,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.45
+    ballistic: 0.4
     concealsIdentity: true
     forcesConceal: true
     concealSprite: vietnamordinator
@@ -9372,6 +9386,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.3
+    ballistic: 0.2
     concealsIdentity: true
     forcesConceal: true
     concealSprite: tspacehelmet
@@ -9602,6 +9618,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 1
+    melee: 0.25
+    ballistic: 0.05
     visible: true
     tradeable: true
     weight: 2
@@ -9625,6 +9643,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 1
+    melee: 0.25
+    ballistic: 0.05
     concealsIdentity: true
     concealSprite: hauberkhood
     visible: true
@@ -9671,6 +9691,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.35
+    ballistic: 0.1
     concealsIdentity: true
     concealSprite: paladin1
     visible: true
@@ -9696,6 +9718,8 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
+    melee: 0.5
+    ballistic: 0.15
     concealsIdentity: true
     forcesConceal: true
     concealSprite: knight0
@@ -9754,6 +9778,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
+    melee: 0.3
+    ballistic: 0.05
     visible: worn
     tradeable: true
     weight: 12
@@ -9776,6 +9802,8 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: SHIELD
+    melee: 0.25
+    ballistic: 0.05
     visible: true
     tradeable: true
     weight: 5
@@ -9799,6 +9827,8 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: SHIELD
+    melee: 0.4
+    ballistic: 0.15
     visible: true
     tradeable: true
     weight: 12
@@ -9822,6 +9852,8 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: SHIELD
+    melee: 0.5
+    ballistic: 0.25
     visible: true
     tradeable: true
     weight: 28
@@ -9846,6 +9878,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
+    melee: 0.45
+    ballistic: 0.1
     visible: true
     tradeable: true
     weight: 28
@@ -9870,6 +9904,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
+    melee: 0.6
+    ballistic: 0.2
     visible: worn
     tradeable: true
     weight: 28
@@ -9893,6 +9929,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 3
+    melee: 0.6
+    ballistic: 0.2
     visible: true
     tradeable: true
     weight: 28
@@ -9917,6 +9955,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 4
+    melee: 0.4
+    ballistic: 0.3
     visible: true
     tradeable: true
     weight: 40
@@ -9933,6 +9973,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 4
+    melee: 0.7
+    ballistic: 0.25
     visible: true
     tradeable: true
     weight: 55
@@ -9958,6 +10000,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 3
+    melee: 0.55
+    ballistic: 0.3
     visible: true
     tradeable: true
     weight: 12
@@ -9979,6 +10023,8 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: SHIELD
+    melee: 0.7
+    ballistic: 0.95
     visible: true
     tradeable: false
     purchasable: false
@@ -10306,6 +10352,8 @@ tags:
     description: "Thick leather gloves with chainmail, essential for handling the dangerous Godflesh."
     pointCost: 2
     equippable: true
+    melee: 0.15
+    ballistic: 0.05
     tradeable: true
     weight: 2
     visible: worn

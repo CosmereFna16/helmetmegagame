@@ -5,7 +5,8 @@
 //   1. settleCarry — Overburdened on/off, and the overflow drop when a Cart
 //      or Pack Mule just left (db/lib/carry.js, CARRY.md). FIRST, because a
 //      drop can take a private-room key off the sheet.
-//   2. narrowcast + room access — recomputed from the post-drop holdings.
+//   2. narrowcast + room access — recomputed from the post-drop holdings,
+//      and both in after(), for the reason spelled out below.
 //   3. the drop's Discord work, in after(), off the request's critical path.
 //   4. corpse follow — a body that changed hands is a body that moved, and
 //      the dead sheet has to catch up before anyone tries to loot it
@@ -14,6 +15,17 @@
 // Everything is best-effort and catch-logged: a missed sync is the channel
 // doctor's problem (CHANNELS.md §6) and a missed settle self-heals at the
 // next one. Never call this inside a transaction.
+//
+// Steps 2 and 3 are Discord round trips and step 4 is not, which is the whole
+// reason the two syncs sit in after() rather than being awaited. Room access
+// walks every private room in the game one call at a time
+// (db/lib/roomAccess.js), so equipping a hat used to hold the browser for
+// several seconds while the bot talked to Discord about rooms nobody was
+// standing in. Nothing the caller re-renders reads either sync: the character
+// page derives accessibleRooms from tags and RoomGuest rows, never from live
+// thread membership, so ordering these after revalidatePath changes nothing a
+// player sees. settleCarry and reconcileCorpses stay awaited, because the
+// render does read what they write.
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
@@ -34,8 +46,12 @@ export async function afterInventoryChange(characters) {
     const row = await prisma.character
       .findUnique({ where: { id }, select: { id: true, discordUserId: true, locationId: true, status: true } })
       .catch(() => null);
-    await syncCharacterNarrowcastAccess(id).catch(() => {});
-    if (row) await syncCharacterRoomAccess(prisma, row).catch(() => {});
+    after(() => syncCharacterNarrowcastAccess(id).catch(() => {}));
+    // `locationOnly`: an inventory change never moves anybody, and leaving a
+    // Location already spends the membership, so the removes for private rooms
+    // elsewhere are no-ops that each cost a Discord round trip. The mover keeps
+    // the full sweep — crossing zones is exactly the case that needs them.
+    if (row) after(() => syncCharacterRoomAccess(prisma, row, { locationOnly: true }).catch(() => {}));
     if (settled?.drop) after(() => deliverCarryDrop(prisma, settled).catch(() => {}));
   }
   // Once, after the whole batch: a transfer moves a corpse between two

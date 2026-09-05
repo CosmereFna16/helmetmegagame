@@ -321,6 +321,10 @@ export default async function CharacterPage() {
         requirementTurns: true,
         requirementResources: true,
         requirementPerTurn: true,
+        // So the Craft menu can say what a piece of armour is worth before
+        // somebody spends two turns and 26 ⬢ finding out.
+        meleeArmor: true,
+        ballisticArmor: true,
         conflictsWith: { select: { id: true } },
       },
     }),

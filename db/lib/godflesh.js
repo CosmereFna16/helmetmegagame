@@ -8,6 +8,14 @@
 // is meant to be routine work that occasionally takes a finger, not a coin
 // flip with your body.
 //
+// The pattern it was copied from has since moved on. The turret no longer picks
+// a column off a hardcoded slug list — armour is a number on the tag
+// (Tag.ballisticArmor, db/lib/armorValue.js) bending one curve. This file kept
+// its two-column table on purpose: the only thing between a chainsaw and your
+// hand is a specific pair of gloves, so "gloves or no gloves" is the honest
+// model here and a general armour value would be pretending otherwise. If a
+// third kind of hand protection ever exists, that stops being true.
+//
 // Pure and Prisma-free, like the turret: the caller loads the tags and writes
 // the result, and this decides only what happens. See
 // docs/systemdocs/FACTORY.md.

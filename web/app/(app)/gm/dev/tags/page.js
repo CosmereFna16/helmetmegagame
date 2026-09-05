@@ -60,6 +60,8 @@ export default async function DevTagsPage() {
           concealSprite: t.concealSprite,
           equipSlot: t.equipSlot,
           equipLayer: t.equipLayer,
+          meleeArmor: t.meleeArmor,
+          ballisticArmor: t.ballisticArmor,
           forcedName: t.forcedName,
           consumable: t.consumable,
           removable: t.removable,
