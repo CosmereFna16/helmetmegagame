@@ -10000,8 +10000,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 3
-    melee: 0.55
-    ballistic: 0.3
+    melee: 0.35
+    ballistic: 0.1
     visible: true
     tradeable: true
     weight: 12
