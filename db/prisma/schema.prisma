@@ -1105,6 +1105,7 @@ model Location {
   // Moves filed while standing here (Action.locationId).
   actions      Action[]
   threatSpawns ThreatSpawn[]
+  cavingRolls  CavingRoll[]
 
   @@index([zoneId])
 }
@@ -3236,6 +3237,12 @@ model CavingRoll {
   zoneId String
   zone   Zone   @relation(fields: [zoneId], references: [id])
 
+  // The Location they walked into. Nullable only because the rows written
+  // before the Die became arrival-only have none; every new row sets it, and
+  // it is load-bearing in the @@unique below.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+
   die  Int // 1-6, flat — no Gambit modifier
   kind CavingRollKind
 
@@ -3264,7 +3271,7 @@ model CavingRoll {
   stagedMessages StagedMessage[]
   stagedEffects  StagedEffect[]
 
-  @@unique([characterId, turnId, trigger])
+  @@unique([characterId, turnId, trigger, locationId])
   @@index([turnId, resolvedAt])
 }
 

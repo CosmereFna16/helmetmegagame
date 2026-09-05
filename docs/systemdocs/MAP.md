@@ -321,7 +321,9 @@ been walked somewhere doesn't get an extra free hop the instant they can act
 again.
 
 **The Caving Die rolls on arrival** for the mover and every dragged
-character, on any `CAVE_LEVEL` destination (`CAVING.md`).
+character, on any `CAVE_LEVEL` destination — and arrival is now the *only*
+time it rolls, so walking is what wakes the dark. A Location wearing the
+`safe` attribute is exempt; Customs is the only one (`CAVING.md` §2).
 
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,

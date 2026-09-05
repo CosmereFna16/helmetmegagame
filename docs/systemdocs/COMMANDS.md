@@ -41,6 +41,8 @@ Each command declares its contexts:
 | `/location` | — | Living character | Guild, DM | `handleTravelOpen` — the **Location** picker (§4) |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
+| `/play` | — | Living character holding an Instrument | Guild | `handlePlayCommand` |
+| `/shout` | `message` | Living character | Guild | `handleShoutCommand` — carries across the Location graph (§2d) |
 | `/roll` | — | Anyone | Guild | `handleRollCommand` |
 | `/add` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |
 | `/remove` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |
@@ -66,6 +68,11 @@ Notes:
   public reply carries Discord's "@account used /roll" header, which names the
   player behind the character (`PROXYING.md`). So the roll goes out anonymous,
   and the roller gets a separate ephemeral telling them which one was theirs.
+- `/shout` takes a **string option** rather than opening a modal the way
+  `/message` does. The modal exists so a player's real account never shows a
+  typing indicator in a channel — filling in a slash-command option shows none
+  either, so the protection is already there and the extra click buys nothing.
+  See §2d.
 - `/labor` is retired — laboring is now the **Labor checkbox** on the Move
   modal (`LABORING.md` §4).
 - `/persistent` is retired too — Bascinet 2 dropped forum topics, private
@@ -147,6 +154,56 @@ with the unknown-silhouette avatar (`messageCreate.js`), and the **Who's
 here?** anchor button lists the character under that same alias, with no
 Role shown (§4). The web app carries the identical toggle as a `<Switch>` on
 `/character`, next to turn-ping (`AvatarField.js`).
+
+### 2d. `/shout` in detail
+
+The one thing a character can say that leaves the room they said it in. It is
+the only speech in the game that crosses the Location graph.
+
+**Who hears it.** `db/lib/locationGraph.js#soundRange` BFSes out from wherever
+the character *stands* — not from whatever channel the command was typed in;
+those can disagree and only one of them is a place a voice comes from — and
+returns every Location within four hops, each with the distance and the
+direction. **Every edge counts.** Locked, hidden, shut, structural, on-foot —
+sound does not care, because none of those are about sound. A portcullis you
+cannot open is still a portcullis you can yell through. It is deliberately the
+one traversal in the game that never calls `crossingCheck`.
+
+**What they hear**, from `db/lib/shout.js`:
+
+| Distance | The line |
+|---|---|
+| 0 — your own Location | Full size: "You hear someone shout:" and the words |
+| 1 | `-#` subtext: "…from the direction of *X*", words clear |
+| 2 | the same, 40% of the letters replaced with `░ ▒ ▓` |
+| 3 | the same, 70% replaced |
+| 4 | "…from the direction of *X*, but you can't make out what they say." |
+
+Distance takes the **words** away before it takes the **direction** away. You
+always learn which way to run; you stop learning what was said.
+
+**The direction is never the source.** `viaName` is the *hearer's own
+neighbour* on the shortest path back — the next step toward the noise, which is
+the only part of it a person standing there could actually tell. Ties between
+two equally-short ways back resolve by lowest slug, so a shout cannot name one
+direction on Tuesday and another on Wednesday for no reason a player can see.
+
+**Nobody is ever named**, at any distance including zero. That is what lets a
+concealed character shout without unmasking, and it is also just true — you
+hear a shout before you find out whose it was.
+
+Distance 0 is full size and everything past it is `ambientLine` subtext, the
+same split `/play` makes: the room hears the performance, the street outside
+only notices it. Only Location **channels** get it, never the Room threads under
+them — somebody in a private back room is behind a door.
+
+**Rate limits.** One shout is up to a couple of dozen REST posts, so the posting
+loop is sequential with every post individually caught, the discipline
+`bot/src/lib/deathSmell.js` documents — never `Promise.all`. On top of that
+there is a 5-minute per-character cooldown, in memory like `/play`'s, and it is
+**claimed before the loop rather than after**: the loop takes real seconds,
+which is exactly long enough for a second `/shout` to slip past a cooldown
+stamped at the end.
 
 ## 3. The `#turns` console
 
@@ -414,6 +471,7 @@ except 🌫️ and ⭐. Each is stripped back off after being processed.
 | 🔍 / 🔎 | Anyone | Inspect embed, gated by the viewer's own tags |
 | ❓ | Anyone | DM the character's bio |
 | ⭐ | Anyone | Save a personal `Note` — works on any bot- or webhook-authored message, not just a tracked proxy (`PROXYING.md` §7) |
+| 📸 / 📷 | Anyone holding an Instant Camera | Mint a **Photo** tag of the speaking character |
 | ⚜️ | GM | Full dossier on the speaking character |
 | 🌫️ | GM | Delete and repost as the bot, de-attributing it |
 
@@ -436,6 +494,24 @@ posting it in the channel would hand the room everything it hides.
 
 ⚜️ is also the Move button's emoji. Buttons and reactions share no namespace,
 so this is not a collision.
+
+**📸 is 🔍 that stopped moving.** Both run
+`readoutForReaction()` — one function on purpose, for `db/lib/examine.js`'s own
+reason: a divergence between what you see when you look and what the camera
+catches would be invisible until a player noticed one surface saying something
+the other wouldn't. The difference is what happens next. 🔍 DMs the embed and
+that is the end of it; 📸 also freezes the readout onto a runtime `Tag` row
+(`db/lib/photoMint.js`), which is a real object — it can be handed over,
+stashed, stolen, and shown to somebody who was not there, long after the
+subject has changed clothes. A hood photographs as a hood, since the readout is
+the readout. Both refuse a blind reactor.
+
+**The camera is not spent.** Holding one is the entire gate; film is not a
+system anybody asked for. The *other* thing you can do with a camera is Consume
+it on `/character`, which points it at nothing and hands back a blank Photo —
+that path is special-cased in `consumeTagRequestImpl` exactly the way a
+`SEALED` letter is, because a photo is a runtime row no `consumesInto:` slug
+could ever name.
 
 ## 7. Where the code lives
 

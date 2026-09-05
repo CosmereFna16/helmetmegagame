@@ -352,13 +352,15 @@ documents:
     public: true
     tags: []
     description: |-
-      Ravenheart's caves are the graveyards of ancient civilizations. They're as dangerous as they are rewarding. There's three levels to the caves: the Caverns, the Railroad, and the Aberrant Pits. Moving from one level to the next takes a turn, so plan carefully before committing. Caving rewards preparation, so consider bringing a good weapon, some food, a doctor, and maybe some medicine or alcohol.
+      Ravenheart's caves are the graveyards of ancient civilizations. They're as dangerous as they are rewarding. There are two levels: the Caves, and below them the Depths. Getting from one to the other takes a turn, so plan carefully before committing. Caving rewards preparation, so consider bringing a good weapon, some food, a doctor, and maybe some medicine or alcohol. ‡
 
-      At the start of every turn, you'll automatically roll an Exploration die (1d6, shared with your Gambit modifiers). Bad things happen on a roll of 1, while a roll of 6 rewards you with loot, tonic ingredients, or information. This doesn't use up your turn.
+      **Walking is what wakes the dark.** Every time you arrive somewhere underground you roll the Caving Die — a flat 1d6, no modifiers. On a 1, something is wrong down here and a GM will tell you what. On a 6 you find something: loot, tonic ingredients, or information. Going deeper rolls it. Turning back rolls it too. Standing still does nothing at all, and neither does walking back into somewhere you've already been today. It doesn't use up your turn. ‡
 
-      You can use Moves as normal in the caves. There's a few suggested actions: scavenging for loot, obtaining valuable metals, hunting monsters for their tonic ingredients, and foraging for the useful {tag:cave-fungus}.
+      **Customs is safe.** Nothing stalks a cave mouth with a sentry, a floodlight and a shop in it. It's the one place down there you can stand without rolling — so it's where you camp, and where you come back to. ‡
 
-      The caves' truly special rewards are available through events. Check each location regularly.
+      You can use Moves as normal in the caves. There's a few suggested actions: scavenging for loot, obtaining valuable metals, hunting monsters for their tonic ingredients, and foraging for the useful {tag:cave-fungus}. ‡
+
+      The caves' truly special rewards are available through events. Check each location regularly. ‡
 
   # The Merchant Update filled this in — it was an empty stub for as long as
   # the seat was unfinished. Reached by doc_element from both The Company

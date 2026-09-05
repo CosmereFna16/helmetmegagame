@@ -739,13 +739,14 @@ export async function bulkMoveCharacters(formData) {
         failures.push({ step: "move", target: c.name, message: err.message });
         console.error(`Bulk move: Discord sync failed for ${c.name}:`, err);
       }
-      // One Caving Die per arrival, same as walking in — keyed on the ZONE.
-      // Outside the try above: a failed Discord sync still moved the character.
+      // One Caving Die per arrival, same as walking in — keyed on the
+      // LOCATION now. Outside the try above: a failed Discord sync still moved
+      // the character.
       try {
         const cavingDm = await rollCavingOnArrival(
           prisma,
           { ...c, locationId: location.id, zoneId: location.zoneId },
-          location.zone,
+          location,
         );
         if (cavingDm) await sendDm(cavingDm.discordUserId, cavingDm.content);
       } catch (err) {

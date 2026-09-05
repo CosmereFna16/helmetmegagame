@@ -10,6 +10,8 @@ const { deleteArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { recentProxies, webhookClientFor } = require("../lib/proxy");
 const { resolveChannelContext } = require("../lib/channels");
 const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const { photoCaption, photoSubject } = require("@lifeweb/db/lib/photo");
+const { CAMERA_SLUG, mintPhoto } = require("@lifeweb/db/lib/photoMint");
 
 // Discord embed limits: a breach rejects the whole embed silently. Trim with
 // fitField/fitDescription below before adding a field.
@@ -34,6 +36,9 @@ const INSPECT_EMOJIS = ["🔍", "🔎"];
 const STAR_EMOJI = "⭐";
 const FOG_EMOJI = "🌫️";
 const DOSSIER_EMOJI = "⚜️"; // GM only
+// Both, because nobody can tell 📸 and 📷 apart in a picker and refusing one
+// of them would just look broken.
+const CAMERA_EMOJIS = ["📸", "📷"];
 
 // Saves the message to the reactor's personal Notes list. `proxy` is the
 // live recentProxies entry, or null; identity falls back to ArchiveEntry,
@@ -187,6 +192,157 @@ async function handleDossierReaction(reaction, proxy, user) {
   await sendDm(user, { embeds: [embed] });
 }
 
+// The readout behind BOTH 🔍 and 📸. One function rather than two copies,
+// for db/lib/examine.js's own reason: a divergence between "what you see when
+// you look" and "what the camera catches" would be invisible until a player
+// noticed one surface telling them something the other wouldn't.
+//
+// Returns { blind: true } when the viewer can't see at all, null when the
+// subject has gone, and { readout } otherwise.
+//
+// The subject is read off the PROXY, not the live row: the hood the room saw
+// when this was posted is the hood this answers for, even if they have since
+// taken it off.
+async function readoutForReaction(proxy, user) {
+  const viewer = await prisma.character.findFirst({
+    where: { discordUserId: user.id, status: "ALIVE" },
+    select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
+  });
+
+  // The one thing that closes this door. Everything else about 🔍 is
+  // deliberately open — it needs the subject to have just spoken beside you,
+  // which is close enough to see whatever your eyes are — but a blind viewer
+  // sees nothing at all, here as on /character (db/lib/examineVision.js). A
+  // camera is gated the same way: framing a shot is something you do by eye.
+  if (viewer?.tags?.some((t) => t.tag?.slug === BLIND_SLUG)) return { blind: true };
+
+  const subject = await prisma.character.findUnique({
+    where: { id: proxy.characterId },
+    select: EXAMINE_SUBJECT_SELECT,
+  });
+  if (!subject) return null;
+
+  const [openTurn, skillCatalog] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+    // Tier chain: holding Medical (Expert) must satisfy a requirement written
+    // against Medical (Basic).
+    prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
+  ]);
+
+  const hooded = Boolean(proxy.concealed);
+  const officer =
+    !hooded && subject.factionId
+      ? (await getMyFactionRole(prisma, user.id, subject.factionId)).isOfficer
+      : false;
+  const lastDesire =
+    !hooded && canSeeDesire(viewer?.tags ?? [])
+      ? await prisma.desire.findFirst({
+          where: { characterId: subject.id, status: "FULFILLED" },
+          orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
+          select: { text: true, points: true },
+        })
+      : null;
+
+  const readout = examineReadout({
+    // Faked onto the subject shape so one readout serves both — see
+    // db/lib/examine.js.
+    subject: hooded ? { ...subject, concealed: true } : subject,
+    viewerTags: viewer?.tags ?? [],
+    satisfied: satisfiedSkillIds(
+      (viewer?.tags ?? []).map((ct) => ct.tagId),
+      buildSkillAncestry(skillCatalog),
+    ),
+    openTurnNumber: openTurn?.number,
+    lastDesire,
+    viewerFactionId: viewer?.factionId ?? null,
+    viewerIsOfficer: officer,
+  });
+
+  return { readout, viewer };
+}
+
+// The readout as an embed. Shared by 🔍 and 📸 — a photograph shows the same
+// thing looking at somebody shows, which is the point of the camera.
+function examineEmbed(readout) {
+  const embed = new EmbedBuilder();
+  if (readout.concealed) {
+    embed.setDescription(readout.line);
+  } else {
+    embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
+  }
+  if (readout.ailments.length > 0) {
+    embed.addFields({ name: "Ailments", value: fitField(readout.ailments.join(", ")) });
+  }
+  if (readout.equipment.length > 0) {
+    embed.addFields({ name: "Equipment", value: fitField(readout.equipment.join(", ")) });
+  }
+  if (readout.tags.length > 0) {
+    const value = readout.tags.map((t) => (t.detail ? `${t.name} (${t.detail})` : t.name)).join(", ");
+    embed.addFields({ name: "Tags", value: fitField(value) });
+  }
+  if (readout.desire) {
+    embed.addFields({
+      name: "Last Desire",
+      value: readout.desire.text
+        ? fitField(`» ${readout.desire.text} (+${readout.desire.points})`)
+        : "Nothing you can read.",
+    });
+  }
+  if (readout.roleTitle) embed.addFields({ name: "Role", value: readout.roleTitle, inline: true });
+  if (readout.resources != null) {
+    embed.addFields({ name: "Resources", value: `${readout.resources} ⬢`, inline: true });
+  }
+  if (process.env.WEB_BASE_URL) {
+    embed.setThumbnail(`${process.env.WEB_BASE_URL}${readout.avatarPath}`);
+  }
+  return embed;
+}
+
+// 📸 — a photograph is an Examine that stopped moving. It reads the subject
+// exactly as 🔍 does and then freezes that reading onto a Tag row, which is a
+// real object: it can be handed over, stashed, stolen and shown to a GM long
+// after the subject has changed clothes.
+//
+// The camera is NOT spent. Holding one is the whole gate; film is not a system
+// anybody asked for. (Consuming a camera is the separate "point it at nothing"
+// path, in web/app/(app)/character/requestActions.js.)
+async function handleCameraReaction(reaction, proxy, user) {
+  const held = await prisma.characterTag.findFirst({
+    where: {
+      character: { discordUserId: user.id, status: "ALIVE" },
+      tag: { slug: CAMERA_SLUG },
+      quantity: { gt: 0 },
+    },
+    select: { characterId: true },
+  });
+  if (!held) {
+    await sendDm(user, "» *You have no camera.* ‡", { source: "system_notice" }).catch((err) =>
+      console.error(`Couldn't tell ${user.id} they have no camera:`, err),
+    );
+    return;
+  }
+
+  const result = await readoutForReaction(proxy, user);
+  if (!result) return;
+  if (result.blind) {
+    await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
+      console.error(`Couldn't tell ${user.id} they're blind:`, err),
+    );
+    return;
+  }
+
+  const { readout } = result;
+  const photo = await prisma.$transaction((tx) =>
+    mintPhoto(tx, held.characterId, { subject: photoSubject(readout), caption: photoCaption(readout) }),
+  );
+
+  // The photographer is shown what they caught, in the same embed 🔍 builds —
+  // the print is in their hands either way, so hiding it would only make them
+  // open the web app to find out.
+  const embed = examineEmbed(readout).setFooter({ text: photo.name });
+  await sendDm(user, { embeds: [embed] }).catch((err) => console.error("Camera reaction DM failed:", err));
+}
+
 async function isGm(reaction, userId) {
   const gmRoleId = process.env.DISCORD_GM_ROLE_ID;
   if (!gmRoleId || !reaction.message.guild) return false;
@@ -302,104 +458,30 @@ module.exports = {
       // Reaction clears in the finally, so a thrown error never leaves 🔍
       // stuck on the message.
       try {
-        const viewer = await prisma.character.findFirst({
-          where: { discordUserId: user.id, status: "ALIVE" },
-          select: { factionId: true, tags: { select: { tagId: true, tag: { select: { slug: true } } } } },
-        });
-
-        // The one thing that closes this door. Everything else about 🔍 is
-        // deliberately open — it needs the subject to have just spoken beside
-        // you, which is close enough to see whatever your eyes are — but a
-        // blind viewer sees nothing at all, here as on /character
-        // (db/lib/examineVision.js).
-        if (viewer?.tags?.some((t) => t.tag?.slug === BLIND_SLUG)) {
+        const result = await readoutForReaction(proxy, user);
+        if (!result) return;
+        if (result.blind) {
           await sendDm(user, "» *You can't see.* ‡", { source: "system_notice" }).catch((err) =>
             console.error(`Couldn't tell ${user.id} they're blind:`, err),
           );
           return;
         }
-
-        // A concealed message is read off the PROXY, not the live row: the
-        // hood the room saw when this was posted is the hood this answers for,
-        // even if they have since taken it off. Faked onto the subject shape
-        // so one readout serves both — see db/lib/examine.js.
-        const subject = await prisma.character.findUnique({
-          where: { id: proxy.characterId },
-          select: EXAMINE_SUBJECT_SELECT,
-        });
-        if (!subject) return;
-
-        const [openTurn, skillCatalog] = await Promise.all([
-          prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
-          // Tier chain: holding Medical (Expert) must satisfy a requirement
-          // written against Medical (Basic).
-          prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
-        ]);
-
-        const hooded = Boolean(proxy.concealed);
-        const officer =
-          !hooded && subject.factionId
-            ? (await getMyFactionRole(prisma, user.id, subject.factionId)).isOfficer
-            : false;
-        const lastDesire =
-          !hooded && canSeeDesire(viewer?.tags ?? [])
-            ? await prisma.desire.findFirst({
-                where: { characterId: subject.id, status: "FULFILLED" },
-                orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
-                select: { text: true, points: true },
-              })
-            : null;
-
-        const readout = examineReadout({
-          subject: hooded ? { ...subject, concealed: true } : subject,
-          viewerTags: viewer?.tags ?? [],
-          satisfied: satisfiedSkillIds(
-            (viewer?.tags ?? []).map((ct) => ct.tagId),
-            buildSkillAncestry(skillCatalog),
-          ),
-          openTurnNumber: openTurn?.number,
-          lastDesire,
-          viewerFactionId: viewer?.factionId ?? null,
-          viewerIsOfficer: officer,
-        });
-
-        const embed = new EmbedBuilder();
-        if (readout.concealed) {
-          embed.setDescription(readout.line);
-        } else {
-          embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
-        }
-        if (readout.ailments.length > 0) {
-          embed.addFields({ name: "Ailments", value: fitField(readout.ailments.join(", ")) });
-        }
-        if (readout.equipment.length > 0) {
-          embed.addFields({ name: "Equipment", value: fitField(readout.equipment.join(", ")) });
-        }
-        if (readout.tags.length > 0) {
-          const value = readout.tags.map((t) => (t.detail ? `${t.name} (${t.detail})` : t.name)).join(", ");
-          embed.addFields({ name: "Tags", value: fitField(value) });
-        }
-        if (readout.desire) {
-          embed.addFields({
-            name: "Last Desire",
-            value: readout.desire.text
-              ? fitField(`» ${readout.desire.text} (+${readout.desire.points})`)
-              : "Nothing you can read.",
-          });
-        }
-        if (readout.roleTitle) embed.addFields({ name: "Role", value: readout.roleTitle, inline: true });
-        if (readout.resources != null) {
-          embed.addFields({ name: "Resources", value: `${readout.resources} ⬢`, inline: true });
-        }
-        if (process.env.WEB_BASE_URL) {
-          embed.setThumbnail(`${process.env.WEB_BASE_URL}${readout.avatarPath}`);
-        }
-
         try {
-          await sendDm(user, { embeds: [embed] });
+          await sendDm(user, { embeds: [examineEmbed(result.readout)] });
         } catch (err) {
           console.error("Inspect reaction DM failed:", err);
         }
+      } finally {
+        await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
+      }
+      return;
+    }
+
+    if (CAMERA_EMOJIS.includes(emoji)) {
+      try {
+        await handleCameraReaction(reaction, proxy, user);
+      } catch (err) {
+        console.error("Camera reaction failed:", err);
       } finally {
         await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
       }

@@ -176,6 +176,7 @@ All in `bot/src/events/messageReactionAdd.js`, all gated on `recentProxies`.
 | ❌ | Deletes the message. Also deletes its `ArchiveEntry` row. Gated on `proxy.discordUserId`. |
 | ✏️ | Edit, via a DM button and a modal — see below. Mirrors into the archive **only after** Discord accepts the edit. Gated on `proxy.discordUserId`. |
 | 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
+| 📸 / 📷 | The same readout, frozen onto a **Photo** tag in the reactor's hands. Needs an Instant Camera, which is not spent. `COMMANDS.md` §6. |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
 

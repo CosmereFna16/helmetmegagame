@@ -39,7 +39,6 @@ const { runBirdPass } = require("./lib/birdPass");
 // By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
 const { revokeAllCharacterAccess } = require("./lib/accessSweep");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
-const { runCavingPass } = require("./lib/cavingPass");
 const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
@@ -862,7 +861,6 @@ async function advanceTurn() {
   let dyingDeathWarnings = [];
   let birdNotices = [];
   let carryDrops = [];
-  let cavingDms = [];
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
@@ -1037,43 +1035,6 @@ async function advanceTurn() {
       .filter(Boolean)
       .join("\n"),
   });
-
-  // The Caving Die rolls against the turn that just opened, not the one being
-  // closed — an arrival roll earlier the same turn must not claim the row
-  // first. See db/lib/cavingPass.js, CAVING.md §2. Own try/catch that must
-  // never rethrow: a throw here would abort advanceTurn() with newTurn
-  // already created but no announcement.
-  try {
-    const caving = await runCavingPass(prisma, newTurn);
-    const { dms, ...cavingSummary } = caving;
-    cavingDms = dms;
-    await prisma.auditLog
-      .create({
-        data: {
-          actorDiscordUserId: "system",
-          actionType: "caving_resolved",
-          details: { turnNumber: newTurn.number, ...cavingSummary },
-        },
-      })
-      .catch((err) => console.error("Caving audit log failed:", err));
-  } catch (err) {
-    console.error("Caving pass failed:", err);
-    await prisma.auditLog
-      .create({
-        data: {
-          actorDiscordUserId: "system",
-          actionType: "turn_pass_failed",
-          details: {
-            turnNumber: newTurn.number,
-            pass: "caving",
-            error: String(err?.message ?? err),
-          },
-        },
-      })
-      .catch((logErr) =>
-        console.error("Failed to log turn_pass_failed for caving:", logErr),
-      );
-  }
 
   // Everything below this line is the only place in the turn-advance path
   // that talks to Discord; every resolveNeeds() pass hands back posts/DMs
@@ -1264,12 +1225,6 @@ async function advanceTurn() {
           .join("\n"),
       ).catch((err) =>
         console.error("Automatic-death alert to #leave failed:", err),
-      );
-    }
-
-    for (const dm of cavingDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Caving DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

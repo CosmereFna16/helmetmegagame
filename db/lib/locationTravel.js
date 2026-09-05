@@ -354,10 +354,11 @@ async function performLocationMove(prisma, character, targetLocation, { dragged 
   for (const row of [character, ...outcome.draggedRows]) {
     const fromLocationId = row.id === character.id ? currentLocation?.id ?? null : row.locationId;
     const fromZoneId = row.id === character.id ? currentLocation?.zoneId ?? null : row.zoneId;
-    // The Caving Die's "on arrival" trigger. Null on any zone that isn't a
-    // cave level, or if the character already rolled this turn some other
-    // way; kind, open turn and error swallowing all live in the helper.
-    const cavingDm = await rollCavingOnArrival(prisma, row, targetLocation.zone);
+    // The Caving Die, which is now the only thing arrival does. Null on a
+    // surface Location, on a SAFE one, and on a place this character already
+    // walked into this turn; kind, open turn and error swallowing all live in
+    // the helper.
+    const cavingDm = await rollCavingOnArrival(prisma, row, targetLocation);
     moved.push({
       character: { id: row.id, name: row.name, discordUserId: row.discordUserId, status: row.status },
       fromLocationId,

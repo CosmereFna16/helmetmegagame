@@ -35,6 +35,7 @@ const {
   endpoints,
   linksFor,
   isHeldOpen,
+  soundRange,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
@@ -102,6 +103,7 @@ const {
   gatehouseTurretArmed,
 } = require("@lifeweb/db/lib/gatehouseTurret");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
+const { shoutLine } = require("@lifeweb/db/lib/shout");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
@@ -1892,6 +1894,96 @@ async function handlePlayCommand(interaction) {
   await respond(interaction, "» *You play.* ‡");
 }
 
+// /shout — the one thing a character can say that leaves the room they said
+// it in. Written against handlePlayCommand above, which is the closest
+// existing shape: a player command that makes the world speak, gated, cooled
+// down, and anchored to where the character actually stands.
+//
+// Nobody is ever named. Not at four hops, not in your own street. That is what
+// makes it usable while concealed, and it is also just true — you hear a shout
+// before you find out whose it was.
+const SHOUT_COOLDOWN_MS = 5 * 60_000;
+const lastShouted = new Map();
+
+async function handleShoutCommand(interaction) {
+  await ack(interaction);
+
+  const text = interaction.options.getString("message")?.trim();
+  if (!text) {
+    await respond(interaction, "» *Say something.* ‡");
+    return;
+  }
+
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+    select: { id: true, locationId: true },
+  });
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+
+  // Where the CHARACTER stands, not what channel the command was typed in —
+  // the two can disagree, and only one of them is a place a voice comes from.
+  // The channel still has to be somewhere you can speak, so /shout can't be
+  // fired out of a zone #summary or a DM.
+  const context = interaction.channel ? resolveChannelContext(interaction.channel) : null;
+  if (context?.channelKind !== "location") {
+    await respond(interaction, "» *There's nobody here to hear it.* ‡");
+    return;
+  }
+  if (!character.locationId) {
+    await respond(interaction, "» *You're nowhere.* ‡");
+    return;
+  }
+
+  const since = Date.now() - (lastShouted.get(character.id) ?? 0);
+  if (since < SHOUT_COOLDOWN_MS) {
+    const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
+    await respond(interaction, `» *Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}.* ‡`);
+    return;
+  }
+  // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen
+  // REST calls and takes real seconds, which is exactly long enough for a
+  // second /shout to slip past a cooldown claimed at the end.
+  lastShouted.set(character.id, Date.now());
+
+  const heard = await soundRange(prisma, character.locationId);
+
+  // Sequential, no Promise.all: a fan-out across every Location in earshot
+  // would burst Discord's rate-limit buckets, and this is never urgent. Same
+  // discipline as bot/src/lib/deathSmell.js. Every post is individually
+  // caught, so one dead channel can't swallow the rest of the shout.
+  //
+  // Location CHANNELS only, never the Room threads under them: somebody in a
+  // private back room is behind a door.
+  let posted = 0;
+  for (const place of heard) {
+    if (!place.discordChannelId) continue;
+    try {
+      // parse: [] — no mentions at all. The text is player-typed and this is
+      // the widest broadcast in the game; an "@everyone" in a shout would ping
+      // twenty-nine channels at once. A shout is a noise, not an address, and
+      // it names nobody by design anyway.
+      await postMessage(
+        place.discordChannelId,
+        shoutLine(text, place.distance, place.viaName),
+        undefined,
+        { parse: [] },
+      );
+      posted += 1;
+    } catch (err) {
+      console.error(`Shout into ${place.name} failed:`, err);
+    }
+  }
+
+  if (posted === 0) {
+    await respond(interaction, "» *Couldn't shout here.* ‡");
+    return;
+  }
+  await respond(interaction, "» *You shout.* ‡");
+}
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
@@ -1909,6 +2001,7 @@ module.exports = {
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
         if (interaction.commandName === "play") return void (await handlePlayCommand(interaction));
+        if (interaction.commandName === "shout") return void (await handleShoutCommand(interaction));
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));

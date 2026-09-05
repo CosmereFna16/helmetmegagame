@@ -532,10 +532,10 @@ async function teleportCharacterImpl({ characterId, locationId }) {
     } catch (err) {
       console.error("Dev Panel teleport Discord sync failed:", err);
     }
-    // Rolls the Caving Die on arrival like walking in does (CAVING.md). Keyed
-    // on the ZONE, not the location. Sent plainly, not via notifyCharacter —
-    // the die speaks, not the GM.
-    const cavingDm = await rollCavingOnArrival(prisma, updated, location?.zone ?? null);
+    // Rolls the Caving Die on arrival like walking in does (CAVING.md), keyed
+    // on the LOCATION. Sent plainly, not via notifyCharacter — the die speaks,
+    // not the GM.
+    const cavingDm = await rollCavingOnArrival(prisma, updated, location);
     if (cavingDm) {
       await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
         console.error("Dev Panel teleport: caving arrival DM failed:", err),

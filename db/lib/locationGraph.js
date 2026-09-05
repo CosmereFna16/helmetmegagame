@@ -233,6 +233,88 @@ async function travelOptions(prisma, character, locationId, opts) {
   return (await resolveNeighbors(prisma, character, locationId, opts)).filter((row) => row.listed);
 }
 
+// How far a shout carries, in hops. Everything past this hears nothing at all.
+const SOUND_HOPS = 4;
+
+// Who can hear a noise made at `originLocationId`, and which way it came from.
+//
+// The only multi-hop question in this file, and the reason it lives here
+// anyway: nothing outside this module is allowed to read LocationLink, and a
+// BFS over the travel graph is exactly that read.
+//
+// EVERY EDGE COUNTS. Locked, hidden, shut, structural, on-foot — sound does
+// not care, because none of those are about sound. A portcullis you cannot
+// open is still a portcullis you can yell through, and a crawl too tight for a
+// horse carries a voice fine. This is deliberately the one traversal in the
+// game that never calls crossingCheck.
+//
+// Returns [{ locationId, name, discordChannelId, distance, viaName }], sorted
+// nearest first. `viaName` is the HEARER's own neighbour on the shortest path
+// back — the next step toward the noise, never the noise itself. That is the
+// whole privacy rule: a shout tells you which way to run, not who shouted or
+// from how far.
+//
+// The origin itself is included at distance 0 with a null viaName.
+async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
+  if (!originLocationId) return [];
+
+  // One query for the whole graph. It is ~56 Locations and a few dozen edges,
+  // so paying per-hop for linksFor() would be more round trips than rows.
+  const [links, locations] = await Promise.all([
+    prisma.locationLink.findMany({ select: { aId: true, bId: true } }),
+    prisma.location.findMany({ select: { id: true, slug: true, name: true, discordChannelId: true } }),
+  ]);
+
+  const byId = new Map(locations.map((loc) => [loc.id, loc]));
+  const adjacency = new Map();
+  const link = (from, to) => {
+    if (!adjacency.has(from)) adjacency.set(from, []);
+    adjacency.get(from).push(to);
+  };
+  for (const edge of links) {
+    link(edge.aId, edge.bId);
+    link(edge.bId, edge.aId);
+  }
+  // Sorted by slug so a tie between two equally-short ways back resolves the
+  // same on every run — otherwise one shout could name a different direction
+  // than the next for no reason a player could see.
+  for (const [, list] of adjacency) {
+    list.sort((x, y) => (byId.get(x)?.slug ?? "").localeCompare(byId.get(y)?.slug ?? ""));
+  }
+
+  const out = [];
+  const seen = new Set([originLocationId]);
+  // `via` is the hearer's own step BACK toward the origin, and it is always
+  // just the node this one was reached FROM — BFS guarantees that node is
+  // exactly one hop nearer the origin. No path reconstruction needed.
+  let frontier = [{ id: originLocationId, via: null }];
+
+  for (let distance = 0; distance <= maxHops && frontier.length > 0; distance += 1) {
+    const next = [];
+    for (const node of frontier) {
+      const loc = byId.get(node.id);
+      if (loc) {
+        out.push({
+          locationId: node.id,
+          name: loc.name,
+          discordChannelId: loc.discordChannelId,
+          distance,
+          viaName: node.via ? (byId.get(node.via)?.name ?? null) : null,
+        });
+      }
+      if (distance === maxHops) continue;
+      for (const neighborId of adjacency.get(node.id) ?? []) {
+        if (seen.has(neighborId)) continue;
+        seen.add(neighborId);
+        next.push({ id: neighborId, via: node.id });
+      }
+    }
+    frontier = next;
+  }
+
+  return out;
+}
+
 // How long a propped door stays propped. Real hours, not turns: it is a
 // physical door somebody wedged, and the point is that people can follow
 // within the day.
@@ -241,6 +323,8 @@ const KEYED_OPEN_MS = 24 * 60 * 60 * 1000;
 module.exports = {
   LINK_INCLUDE,
   KEYED_OPEN_MS,
+  SOUND_HOPS,
+  soundRange,
   endpoints,
   orderEndpoints,
   linksFor,

@@ -279,7 +279,15 @@ export const REQUEST_EFFECTS = {
   CONSUME_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { restore, tagName, granted = [], resourcesGranted, cleared } = request.effect;
+      const { restore, tagName, granted = [], resourcesGranted, cleared, photoTagId } = request.effect;
+      // A camera consumed into a Photo (db/lib/photoMint.js). The print is a
+      // runtime row nothing else can reference, so it goes with its holding
+      // rather than lingering as an orphan — same call BREAK_SEAL makes about
+      // a spent envelope.
+      if (photoTagId) {
+        await dropCharacterTag(tx, request.characterId, photoTagId, 1);
+        await tx.tag.delete({ where: { id: photoTagId } }).catch(() => {});
+      }
       for (const g of granted) {
         // added: 0 means the character already held the tag and this
         // request left it alone — nothing to take back.
@@ -296,6 +304,7 @@ export const REQUEST_EFFECTS = {
       const notes = [];
       if (took.length) notes.push(`took back ${took.join(", ")}`);
       if (cleared?.tagId) notes.push(`re-applied ${cleared.tagName ?? "Disappointed"}`);
+      if (photoTagId) notes.push("tore up the photo");
       if (resourcesGranted) notes.push(`took back ${resourcesGranted} ⬢`);
       return notes.length
         ? `Restored ${tagName ?? "the tag"} and ${notes.join(", ")}.`

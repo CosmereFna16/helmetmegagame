@@ -99,6 +99,23 @@ const commandDefinitions = [
     .setName("play")
     .setDescription("Play your instrument, for the room to hear. ‡")
     .setContexts(GUILD_ONLY),
+  // Guild-only, /play's reason: a shout with nobody to hear it is not a shout.
+  //
+  // A string option rather than /message's modal. A modal exists so a player's
+  // REAL account never shows a typing indicator in a channel — and filling in
+  // a slash-command option shows none either, so the protection is already
+  // there and the extra click buys nothing.
+  //
+  // 300 rather than 2000: this posts into up to a couple of dozen channels,
+  // and half of them get it with most of the letters knocked out. A paragraph
+  // of blocks is not a message anybody reads.
+  new SlashCommandBuilder()
+    .setName("shout")
+    .setDescription("Yell, loud enough that the next few places over hear you. ‡")
+    .addStringOption((opt) =>
+      opt.setName("message").setDescription("What you yell").setRequired(true).setMaxLength(300),
+    )
+    .setContexts(GUILD_ONLY),
   // Guild-only: a die rolled in a DM has no audience, which is the whole
   // point of it. No options either — it is one 1d6 and nothing else.
   new SlashCommandBuilder()

@@ -130,7 +130,7 @@ each arrived at by getting them wrong first.
    without the override the tag granted at leave time would be cleared at
    the very next close. The pass also stamps `Character.catatonicSinceTurn`
    when it grants and nulls it when it clears — the death countdown below.
-   Ordering against Caving/Hunger doesn't matter; it touches neither
+   Ordering against Hunger doesn't matter; it touches neither
    resources nor the Hunger streak.
 7b. **Catatonic death pass** (`db/lib/catatonicDeathPass.js`) — the other
    automatic death, alongside 4b. A character
@@ -178,18 +178,7 @@ each arrived at by getting them wrong first.
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
    rather than in the side effects, so a failed announcement can't leave two
    days with no boundary in the transcript.
-12. **The Caving Die** (`db/lib/cavingPass.js#runCavingPass`) — every ALIVE
-   character standing in a `CAVE_LEVEL` zone rolls, against the turn that just
-   opened at step 10, **not** the one every pass above this closed. It is
-   deliberately not one of `TURN_PASSES` / steps 2–9: those all operate on the
-   closing turn, and the die is supposed to roll for the turn a player is about
-   to spend in the Depths. It used to be step 5.5 (after the sweep, before
-   Hunger) and ran against the closing turn — which meant an arrival roll made
-   earlier that same turn had already claimed the row, so the pass itself
-   rolled nothing. Own try/catch that never rethrows, since a throw here would
-   abort the turn announcement below it for the sake of one missed die. See
-   `docs/systemdocs/CAVING.md` §2.
-13. **Return `runSideEffects`** — see §3. Nothing above this line talks to
+12. **Return `runSideEffects`** — see §3. Nothing above this line talks to
    Discord; nothing below it touches the database.
 
 **`needsResolvedAt` is stamped only when every pass in `TURN_PASSES` has been

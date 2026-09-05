@@ -24,6 +24,7 @@
 // unknown-key check exists to prevent on the YAML side.
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
+const SAFE_ATTRIBUTE = "safe";
 
 // key -> { describe(value, ctx) -> string|null }
 //
@@ -57,6 +58,15 @@ const ATTRIBUTES = {
   // legal with no LocationYield row at all.
   refinery: {
     describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze. ‡",
+  },
+
+  // Underground, and nothing in the dark wants you. The Caving Die skips a
+  // Location wearing this (db/lib/cavingPass.js), which is what makes Customs
+  // — a cave mouth with a sentry, a floodlight and a shop in it — the one
+  // place down there you can stand without rolling. Says so out loud, because
+  // a player choosing where to camp should be able to read the answer.
+  safe: {
+    describe: () => "**Safe**: nothing down here stalks this place. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
@@ -230,6 +240,7 @@ function hasAttribute(location, key) {
 module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
+  SAFE_ATTRIBUTE,
   depotLines,
   structureLines,
   ATTRIBUTES,

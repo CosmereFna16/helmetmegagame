@@ -99,6 +99,7 @@ import {
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
+import { CAMERA_SLUG, mintBlankPhoto } from "@lifeweb/db/lib/photoMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
@@ -1715,6 +1716,57 @@ async function breakSealRequestImpl({ session, character, held, reason }) {
   return { ok: true, name: opened.paper.name };
 }
 
+// Pointing the camera at nothing. The other thing you can do with an Instant
+// Camera — 📸-reacting somebody's message is the real one, and that one is
+// free (bot/src/events/messageReactionAdd.js). This path spends the camera and
+// hands back a print of nobody.
+//
+// It takes its own road out of consumeTagRequestImpl for breakSeal's reason:
+// the ordinary path reads `consumesInto`, which names CATALOG slugs, and a
+// photo is a runtime row no slug in docs/tags.yaml can ever name.
+async function photographNothingImpl({ session, character, held, reason }) {
+  const openTurn = await getOpenTurn();
+
+  let photo;
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    photo = await mintBlankPhoto(tx, character.id);
+
+    const effect = {
+      tagId: held.tagId,
+      tagName: held.tag.name,
+      // Enough for an Undo to put the camera back and find the print again.
+      restore: {
+        tagId: held.tagId,
+        source: held.source,
+        expiresTurn: held.expiresTurn,
+        quantity: 1,
+      },
+      photoTagId: photo.id,
+      photoName: photo.name,
+    };
+    await createRequest(tx, {
+      characterId: character.id,
+      turnId: openTurn?.id ?? null,
+      type: "CONSUME_TAG",
+      reason,
+      payload: { tagId: held.tagId },
+      effect,
+    });
+    await logRequest(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      reason,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true, name: photo.name };
+}
+
 async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   const { session, character } = await requireCharacter();
   const reason = requireReason(rawReason);
@@ -1729,6 +1781,12 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   // ever name. See docs/systemdocs/PAPERWORK.md.
   if (held.tag.paperKind === "SEALED") {
     return breakSealRequestImpl({ session, character, held, reason });
+  }
+
+  // Same reasoning, same road: an Instant Camera consumes into a runtime Photo
+  // row rather than into anything the catalog can name.
+  if (held.tag.slug === CAMERA_SLUG) {
+    return photographNothingImpl({ session, character, held, reason });
   }
 
   const openTurn = await getOpenTurn();
