@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Practicus starts with a gas mask
+
+✚ A Gas Mask in the Practicus's starting kit
+
 ## 2026-09-05 · Fixes from the Fortress review
 
 ✎ Squires start with a Cerberus Key, so they can get into the garrison they live in — the Barracks, the Mess Hall, the Training Yard and the Kennels were all shut to them  
