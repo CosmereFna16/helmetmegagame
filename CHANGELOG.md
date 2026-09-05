@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Drinking has a ladder, and the tags that say you can't now stop you
+
+✚ Drinking while Tipsy makes you Wasted; drinking while Wasted puts you Unconscious on the floor  
+✚ Wasted and Unconscious both wear off into a Hangover  
+✚ Unconscious counts as helpless: you can be looted, dragged and tied up where you fell  
+✎ A GM granting the same tag twice still does nothing — only drinking climbs  
+✚ Bound, Paralyzed, Unconscious, Dying, Catatonic and mid-Seizure can no longer walk out of a room, hand over a purse, butcher, buy, write or work  
+✚ Mute finally does something: it stops you speaking, and nothing else  
+✎ Bound deliberately still lets you shout — a hostage can call for help  
+✚ Deaf can't work the Council Room intercom  
+✎ Stupid now garbles ordinary channel chat, which it never actually did before  
+
 ## 2026-09-05 · The Depot's horse comes down to 110
 
 ✎ A Horse at the Depot now costs 110 ⬢ and sells back at 48 ⬢, down from 120 and 53.
