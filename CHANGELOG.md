@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Six more books on the shelves
+
+✚ Five new books in the Keep's Library: a pet rat manual, a volume of magical regulations, a very short story about a sword, the prophecies of Sir Thomast, and a strategy primer about legs  
+✚ A cookery book in the Cathedral Pantry
+
 ## 2026-09-05 · The Road and the Manors are places now
 
 ✚ A Shrine to a forgotten saint on the road up, and a Ledge below it only the sure-footed can climb down to
