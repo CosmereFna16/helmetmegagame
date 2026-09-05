@@ -29,7 +29,6 @@ Entries below predate this format and list files instead.
 ✎ The farming bonus moved off the Hatchet onto the Pitchfork, where a farmer would look for it  
 ✎ The Dead Simple crafting rung asked for BOTH Crafting and Smithing, not either — so the entry tier was harder to reach than the one above it. It now splits by material: wood and cord take Crafting, metal takes Smithing at a forge  
 ✎ The Smithing paper was missing thirteen things you can make; the Fine Meal, the Lavish Meal and Moonshine were missing from theirs. All fixed, and `npm run db:audit-craft-docs` now catches the next one  
-✎ Correction to the entry above: it also claimed the Preacher's document was collapsing into one paragraph. That was wrong — the Preacher was fine on master, and the push briefly overwrote the Order of the Silver Cross charters with older drafts. Restored
 
 ## 2026-09-05 · Verify pass: five real holes in the camera, the shout and the die
 
