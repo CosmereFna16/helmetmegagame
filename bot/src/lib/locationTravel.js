@@ -133,9 +133,9 @@ function buildConfirmRow(locationId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`${CONFIRM_PREFIX}${locationId}`)
-      .setLabel("Confirm ‡")
+      .setLabel("Confirm")
       .setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(CANCEL_ID).setLabel("Cancel ‡").setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(CANCEL_ID).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
   );
 }
 

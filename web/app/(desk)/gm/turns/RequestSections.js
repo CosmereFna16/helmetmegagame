@@ -103,17 +103,17 @@ export const SECTIONS = {
   // Craft (docs/systemdocs/CRAFTING.md). `payer` and `projectId` are on
   // every row filed since; an older Add Tag row has neither.
   ADD_TAG: {
-    heading: "Craft ‡",
+    heading: "Craft",
     render: ({ effect, edits, setEdit, tagsById }) => (
       <>
-        <Line label="Made ‡">
+        <Line label="Made">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
         {effect.payer && effect.payer.id !== effect.characterId && (
           <Line label="Paid by ‡">{effect.payer.name}</Line>
         )}
         {effect.turnsNeeded > 1 && (
-          <Line label="Work ‡">
+          <Line label="Work">
             {effect.turnsNeeded} turns of Moves ‡
           </Line>
         )}
@@ -149,10 +149,10 @@ export const SECTIONS = {
   },
 
   REMOVE_TAG: {
-    heading: "Destroy ‡",
+    heading: "Destroy",
     render: ({ effect, tagsById }) => (
       <>
-        <Line label="Destroyed ‡">
+        <Line label="Destroyed">
           <TagStack effect={effect} tagsById={tagsById} />
         </Line>
         <p className="text-xs text-muted">
@@ -167,21 +167,21 @@ export const SECTIONS = {
   // gone (undone, torn down) and the card must still say what happened.
   // Names are snapshots too: a dead contributor still swung the hammer.
   BUILD_STRUCTURE: {
-    heading: "Build ‡",
+    heading: "Build",
     render: ({ effect }) => (
       <>
-        <Line label="Raised ‡">{effect.typeName ?? "—"}</Line>
-        <Line label="Where ‡">{effect.locationName ?? "—"}</Line>
+        <Line label="Raised">{effect.typeName ?? "—"}</Line>
+        <Line label="Where">{effect.locationName ?? "—"}</Line>
         {(effect.turnsNeeded ?? 1) > 1 && (
-          <Line label="Work ‡">{effect.turnsNeeded} crew-turns of Moves ‡</Line>
+          <Line label="Work">{effect.turnsNeeded} crew-turns of Moves ‡</Line>
         )}
         {(effect.resourcesSpent ?? 0) > 0 && (
-          <Line label="Paid ‡">
+          <Line label="Paid">
             {effect.resourcesSpent} ⬢{effect.payer?.name ? ` — ${effect.payer.name}` : ""}
           </Line>
         )}
         {(effect.contributors ?? []).length > 0 && (
-          <Line label="Crew ‡">{effect.contributors.map((c) => c.name).join(", ")}</Line>
+          <Line label="Crew">{effect.contributors.map((c) => c.name).join(", ")}</Line>
         )}
         <p className="text-xs text-muted">
           Undo tears it down and refunds the payer. The crew&apos;s spent Moves stay spent. ‡
@@ -441,7 +441,7 @@ export const SECTIONS = {
   },
 
   BUTCHER_CORPSE: {
-    heading: "Butcher ‡",
+    heading: "Butcher",
     render: ({ effect }) => (
       <>
         <Line label="Body">{effect.corpseTagName ?? "—"}</Line>
@@ -463,7 +463,7 @@ export const SECTIONS = {
   },
 
   EXTRACT_GODFLESH: {
-    heading: "Extract ‡",
+    heading: "Extract",
     render: ({ effect }) => (
       <>
         <Line label="Rolled">{`${effect.die ?? "—"} on 1d6`}</Line>
@@ -482,7 +482,7 @@ export const SECTIONS = {
   },
 
   PACKAGE_ITEMS: {
-    heading: "Package ‡",
+    heading: "Package",
     render: ({ effect }) => (
       <>
         <Line label="Marked">{effect.label ?? "—"}</Line>
@@ -502,7 +502,7 @@ export const SECTIONS = {
   },
 
   ENGRAVE_HEADSTONE: {
-    heading: "Engrave ‡",
+    heading: "Engrave",
     render: ({ effect }) => (
       <>
         <Line label="Memorialised">

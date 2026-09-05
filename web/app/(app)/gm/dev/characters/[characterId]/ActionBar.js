@@ -473,7 +473,7 @@ export default function ActionBar({
                     }
                   >
                     {l.name}
-                    <span className="text-muted"> — {l.zoneName ?? "unzoned ‡"}</span>
+                    <span className="text-muted"> — {l.zoneName ?? "unzoned"}</span>
                     {character.locationId === l.id ? " — already there ‡" : ""}
                   </button>
                 </li>

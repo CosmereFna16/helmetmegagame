@@ -59,7 +59,7 @@ export default function SendLetterForm({ characters }) {
         <div className="flex flex-wrap items-end gap-3">
           <label className="field">
             <span className="field-label">Seal name</span>
-            <input name="sealLabel" type="text" maxLength={40} placeholder="Royal ‡" className="min-w-48" />
+            <input name="sealLabel" type="text" maxLength={40} placeholder="Royal" className="min-w-48" />
             <span className="text-xs text-muted">The letter arrives titled &ldquo;Sealed Letter (Royal)&rdquo;. ‡</span>
           </label>
           <label className="field min-w-72 flex-1">

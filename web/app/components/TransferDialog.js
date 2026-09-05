@@ -97,7 +97,7 @@ export default function TransferDialog({
     <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <PartySelect
-          label="From ‡"
+          label="From"
           value={fromKey}
           onChange={onFrom}
           hint="Choose a source… ‡"
@@ -106,7 +106,7 @@ export default function TransferDialog({
           selfId={selfId}
         />
         <PartySelect
-          label="To ‡"
+          label="To"
           value={toKey}
           onChange={onTo}
           hint="Choose a destination… ‡"
@@ -136,7 +136,7 @@ export default function TransferDialog({
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              <span className="field-label">{fromRoom ? "Take ‡" : "Hand over ‡"}</span>
+              <span className="field-label">{fromRoom ? "Take" : "Hand over ‡"}</span>
               {offered.map((t) => {
                 const checked = t.tagId in picks;
                 // A non-stackable tag pins at one per character, so a pull out

@@ -737,7 +737,7 @@ export default function RequestActionsProvider({
           ]
             .filter(Boolean)
             .join(" "),
-          confirmLabel: turns > 1 ? "Start ‡" : "Make it ‡",
+          confirmLabel: turns > 1 ? "Start" : "Make it ‡",
         });
         if (!ok) return;
       }
@@ -766,7 +766,7 @@ export default function RequestActionsProvider({
       const ok = await confirm({
         title: "Destroy it?",
         message: `${chosen.name} is gone for good. Nothing comes back. ‡`,
-        confirmLabel: "Destroy ‡",
+        confirmLabel: "Destroy",
       });
       if (!ok) return;
     }

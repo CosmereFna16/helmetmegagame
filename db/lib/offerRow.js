@@ -13,8 +13,8 @@ function offerButtonRow(offerId) {
     {
       type: 1,
       components: [
-        { type: 2, style: 1, custom_id: `${OFFER_ACCEPT_PREFIX}${offerId}`, label: "Accept ‡" },
-        { type: 2, style: 2, custom_id: `${OFFER_DECLINE_PREFIX}${offerId}`, label: "Decline ‡" },
+        { type: 2, style: 1, custom_id: `${OFFER_ACCEPT_PREFIX}${offerId}`, label: "Accept" },
+        { type: 2, style: 2, custom_id: `${OFFER_DECLINE_PREFIX}${offerId}`, label: "Decline" },
       ],
     },
   ];

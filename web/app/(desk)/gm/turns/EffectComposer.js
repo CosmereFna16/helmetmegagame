@@ -407,7 +407,7 @@ export default function EffectComposer({
             >
               <option value="">— no move —</option>
               {groupByZone(stagingLocations).map((group) => (
-                <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned ‡"}>
+                <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned"}>
                   {group.locations.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
@@ -449,7 +449,7 @@ export default function EffectComposer({
                     inline
                     allowBlank={op.op !== "add"}
                     ariaLabel={
-                      op.op === "add" ? "Quantity ‡" : "Quantity — blank means the whole holding ‡"
+                      op.op === "add" ? "Quantity" : "Quantity — blank means the whole holding ‡"
                     }
                     value={
                       quantityDrafts.has(op.tagId)

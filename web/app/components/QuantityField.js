@@ -82,7 +82,7 @@ export default function QuantityField({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         onBlur={(e) => onCommit?.(e.target.value)}
-        aria-label={ariaLabel ?? (typeof label === "string" ? label : "Quantity ‡")}
+        aria-label={ariaLabel ?? (typeof label === "string" ? label : "Quantity")}
       />
       <button
         type="button"

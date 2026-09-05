@@ -20,7 +20,7 @@ function buildConverseModal(roomId) {
     .setTitle("Start a conversation ‡")
     .addLabelComponents(
       new LabelBuilder()
-        .setLabel("Name ‡")
+        .setLabel("Name")
         .setDescription("What this conversation is about. Everyone you invite sees it. ‡")
         .setTextInputComponent(
           new TextInputBuilder()

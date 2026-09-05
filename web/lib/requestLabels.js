@@ -11,9 +11,9 @@
 
 export const REQUEST_TYPE_LABELS = {
   FULFILL_DESIRE: "Fulfill Desire",
-  ADD_TAG: "Craft ‡",
+  ADD_TAG: "Craft",
   BUY_TAGS: "Store Purchase",
-  REMOVE_TAG: "Destroy ‡",
+  REMOVE_TAG: "Destroy",
   CONSUME_TAG: "Consume Tag",
   TRANSFER_RESOURCES: "Transfer Resources",
   TRANSFER_TAG: "Transfer Tag",
@@ -28,12 +28,12 @@ export const REQUEST_TYPE_LABELS = {
   FREE_CHARACTER: "Free Character",
   HARM_CHARACTER: "Harm Character",
   BURY_CHARACTER: "Bury Person",
-  BUTCHER_CORPSE: "Butcher ‡",
-  EXTRACT_GODFLESH: "Extract ‡",
-  PACKAGE_ITEMS: "Package ‡",
-  ENGRAVE_HEADSTONE: "Engrave ‡",
+  BUTCHER_CORPSE: "Butcher",
+  EXTRACT_GODFLESH: "Extract",
+  PACKAGE_ITEMS: "Package",
+  ENGRAVE_HEADSTONE: "Engrave",
   BIRD_MESSAGE: "Bird Message",
-  BUILD_STRUCTURE: "Build ‡",
+  BUILD_STRUCTURE: "Build",
   // Declared in the enum ahead of use (the building migration); nothing
   // files one until milestone C's damage tools. The label lands with the
   // value so a first row never renders as a raw enum.

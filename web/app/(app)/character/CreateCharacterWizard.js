@@ -90,7 +90,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
         <span className="flex flex-wrap items-baseline gap-2">
           <strong>
             {role.name}
-            {role.grantsLeader && <Tooltip text="Leader ‡"> ★</Tooltip>}
+            {role.grantsLeader && <Tooltip text="Leader"> ★</Tooltip>}
           </strong>
           {/* The bucket heading no longer says which faction this is — a
               bucket holds several — so the card does. */}
@@ -112,7 +112,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
         {role.difficulty && <span className="chip">{titleCase(role.difficulty)}</span>}
         {/* Said whether or not this player is blocked: a whitelisted seat they
             CAN take should still say what it is. */}
-        {role.requiresWhitelist && <span className="chip">Whitelisted ‡</span>}
+        {role.requiresWhitelist && <span className="chip">Whitelisted</span>}
         {role.extraStartingPoints > 0 && (
           <span className="chip text-positive">
             +{role.extraStartingPoints} pts

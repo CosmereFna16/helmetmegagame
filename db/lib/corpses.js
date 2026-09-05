@@ -114,7 +114,7 @@ async function corpsesInReach(prisma, character, { rooms = null } = {}) {
 
   return [
     ...held.map((ct) =>
-      row(ct.tag, { kind: "character", id: character.id, name: "You ‡" }, ct.quantity),
+      row(ct.tag, { kind: "character", id: character.id, name: "You" }, ct.quantity),
     ),
     // discordThreadId rides along so a caller can hand the source straight to
     // roomAnnounce.js#announceInRoom, which wants the room row and not an id.

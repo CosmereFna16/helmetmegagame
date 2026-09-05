@@ -65,7 +65,7 @@ function roomStarterRow(room) {
       type: BUTTON,
       style: SECONDARY,
       custom_id: `${ROOM_STORAGE_PREFIX}${room.id}`,
-      label: "Storage ‡",
+      label: "Storage",
     },
   ];
   if (room.slug === INTERCOM_ROOM_SLUG) {
@@ -73,7 +73,7 @@ function roomStarterRow(room) {
       type: BUTTON,
       style: SECONDARY,
       custom_id: `${ROOM_INTERCOM_PREFIX}${room.id}`,
-      label: "Intercom ‡",
+      label: "Intercom",
     });
   }
   // Red, and the only red button in the game. It arms a gun that does not check

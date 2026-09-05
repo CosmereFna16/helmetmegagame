@@ -224,7 +224,7 @@ export default function StatusPanel({
 
           {/* Where they stand is the Location; the zone is the region it
               sits in, and what the #summary channel belongs to. */}
-          <Row label="Location">{character.location?.name ?? "Nowhere ‡"}</Row>
+          <Row label="Location">{character.location?.name ?? "Nowhere"}</Row>
 
           <Row label="Zone">{character.zone?.name ?? "Unassigned"}</Row>
 
@@ -261,7 +261,7 @@ export default function StatusPanel({
           </Row>
 
           {carry && (
-            <Row label="Carrying ‡">
+            <Row label="Carrying">
               {/* The cap carries a title= breakdown so a player can see what is
                   holding it up — the base, then one line per active
                   multiplier. Native tooltip on purpose: it needs no state, no

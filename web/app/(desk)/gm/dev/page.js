@@ -797,7 +797,7 @@ export default async function DevPanelPage({ searchParams }) {
                   <span className="field-label">Location</span>
                   <Select name="locationId">
                     {groupLocationsByZone(locations).map((group) => (
-                      <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned ‡"}>
+                      <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned"}>
                         {group.locations.map((l) => (
                           <option key={l.id} value={l.id}>{l.name}</option>
                         ))}

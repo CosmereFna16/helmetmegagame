@@ -104,18 +104,18 @@ export const ACTION_HELP = {
 export const ACTION_SECTIONS = [
   {
     key: "self",
-    label: "You ‡",
+    label: "You",
     actions: [
-      { mode: "craft", icon: HammerIcon, label: "Craft ‡", gate: "canCraft" },
+      { mode: "craft", icon: HammerIcon, label: "Craft", gate: "canCraft" },
       {
         mode: "destroy",
         icon: TrashIcon,
-        label: "Destroy ‡",
+        label: "Destroy",
         gate: "canDestroy",
       },
       { mode: "consume", icon: MealIcon, label: "Consume", gate: "canConsume" },
       // No gate: you can always move ⬢ or put something down.
-      { mode: "transfer", icon: HandOffIcon, label: "Transfer ‡" },
+      { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
       // Both grey on a list the server already filtered to who could teach
       // YOU (or whom you could teach) — a fact about your own sheet.
       {
@@ -135,7 +135,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "confess",
         icon: BandageIcon,
-        label: "Confess ‡",
+        label: "Confess",
         gate: "canConfess",
       },
       // The two Godard Factory verbs. Both HIDE rather than grey when the
@@ -146,14 +146,14 @@ export const ACTION_SECTIONS = [
       {
         mode: "extract",
         icon: ExtractIcon,
-        label: "Extract ‡",
+        label: "Extract",
         show: "canSeeExtract",
         gate: "canExtract",
       },
       {
         mode: "package",
         icon: CrateIcon,
-        label: "Package ‡",
+        label: "Package",
         show: "canSeePackage",
       },
     ],
@@ -194,19 +194,19 @@ export const ACTION_SECTIONS = [
       {
         mode: "butcher",
         icon: CleaverIcon,
-        label: "Butcher ‡",
+        label: "Butcher",
         gate: "canButcher",
       },
       { mode: "bury", icon: GraveIcon, label: "Bury Person" },
       // Engraving types a name rather than picking one — the reasoning that
       // used to sit on Bury, and it applies harder here: this searches every
       // zone, so a dropdown would list every unburied body in Ravenheart.
-      { mode: "engrave", icon: HeadstoneIcon, label: "Engrave ‡" },
+      { mode: "engrave", icon: HeadstoneIcon, label: "Engrave" },
     ],
   },
   {
     key: "letters",
-    label: "Letters ‡",
+    label: "Letters",
     actions: [
       // Both HIDE on literacy rather than greying, the same reasoning the
       // Factory verbs give: an eternally dead Write button would teach a
@@ -216,7 +216,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "write",
         icon: QuillIcon,
-        label: "Write ‡",
+        label: "Write",
         show: "canRead",
         gate: "canWrite",
       },

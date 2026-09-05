@@ -1281,7 +1281,7 @@ async function handleConverseOpen(interaction, locationId) {
       options.map((room) => ({
         label: room.name.slice(0, 100),
         value: room.id,
-        ...(room.kind === "PRIVATE" ? { description: "Private ‡" } : {}),
+        ...(room.kind === "PRIVATE" ? { description: "Private" } : {}),
       })),
     );
 

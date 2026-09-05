@@ -14,64 +14,64 @@ const DESTROY_CONFIRM = {
   title: "Destroy this structure? ‡",
   message:
     "It becomes a ruin on Examine and any edge it held reverts. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
-  confirmLabel: "Destroy ‡",
+  confirmLabel: "Destroy",
 };
 
 const CLEAR_CONFIRM = {
   title: "Clear this wreck? ‡",
   message: "The row is deleted — Examine forgets it entirely. There is no undo. ‡",
-  confirmLabel: "Clear ‡",
+  confirmLabel: "Clear",
 };
 
 const VERBS = {
   COMPLETE: [
     {
-      label: "Damage ‡",
+      label: "Damage",
       action: damageStructure,
       confirm: {
         title: "Damage this structure? ‡",
         message:
           "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired. Any edge it holds stays held. ‡",
-        confirmLabel: "Damage ‡",
+        confirmLabel: "Damage",
       },
     },
-    { label: "Destroy ‡", action: destroyStructure, danger: true, confirm: DESTROY_CONFIRM },
+    { label: "Destroy", action: destroyStructure, danger: true, confirm: DESTROY_CONFIRM },
   ],
   DAMAGED: [
     {
-      label: "Repair ‡",
+      label: "Repair",
       action: repairStructure,
       confirm: {
         title: "Repair this structure? ‡",
         message: "It stands whole again, and its effects come back. ‡",
-        confirmLabel: "Repair ‡",
+        confirmLabel: "Repair",
       },
     },
-    { label: "Destroy ‡", action: destroyStructure, danger: true, confirm: DESTROY_CONFIRM },
+    { label: "Destroy", action: destroyStructure, danger: true, confirm: DESTROY_CONFIRM },
   ],
   UNDER_CONSTRUCTION: [
     {
-      label: "Destroy ‡",
+      label: "Destroy",
       action: destroyStructure,
       danger: true,
       confirm: {
         title: "Destroy this build site? ‡",
         message:
           "Sabotage destroys the work done, never silently: the site becomes a ruin on Examine and its crew are told. ‡",
-        confirmLabel: "Destroy ‡",
+        confirmLabel: "Destroy",
       },
     },
   ],
-  RUINED: [{ label: "Clear ‡", action: clearStructure, danger: true, confirm: CLEAR_CONFIRM }],
+  RUINED: [{ label: "Clear", action: clearStructure, danger: true, confirm: CLEAR_CONFIRM }],
   ABANDONED: [
     {
-      label: "Clear ‡",
+      label: "Clear",
       action: clearStructure,
       danger: true,
       confirm: {
         title: "Clear this abandoned groundwork? ‡",
         message: "The row is deleted — Examine forgets it entirely. There is no undo. ‡",
-        confirmLabel: "Clear ‡",
+        confirmLabel: "Clear",
       },
     },
   ],
@@ -120,22 +120,22 @@ export default function StructuresTable({ structures }) {
         options={table.options}
         query={table.query}
         setQuery={table.setQuery}
-        searchLabel="Search ‡"
+        searchLabel="Search"
         searchPlaceholder="Type, place, builder… ‡"
       />
       {error && <p className="text-sm text-accent">{error}</p>}
       <TableScroll minWidth="64rem">
         <thead>
           <tr>
-            <SortHeader label="Where ‡" sortKey="locationName" sort={table.sort} onSort={table.toggleSort} />
-            <SortHeader label="Structure ‡" sortKey="typeName" sort={table.sort} onSort={table.toggleSort} />
-            <SortHeader label="Status ‡" sortKey="statusLabel" sort={table.sort} onSort={table.toggleSort} />
-            <th scope="col">Work ‡</th>
-            <th scope="col">Crew ‡</th>
-            <th scope="col">Builder ‡</th>
-            <th scope="col">Paid ‡</th>
-            <th scope="col">Edge ‡</th>
-            <th scope="col">Rulings ‡</th>
+            <SortHeader label="Where" sortKey="locationName" sort={table.sort} onSort={table.toggleSort} />
+            <SortHeader label="Structure" sortKey="typeName" sort={table.sort} onSort={table.toggleSort} />
+            <SortHeader label="Status" sortKey="statusLabel" sort={table.sort} onSort={table.toggleSort} />
+            <th scope="col">Work</th>
+            <th scope="col">Crew</th>
+            <th scope="col">Builder</th>
+            <th scope="col">Paid</th>
+            <th scope="col">Edge</th>
+            <th scope="col">Rulings</th>
           </tr>
         </thead>
         <tbody>

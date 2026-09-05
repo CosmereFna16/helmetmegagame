@@ -61,13 +61,13 @@ function locationAnchorRow(location) {
         type: BUTTON,
         style: SECONDARY,
         custom_id: `${EXAMINE_PREFIX}${locationId}`,
-        label: "Examine ‡",
+        label: "Examine",
       },
       {
         type: BUTTON,
         style: SECONDARY,
         custom_id: `${CONVERSE_PREFIX}${locationId}`,
-        label: "Converse ‡",
+        label: "Converse",
       },
       ...(board
         ? [
@@ -75,7 +75,7 @@ function locationAnchorRow(location) {
               type: BUTTON,
               style: SECONDARY,
               custom_id: `${NOTICEBOARD_PREFIX}${locationId}`,
-              label: "Noticeboard ‡",
+              label: "Noticeboard",
             },
           ]
         : []),
