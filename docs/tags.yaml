@@ -7179,7 +7179,7 @@ tags:
   # description column is broadcast to every signed-in browser and these are
   # meant to be found rather than read off the catalog. See PAPERWORK.md.
   #
-  # Bascinet's words, all five of them, so none carries a mark.
+  # Bascinet's words, all thirteen of them, so none carries a mark.
   the-wise-plague-doctor:
     catalog: gm
     name: The Wise Plague Doctor
@@ -7249,6 +7249,238 @@ tags:
       by David L. Goodstein
 
       "Ludwig Boltzmann, who spent much of his life studying statistical mechanics, died in 1906 by his own hand. Paul Ehrenfest, carrying on the work, died similarly in 1933. Now it is our turn to study statistical mechanics."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Madam Molley's three, a matched set. A royal chef's recipe books, working up
+  # from flatbread to pie crust — the ladder is the joke, and the third one is
+  # only useful to somebody who already read the first.
+  flatbreads-sweet-breads-and-red-breads:
+    catalog: gm
+    name: Flatbreads, Sweet Breads, and Red Breads
+    category: items
+    group: items-paper
+    bookText: |-
+      A guide on basic baking, by Madam Molley, a royal chef half a century before our time.
+
+      Every household has there staple foods, and for most of the pleasent peasents its bread, plain and simple. I write this recipe book for those young folks who never learnt from their mothers or need something new. I bring you the simple flat bread with nothing more than the essentials, the sweet breads filled with fruits as a nice after bread treat, and the illustrious red bread rumored to come from cows blood, but is actually an ancient recipe using the illustrious red bean.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  pancakes-cupcakes-and-cake-cakes:
+    catalog: gm
+    name: Pancakes, Cupcakes, and Cake Cakes
+    category: items
+    group: items-paper
+    bookText: |-
+      A guide on complex baking, by Madam Molley, a royal chef half a century before our time.
+
+      Many people have independentaly found sweet breads, or sweet loafs, but few I've met have ever rediscovered the wonderous texture of cake themselves. I write this Tome for those chefs who hold the budget for sugar and the customers to pay for it. There is the pancake, a wondoursly simple take cooked in your standard pan topped with fruits or cream. There stands the cupcake, a small form factor cake based off muffins, perfect for tea partys. Then I bring you the classic cake, able to adapt to any size, audience, or occasion whether personel or commercial.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  pastrys-crumblys-and-pies:
+    catalog: gm
+    name: Pastry's, Crumbly's, and Pies
+    category: items
+    group: items-paper
+    bookText: |-
+      A guide on advanced baking, by Madam Molley, a royal chef half a century before our time.
+
+      People know there baked goods for the soft texture and filling nature, but I introduce to those most talented chefs the baking that results in the flaky and crumbly tastes only those of times long past enjoyed. There is the pastry's made of dough folded with perfection that gives you flaking. The crumbles made of sugar and oats that crunches dissolves for a perfect dessert. Finally I supply the recipe for the perfect pie crust, that both flakes and crumbles ro perfecrly outline any filling whether sweet or savoury.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Three short pieces, unsigned. Nobody in the fiction knows who wrote them.
+  the-bird:
+    catalog: gm
+    name: The Bird
+    category: items
+    group: items-paper
+    bookText: |-
+      Lilac was either a pigeon or a demon, depending on the account, or perhaps she never existed to begin with. Not many descriptions on her physical form exist because the most notable thing about The Bird is the devastation that follows in her absence. Enemies became allies, and the allied betrayed another. The fortress never knew peace and the town never knew silence after The Bird had disappeared. Screams that even The Watch could not handle filled the days and nights to follow. Some medics in contemporary society will heal and feed whatever birds they come across out of respect for the Mother Healer, who is said to have offered her services to save Lilac.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  nillum:
+    catalog: gm
+    name: Nillum
+    category: items
+    group: items-paper
+    bookText: |-
+      So long have I dreamed of light to share its gift with my skin. I crave the warmth of a loved one and the clarity to know thyself in the mirror. The travelers speak of green. Green leaves above, green grass below, green forests on the horizon. I know of green. Green is some of the moss on these dark metallic walls. These numb walls. The walls that numb me back. The numbness makes a divide in the current of my despair for the arrival of my tears. I wonder if the sun feels as warm as the wet running down my cheek, and if I will only know the coldness of the air that comes after the emotion falls to the floor.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  amour-et-socialisme-translated:
+    catalog: gm
+    name: Amour et Socialisme (Translated)
+    category: items
+    group: items-paper
+    bookText: |-
+      Women love better when their material conditions are satisfied. It is in the interest of commoners and in the interest of lovers to ensure that housing, food, and medical care is provided to all. Feel the passion, the aggressive intimacy, the primal desire when one no longer needs to think about where their next meal comes from or their preferred method of sacrificing their health. To love truly is to be socialist. The royalty and the privileged fates control our resources so that we fear and hate and cry instead of becoming empowered to smile, to laugh, to kiss. Go organize your friends and family, and love freely.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Two chapters of the same novel, bound separately, because finding one is a
+  # different event from finding the other — and neither is the whole book.
+  a-murmur-darkly-last-call:
+    catalog: gm
+    name: "A Murmur Darkly: Last Call"
+    category: items
+    group: items-paper
+    bookText: |-
+      by G.C Aspitt
+
+      Chapter 7: Last Call
+
+      It was thirteen minutes past midnight and I was pulling my best sailboat impression: three sheets to the wind and sinking fast. The inn’s usual score dulled around me to a pleasant fuzz… and somewhere on the way it ran into my other senses and convinced them to tag along.
+
+      “G.C,” growled the angry shape idling behind the bar, “You’re cut off, ya bum.”
+
+      I’d been called worse. Deadbeat. Loudmouth. Cave Fungus. Most folk led with their fists, then their words. Mine had to hike across a desert to wriggle free of my dry, cracked lips.
+
+      “Sol”, I began in a haggard voice wholly-unfamiliar even to me, “You talk to all your customers like that?”
+
+      The shape shrugged. “A customer’s someone who pays fer’ their drinks.”
+
+      Touche.
+
+      “C’mon,” He grunted as he put down that mug he never could quite seem to finish polishing, “Let’s get you home before you sprout roots on my bar-”
+
+      Sol didn’t startle easy–neither did I, but you can’t tend bar for long in Ravenheart with weak nerves–but when the rag-wrapped hand slammed onto the bar next to me, his fuzzy shadow grew ever-so-fainter. An innkeep getting lost in his own bar would be a sight indeed, but Sol looked ready to give it a whirl.
+
+      “G.C…” Purred the hand’s owner in a voice reeking of whiskey and ash, “Anyone ever tell you drinking’s bad for your health?”
+
+      “People tell me heaps of things,” I answered weakly–each word crackling like sand beneath a booth, “You gonna tell me something too? I was just about to order another round.”
+
+      “They were right–you ARE good…” Cackled my cajoler as his smoky smile slipped into my space, “Yea, I got a coupla’ somethins’ for ya, bright-eyes: ‘Bingo. Sends. His. Regards.’”
+
+      There are plenty of things I’d kill to forget… but as a horde of gloved hands wrapped around my coat collar, that name jumped to the top.
+
+      The past, I’ve found, has a habit of catching up to you…
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  a-murmur-darkly-aches-and-pains:
+    catalog: gm
+    name: "A Murmur Darkly: Aches and Pains"
+    category: items
+    group: items-paper
+    bookText: |-
+      by G.C Aspitt
+
+      Chapter 4: Aches and Pains
+
+      “G.C… we have GOT to stop meeting like this.”
+
+      I disagreed, not that I was in any condition to argue. I wasn’t what you’d call devout–the things I’d seen didn’t inspire faith in any ‘higher’ beings… but it was true what those dusty old sermons said:
+
+      You can find angels in all kinds of places… even musty old tombs reeking of stale blood and stiff medicine.
+
+      “Flip over.” The voice was curt, but calm–reassuring like an old leather jacket… the kind you’d never throw out. “Went looking for trouble again, did you?”
+
+      “If only.” I grunted, opening my stinging eyes just long enough to close them as a needle the size of my foot jabbed my arm, “Trouble, well-”
+
+      “‘Finds me.’” The bearded Serpent recited, their scoff supply having long-since run empty, “The question I’m dying to know the answer to,” He continued sardonically as the blood marching through my veins slows to a trot, “Is when will ‘I’ stop finding you?”
+
+      “C’mon, Doc,” I gurgled, words oozing from my cut and bumped lips like ale froth, “Don’t think like that–this is our little routine! If it ever stopped, well, I daresay you wouldn’t know what to do with that sudden wellspring of spare time…”
+
+      “‘Sleep’ comes to mind,” He grumbled while a pair of invisible drumsticks started to play a solo on my skull, “Which reminds me–they found another one.”
+
+      If my blood could run any colder, I’d be an icicle. “Where?”
+
+      “You know where.” Sighed the sawbones with the usual clinical disinterest, “Just follow the mourners.”
+
+      “I’m going.” I growled as I fell from the gurney with the grace of a brick, “Don’t try to stop me.”
+
+      “Were it so easy…” Droned the doctor as I stumbled up the swaying, spinning staircase, “I’d tell you to take care, but I know you won’t.”
+
+      People had a knack for making bold claims about me in this burg…
+
+      The sad part is, they were usually right.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  a-murmur-darkly-a-shot-in-the-dark:
+    catalog: gm
+    name: "A Murmur Darkly: A Shot in the Dark"
+    category: items
+    group: items-paper
+    bookText: |-
+      by G.C Aspitt
+
+      Chapter 2: A Shot in the Dark
+
+      “You live like this?”
+
+      The girl circled my office like a vulture, cradling the drink I poured for her tighter than her firstborn.
+
+      “I wouldn’t call it ‘living’,” I answered with an impish grin. “Sit, please.”
+
+      “Stand, thanks.” She replied with a humorless smile. Manners were a nice idea, but between those and comfort, I was a creature of habit. “So,” I began, flopping into my moth-eaten old chair and planting my heels on the sole uncluttered spot on my desk, “You aren’t the new Tax Collector, I take it?”
+
+      A corner of her mouth climbed a fraction of an inch. “Do I look like a Tax Collector?”
+
+      “I haven’t figured out what you look like yet,” I fired back. “Start talking–I’ll figure it out eventually…”
+
+      “Try ‘A Concerned Citizen.’” She answered flatly–eyes glimmering in the candlelight like gemstones… or a predator’s gaze. I silently tried it… wasn’t a fan.
+
+      “Tell me,” Continued the girl as she paced the room like a cat caught in a well, “What do you know about Dentists?”
+
+      “About as much as I know about augury.” I answered with a shrug.
+
+      “Which is?”
+
+      “Not much.”
+
+      The girl scoffed. It wasn’t a laugh, but we’d get there eventually. “And murders?”
+
+      “Nasty business.”
+
+      “What do you know about them?”
+
+      “Don’t do ‘em.”
+
+      The shift in her stony expression told me we’d reached the same conclusion:
+
+      It was gonna be a long night…
     pointCost: 0
     tradeable: true
     weight: 1

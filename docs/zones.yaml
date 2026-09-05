@@ -395,6 +395,9 @@ zones:
             description: >-
               Automated machineries used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
             access: [sewer-key, tunnel-rat]
+            stash:
+              items:
+                feces: 6
           pushers-room:
             name: Pusher's Room
             description: >-
@@ -579,6 +582,14 @@ zones:
                 caspians-diary: 1
                 100-years-of-solitude: 1
                 the-art-of-war: 1
+                flatbreads-sweet-breads-and-red-breads: 1
+                pancakes-cupcakes-and-cake-cakes: 1
+                pastrys-crumblys-and-pies: 1
+                the-bird: 1
+                nillum: 1
+                amour-et-socialisme-translated: 1
+                a-murmur-darkly-last-call: 1
+                a-murmur-darkly-aches-and-pains: 1
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
           # the Baron.
@@ -1006,6 +1017,7 @@ zones:
                 feces: 4
                 alcohol: 3
                 crate-rv-6207-m: 1
+                a-murmur-darkly-a-shot-in-the-dark: 1
       farms:
         name: Farms
         description: >-
