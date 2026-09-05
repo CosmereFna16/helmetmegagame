@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -25,6 +26,9 @@ export default async function DevTagsPage() {
         // edit dialog's cure-ladder picker has to resolve the relation back
         // to the ids it posts.
         requirementSkills: { select: { id: true, name: true } },
+        // The detail sheet's "Unlocks N Desires" block. Unfiltered here on
+        // purpose — /gm/dev/tags is the GM's unfiltered view of the catalog.
+        ...DESIRE_UNLOCK_SELECT,
       },
     }),
     prisma.tagGroup.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, category: true } }),

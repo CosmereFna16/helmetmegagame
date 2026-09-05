@@ -1,4 +1,5 @@
 import { prisma, startingTagNames } from "@lifeweb/db";
+import { DESIRE_UNLOCK_SELECT, stripEmptyUnlocks } from "@/lib/referenceData";
 
 // The tag catalog exactly as PointBuy consumes it, shared by the creation
 // wizard's loader and /store so the two menus can never disagree about a
@@ -40,9 +41,13 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
       // conflictingTag() reads conflictsWithIds off this projection — drop it
       // and a conflict silently stops applying in the menu.
       conflictsWith: { select: { id: true } },
+      // Which Desires buying this tag would open. The whole point of the
+      // section on the buying screen, so this is the one place it matters
+      // most (web/app/components/DesireUnlocks.js).
+      ...DESIRE_UNLOCK_SELECT,
     },
   });
-  return tags.map((t) => ({
+  return tags.map((t) => stripEmptyUnlocks({
     id: t.id,
     // The stable identifier. The creation wizard needs it to work out which
     // titles a build has earned (db/lib/titles.js keys on slugs), since
@@ -85,5 +90,10 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
     // see where it ends before they take the points for it.
     defaultDurationTurns: t.defaultDurationTurns,
     expiresInto: t.expiresInto,
+    // Carried through the projection by hand like everything else here — the
+    // relations are on the row but PointBuy only ever sees what this map
+    // builds, so omitting them renders an empty Unlocks section everywhere.
+    desireRequiredBy: t.desireRequiredBy,
+    desireAllRequiredBy: t.desireAllRequiredBy,
   }));
 }

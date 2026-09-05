@@ -18,6 +18,60 @@ import { toDocumentPreviewText } from "@/lib/documentPreview";
 // the GROUP gate only — a tag's own requiredTag stays visible so
 // {tag:ranged-archer} references still work for players who haven't bought it.
 //
+// The reverse of a Desire's tag gate: which Desires this tag OPENS. Read from
+// the two UNLOCK relations only — `desireForbiddenBy` (requiresNotTags) is the
+// locking half and never renders (web/lib/desireUnlocks.js says why).
+//
+// A separate export because FOUR queries load the catalog with four
+// hand-written selects — this module, pointBuyCatalog.js, /documents and
+// /gm/dev/tags — and a tooltip section that silently renders nothing on one of
+// them is exactly the drift TAG_CHIP_FIELDS exists to prevent. Spread it, do
+// not retype it.
+//
+// Deliberately four columns and a `retired` filter rather than the whole
+// template: TAG_CHIP_FIELDS is also read by /gm/turns (web/lib/moveRows.js),
+// so this rides along on the busiest tag query in the app. 274 templates
+// exist, ~66 tags carry any unlock at all, and every other row comes back
+// empty.
+export const DESIRE_UNLOCK_SELECT = {
+  desireRequiredBy: {
+    where: { retired: false },
+    select: {
+      slug: true,
+      name: true,
+      tier: true,
+      // Both needed to tell "tag AND role" from "tag OR role" — see
+      // desireUnlocks.js#rolesNote, which is the one place that logic lives.
+      requiresAnyOf: true,
+      requiresAnyRoleSlugs: true,
+    },
+    orderBy: [{ tier: "desc" }, { name: "asc" }],
+  },
+  desireAllRequiredBy: {
+    where: { retired: false },
+    select: {
+      slug: true,
+      name: true,
+      tier: true,
+      // The co-requirements, so the row can say "with Butcher".
+      requiresAllTags: { select: { slug: true, name: true } },
+    },
+    orderBy: [{ tier: "desc" }, { name: "asc" }],
+  },
+};
+
+// ~940 of the ~1000 tags in the catalog unlock no Desire at all, and Prisma
+// returns `[]` for each of them on both relations. Left in, that is about
+// 27KB of `"desireRequiredBy":[]` shipped to every browser on every page —
+// measured, not guessed — for information that is the absence of information.
+// desireUnlocksFor() already treats a missing key and an empty array the same,
+// so dropping them changes nothing but the wire.
+export function stripEmptyUnlocks(tag) {
+  if (tag.desireRequiredBy?.length || tag.desireAllRequiredBy?.length) return tag;
+  const { desireRequiredBy, desireAllRequiredBy, ...rest } = tag;
+  return rest;
+}
+
 // Exactly the Tag columns TagChip reads. Shared so every TagChip caller
 // (this module, /gm/turns) uses the same shape instead of a copy that drifts.
 export const TAG_CHIP_FIELDS = {
@@ -68,6 +122,8 @@ export const TAG_CHIP_FIELDS = {
   // cannot tell you that.
   concealsIdentity: true,
   forcesConceal: true,
+  // Drives TagChip's "Unlocks" section.
+  ...DESIRE_UNLOCK_SELECT,
 };
 
 // Session-dependent, so it must never be cached across callers.
@@ -111,7 +167,8 @@ export async function getVisibleTags() {
 
   return tags
     .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
-    .map(composePaper(viewer, held));
+    .map(composePaper(viewer, held))
+    .map(stripEmptyUnlocks);
 }
 
 // A paper's text NEVER travels in `description` — that column goes to every

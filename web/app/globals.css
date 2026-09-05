@@ -1311,6 +1311,72 @@ input[type="radio"]:disabled {
   margin: 0;
 }
 
+/* The "Unlocks" block on a tag panel — which Desires holding the tag opens.
+   Shares .tag-meta's rule-above-it treatment so the two read as sibling
+   sections of one panel rather than as two unrelated lists.
+
+   A three-column grid rather than a table: the name wraps, the tier stays
+   pinned right, and the note trails on its own line when the name has taken
+   the width. Grid rows are what keep the tier aligned across rows of very
+   different name lengths. */
+.desire-unlocks {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.desire-unlocks-head {
+  display: block;
+  color: var(--muted);
+  margin: 0 0 3px;
+}
+
+.desire-unlocks-list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each row is its own two-column subgrid so a wrapped name cannot push its own
+   tier out of the shared right-hand column. */
+.desire-unlocks-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+
+.desire-unlocks-name {
+  color: var(--text);
+}
+
+.desire-unlocks-tier {
+  color: var(--muted);
+  text-align: right;
+  font-size: var(--fs-2xs);
+}
+
+/* Spans both columns on the line below the name it belongs to: a
+   co-requirement is a qualifier on the row, not a third value in it, and
+   squeezing it beside the tier made three cramped columns out of two clear
+   ones. */
+.desire-unlocks-note {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  padding-left: var(--sp-2);
+}
+
+/* TagDetailSheet is a full modal, not a 280px hover panel, so it can afford
+   the room the tooltip cannot. */
+.desire-unlocks-roomy .desire-unlocks-list {
+  gap: 4px var(--sp-3);
+}
+
 .info-icon-glyph {
   display: inline-flex;
   align-items: center;

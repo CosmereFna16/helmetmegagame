@@ -27,6 +27,7 @@ import ChipText from "./ChipText";
 import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
 import HoverCard from "./HoverCard";
+import DesireUnlocks from "./DesireUnlocks";
 import Select from "./Select";
 
 // The point-buy experience, shared by both stores: a catalog pane on the
@@ -70,6 +71,7 @@ function BuildTagName({ tag }) {
           Requires: {prerequisiteNames(tag).join(", ")}
         </p>
       )}
+      <DesireUnlocks tag={tag} />
     </>
   );
   return (
@@ -143,6 +145,11 @@ function TagRow({ tag, isSelected, cost, unaffordable, conflictName, onToggle })
               Can&apos;t be held with {conflictName}.
             </span>
           )}
+          {/* Inline rather than on hover, unlike everywhere else this renders:
+              this row IS the buying decision, and what a personality tag opens
+              is the main thing it does. All spans, because this row is a
+              <button> — see DesireUnlocks.js. */}
+          <DesireUnlocks tag={tag} />
         </span>
       </button>
     </li>

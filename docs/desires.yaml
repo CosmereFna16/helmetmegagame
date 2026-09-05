@@ -1295,12 +1295,17 @@ desires:
     requires:
       anyTags: [fundamentalist]
 
+  # Confession is the ORDINARY practice of the faith, not an advanced one, so
+  # Post-Christian alone opens it. Fundamentalist stays on the list even though
+  # it requiredTag: post-christian and so can never be held without it — being
+  # named here is what makes the Fundamentalist tag advertise the Desire on its
+  # own tooltip.
   confess-your-sins:
     name: Confess your sins
     tier: 2
     families: [faith]
     requires:
-      anyTags: [pilgrim, fundamentalist]
+      anyTags: [post-christian, pilgrim, fundamentalist]
     cooldownTurns: 4
 
   attend-a-sermon:

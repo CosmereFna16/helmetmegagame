@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Modal from "@/app/components/Modal";
 import ChipText from "@/app/components/ChipText";
 import ChipLabel from "@/app/components/ChipLabel";
+import DesireUnlocks from "@/app/components/DesireUnlocks";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
@@ -270,6 +271,20 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
             </Row>
           )}
         </div>
+        {/* Below the rows, not inside them: the "Unlocks" Row above already
+            means UNLOCKED TAGS, and two rows sharing that word would need the
+            reader to tell them apart by their contents. This block names
+            Desires in its own heading, so it says which "unlocks" it is.
+
+            `visibleTagSlugs`: a co-requirement note must never print the name
+            of a tag this viewer cannot see. `tags` is the list this sheet was
+            handed, already filtered for whoever is reading — the GM catalog
+            passes the unfiltered one, which is right for a GM. */}
+        <DesireUnlocks
+          tag={tag}
+          compact={false}
+          visibleTagSlugs={new Set(tags.map((t) => t.slug))}
+        />
       </div>
     </Modal>
   );

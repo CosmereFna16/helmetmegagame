@@ -3,6 +3,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
 import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import ChipLabel from "./ChipLabel";
+import DesireUnlocks from "./DesireUnlocks";
 import ChipText from "./ChipText";
 import HoverCard from "./HoverCard";
 
@@ -149,6 +150,11 @@ export default function TagChip({
           <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} {Math.abs(tag.pointCost ?? 0) === 1 ? "pt" : "pts"}</span>
         </Meta>
       </dl>
+      {/* What holding this OPENS. Below the meta list rather than inside it:
+          the rows are a list of names, not label/value pairs, and a <dd> full
+          of them fought the two-column grid. Renders nothing for the ~900 tags
+          that unlock no Desire. */}
+      <DesireUnlocks tag={tag} />
     </>
   );
 

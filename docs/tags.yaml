@@ -1628,7 +1628,7 @@ tags:
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. Unlocks some Desires about zealotry."
+    description: "You are hardcore about your Post-Christian beliefs—perhaps more hardcore than the Church itself is. Heresy is a thing that burns. ‡"
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1691,7 +1691,7 @@ tags:
     name: Pilgrim
     category: general
     group: general-beliefs
-    description: "Going to the Cathedral for a sermon is a valid Desire for you."
+    description: "The road to the Cathedral is worth walking, and you walk it. ‡"
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true

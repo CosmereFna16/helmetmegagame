@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyZones } from "@/lib/gmZone";
@@ -52,6 +53,8 @@ export default async function DocumentsPage() {
         },
         requiredTag: { select: { name: true } },
         requirementSkills: { select: { id: true, slug: true, name: true } },
+        // The Tag Catalog tab's detail sheet, same block TagChip shows.
+        ...DESIRE_UNLOCK_SELECT,
       },
     }),
   ]);
