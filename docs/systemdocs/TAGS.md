@@ -248,14 +248,10 @@ the craft unless the maker holds every skill named, or a higher tier of it —
 `buildSkillAncestry` means `smithing-skilled` satisfies a `smithing`
 requirement.
 
-This paragraph used to claim the reverse, and so did SMITHING.md §2. The data
-was authored to match the claim: the whole Dead Simple rung was written
-`[smithing, crafting]` intending "either", which the code read as "both". That
-made the entry tier stricter than the rung above it. The fix went into the
-data — Dead Simple now names one skill per recipe, split by material — not
-into the gate. **There is no OR gate anywhere in the catalog** (`requiredTag`
-is a single FK, and this list is an AND), so never author a multi-skill recipe
-meaning "either".
+**There is no OR gate anywhere in the catalog** (`requiredTag` is a single FK,
+and this list is an AND), so never author a multi-skill recipe meaning
+"either" — this paragraph claimed the reverse until 2026-09-05 and the Dead
+Simple rung had been authored to match the wrong claim.
 
 A multi-skill recipe is therefore a deliberate conjunction. `barbed-net` is
 the one that exists: `[crafting, fundamentalist]`, i.e. only a zealot who can

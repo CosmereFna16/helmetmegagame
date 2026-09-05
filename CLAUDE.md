@@ -344,6 +344,12 @@ npm run db:doctor                    # the channel doctor: diffs Discord roles/
                                      #   start. See CHANNELS.md.
 npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`.
+npm run db:audit-craft-docs          # which craftables the player-facing recipe
+                                     #   papers (Smithing/Brewing/Cooking) never
+                                     #   mention. Those lists are hand-written,
+                                     #   so a new craftable is invisible until
+                                     #   somebody writes it in. No DB, exits 1
+                                     #   on a miss.
 npm run db:prune-orphan-roles        # deletes Discord character roles no living
                                      #   character claims. DRY RUN unless given
                                      #   `-- --apply`. Guards the 250-role cap.

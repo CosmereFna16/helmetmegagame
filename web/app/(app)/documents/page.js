@@ -155,12 +155,9 @@ export default async function DocumentsPage() {
   // conversion, and it is what lets this reuse the ordinary card and sheet
   // untouched.
   //
-  // Role.intro opens it, italicised. That line is the one-sentence hook the
-  // creation wizard shows (character/page.js), and until now it was the only
-  // place it appeared — so the document a player actually keeps opened cold,
-  // on a bullet list with no framing. Several roles had worked around that by
-  // repeating the intro as description[0]; those copies are gone from the
-  // YAML now, and this is what replaced them.
+  // Role.intro is the creation wizard's one-sentence hook (character/page.js);
+  // it opens the charter, italicised. No escaping guard, so an authored `_` or
+  // `*` in an intro would break the wrapper — none has one today.
   //
   // `role: true` is already in the include above, so this costs no query.
   //
@@ -168,9 +165,8 @@ export default async function DocumentsPage() {
   // getDocumentIndex builds only ever lists real rows.
   const roleIntro = character?.role?.intro?.trim() ?? "";
   const roleBullets = character?.role?.description ?? [];
-  // Intro OR bullets. Deleting the duplicated first bullet left Squire,
-  // Successor and Migrant with an empty description, and a length-only test
-  // would have dropped their charter off the page entirely.
+  // Intro OR bullets: some roles carry `description: []`, and a length-only
+  // test would drop their charter off the page entirely.
   const roleCharter =
     roleIntro || roleBullets.length > 0
       ? {
@@ -178,14 +174,13 @@ export default async function DocumentsPage() {
         key: "role",
         name: character.role.name,
         source: "Your Role",
-        description: [
-          roleIntro ? `_${roleIntro}_\n` : null,
-          ...roleBullets.map((line) => `- ${line}`),
-        ]
-          .filter(Boolean)
+        description: (roleIntro ? [`_${roleIntro}_\n`] : [])
+          .concat(roleBullets.map((line) => `- ${line}`))
           .join("\n"),
-        // Blank lines, not bullets: the card preview is flattened prose.
-        previewText: [roleIntro, ...roleBullets].filter(Boolean).join("\n\n"),
+        // Blank lines, not bullets: the card preview is flattened prose. Built
+        // by hand rather than through toDocumentPreviewText, which flattens a
+        // bullet list into one run-on string.
+        previewText: (roleIntro ? [roleIntro] : []).concat(roleBullets).join("\n\n"),
       }
       : null;
 

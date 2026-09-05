@@ -21,7 +21,11 @@ function formatTagRequirement(tag) {
   }
   if (tag.requirementResources) parts.push(`${tag.requirementResources} ⬢`);
   if (tag.requirementSkills?.length) {
-    parts.push(tag.requirementSkills.map((t) => t.name).join("/"));
+    // " + ", not "/": requirementSkills is an AND (every skill must be held,
+    // see requireRecipeSkills). A "/" read as "either" — which was harmless
+    // while every multi-skill recipe was a mislabelled Dead Simple item, and
+    // stopped being harmless the moment a real conjunction landed.
+    parts.push(tag.requirementSkills.map((t) => t.name).join(" + "));
   }
   // The ingredient, where a recipe has one that is actually enforced
   // (Tag.requirementItems — two recipes do). `label` is denormalized into the

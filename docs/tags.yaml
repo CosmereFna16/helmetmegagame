@@ -561,10 +561,8 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Ungated on purpose. The brief asked for "Cruel OR Practicus", and the
-  # catalog has no OR gate — requiredTag is a single FK (schema.prisma). So the
-  # conflicts carry the whole weight: anyone may take it, but not alongside a
-  # tag that says they wouldn't.
+  # Ungated on purpose: this wanted "Cruel OR Practicus" and the catalog has no
+  # OR gate — requiredTag is a single FK. The conflicts carry it instead.
   torturer:
     catalog: all
     name: Torturer
@@ -4741,11 +4739,8 @@ tags:
       skills: [smithing]
       gambit: false
 
-  # The recipe gate, not the tag gate. requirement.skills is checked as "do you
-  # hold every one of these" (requestActions.js#requireRecipeSkills) and accepts
-  # any tag slug, not just a skill — so naming Fundamentalist here means only a
-  # zealot can MAKE one, while the finished net stays lootable and tradeable
-  # like any other item.
+  # Gated on the recipe, not the tag, so the finished net stays lootable and
+  # tradeable. See TAGS.md §3b for why a belief can sit in `skills:`.
   barbed-net:
     catalog: all
     name: Barbed Net
@@ -5864,8 +5859,7 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  # No recipe and no `craftable`. The Cerberi and the Order carry these; nobody
-  # in Ravenheart can make another, because nobody knows what they are made of.
+  # Deliberately not craftable — see SMITHING.md §3.
   truncheon:
     catalog: all
     name: Truncheon

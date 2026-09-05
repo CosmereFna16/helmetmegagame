@@ -772,16 +772,20 @@ zones:
           inquisitor:
             name: Inquisitor
             intro: >-
-              It's your everlasting duty to expunge the barony's corruption.
+              It is your everlasting duty to protect your people by expunging the barony's corruption.
             description:
               - >-
-                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
+                Do you know what it means to love God?
               - >-
-                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
+                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen — _seen_ — the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
               - >-
-                Get the Bishop on your side. Deploy the Preacher wisely to radicalize and convert people to fundamentalism. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
+                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
               - >-
-                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
+                If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
+              - >-
+                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+              - >-
+                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: hard
             multiple: false
             starting_resources: 1
@@ -810,16 +814,20 @@ zones:
           practicus:
             name: Practicus
             intro: >-
-              Serve the Inquisitor. Radicalize the Town, the Church, and possibly even the Court.
+              Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the Court.
             description:
               - >-
-                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
+                Do you know what it means to love God?
               - >-
-                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
+                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen — _seen_ — the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
               - >-
-                Get the Bishop on your side. Follow the Inquisitor's orders. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
+                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. Work to radicalize the Town, the Church, and possibly even the Court.
               - >-
-                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
+                If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
+              - >-
+                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+              - >-
+                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: easy
             multiple: true
             weight: 2
@@ -847,13 +855,17 @@ zones:
               You are the Order's face. Speak in the Town Square for all to hear.
             description:
               - >-
-                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
+                Do you know what it means to love God?
               - >-
-                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
+                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen — _seen_ — the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
               - >-
-                Get the Bishop on your side. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
+                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
               - >-
-                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
+                If you can get the Bishop on your side, it will be a great boon.
+              - >-
+                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
+              - >-
+                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
             difficulty: easy
             multiple: true
             weight: 1

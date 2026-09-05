@@ -318,7 +318,7 @@ async function requireRecipeSkills(character, tag) {
   );
   if (missing.length) {
     throw new UserError(
-      `Making that needs ${missing.map((t) => t.name).join("/")}. ‡`,
+      `Making that needs ${missing.map((t) => t.name).join(" and ")}. ‡`,
     );
   }
 }

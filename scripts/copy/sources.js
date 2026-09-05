@@ -25,7 +25,7 @@ const YAML_SOURCES = [
     group: "content-roles",
     keys: ["intro", "description", "situation"],
     where: {
-      intro: "Role intro — the one-line pitch in the character creation wizard, and the Roles thread in #info.",
+      intro: "Role intro — the one-line pitch in the character creation wizard, the Roles thread in #info, and the italic first line of the role charter on /documents.",
       description: "Role charter bullet — rendered as one Markdown bullet on the role card in /documents.",
       situation: "Zone situation — opening-state prose for the zone.",
     },

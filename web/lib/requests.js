@@ -43,7 +43,7 @@ const DEAD_SIMPLE_SKILL_SLUGS = (slug) => slug === "crafting" || slug.startsWith
 
 // There is no "tier" column — Dead Simple is only a comment header in
 // docs/tags.yaml — so the tier is recognised by its recipe: 0 turns of work,
-// and a smithing or crafting skill gate. That is exactly the ten craftables
+// and a smithing or crafting skill gate. That is exactly the craftables
 // under the Dead Simple headers today. The one other tag in the catalog with
 // `turnsCost: 0` is Frostbite, whose requirement block is a CURE (medical
 // skills, the removal direction), so the skill test keeps it out.

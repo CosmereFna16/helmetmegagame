@@ -29,6 +29,7 @@
     "db:rebuild-info-channel": "node db/scripts/sync/rebuild-info-channel.js",
     "db:doctor": "node db/scripts/ops/doctor.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
+    "db:audit-craft-docs": "node db/scripts/ops/audit-craft-docs.js",
     "db:prune-orphan-roles": "node db/scripts/ops/prune-orphan-roles.js",
     "db:prune-stale-channels": "node db/scripts/ops/prune-stale-channels.js",
     "db:report-inactive-characters": "node db/scripts/ops/report-inactive-characters.js",

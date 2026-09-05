@@ -65,11 +65,17 @@ export function destroyableTags(characterTags = []) {
 // is: a recipe the dialog says you can make must be one craftRequest accepts.
 const WORKSHOP_SKILL_PREFIXES = ["smithing", "builder"];
 
-// A forge is required only when smith's work is UNAVOIDABLE. Every Dead Simple
-// recipe lists `[crafting, smithing]` — a work knife or a sling is a thing you
-// can whittle, and `crafting` is the path that says so — so a recipe offering
-// `crafting` at all needs no anvil. What is left is the real smith work: a
-// Broadsword naming only `smithing-skilled`, a Cart naming `builder-skilled`.
+// A forge is required only when smith's work is UNAVOIDABLE. Naming `crafting`
+// at all is the recipe saying "hands are enough" — a sling or a quarterstaff is
+// a thing you whittle. What is left needs an anvil: a Broadsword naming only
+// `smithing-skilled`, a Cart naming `builder-skilled`.
+//
+// This used to say every Dead Simple recipe listed `[crafting, smithing]` and
+// so none of them needed a forge. That is no longer true. The rung was written
+// that way meaning "either skill", but requirementSkills is an AND, so it
+// demanded both; splitting it by material fixed the gate and, as a side effect,
+// put the five metal Dead Simple recipes (work knife, hatchet, cudgel,
+// pitchfork, armored gloves) behind a forge for the first time.
 //
 // Workshop Equipment itself is exempt, and has to be: it is smith's work that
 // names `smithing-skilled`, so gating it on a workshop would mean nobody could
