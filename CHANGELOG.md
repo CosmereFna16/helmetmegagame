@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Verify pass: five real holes in the camera, the shout and the die
+
+✎ A GM's staged "Relocate to" into the Depths rolled no Caving Die at all. The old turn-start sweep used to catch those people; it rolls properly now
+✎ A shout named the secret crawl it came through. It still carries through one — that part is the rule — but it no longer says which way, when the way is one nobody is supposed to know about
+✎ A photograph carried the photographer's medical training, so a surgeon could photograph their own diagnosis and hand the print to somebody who couldn't have made it. The camera sees what a camera sees now
+✎ A photograph unmasked a hood that had since come off, filing the print under a real name nobody in the room ever heard. It records the face the room actually saw
+✎ Photos were free and unlimited. One shot per message per photographer now — the camera is still reusable, but photographing the same moment twice is the same photo
+✎ The Caving desk showed only the zone, so a GM saw several identical rows for one character with no way to tell which tunnel each happened in. It names the place
+✎ Shouting from inside a room put the shout everywhere except that room
+
+
 ## 2026-09-05 · Every room id says where it is
 
 ✎ Room ids are now always <location-stem>-<room>: keep-throne-room, inn-cellar, customs-watchtower. 98 of the 127 rooms were renamed  
