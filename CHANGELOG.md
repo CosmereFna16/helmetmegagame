@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Nine more books on the shelves, and the sewer is filthier
+
+✚ Eight books in the Keep's Library: three baking guides by Madam Molley, three short pieces, and two chapters of a novel  
+✚ A third chapter of that novel washed up at the Rockside Washup, for whoever has a boat  
+✚ Six lots of feces in the Underquarter sewers
+
 ## 2026-09-05 · A real crate washed up in the river
 
 ✎ The crate in the Rockside Washup now holds 2 coal and a Squeeze cube, and its side reads like a real shuttle manifest instead of the old coffee-and-knives flavour
