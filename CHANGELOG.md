@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Desires that cost nothing now cost a wait
+
+− Six Desires that were impossible or paid for a single click: See the Windlands, Stay 2 turns in the Aberrant Pits, Experience something exciting, Perform a charitable act (the ungated one), Convert someone to the Old Ways, and Convince someone to skip mass  
+✎ Every consumable — drinks, smokes, drugs, meals — now waits 3 turns before it pays again, so trying something new beats repeating the same cigarette  
+✎ The one-line social Desires (a hug, a story, an insult, a chastisement) all settle at 3 turns, down from 5  
+✎ Winning a game of chance now needs something actually staked  
+✎ Saving a life, and a migrant being let through the Town gates, are once ever  
+✎ Buying from the Merchant waits 5 turns, seeing a monster 4, torture 6  
+✎ Converting someone to your religion drops to tier 3, and is now the only Desire covering conversion  
+✎ The Demoness can humiliate somebody privately or publicly — two Desires, not one act paying twice  
+✎ The Windlands are gone from the game's text. #info was still telling players it was one of three surface zones; it now names the five we have, and the two cave levels
+
 ## 2026-09-05 · Changelog notes stop getting cut off mid-sentence
 
 ✎ A note written as a wrapped bullet in a commit message used to lose everything after its first line break, so entries reached Discord as half-sentences ending in 'which may'. The whole bullet is posted now
