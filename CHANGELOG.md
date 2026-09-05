@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Caving document is in Bascinet's words now
+
+✎ A new player-facing Caving brief: what the caves and the depths are, that moving is what triggers an encounter, that sitting still is safer, and that dangerous ones get settled at the end of the turn  
+✎ It names the three things you can do down there — roll encounters, spend a Gambit hunting or scavenging or searching a room, and take on a Quest  
+✎ Dropped from the old draft: the note that Customs never rolls, and the reminder that changing level costs a turn
+
+## 2026-09-05 · The Caving document is in Bascinet's words now
+
+✎ A new player-facing Caving brief: what the caves and the depths are, that moving is what triggers an encounter, that sitting still is safer, and that dangerous ones get settled at the end of the turn  
+✎ It names the three things you can do down there — roll encounters, spend a Gambit hunting or scavenging or searching a room, and take on a Quest  
+✎ Dropped from the old draft: the note that Customs never rolls, and the reminder that changing level costs a turn
+
 ## 2026-09-05 · Your role's charter opens with its own line now, and the Inquisition gets its tools
 
 ✎ Every starting role document now opens on the role's intro sentence, in italics — it used to show only in the creation picker and never again  
