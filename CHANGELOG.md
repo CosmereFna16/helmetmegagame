@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Merchant sells horses, and a builder can make a boat
+
+✚ The Depot now stocks a Horse at 120 ⬢, sells one back at 53 ⬢. Mid-game he is the only horse in Ravenheart, and the price says so.  
+✚ A Skilled Builder can now make a Fishing Boat: 40 ⬢ and one turn, same bench as the Cart.
+
 ## 2026-09-05 · Desires that cost nothing now cost a wait
 
 − Six Desires that were impossible or paid for a single click: See the Windlands, Stay 2 turns in the Aberrant Pits, Experience something exciting, Perform a charitable act (the ungated one), Convert someone to the Old Ways, and Convince someone to skip mass  
