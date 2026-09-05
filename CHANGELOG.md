@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Deleting a character is fast now
+
+✎ Deleting a character took over half a minute and now takes about a second. The same wait was on every death  
+✚ A whitelisted role wears a dotted border and says "Whitelisted" on its card at character creation  
+✚ The star is back beside a Leader role's name in the creation picker  
+✎ A role's difficulty reads Easy, Normal and Hard instead of lowercase
+
 ## 2026-09-05 · Everyone starts where they actually belong
 
 ✎ All 40 roles now name their own starting Location instead of falling through to a default. The default was the first place in the zone alphabetically, which put the whole Court in the Gatehouse, the Church in the Square and the Cerberon nowhere near the barracks  
