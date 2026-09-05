@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Spare hatchets at the Godard Factory
+
+✚ Three hatchets scattered around the Factory, which had none — one in the Logistics Room, one on the Main Floor, one in the Pub  
+✎ A hatchet is the Refugee's whole job (Godflesh needs one equipped), there is no forge in the Marshes, and the crafting change earlier today put the hatchet recipe behind a forge — so a Refugee who lost theirs had no way to replace it in their own zone  
+✎ Not in the Spillway, which destroys what lands in it, and not in the Overseer Box, which is the Banneret's
+
+
 ## 2026-09-05 · Armour is a number on the gear now, and the turrets are lethal
 
 ✚ Every piece of armour, headgear and shield carries a Melee and a Ballistic rating, shown as a word — None, Meager, Sufficient, Good, Strong, Overkill  
