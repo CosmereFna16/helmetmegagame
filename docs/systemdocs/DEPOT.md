@@ -490,6 +490,7 @@ buying one mid-game is still a real decision.
 | `silencer` | 90 | 39 | Equippable. The Merchant starts holding one |
 | `homunculus` | 91 | 40 | |
 | `antibiotics` | 100 | 44 | Cures every stage of infection |
+| `horse` | 120 | 53 | **The dearest thing that is not a weapon.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
 | `silver-sword` | 150 | 66 | |
 | `chainsaw` | 154 | 68 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `steam-automobile` | 164 | 72 | Fast-travels like a Horse — see below |
@@ -503,13 +504,15 @@ buying one mid-game is still a real decision.
 
 Three of these need code, not just catalog data:
 
-- **`steam-automobile`** is in `FAST_TRAVEL_SLUGS`
-  (`web/lib/tagRequests.js`) alongside the two horses. Same request and the
+- **`steam-automobile`** and **`horse`** are `FAST_TRAVEL_SLUGS`
+  (`db/lib/mounts.js`). Same request and the
   same once-a-day limit, which `fastTravelRequestImpl` really does enforce
   along with adjacency. "Easily visible" and "not through the caves" are
   **adjudicated, not enforced** — exactly as they already are for the two
-  horses, whose catalog text says the same thing. Worth knowing, since he buys
-  the thing standing in the Caves.
+  horse, whose catalog text says the same thing. Worth knowing, since he buys
+  the thing standing in the Caves. The Horse is priced under the Automobile on
+  purpose: they buy the same free zone move, and the machine is the one that
+  never spooks, never eats and never has to wait outside.
 - **`coffee`** consumes into `caffeinated`, a status tag that exists only for
   it. **`soporific`** does *not* consume into `asleep`, and that is on purpose:
   you administer it to somebody else, so a self-targeting grant would put the

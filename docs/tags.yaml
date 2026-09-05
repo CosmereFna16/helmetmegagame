@@ -4087,6 +4087,12 @@ tags:
     visible: true
     purchasableAfterStart: false
     removable: true
+    # The Merchant is the only mid-game source, so the price is meant to hurt:
+    # a free zone move every turn is the strongest thing on the assets shelf.
+    # Under the Steam Automobile, which does the same job and never spooks.
+    depotPrice: 120
+    sellable: true
+    sellablePrice: 53
 
   bird:
     catalog: all
@@ -4141,6 +4147,12 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     removable: true
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 40
+      skills: [builder-skilled]
+      gambit: false
 
   cart:
     catalog: all
