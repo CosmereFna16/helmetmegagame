@@ -77,6 +77,7 @@ const {
   ROOM_STORAGE_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
+  ROOM_BELL_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
@@ -87,6 +88,13 @@ const {
   buildTurretModal,
   turretWordMatches,
 } = require("../lib/turretModal");
+const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib/bell");
+const {
+  BELL_MODAL_PREFIX,
+  BELL_WORD_FIELD,
+  buildBellModal,
+  bellWordMatches,
+} = require("../lib/bellModal");
 const {
   GATEHOUSE_LOCATION_SLUG,
   TURRET_ARMED_LINE,
@@ -421,6 +429,77 @@ async function handleTurretOpen(interaction, roomId) {
     return;
   }
   await interaction.showModal(buildTurretModal(roomId, await gatehouseTurretArmed(prisma)));
+}
+
+// The rope in the Bell Tower. Opening the modal is not the act — the typed
+// word is — so nothing is checked here but the room. showModal IS the
+// acknowledgement, so no ack().
+async function handleBellOpen(interaction, roomId) {
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
+  if (room?.slug !== BELL_ROOM_SLUG) {
+    await interaction.reply({ content: "» *There's no bell here.* ‡", ephemeral: true });
+    return;
+  }
+  await interaction.showModal(buildBellModal(roomId));
+}
+
+async function handleBellSubmit(interaction, roomId) {
+  await ack(interaction);
+
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "» *You don't have a living character.* ‡");
+    return;
+  }
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, slug: true, locationId: true },
+  });
+  if (!room || room.slug !== BELL_ROOM_SLUG) {
+    await respond(interaction, "» *There's no bell here.* ‡");
+    return;
+  }
+  // Decided at submit, never at open: the modal outlives somebody walking back
+  // down the tower stairs, and reaching the rope is the only safeguard on it.
+  if (character.locationId !== room.locationId) {
+    await respond(interaction, `» *You're not standing in the ${room.name} any more.* ‡`);
+    return;
+  }
+  if (!bellWordMatches(interaction.fields.getTextInputValue(BELL_WORD_FIELD))) {
+    await respond(interaction, "» *You leave the rope alone.* ‡");
+    return;
+  }
+
+  // The cooldown is read AFTER the word, so a modal somebody abandoned never
+  // reports a wait they were not going to trigger anyway.
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
+  const { ok, secondsLeft } = bellCooldown(config?.bellRungAt);
+  if (!ok) {
+    await respond(interaction, `» *The bell is still humming from the last pull. ${secondsLeft}s.* ‡`);
+    return;
+  }
+
+  await prisma.gameConfig.update({ where: { id: 1 }, data: { bellRungAt: new Date() } });
+
+  const { sent, failed } = await broadcastBell(prisma);
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: interaction.user.id,
+        actionType: "bell_rung",
+        targetCharacterId: character.id,
+        details: { characterName: character.name, sent, failed },
+      },
+    })
+    .catch((err) => console.error("Bell audit log failed:", err));
+
+  await respond(
+    interaction,
+    failed.length
+      ? `» *You haul on the rope. It carries to ${sent} place${sent === 1 ? "" : "s"}, and not to ${failed.join(", ")}.* ‡`
+      : "» *You haul on the rope, and the whole barony hears it.* ‡",
+  );
 }
 
 async function handleTurretSubmit(interaction, roomId) {
@@ -1842,6 +1921,9 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_TURRET_PREFIX)) {
           return void (await handleTurretOpen(interaction, interaction.customId.slice(ROOM_TURRET_PREFIX.length)));
         }
+        if (interaction.customId.startsWith(ROOM_BELL_PREFIX)) {
+          return void (await handleBellOpen(interaction, interaction.customId.slice(ROOM_BELL_PREFIX.length)));
+        }
         if (interaction.customId.startsWith(SECRET_ROOMS_PREFIX)) {
           return void (await handleSecretRooms(interaction, interaction.customId.slice(SECRET_ROOMS_PREFIX.length)));
         }
@@ -1940,6 +2022,9 @@ module.exports = {
             interaction,
             interaction.customId.slice(TURRET_MODAL_PREFIX.length),
           ));
+        }
+        if (interaction.customId.startsWith(BELL_MODAL_PREFIX)) {
+          return void (await handleBellSubmit(interaction, interaction.customId.slice(BELL_MODAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith("say:send:")) {
           return void (await handleSpeakSubmit(interaction, interaction.customId.slice("say:send:".length)));

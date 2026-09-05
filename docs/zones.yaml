@@ -193,8 +193,18 @@ zones:
             name: Warehouse
             description: >-
               A long building storing food and other public goods.
+            access: [headmans-key]
             stash:
               resources: 4
+              items:
+                hatchet: 1
+          smithery-storeroom:
+            name: Smithery Storeroom
+            description: >-
+              Bar iron, charcoal, and the tools too good to leave out where a customer could lift them. ‡
+            access: [smithy-key, headmans-key]
+            stash:
+              resources: 2
               items:
                 workshop-equipment: 1
       # Promoted out of the Square, where it was a room, because the map makes
@@ -205,22 +215,68 @@ zones:
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
         rooms:
+          street:
+            name: Street
+            description: >-
+              The street outside the inn, where unlucky people end up. There's a porch—a fine place to smoke a cigarette.
+          bar:
+            name: Bar
+            description: >-
+              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers.
+          second-floor:
+            name: Second Floor
+            description: >-
+              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: “DENNIS’S WING”
+          balcony:
+            name: Balcony
+            description: >-
+              Sometimes it's busy out here, sometimes relaxing. You can look out onto the streets.
+          kitchen:
+            name: Kitchen
+            description: >-
+              Where the staff hangs out. There's a big oven.
+            access: [inn-key]
           cellar:
             name: Cellar
             description: >-
               A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
-            access: [cellar-key]
+            access: [inn-key]
             stash:
               resources: 3
               items:
                 alcohol: 1
+                cigarette: 3
+          room-a:
+            name: Room A
+            description: >-
+              A room to stay.
+            access: [room-a-key]
+          room-b:
+            name: Room B
+            description: >-
+              A room to stay.
+            access: [room-b-key]
+          room-c:
+            name: Room C
+            description: >-
+              A room to stay. Two beds.
+            access: [room-c-key]
       # Named "Gate" in play; the id is north-gate because the Gatehouse
       # already owns the slug "gate" for its own room.
       north-gate:
         name: North Gate
         description: >-
-          The northern way in, and the one the road actually uses. Two towers, a chain, and a brazier that is kept lit because the Baron pays for the wood. Nobody is posted here at night, which everybody knows. ‡
-        rooms: {}
+          A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
+        rooms:
+          # `north-watchtower`, not `watchtower` — zones, locations and rooms
+          # share one slug namespace, and Customs already holds that one. Both
+          # town gates are named "Watchtower" in play all the same.
+          north-watchtower:
+            name: Watchtower
+            access: [cerberus-key]
+            description: >-
+              Looks out onto the river. You can see the Keep up in the mountain. Has a grate you could open and throw stuff down into.
+            stash: [shortbow, spear]
       cathedral:
         name: Cathedral
         indoors: true
@@ -244,17 +300,31 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
+          hall:
+            name: Hall
+            description: >-
+              Lines of pews illuminated by stained glass, facing an ornate altar.
           pantry:
             name: Pantry
             description: >-
-              Shelves of bread, oil and candle-stubs behind a door the Bishop keeps shut. What the Cathedral gives away it gives away from here, which is why it is locked. ‡
+              Shelves of bread, oil, and candles.
             access: [cathedral-key]
             stash:
               resources: 3
+          vestry:
+            name: Vestry
+            description: >-
+              The Chaplains and Bishop privately congregate here.
+            access: [cathedral-key]
+            stash:
+              items:
+                vestments: 2
+                cross: 1
           scriptorium:
             name: Scriptorium
             description: >-
               It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
+            access: [cathedral-key]
             stash:
               items:
                 paper: 20
@@ -273,6 +343,7 @@ zones:
             name: Esculap's Office
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
+            access: [sanctuary-key]
             stash:
               items:
                 paper: 15
@@ -281,6 +352,7 @@ zones:
             name: Operating Theater
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
+            access: [sanctuary-key]
             stash: [surgical-equipment]
           supply-storage:
             name: Supply Storage
@@ -314,16 +386,40 @@ zones:
             name: Bathhouse
             description: >-
               One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color — it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for a coin inserted into a slot.
-      the-hole:
-        name: The Hole
-        description: >-
-          A subsidence in the middle of the poor quarter that nobody has filled in, because filling it in would mean admitting whose fault it is. Three streets drain into it. The buildings around the rim lean inward, propped against each other, and the people who live in them have made the slope into stairs. ‡
-        rooms: {}
+          alleyways:
+            name: Alleyways
+            description: >-
+              It's dark and dirty in here.
+          sewers:
+            name: Sewers
+            description: >-
+              Automated machineries used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
+            access: [sewer-key, tunnel-rat]
+          pushers-room:
+            name: Pusher's Room
+            description: >-
+              A den to conduct shady deals, lit by neon. Connected to the Abandoned Theater.
+            access: [pushers-key]
+          organ-shop:
+            name: Organ Shop
+            description: >-
+              A dark room below street level with a crude operating table. A small window near the roof lets in some of the street's light.
+            access: [tunnel-rat]
+            stash:
+              items:
+                cleaning-powder: 1
+                obol: 12
       south-gate:
         name: South Gate
         description: >-
-          A postern, really — one arch, one bar, one man's width. It faces the woods and the cave road, which is why the respectable traffic uses the north gate and this one gets everything else. There has not been a Cerberus on it in living memory. ‡
-        rooms: {}
+          A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
+        rooms:
+          south-watchtower:
+            name: Watchtower
+            access: [cerberus-key]
+            description: >-
+              Looks out onto the river. You can see the Keep up in the mountain. Has a grate you could open and throw stuff down into.
+            stash: [buckler, broadsword, obol]
 
   fortress:
     name: Fortress
@@ -1187,10 +1283,8 @@ connections:
   - [town/sanctuary, town/old-cock-inn]
   - [town/sanctuary, town/underquarter]
   - [town/underquarter, town/old-cock-inn]
-  - [town/square, town/the-hole]
+  - [town/square, town/old-cock-inn]
   - [town/square, town/south-gate]
-  - [town/the-hole, town/old-cock-inn]
-  - [town/the-hole, town/south-gate]
 
   # --- Forest -----------------------------------------------------------
   - [forest/forest-headwaters, forest/forest-cliffs]
@@ -1272,8 +1366,16 @@ connections:
   # would have seen rather than who it actually was.
   - pair: [forest/forest-north-road, town/north-gate]
     announce: concealed
+    modular:
+      roles: [cerberus, censor, baron, hand, headman]
+      tags: [knighted, cerberon, cerberus-key]
+      open: true
   - pair: [forest/forest-crossroads, town/south-gate]
     announce: concealed
+    modular:
+      roles: [cerberus, censor, baron, hand, headman]
+      tags: [knighted, cerberon, cerberus-key]
+      open: true
 
   # The Baron's elevator: the Undercroft's deeper passages come out in the
   # forest below the cliffs. Given as a starting tag to the Hand and the

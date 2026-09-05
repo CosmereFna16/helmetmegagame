@@ -4869,6 +4869,21 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  cross:
+    catalog: gm
+    name: Cross
+    category: items
+    group: items-gear
+    description: "A wooden cross."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   purse:
     catalog: gm
     name: Purse
@@ -5215,12 +5230,12 @@ tags:
     purchasableAfterStart: false
     removable: true
 
-  cellar-key:
+  inn-key:
     catalog: gm
-    name: Cellar Key
+    name: Inn Key
     category: items
     group: items-keys
-    description: "A key to the inn's cellar."
+    description: "A key to the inn's cellar and kitchen. ‡"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5266,6 +5281,96 @@ tags:
     category: items
     group: items-keys
     description: "A key to the Sanctuary's locked rooms."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  smithy-key:
+    catalog: gm
+    name: Smithy Key
+    category: items
+    group: items-keys
+    description: "A key to the Smithery's storeroom. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  headmans-key:
+    catalog: gm
+    name: Headman's Key
+    category: items
+    group: items-keys
+    description: "A key to the town's public stores. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  pushers-key:
+    catalog: gm
+    name: Pusher's Key
+    category: items
+    group: items-keys
+    description: "A key to the Pusher's room. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  room-a-key:
+    catalog: gm
+    name: Room A Key
+    category: items
+    group: items-keys
+    description: "A key to Room A."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  room-b-key:
+    catalog: gm
+    name: Room B Key
+    category: items
+    group: items-keys
+    description: "A key to Room B."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  room-c-key:
+    catalog: gm
+    name: Room C Key
+    category: items
+    group: items-keys
+    description: "A key to Room C."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6782,6 +6887,21 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  vestments:
+    catalog: gm
+    name: Vestments
+    category: items
+    group: items-special
+    description: "A long black robe with a white collar."
+    pointCost: 0
+    equippable: true
+    visible: worn
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
   broken-spears-banner:
     catalog: gm
     name: Broken Spears Banner
@@ -6837,6 +6957,26 @@ tags:
 
   # Comforts. Cheap, harmless, and the reason ordinary people have any reason
   # at all to walk down to Customs.
+  cigarette:
+    catalog: gm
+    name: Cigarette
+    category: items
+    group: items-drink
+    description: "A Mudghara, special import. Cheap. It has a robust, heavy flavor."
+    pointCost: 0
+    depotPrice: 6
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+    consumable: true
+    consumesInto: []
+
   tea:
     catalog: gm
     name: Tea

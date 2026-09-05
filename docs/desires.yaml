@@ -297,6 +297,11 @@ desires:
     tier: 2
     families: [alcohol]
 
+  smoke-a-cigarette:
+    name: Smoke a cigarette
+    tier: 1
+    families: [drugs]
+
   take-a-drug:
     name: Take a recreational drug — not alcohol
     tier: 2

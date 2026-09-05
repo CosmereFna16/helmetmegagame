@@ -500,6 +500,12 @@ model GameConfig {
   // "It seems to be off."
   gatehouseTurretArmed Boolean @default(false)
 
+  // When the Cathedral bell was last rung, so the rope has a five-minute
+  // cooldown on it (db/lib/bell.js). Global rather than per-character: the
+  // bell is one object, and two people taking turns on it would be the same
+  // noise either way. Null means it has never been rung.
+  bellRungAt DateTime?
+
   // Playtest lever: locks every role in the Windlands out of character
   // creation, without removing them from docs/roles.yaml — flip it back off
   // and the full roster returns. (It used to hold the Merchant back too; the

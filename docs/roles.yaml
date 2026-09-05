@@ -635,6 +635,8 @@ zones:
               - Literate
               - Post-Christian
               - Bishop's Mitre
+              - Vestments
+              - Cross
             doc_elements:
               - townstarting
               - postchristianity
@@ -665,6 +667,8 @@ zones:
               - Pious
               - Literate
               - Post-Christian
+              - Vestments
+              - Cross
             doc_elements:
               - townstarting
               - postchristianity
@@ -913,6 +917,7 @@ zones:
               - Literate
               - Headman's Cap
               - Sewer Key
+              - Headman's Key
             doc_elements:
               - townstarting
               - farming
@@ -966,6 +971,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Smithing
+              - Smithy Key
             doc_elements:
               - townstarting
               - smithing
@@ -1068,6 +1074,7 @@ zones:
               - Advanced Poppy
               - Distilled Coca
               - Alcohol
+              - Pusher's Key
             doc_elements:
               - townstarting
               - alcoholdrugs
@@ -1096,7 +1103,10 @@ zones:
             leader: true
             whitelist: true
             starting_tags:
-              - Cellar Key x3
+              - Inn Key x3
+              - Room A Key x2
+              - Room B Key x2
+              - Room C Key x2
               - Ravenhearter
               - Cooking (Basic)
               - Brewing (Basic)
@@ -1119,7 +1129,7 @@ zones:
             starting_zone: town
             starting_location: old-cock-inn
             starting_tags:
-              - Cellar Key
+              - Inn Key
               - Ravenhearter
               - Cooking (Basic)
             doc_elements:

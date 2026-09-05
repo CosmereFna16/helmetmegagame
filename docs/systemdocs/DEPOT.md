@@ -411,6 +411,7 @@ buying one mid-game is still a real decision.
 | `tea` | 3 | 1 | Cures minor nerve effects — `afraid`, `panic`. Adjudicated, not automated. |
 | `coffee` | 3 | 1 | Consumes into `caffeinated` (2t) |
 | `firecracker` | 4 | 1 | |
+| `cigarette` | 6 | 2 | A Mudghara import. Twice the price of `tea`, since it is the pricier vice. ‡ |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
 | `rat-mask` | 15 | 6 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. |
 | `sweets` | 5 | 2 | Consumes into `ate-meal` |
