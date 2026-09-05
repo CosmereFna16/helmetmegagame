@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Town has doors, and the Cathedral has a bell
+
+✚ The Old Cock Inn is a real building: a street, a bar, a second floor, a balcony, a kitchen, and three rooms to rent  
+✚ A Sound Bell button in the Cathedral's Bell Tower, heard in the Town, the Fortress, the Forest and the Marshes, once every five minutes  
+✚ Both town gates are now gatehouses with a watchtower each, and both can be opened and shut like the fortress gate — by a Cerberus, the Censor, the Baron, the Hand or the Headman  
+✚ A Vestry and a Hall in the Cathedral; Sewers, an Organ Shop, the Pusher's Room and the Alleyways in the Underquarter; a storeroom behind the Smithery  
+✚ Cigarettes at the Merchant, twice the price of tea, and a Desire for smoking one  
+✎ The Scriptorium, the Pantry, the Warehouse, Esculap's Office and the Operating Theater are all behind keys now  
+✎ The Cellar Key is the Inn Key, and opens the kitchen too  
+− The Hole. The Square and the Inn now meet directly
+
 ## 2026-09-05 · Deleting a character is fast now
 
 ✎ Deleting a character took over half a minute and now takes about a second. The same wait was on every death  
