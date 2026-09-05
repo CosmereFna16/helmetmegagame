@@ -62,7 +62,7 @@ const SENSITIVE_PATHS = [
 
 // A second net, over the words rather than the files: a note can give away a
 // secret while touching nothing on the list above. This one only warns.
-const SENSITIVE_WORDS = /\b(lore|antagonist|threat seat|the tower'?s secret|windlander|bacchus)\b/i;
+const SENSITIVE_WORDS = /\b(lore|antagonist|threat seat|the tower'?s secret|bacchus)\b/i;
 
 const HEADER = `# Changelog
 

@@ -21,11 +21,12 @@ export default async function GamemastersPage() {
 
   const [members, zones, assignments] = await Promise.all([
     listGmMembers(),
-    // SEAT zones only — Town, Fortress, Windlands, Caves. The three cave
-    // levels are excluded because nothing is ever stamped with one
-    // (db/lib/seatZone.js maps them all to the Caves group), so a GM seated on
-    // the Railroad would open every table on an empty filter. This used to be
-    // a bare findMany, which is exactly the bug it produced.
+    // SEAT zones only — Town, Fortress, Forest, Black Hills, Marshes,
+    // Underground. The cave levels are excluded because nothing is ever
+    // stamped with one (db/lib/seatZone.js maps them to the Underground
+    // group), so a GM seated on the Depths would open every table on an empty
+    // filter. This used to be a bare findMany, which is exactly the bug it
+    // produced.
     prisma.zone.findMany({ where: { kind: { not: "CAVE_LEVEL" } }, select: { id: true, name: true } }),
     listGmAssignments(),
   ]);
@@ -39,8 +40,8 @@ export default async function GamemastersPage() {
   });
   const characterByUserId = new Map(characters.map((c) => [c.discordUserId, c]));
 
-  // Fortress → Town → Windlands → Caves, matching the map and roles.yaml,
-  // rather than alphabetical.
+  // Fortress → Town → Forest → Black Hills → Marshes → Underground, matching
+  // the map and roles.yaml, rather than alphabetical.
   const ordered = sortZones(zones);
   const roster = [...members].sort((a, b) =>
     (a.globalName ?? a.username).localeCompare(b.globalName ?? b.username),

@@ -8,7 +8,7 @@ export const CONFIG_HELP = {
   leaderWhitelistEnabled:
     "Require the @Leader Whitelist role to pick a whitelisted role. A card without it renders greyed, and says “Whitelist only” on hover. ‡",
   playtestModeEnabled:
-    "Lock the Merchant and every Windlands role out of character creation. Their cards still show, greyed, so the charters stay readable. Not bypassed for superadmins.",
+    "Lock unfinished roles out of character creation. Which ones is set in code (web/lib/characterCreation.js) and both lists are empty right now, so this switch has nothing to hold back until somebody names a role. Locked cards still show, greyed, so the charters stay readable. Not bypassed for superadmins. ‡",
   autoTurnAdvanceDisabled:
     "The nightly cron skips its advance while this is on. “Advance turn now” on the Turn section still works.",
   avatarUploadsEnabled: "Allow players to upload their own profile picture.",

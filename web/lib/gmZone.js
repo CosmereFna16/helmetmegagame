@@ -12,9 +12,10 @@ import { sortZones } from "./zones";
 // did not need to. Every consumer is written so that an EMPTY LIST — the
 // master, or an unassigned GM — means exactly today's behaviour.
 //
-// A GM may hold several seats (five GMs, four zones), so this is a list. Seats
-// are always seat zones — Town, Fortress, Windlands, Caves — never one of the
-// three cave levels; see the GmAssignment model comment.
+// A GM may hold several seats (five GMs, six zones), so this is a list. Seats
+// are always seat zones — Town, Fortress, Forest, Black Hills, Marshes,
+// Underground — never one of the two cave levels; see the GmAssignment model
+// comment.
 //
 // cache()-wrapped in the same style as getGmSession/getOpenTurn, so the four
 // GM tables plus the nav cost one query per request rather than five.

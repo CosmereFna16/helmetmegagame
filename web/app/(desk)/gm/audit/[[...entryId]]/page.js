@@ -83,7 +83,7 @@ export default async function AuditPage({ params, searchParams }) {
       : null;
 
   // id -> name for everything a `details` blob can point at, so a sentence can
-  // say "Windlands" where the payload says a cuid. Tags are the only list here
+  // say "Black Hills" where the payload says a cuid. Tags are the only list here
   // with real size, and it is a few hundred rows of two columns.
   const tags = await prisma.tag.findMany({ select: { id: true, name: true } });
   const names = Object.fromEntries([

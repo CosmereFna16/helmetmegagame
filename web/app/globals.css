@@ -97,9 +97,10 @@
   --shadow-color: rgba(0, 0, 0, 0.45);
 
   /* The zone code. Colour-picked from the Plate map
-     (public/assets/Map_Basic.png) so the four zones wear the palette the map
-     already drew them in: the castle's red roofs, the town's thatch, the
-     olive scrub of the Windlands, mountain rock for the Caves.
+     (public/assets/Map_Basic.png) so every zone wears the palette the map
+     already drew it in: the castle's red roofs, the town's thatch, the olive
+     scrub of the woodland, the blue-grey, grey-green and mauve of the Black
+     Hills, Marshes and Depths, mountain rock for the Caves.
 
      These are FILLS ONLY -- the 3px rule on a .zone-chip, never a text
      colour -- so audit-contrast.js gates them at 3.0 against --surface
@@ -110,11 +111,8 @@
      measures 2.00 against this surface, so it is lifted in L with hue and
      saturation held. Do not "fix" it back to the map value.
 
-     Seven zones since the Bascinet 2 map. Forest keeps the green the retired
-     Windlands wore; the Black Hills, Marshes and Depths take the blue-grey,
-     grey-green and mauve of their regions on Bascinet's drawing. There is no
-     --zone-underground: that zone is a category and a GM seat, never a place,
-     so nothing ever renders a chip for it. */
+     There is no --zone-underground: that zone is a category and a GM seat,
+     never a place, so nothing ever renders a chip for it. */
   --zone-fortress: #c7604f;
   --zone-town: #998d6b;
   --zone-forest: #7f8c64;

@@ -506,11 +506,9 @@ model GameConfig {
   // noise either way. Null means it has never been rung.
   bellRungAt DateTime?
 
-  // Playtest lever: locks every role in the Windlands out of character
-  // creation, without removing them from docs/roles.yaml — flip it back off
-  // and the full roster returns. (It used to hold the Merchant back too; the
-  // Merchant Update finished that seat, so only the zone lock is left.) Which
-  // roles it covers lives in web/lib/characterCreation.js
+  // Playtest lever: locks unfinished roles out of character creation, without
+  // removing them from docs/roles.yaml — flip it back off and the full roster
+  // returns. Which roles it covers lives in web/lib/characterCreation.js
   // (PLAYTEST_LOCKED_ROLE_SLUGS / PLAYTEST_LOCKED_ZONE_NAMES), not here.
   // Off by default: this is a temporary content lock, not a permission gate,
   // so a missing config row means the whole roster is open.
@@ -941,13 +939,13 @@ model Zone {
 }
 
 /// Which zones a GM is the seat for. The game runs with one master (the
-/// superadmin, web/lib/superadmin.js) plus zone-GMs seated over the four SEAT
-/// zones -- Town, Fortress, Windlands and Caves. Never a cave level: the three
-/// levels of the Depths all belong to the Caves seat via Zone.seatZoneId, so a
-/// row here pointing at a CAVE_LEVEL would be a seat nothing is ever stamped
-/// with. The server action refuses one.
+/// superadmin, web/lib/superadmin.js) plus zone-GMs seated over the six SEAT
+/// zones -- Town, Fortress, Forest, Black Hills, Marshes and Underground.
+/// Never a cave level: both levels below belong to the Underground seat via
+/// Zone.seatZoneId, so a row here pointing at a CAVE_LEVEL would be a seat
+/// nothing is ever stamped with. The server action refuses one.
 ///
-/// ONE ROW PER SEAT. A GM may hold several at once (five GMs, four zones, and
+/// ONE ROW PER SEAT. A GM may hold several at once (five GMs, six zones, so
 /// somebody covers two), so the primary key is the pair. Absence of any row is
 /// "no seat", which is also the master's state and reads as All.
 ///
@@ -3432,8 +3430,8 @@ model DesireTemplate {
   families             String[] @default([])
   // Defaults true for tier 7 in the sync; an explicit YAML value wins.
   onceEver             Boolean  @default(false)
-  // Per-entry override of the tier-derived cooldown (used by
-  // charitable-act-devoted = 3, use-a-censer = 5). Null means "use tier".
+  // Per-entry override of the tier-derived cooldown (used by every consumable
+  // = 3, make-a-merchant-purchase = 5). Null means "use tier".
   cooldownTurns        Int?
   // Real relations, not slug arrays, so db:prune-tags can see the reference
   // and refuse to delete a Tag a live desire depends on.

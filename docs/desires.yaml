@@ -52,11 +52,11 @@
 #      second repetition. What actually throttles a Desire is a per-attempt
 #      COST — ⬢ spent, an item consumed, a risk run.
 #
-# So: a Desire you pay for every time (drink alcohol, buy jewelry, win 10 ⬢
-# gambling, feed the poor, host an event) keeps the tier as its cooldown — the
-# spend is the throttle and it needs no help. A Desire that costs nothing but
-# another player's cooperation (a hug, a compliment, an argument, a kiss) is a
-# free income tap, and takes the ladder instead:
+# So: a Desire you pay for every time (buy jewelry, win 10 ⬢ gambling, feed
+# the poor, host an event) keeps the tier as its cooldown — the spend is the
+# throttle and it needs no help. A Desire that costs nothing but another
+# player's cooperation (a compliment, an argument, a kiss) is a free income
+# tap, and takes the ladder instead:
 #
 #     tier 1 -> cooldownTurns: 5      0.20 points/turn
 #     tier 2 -> cooldownTurns: 4      0.50 points/turn
@@ -65,6 +65,30 @@
 # Deliberately inverted, so the cheap goals are the SLOWEST to come back and
 # aiming higher always pays better per turn. Anything above tier 3 is rare
 # enough by nature to leave on the tier.
+#
+# TWO SETS SIT OUTSIDE THE LADDER, at a flat `cooldownTurns: 3` (2026-09-05).
+# The ladder assumes the thing worth slowing down is EARNING, so it punishes
+# the cheap goal hardest. For these two it aims at the wrong thing — what
+# wants throttling is doing the SAME act over and over, and what wants
+# encouraging is going out and finding a different one.
+#
+#   * Consumables — every drink, smoke, drug and meal (drink-alcohol,
+#     drink-ravenheart-red, drink-sake, drink-tea-or-coffee, cup-of-tea,
+#     eat-sweets, smoke-a-cigarette, take-a-drug, try-a-new-drug, fine-meal,
+#     lavish-meal). Each is a real spend, so the ladder left them all on the
+#     bare tier — which is to say on nothing, since tier 1 and 2 are both
+#     dominated by the slot lock. A flat 3 means the same cigarette pays
+#     slower, while the shelf of eleven different things stays wide open.
+#   * One-message social — the goals a player fulfils by writing one line and
+#     nothing else (get-a-hug, give-a-hug, tell-a-story, insult-rightfully,
+#     disparage-new-blood, chastise-a-sinner, dem-let-loose,
+#     make-someone-miserable, best-a-whipper-snapper). The ladder had these at
+#     5, which mostly taught players to ignore them. 3 is honest about what
+#     they are: small, frequent, and worth a point.
+#
+# Four singles are set by hand against their own act rather than by either
+# rule: make-a-merchant-purchase 5 (buying anything at all is not an
+# achievement), see-a-monster 4, save-a-life-medical 3, torture-someone 6.
 #
 # ‡ marks text the Desires-rework planner wrote — a drafted name/description,
 # an invented tier, or a resolved conflict — exactly like docs/tags.yaml's
@@ -230,8 +254,8 @@ families:
     name: Adventure
     group: nerve
     color: "#a9cf8c"
-    # Exploration and danger for its own sake — the Pits, the mountains,
-    # the Windlands, climbing.
+    # Exploration and danger for its own sake — the caves, the mountains,
+    # the marshes, climbing.
   mortality:
     name: Mortality
     group: mind
@@ -271,11 +295,6 @@ desires:
     tier: 3
     families: [theft, scheming]
 
-  see-the-windlands:
-    name: See the Windlands
-    tier: 2
-    families: [adventure]
-
   win-an-argument:
     name: Win an argument
     tier: 2
@@ -291,36 +310,36 @@ desires:
     name: Drink alcohol
     tier: 1
     families: [alcohol]
+    cooldownTurns: 3
 
   drink-ravenheart-red:
     name: Drink {tag:ravenheart-red}
     tier: 2
     families: [alcohol]
+    cooldownTurns: 3
 
   smoke-a-cigarette:
     name: Smoke a cigarette
     tier: 1
     families: [drugs]
+    cooldownTurns: 3
 
   take-a-drug:
     name: Take a recreational drug — not alcohol
     tier: 2
     families: [drugs]
+    cooldownTurns: 3
 
   try-a-new-drug:
     name: "Try a kind of recreational drug you never have ‡"
     tier: 2
     families: [drugs]
+    cooldownTurns: 3
 
   overdose:
     name: Overdose on a recreational drug, to near death
     tier: 3
     families: [drugs, mortality]
-
-  something-exciting:
-    name: Experience something exciting or dangerous
-    tier: 1
-    families: [adventure]
 
   get-a-manor:
     name: Get a new manor
@@ -388,19 +407,19 @@ desires:
     name: Get a hug
     tier: 1
     families: [social]
-    cooldownTurns: 5
+    cooldownTurns: 3
 
   give-a-hug:
     name: Give a hug
     tier: 1
     families: [social, charity]
-    cooldownTurns: 5
+    cooldownTurns: 3
     requires:
       anyTags: [charitable]
 
   convert-someone:
     name: Convert someone to your religion
-    tier: 4
+    tier: 3
     families: [faith]
 
   fine-meal:
@@ -409,11 +428,13 @@ desires:
     families: [food]
     requires:
       notTags: [nobility]
+    cooldownTurns: 3
 
   lavish-meal:
     name: Have a {tag:lavish-meal}
     tier: 2
     families: [food]
+    cooldownTurns: 3
 
   rival-in-jail:
     name: Get your rival thrown in jail
@@ -447,7 +468,7 @@ desires:
     families: [romance, scheming]
 
   win-a-game:
-    name: Win a friendly game of chance, with no stakes
+    name: Win a game of chance with something staked
     tier: 1
     families: [gambling, social]
 
@@ -465,6 +486,7 @@ desires:
     name: Save someone's life
     tier: 3
     families: [bravery, charity]
+    oncePerLife: true
 
   save-a-leaders-life:
     name: Save a faction leader's life
@@ -494,14 +516,6 @@ desires:
       notRoles: [bum]
     oncePerLife: true
 
-  charitable-act:
-    name: Perform a charitable act
-    tier: 1
-    families: [charity]
-    requires:
-      notTags: [charitable]
-    cooldownTurns: 5
-
   charitable-act-devoted:
     name: Perform a charitable act
     tier: 2
@@ -514,11 +528,13 @@ desires:
     name: Drink {tag:sake}
     tier: 2
     families: [alcohol]
+    cooldownTurns: 3
 
   drink-tea-or-coffee:
     name: Drink tea or coffee
     tier: 1
     families: [food]
+    cooldownTurns: 3
 
   listen-to-boombox:
     name: Listen to music on a {tag:boombox}
@@ -536,6 +552,7 @@ desires:
     name: Make a purchase from the Merchant
     tier: 1
     families: [wealth]
+    cooldownTurns: 5
 
   retrieve-item-from-caves:
     name: Retrieve an item from the Caves
@@ -548,6 +565,7 @@ desires:
     name: Eat {tag:sweets}
     tier: 1
     families: [food]
+    cooldownTurns: 3
 
   # === 4b. Tag-gated (existing tags) =======================================
   chastise-a-sinner:
@@ -558,7 +576,7 @@ desires:
       anyTags: [prudish]
       anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
       combine: or
-    cooldownTurns: 5
+    cooldownTurns: 3
 
   better-person:
     name: Get someone to be a better person
@@ -668,14 +686,6 @@ desires:
       anyTags: [old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
     cooldownTurns: 4
 
-  skip-mass:
-    name: Convince someone to skip mass
-    tier: 2
-    families: [faith, scheming]
-    requires:
-      anyTags: [atheist]
-    cooldownTurns: 4
-
   win-mortally-injured:
     name: Win a fight while mortally injured
     tier: 5
@@ -761,7 +771,7 @@ desires:
     families: [social, status]
     requires:
       anyTags: [old-blood]
-    cooldownTurns: 5
+    cooldownTurns: 3
 
   gain-court-position:
     name: Gain a position in court
@@ -816,17 +826,9 @@ desires:
       anyTags: [old-ways-thoth]
     cooldownTurns: 4
 
-  convert-to-old-ways:
-    name: Convert another willing person to the Old Ways
-    tier: 2
-    families: [faith]
-    requires:
-      anyTags: [old-ways-eusoch, old-ways-sylvia, old-ways-thoth, old-ways-bacchus]
-
   # Mortus feeds (Task 11) — same gate shape as feed-the-lifeweb above:
   # T: mortus AND R: mortus. feed-the-lifeweb (tier 3) is unchanged and stays
   # what it already is: feeding a living person to the Web.
-    cooldownTurns: 4
   feed-the-lifeweb-blood:
     name: "Offer your own blood to the Lifeweb"
     tier: 1
@@ -1040,6 +1042,7 @@ desires:
     families: [food]
     requires:
       anyRoles: [incarn, arbiter]
+    cooldownTurns: 3
 
   sibling-in-trouble:
     name: Get your sibling in trouble
@@ -1135,6 +1138,7 @@ desires:
     families: [medical, charity]
     requires:
       anyTags: [medical-basic]
+    cooldownTurns: 3
 
   give-a-loan:
     name: Give a loan
@@ -1280,6 +1284,7 @@ desires:
     families: [cruelty, violence]
     requires:
       anyTags: [cruel]
+    cooldownTurns: 6
 
   beat-up-a-bum:
     name: Beat up a bum
@@ -1362,13 +1367,6 @@ desires:
       anyRoles: [scholastic]
     cooldownTurns: 4
 
-  two-turns-in-the-pits:
-    name: Stay 2 turns consecutively in the Aberrant Pits
-    tier: 5
-    families: [adventure, bravery]
-    requires:
-      anyTags: [adventurer]
-
   slay-a-great-beast:
     name: Slay a legendary beast
     tier: 5
@@ -1391,7 +1389,7 @@ desires:
     families: [social]
     requires:
       anyTags: [hot-headed]
-    cooldownTurns: 5
+    cooldownTurns: 3
 
   start-a-large-brawl:
     name: Start a large brawl
@@ -1434,6 +1432,7 @@ desires:
     families: [esoterica, adventure]
     requires:
       anyTags: [superstitious]
+    cooldownTurns: 4
 
   banish-a-demon:
     name: Banish a demonic entity
@@ -1635,10 +1634,10 @@ desires:
     families: [demoness, social]
     requires:
       anyTags: [demoness]
-    cooldownTurns: 5
+    cooldownTurns: 3
 
   dem-humiliate:
-    name: "Humiliate somebody"
+    name: "Humiliate somebody privately"
     tier: 2
     families: [demoness, cruelty]
     requires:
@@ -1850,7 +1849,7 @@ desires:
     families: [status]
     requires:
       anyRoles: [migrant]
-    cooldownTurns: 5
+    oncePerLife: true
 
   a-job-in-town:
     name: Get a job in Town
@@ -1879,7 +1878,7 @@ desires:
     families: [social]
     requires:
       anyRoles: [bum]
-    cooldownTurns: 5
+    cooldownTurns: 3
 
   make-the-baron-laugh:
     name: "Make the Baron laugh"

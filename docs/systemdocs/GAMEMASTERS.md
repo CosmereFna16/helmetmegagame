@@ -90,7 +90,7 @@ map's palette rather than an invented one:
 |---|---|---|
 | Fortress | the castle's red roofs | `#9c4132` terracotta ruby |
 | Town | the timber cluster's thatch | `#998d6b` brown linen |
-| Forest | the olive scrub the retired Windlands wore | `#7f8c64` desaturated lime |
+| Forest | the olive scrub of the woodland | `#7f8c64` desaturated lime |
 | Black Hills | the blue-grey of its region on the drawing | `#79899b` slate (`--zone-hills`, after the slug) |
 | Marshes | the drab grey-green of the wet ground | `#8d9384` reed |
 | Caves | mountain rock | `#939d9e` stone grey |

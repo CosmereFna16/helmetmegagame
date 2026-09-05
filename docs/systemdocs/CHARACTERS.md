@@ -462,10 +462,8 @@ Which roles it covers lives in `web/lib/characterCreation.js`
 database — a role is matched by `Role.slug`, a zone by **zone name**,
 because nothing marks a role as belonging to a zone — `Role` and `Faction`
 carry no availability column. `Zone` has no slug, so renaming the zone in
-`roles.yaml` means moving the list with it. `PLAYTEST_LOCKED_ZONE_NAMES` is
-`[]` — it named `["Windlands"]` until that zone came off the map entirely in
-the Bascinet 2 rebuild. The mechanism is live, it just has no target until
-somebody names one.
+`roles.yaml` means moving the list with it. Both lists are `[]` today. The
+mechanism is live, it just has no target until somebody names one.
 
 Same presentation/enforcement split as everything else here: the card is a
 hint, `createCharacter` re-checks. One difference — **a superadmin does not
