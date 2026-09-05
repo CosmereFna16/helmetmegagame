@@ -41,13 +41,14 @@ const SIZE = 256; // CANVAS in web/lib/portrait/catalog.js
 // sqrt(w*h) splits the difference and holds apparent visual MASS constant
 // instead of any one edge, which is what the eye actually compares.
 //
-// Raised from 190. At 190 the mean landed well inside the frame and a helm read
-// as a small object floating on a large plate, next to a portrait that fills
-// its frame edge to edge. At 215 one sprite of the 21 — knight0, the tallest —
-// hits the ceiling and is clamped down to fit; the other twenty land between
-// 195 and 237 on their long edge. The clamp below is what makes the higher
-// number safe, and it is what to reach for before lowering this again.
-const TARGET = 215;
+// Raised from 190, then from 215. At 190 the mean landed well inside the frame
+// and a helm read as a small object floating on a large plate, next to a
+// portrait that fills its frame edge to edge; 215 narrowed the gap without
+// closing it. At 245 seven sprites of the 21 hit the ceiling and are clamped
+// down to fit, and the rest reach an edge of the canvas — which is the point,
+// since a bust does too. The clamp below is what makes the higher number safe,
+// and it is what to reach for before lowering this again.
+const TARGET = 245;
 // Fraction of the canvas height the sprite's centre sits at. Dead centre reads
 // as floating; a portrait bust puts the face high and fills the bottom with
 // shoulders, so nudging up matches the framing of the thing this sits beside.

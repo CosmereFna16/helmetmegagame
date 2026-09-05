@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Avatars sit on a plate that falls into shade
+
+✎ Every avatar background now darkens toward the bottom, so a face, a helm and a letter plaque all read as lit from above instead of pasted onto a flat slab  
+✎ Concealed-identity helms are noticeably bigger — they fill their frame the way a portrait does instead of floating in the middle of it
+
 ## 2026-09-05 · A fisherman lives out in the marsh village
 
 ✚ A new Fisherman fate: one seat, easy, starting alone in the marsh Village with a rod, a boat and the key to his hut  

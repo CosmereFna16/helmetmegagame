@@ -22,6 +22,15 @@
 // still exits 0 — leaving 27 plaques that say A in Helvetica. It is a warning,
 // not an error, so nothing here can catch it; open one plaque and look.
 
+// That trap is live on at least one dev Mac, and FONTCONFIG_FILE does not get
+// around it — this sharp build's bundled fontconfig ignores the config and the
+// `fontfile` both. So when the shade ramp below was added, the plaques already
+// in public/assets/letters could not be re-rendered here; the ramp was applied
+// over them instead of under the glyph, which dims the ink's lower half
+// slightly. It reads fine. The next successful run of this script on a machine
+// with fonts supersedes them with the plate-baked version, and nothing needs
+// undoing first.
+
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const sharp = require("sharp");
@@ -44,6 +53,15 @@ const SIZE = 256; // matches AVATAR_SIZE in character/actions.js
 const TINT = { r: 0x27, g: 0x44, b: 0x3e };
 const DARKEN = 0.5; // brightness multiplier; the plate has to stay well under the ink
 const BLUR = 2.5; // abstracts the source photo into mottled stone rather than a legible forest
+// The plate used to be evenly lit, which made anything standing on it look
+// pasted onto a slab rather than sitting on one. A vertical darkening ramp
+// gives it a floor: the subject is in the light at the top and its base sinks
+// into shade. Black rather than the teal, so this deepens the stone instead of
+// shifting its hue — and it rides on the shared plate, so a built portrait, a
+// helm avatar and a letter plaque all get it without one of them opting in.
+const SHADE_TOP = 0.0; // opacity where the ramp begins
+const SHADE_BOTTOM = 0.5; // opacity at the bottom edge
+const SHADE_START = 0.15; // fraction down the plate the ramp begins
 // Dusk's --text. Warmer against the teal than pure white; set to "#ffffff" for
 // a colder, harder plaque.
 const INK = "#efe7d6";
@@ -76,7 +94,26 @@ async function buildPlate() {
     .png()
     .toBuffer();
 
-  return sharp(stone).tint(TINT).png().toBuffer();
+  // A third pass, not a link in either chain above: the tint has to be last
+  // and alone (see the comment on this function), so the shade goes on after
+  // it, over a plate that is already teal.
+  const tinted = await sharp(stone).tint(TINT).png().toBuffer();
+  return sharp(tinted).composite([{ input: shadeSvg() }]).png().toBuffer();
+}
+
+// The darkening ramp, over the full canvas. Starts at SHADE_START rather than
+// the top edge so the lit half stays lit and only the lower plate falls away.
+function shadeSvg() {
+  return Buffer.from(
+    `<svg width="${SIZE}" height="${SIZE}" xmlns="http://www.w3.org/2000/svg">
+       <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1">
+         <stop offset="0" stop-color="#000" stop-opacity="${SHADE_TOP}" />
+         <stop offset="${SHADE_START}" stop-color="#000" stop-opacity="${SHADE_TOP}" />
+         <stop offset="1" stop-color="#000" stop-opacity="${SHADE_BOTTOM}" />
+       </linearGradient></defs>
+       <rect x="0" y="0" width="${SIZE}" height="${SIZE}" fill="url(#s)" />
+     </svg>`,
+  );
 }
 
 function frameSvg() {
