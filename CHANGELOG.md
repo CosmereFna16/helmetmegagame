@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · More mercenaries and more brigands
+
+✎ Mercenary and Brigand are both a bit likelier to come up when someone rolls for a role — weight 3 each, up from 2
+
 ## 2026-09-05 · The Practicus starts with a gas mask
 
 ✚ A Gas Mask in the Practicus's starting kit
