@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Scrap armour is scrap again
+
+− Salvage Plate protects a lot less: it now sits just above padded armour and below a mail shirt, which is what scrap metal strapped to your chest is worth
+
 ## 2026-09-05 · Spare hatchets at the Godard Factory
 
 ✚ Three hatchets scattered around the Factory, which had none — one in the Logistics Room, one on the Main Floor, one in the Pub  
