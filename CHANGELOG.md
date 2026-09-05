@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · A real crate washed up in the river
+
+✎ The crate in the Rockside Washup now holds 2 coal and a Squeeze cube, and its side reads like a real shuttle manifest instead of the old coffee-and-knives flavour
+
 ## 2026-09-05 · The Fortress is a real place, and books exist
 
 ✚ The Lifeweb is somewhere you can walk into: an outside, the chair room behind the Mortii's key, and their shacks against the wall  
