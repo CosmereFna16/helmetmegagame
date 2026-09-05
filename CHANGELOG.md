@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Everyone starts where they actually belong
+
+✎ All 40 roles now name their own starting Location instead of falling through to a default. The default was the first place in the zone alphabetically, which put the whole Court in the Gatehouse, the Church in the Square and the Cerberon nowhere near the barracks  
+✎ The Baron, his family and the courtiers wake up in the Keep; the Servant in the Servant Wing; the Censor, Incarn, Cerberi and Squires in the Garrison  
+✎ The Church and the Order start in the Cathedral, the Sanctuary in the Sanctuary, the Innkeeper and staff in the Inn  
+✎ The Bum, the Pusher and the Mortus start in the Underquarter  
+✎ The Merchant, the Docker and the Mercenary start at the cave mouth; a Migrant starts two hops in, at the Stairhead
+
 ## 2026-09-05 · Confession works, and the Cathedral has something to make
 
 ✚ A Confess button. Take one of your addictions to a chaplain standing with you: it's your Gambit, their Routine, and a 5 or 6 gets it off you  
