@@ -311,6 +311,8 @@ zones:
             access: [cathedral-key]
             stash:
               resources: 3
+              items:
+                cooking-all-you-need-to-know: 1
           vestry:
             name: Vestry
             description: >-
@@ -590,6 +592,11 @@ zones:
                 amour-et-socialisme-translated: 1
                 a-murmur-darkly-last-call: 1
                 a-murmur-darkly-aches-and-pains: 1
+                10001-things-to-do-with-your-pet-rat: 1
+                magical-code-of-regulations-part-xxxii: 1
+                sword-in-high-heavens: 1
+                prophecies-of-sir-thomast: 1
+                basic-strategy: 1
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
           # the Baron.

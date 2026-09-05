@@ -7488,6 +7488,94 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  10001-things-to-do-with-your-pet-rat:
+    catalog: gm
+    name: 10'001 things to do with your pet rat
+    category: items
+    group: items-paper
+    bookText: |-
+      Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for headman, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  cooking-all-you-need-to-know:
+    catalog: gm
+    name: Cooking, all you need to know
+    category: items
+    group: items-paper
+    bookText: |-
+      The ingredients for hot chocolate are milk, cacao, sugar, starch, and (if you feel fancy) cinnymon. Moreover EVO oil is best oil.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # keepSlug, because the derived slug would be the full 130-character title —
+  # which is funny, and exactly the sort of thing §3201.1 is against.
+  magical-code-of-regulations-part-xxxii:
+    catalog: gm
+    keepSlug: true
+    name: "Magical Code of Regulations - Part XXXII: Regulatory Mandates Conserning the Codification and Simplification of Magical Documentation"
+    category: items
+    group: items-paper
+    bookText: |-
+      §3201.1 Prohibition Against Gratuitus Prolixity and Obfuscatory Circumlocution in Codificatory Processes:
+      ...
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  sword-in-high-heavens:
+    catalog: gm
+    name: Sword in High Heavens
+    category: items
+    group: items-paper
+    bookText: |-
+      The sword was flying high in the sky, until it gained conciusness and became aware its metal. This day the weight of existence came down on it, as the sword fall from Heaven.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  prophecies-of-sir-thomast:
+    catalog: gm
+    name: Prophecies of Sir Thomast
+    category: items
+    group: items-paper
+    bookText: |-
+      The time shall come in which The Mime dies, at that moment only Archon will come to serve the final Judgement. Only salvation will be found in those believed impaired, who lied to everyone, to keep their secrets. Now they stand witness, and have a chance to act.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  basic-strategy:
+    catalog: gm
+    name: Basic Strategy
+    category: items
+    group: items-paper
+    bookText: |-
+      Believe in the legs. Legs will save thee, they make thee swift, fast. Thou don't need to fear any enemy, as long as thy legs are stronger than the ones of their horses, for thou are faster.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   wax-seal-three-cups:
     catalog: all
     name: Wax Seal (Three Cups)

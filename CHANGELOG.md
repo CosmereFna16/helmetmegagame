@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Road and the Manors are places now
+
+✚ A Shrine to a forgotten saint on the road up, and a Ledge below it only the sure-footed can climb down to
+✚ The Manors open: a Manor, a Cellar and a walled Garden, all three behind the Manor Key, which until now opened nothing
+✚ A Ravenheart Red, an instrument and a sabre in the Manor; four obols and a cave fungus in the cellar
+✎ The Road and the Manors both read the way Bascinet wrote them
+
 ## 2026-09-05 · More mercenaries and more brigands
 
 ✎ Mercenary and Brigand are both a bit likelier to come up when someone rolls for a role — weight 3 each, up from 2
