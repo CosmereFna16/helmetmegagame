@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Depot's horse comes down to 110
+
+✎ A Horse at the Depot now costs 110 ⬢ and sells back at 48 ⬢, down from 120 and 53.
+
 ## 2026-09-05 · The Merchant sells horses, and a builder can make a boat
 
 ✚ The Depot now stocks a Horse at 120 ⬢, sells one back at 53 ⬢. Mid-game he is the only horse in Ravenheart, and the price says so.  
