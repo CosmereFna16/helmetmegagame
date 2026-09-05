@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Cameras take photos, /shout carries, and the caves only bite when you walk
+
+✚ The Instant Camera works. React 📸 or 📷 to somebody's message and you get a Photo of them, frozen exactly as they looked right then — a real object you can hand over, stash, or have stolen. The camera is reusable; consuming one instead prints a photo of nothing.
+✚ /shout, which carries four places out across the map. It muffles as it goes — clear next door, half static two places off, unintelligible at the edge — and tells hearers only which direction it came from, never who shouted.
+✎ The Caving Die no longer rolls at turn start, so camping underground is free. It rolls when you walk into somewhere new down there, once per place per day, going deeper and turning back alike. Customs is now completely safe.
+
 ## 2026-09-05 · Six more books on the shelves
 
 ✚ Five new books in the Keep's Library: a pet rat manual, a volume of magical regulations, a very short story about a sword, the prophecies of Sir Thomast, and a strategy primer about legs  
