@@ -1675,6 +1675,15 @@ input[type="radio"]:disabled {
   cursor: not-allowed;
 }
 
+/* A whitelisted seat in the creation picker. Dotted rather than coloured, so
+   it still reads as set apart when the card is greyed out — and so the
+   aria-pressed outline stays the only thing that means "selected". Only the
+   role picker sets the attribute; the other .select-card pickers are
+   unaffected. */
+.select-card[data-whitelisted="true"] {
+  border-style: dotted;
+}
+
 /* Column sizing, as intent rather than a number repeated at 20 call sites.
 
    .col-fit is the `width: 1%` idiom, not a literal 1% — a table lays out to

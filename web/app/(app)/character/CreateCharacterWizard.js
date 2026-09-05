@@ -62,6 +62,12 @@ function StepBar({ step }) {
   );
 }
 
+// The difficulty words live lowercase in docs/roles.yaml, which is matched on.
+// Capitalize for display only; never in the YAML.
+function titleCase(word) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
 function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // `cap` crosses from the server as null for an uncapped role (Infinity
   // doesn't survive serialization — see page.js). Comparing `taken >= cap`
@@ -69,16 +75,23 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // full, so the null check must stay explicit. Uncapped is never full.
   const full = cap !== null && taken >= cap;
   const card = (
+    // data-whitelisted draws a dotted frame, so a whitelisted seat reads as set
+    // apart before anyone clicks it. Scoped to the attribute rather than to
+    // .select-card, which four other pickers share.
     <button
       type="button"
       disabled={disabled}
       onClick={() => onSelect(role.id)}
       aria-pressed={selected}
+      data-whitelisted={role.requiresWhitelist ? "true" : undefined}
       className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="flex flex-wrap items-baseline gap-2">
-          <strong>{role.name}</strong>
+          <strong>
+            {role.name}
+            {role.grantsLeader && <Tooltip text="Leader ‡"> ★</Tooltip>}
+          </strong>
           {/* The bucket heading no longer says which faction this is — a
               bucket holds several — so the card does. */}
           <span className="text-xs text-muted">{role.factionName}</span>
@@ -96,7 +109,10 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
         {/* A disabled card is otherwise just grey, which reads as a bug. This
             says the role is shut on purpose (GameConfig.playtestModeEnabled). */}
         {role.playtestLocked && <span className="chip">closed for this playtest</span>}
-        {role.difficulty && <span className="chip">{role.difficulty}</span>}
+        {role.difficulty && <span className="chip">{titleCase(role.difficulty)}</span>}
+        {/* Said whether or not this player is blocked: a whitelisted seat they
+            CAN take should still say what it is. */}
+        {role.requiresWhitelist && <span className="chip">Whitelisted ‡</span>}
         {role.extraStartingPoints > 0 && (
           <span className="chip text-positive">
             +{role.extraStartingPoints} pts

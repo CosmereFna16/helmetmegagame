@@ -10,13 +10,33 @@
 // safety net). allAccessChannelIds() already enumerates every Location
 // channel, which is why the shape below did not have to change.
 //
+// BOTH functions are read-then-delete: one read of the guild's channels (or
+// its members) tells you exactly which overwrites and roles are really there,
+// and only those are removed. The single-character form used to sweep BLIND —
+// two DELETEs against every access channel whether or not an overwrite existed
+// — which was ~150 sequential Discord round-trips for a character who stands in
+// exactly one Location. Deleting a character took over half a minute of pure
+// latency. Read-first costs one call and deletes two or three.
+//
+// A read that FAILS falls back to the blind sweep rather than skipping the
+// half it couldn't see. Silently skipping would leave a departed player still
+// reading rooms, which is the whole class of bug the checked return exists to
+// catch.
+//
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
 //
 // Both functions return counts and failure lists rather than nothing:
 // a revoke that silently fails leaves a departed player still reading rooms,
 // which is exactly the class of bug the zone rework exists to end.
-const { deleteChannelOverwrite, getChannel, removeMemberRole, listGuildMembers } = require("./discordRest");
+const {
+  deleteChannelOverwrite,
+  getChannel,
+  getGuildChannels,
+  getGuildMember,
+  removeMemberRole,
+  listGuildMembers,
+} = require("./discordRest");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 
 function zoneChannelIds(zone) {
@@ -44,10 +64,9 @@ async function allAccessChannelIds(prisma) {
   return channelIds.filter(Boolean);
 }
 
-// One character's full revoke: every zone role stripped (removing a role the
-// member doesn't hold is a no-op, so all of them cost less than working out
-// which they held from possibly-stale state), then their member overwrites
-// swept from every Location channel, zone channel and special channel.
+// One character's full revoke: the zone roles they actually hold stripped,
+// then their member overwrites removed from whichever Location, zone and
+// special channels actually carry one.
 async function revokeAllCharacterAccess(prisma, character) {
   const targetIds = [character.discordUserId, character.discordRoleId].filter(Boolean);
   const failures = [];
@@ -59,34 +78,71 @@ async function revokeAllCharacterAccess(prisma, character) {
     .deleteMany({ where: { characterId: character.id } })
     .catch((err) => console.error(`Room guest revoke for ${character.id} failed:`, err.message ?? err));
 
+  const strip = async (label, fn) => {
+    attempted += 1;
+    try {
+      await fn();
+    } catch (err) {
+      failures.push({ target: label, message: err.message });
+    }
+  };
+
   if (character.discordUserId) {
     const zoneRoles = await prisma.zone.findMany({
       where: { discordRoleId: { not: null } },
       select: { discordRoleId: true, name: true },
     });
+
+    // One read says which of them the member actually wears. A throw means
+    // the read failed — fall back to removing all of them blind, since
+    // removing a role nobody holds is a harmless no-op and skipping is not.
+    let held = null;
+    try {
+      const member = await getGuildMember(character.discordUserId);
+      // A null member has left the guild; their roles went with them.
+      held = member ? new Set(member.roles ?? []) : new Set();
+    } catch (err) {
+      console.error(
+        `Access revoke for ${character.name ?? character.id}: couldn't read the member, ` +
+          `stripping every zone role blind instead:`,
+        err.message,
+      );
+    }
+
     for (const row of zoneRoles) {
-      attempted += 1;
-      try {
-        await removeMemberRole(character.discordUserId, row.discordRoleId);
-      } catch (err) {
-        failures.push({ target: `access role ${row.name}`, message: err.message });
-      }
+      if (held && !held.has(row.discordRoleId)) continue;
+      await strip(`access role ${row.name}`, () => removeMemberRole(character.discordUserId, row.discordRoleId));
     }
   }
 
   if (targetIds.length > 0) {
     const channelIds = await allAccessChannelIds(prisma);
+
+    // GET /guilds/{id}/channels carries each channel's permission_overwrites,
+    // so one call is the whole picture. Threads aren't in it, and don't need
+    // to be — allAccessChannelIds enumerates real channels only.
+    let live = null;
+    try {
+      const channels = await getGuildChannels();
+      live = new Map(channels.map((c) => [c.id, c.permission_overwrites ?? []]));
+    } catch (err) {
+      console.error(
+        `Access revoke for ${character.name ?? character.id}: couldn't list guild channels, ` +
+          `sweeping every access channel blind instead:`,
+        err.message,
+      );
+    }
+
     for (const channelId of channelIds) {
+      // A channel missing from the listing was deleted by hand — ordinary.
+      const present = live ? live.get(channelId) : null;
+      if (live && !present) continue;
       for (const targetId of targetIds) {
-        attempted += 1;
-        try {
-          // allow404 is already on deleteChannelOverwrite, so "there was no
-          // overwrite" returns null rather than throwing. Anything that
-          // reaches the catch is a real failure.
-          await deleteChannelOverwrite(channelId, targetId);
-        } catch (err) {
-          failures.push({ target: `${channelId}/${targetId}`, message: err.message });
-        }
+        if (present && !present.some((o) => o.id === targetId)) continue;
+        // allow404 is already on deleteChannelOverwrite, so "there was no
+        // overwrite" returns null rather than throwing. Anything that
+        // reaches the catch is a real failure.
+        await strip(`${channelId}/${targetId}`, () => deleteChannelOverwrite(channelId, targetId));
       }
     }
   }

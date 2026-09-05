@@ -1304,6 +1304,9 @@ model NoticePost {
 
   @@index([locationId])
   @@index([expiresTurn])
+  // SetNull on a character delete, so without this Postgres scans the whole
+  // table for every deleted character.
+  @@index([postedById])
 }
 
 model RoomTag {
