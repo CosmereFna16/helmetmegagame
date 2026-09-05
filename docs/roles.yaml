@@ -1244,7 +1244,7 @@ zones:
                 If you'd prefer the virtuous angle, you can be a hedge knight instead.
             difficulty: normal
             multiple: true
-            weight: 2
+            weight: 3
             starting_resources: 4
             starting_zone: caves
             starting_location: customs
@@ -1438,7 +1438,7 @@ zones:
                 A little hint: some of the Watchmen take bribes.
             difficulty: easy
             multiple: true
-            weight: 2
+            weight: 3
             starting_resources: 2
             starting_zone: hills
             starting_location: hills-ravine
