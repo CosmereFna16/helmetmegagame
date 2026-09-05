@@ -105,10 +105,19 @@ quantity — and it is summed across every Add Tag request filed in the open
 turn. Enforced in `addTagRequestImpl`; the constant is
 `DEAD_SIMPLE_PER_TURN` in `web/lib/requests.js`, which also holds
 `isDeadSimple()` — the tier has no column of its own, so it is recognised as
-"0 turns of work plus a smithing or crafting skill gate". The Skill gate
-itself (a recipe's `requirementSkills`) is an **OR list** — `crafting` OR
-`smithing` on Dead Simple items — shown to the player, not enforced
-([`TAGS.md`](TAGS.md) §3b).
+"0 turns of work plus a smithing or crafting skill gate".
+
+The Skill gate itself (a recipe's `requirementSkills`) is an **AND list, and
+it is enforced** — `requireRecipeSkills` in
+`web/app/(app)/character/requestActions.js` refuses the craft unless the maker
+holds every skill named (or a higher tier of it, via `buildSkillAncestry`).
+This paragraph used to say the opposite, and the data was authored to match
+what it said: every Dead Simple item was written `[smithing, crafting]` meaning
+"either", so the entry rung silently demanded BOTH skills and was harder to
+reach than Simple above it. Fixed by making the data single-skill instead of
+loosening the code — the tier now splits by material, `crafting` for the
+wood-and-cord items and `smithing` for the metal ones. Do not reintroduce a
+multi-skill recipe meaning "or"; there is no OR gate in the catalog.
 
 Every combat item is `purchasable: true, purchasableAfterStart: false` — buy
 at creation or have someone craft one in play. Found-only items
@@ -123,12 +132,13 @@ Life) used to be the example; they're archived in
 
 | Weapon | Tier | Notes |
 |---|---|---|
-| Cudgel | Dead Simple | |
-| Work Knife | Dead Simple | |
-| Hatchet | Dead Simple | |
-| Sling | Dead Simple | |
-| Quarterstaff | Dead Simple | |
-| Pitchfork | Dead Simple | |
+| Cudgel | Dead Simple | `smithing` |
+| Work Knife | Dead Simple | `smithing` |
+| Hatchet | Dead Simple | `smithing` |
+| Truncheon | — | Not craftable at all, by design. Cerberi and Order issue. |
+| Sling | Dead Simple | `crafting` |
+| Quarterstaff | Dead Simple | `crafting` |
+| Pitchfork | Dead Simple | `smithing`. Carries the farming `laborBonus`, moved off the Hatchet. |
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | |
 | Dagger | Simple | |

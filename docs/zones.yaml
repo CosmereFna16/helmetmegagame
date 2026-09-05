@@ -309,6 +309,10 @@ zones:
               items:
                 paper: 12
                 inquisitors-wax-stamp: 1
+                mace: 1
+                padded-cap: 1
+                crossbow: 1
+                tear-gas-grenade: 3
           cathedral-hall:
             name: Hall
             description: >-
@@ -741,6 +745,7 @@ zones:
             stash:
               items:
                 radio-bracelet-cerberon: 3
+                truncheon: 4
                 halberd: 2
                 broadsword: 1
                 gladius: 2
@@ -1093,6 +1098,10 @@ zones:
             name: Fields
             description: >-
               Low walls of piled rocks separate the road from expansive fields of wheat. There's carts and empty crates, used for the harvest.
+            stash:
+              items:
+                pitchfork: 4
+                work-knife: 1
           farms-village-green:
             name: Village Green
             description: >-

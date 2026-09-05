@@ -178,7 +178,7 @@ that doesn't exist.
 | Trapping Gear | hunting | +3 | equipped; new, craftable and depot stock |
 | Butcher | hunting | +2 | **not** equipped — it's a skill |
 | every firearm | hunting | +2 | equipped |
-| Hatchet | farming | +1 | equipped |
+| Pitchfork | farming | +1 | equipped |
 | Plow | farming | +4 | not equipped; needs a `horse` |
 | Fishing Rod | fishing | +1 | equipped; new |
 
@@ -191,7 +191,7 @@ of it you can carry at once.
 
 The group is the whole test, which means a tag's `group:` is now load-bearing
 for laboring: move a bow out of `items-weapons` and it silently starts
-stacking. The Hatchet sits in that group too — it pays into farming rather
+stacking. The Pitchfork sits in that group too — it pays into farming rather
 than hunting, so it competes with no other weapon and the rule never bites it.
 
 **Butcher's bonus narrowed.** It used to be a hardcoded flat +2 on every tier

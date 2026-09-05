@@ -242,14 +242,29 @@ The **group gate still applies, unconditionally** — same as everywhere else,
 it's the hidden-category mechanism and is never bypassed. A Demoness
 craftable stays invisible outside the category.
 
-`requirementSkills` is an **OR** list, not an AND: every multi-skill recipe
-in `docs/tags.yaml` is a Dead Simple item written `[smithing, crafting]`
-specifically so either skill qualifies (`db/lib/formatTagRequirement.js`
-joins the list with `/`; SMITHING.md §2 spells the rung's gate as "`crafting`
-OR `smithing`"). The picker's "To make:" line renders the list joined with
-"or", and `isDeadSimple()` (`web/lib/requests.js`) reads the slugs for the
-4-per-turn cap — so callers still select `requirementSkills { name, slug }`,
-just no longer as a gate.
+`requirementSkills` is an **AND** list, and it is a real gate:
+`requireRecipeSkills` (`web/app/(app)/character/requestActions.js`) refuses
+the craft unless the maker holds every skill named, or a higher tier of it —
+`buildSkillAncestry` means `smithing-skilled` satisfies a `smithing`
+requirement.
+
+This paragraph used to claim the reverse, and so did SMITHING.md §2. The data
+was authored to match the claim: the whole Dead Simple rung was written
+`[smithing, crafting]` intending "either", which the code read as "both". That
+made the entry tier stricter than the rung above it. The fix went into the
+data — Dead Simple now names one skill per recipe, split by material — not
+into the gate. **There is no OR gate anywhere in the catalog** (`requiredTag`
+is a single FK, and this list is an AND), so never author a multi-skill recipe
+meaning "either".
+
+A multi-skill recipe is therefore a deliberate conjunction. `barbed-net` is
+the one that exists: `[crafting, fundamentalist]`, i.e. only a zealot who can
+also work a needle. Note the second entry is not a skill at all — the sync
+resolves any tag slug here (`db/lib/syncTags.js`), which is what lets a recipe
+require a *belief*.
+
+`isDeadSimple()` (`web/lib/requests.js`) reads the same slugs for the
+4-per-turn cap, so callers still select `requirementSkills { name, slug }`.
 
 ## 3a. Hidden categories, and gated groups
 

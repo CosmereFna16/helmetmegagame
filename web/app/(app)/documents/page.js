@@ -153,24 +153,39 @@ export default async function DocumentsPage() {
   // Role.description is a String[] of plain sentences (docs/roles.yaml), not
   // Markdown like a Document — joining them as a bullet list is the whole
   // conversion, and it is what lets this reuse the ordinary card and sheet
-  // untouched. It has been written and synced for all 49 roles since the
-  // start and rendered nowhere; the nearest a player got was role.intro in
-  // the creation wizard.
+  // untouched.
+  //
+  // Role.intro opens it, italicised. That line is the one-sentence hook the
+  // creation wizard shows (character/page.js), and until now it was the only
+  // place it appeared — so the document a player actually keeps opened cold,
+  // on a bullet list with no framing. Several roles had worked around that by
+  // repeating the intro as description[0]; those copies are gone from the
+  // YAML now, and this is what replaced them.
   //
   // `role: true` is already in the include above, so this costs no query.
   //
   // Not a Document row, so {document:…} can never resolve to it — the index
   // getDocumentIndex builds only ever lists real rows.
+  const roleIntro = character?.role?.intro?.trim() ?? "";
+  const roleBullets = character?.role?.description ?? [];
+  // Intro OR bullets. Deleting the duplicated first bullet left Squire,
+  // Successor and Migrant with an empty description, and a length-only test
+  // would have dropped their charter off the page entirely.
   const roleCharter =
-    character?.role?.description?.length > 0
+    roleIntro || roleBullets.length > 0
       ? {
         pinned: true,
         key: "role",
         name: character.role.name,
         source: "Your Role",
-        description: character.role.description.map((line) => `- ${line}`).join("\n"),
+        description: [
+          roleIntro ? `_${roleIntro}_\n` : null,
+          ...roleBullets.map((line) => `- ${line}`),
+        ]
+          .filter(Boolean)
+          .join("\n"),
         // Blank lines, not bullets: the card preview is flattened prose.
-        previewText: character.role.description.join("\n\n"),
+        previewText: [roleIntro, ...roleBullets].filter(Boolean).join("\n\n"),
       }
       : null;
 

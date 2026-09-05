@@ -168,7 +168,7 @@ documents:
 
       Those three numbers are what an ordinary spot pays. Real ground is better or worse, and what a place is worth **changes over the course of the game**. Press **Labor?** in any location's channel to see what it yields right now. Hunting swings hardest; farmland is steady until it isn't. ‡
 
-      Tools raise a yield while you carry them — bows and guns for hunting, a Hatchet or a Plow for farming, a Rod for fishing. Each says so in its own description. ‡
+      Tools raise a yield while you carry them — bows and guns for hunting, a Pitchfork or a Plow for farming, a Rod for fishing. Each says so in its own description. ‡
 
       If the Lifeweb fails, laboring very nearly stops. ‡
   combat:
@@ -311,13 +311,20 @@ documents:
       | Exceptional | 34 | 3 | Smithing (Skilled) |
       | Gunpowder | 31 | 2 | Smithing (Gunpowder) |
 
+      Metalwork needs a forge — Workshop Equipment held, sitting in a room you
+      can get into where you stand, or a {tag:forge} standing at the place. Work
+      you can do with your hands needs nothing. ‡
+
       **Dead Simple — 3 ⬢, no turn**
 
-      - Weapons: {tag:work-knife}, {tag:hatchet}, {tag:pitchfork}, {tag:sling},
-        {tag:quarterstaff}, {tag:shortbow}
-      - Armor: {tag:buckler}, {tag:padded-armor}, {tag:padded-cap}
-      - Padded Armor and Padded Cap need Crafting. Everything else here takes
-        either skill.
+      - Crafting, no forge: {tag:sling}, {tag:quarterstaff}, {tag:shortbow},
+        {tag:buckler}, {tag:padded-armor}, {tag:padded-cap}, {tag:hood},
+        {tag:bag}, {tag:fishing-rod}
+      - {tag:barbed-net} needs Crafting and Fundamentalist both — only the Order
+        knows how they are tied. ‡
+      - Smithing, at a forge: {tag:work-knife}, {tag:hatchet}, {tag:pitchfork},
+        {tag:cudgel}, {tag:armored-gloves}
+      - {tag:bone-mask} needs Butcher instead. ‡
 
       **Simple — 6 ⬢, 1 turn**
 
@@ -325,18 +332,19 @@ documents:
         {tag:phrygian-spear}, {tag:mace}, {tag:battle-axe}
       - Armor: {tag:simple-helm}, {tag:mail-coif}
       - Mail Coif needs Smithing. Crafting instead of Smithing: {tag:longbow},
-        {tag:shield}, {tag:pavise}
+        {tag:shield}, {tag:pavise}, {tag:trapping-gear} ‡
 
       **Moderate — 14 ⬢, 1 turn**
 
       - Weapons: {tag:halberd}, {tag:broadsword}, {tag:war-hammer}, {tag:knuckle-duster}
-      - Armor: {tag:mail-shirt}
+      - Armor: {tag:mail-shirt}, {tag:gladiator-helmet} ‡
 
       **High Quality — 26 ⬢, 2 turns**
 
       - Weapons: {tag:bastard-sword}, {tag:rapier}, {tag:sabre}, {tag:katana},
         {tag:silver-spear}, {tag:lucerne}, {tag:zweihander}, {tag:crossbow}
-      - Armor: {tag:knights-helmet}, {tag:breastplate}, {tag:brigandine} (hidden under clothes)
+      - Armor: {tag:knights-helmet}, {tag:censors-helmet}, {tag:breastplate},
+        {tag:brigandine} (hidden under clothes) ‡
 
       **Exceptional — 34 ⬢, 3 turns**
 
@@ -346,6 +354,18 @@ documents:
 
       - Weapons: {tag:musketoon}, {tag:bore-pistol}
       - {tag:bomb}
+
+      **Odds and ends.** These sit off the tiers above — their own price, their
+      own skill: ‡
+
+      - {tag:salvage-plate} — 5 ⬢, 1 turn, no skill at all. Scrap lashed
+        together by anyone desperate enough. ‡
+      - {tag:bear-trap} — 5 ⬢, 1 turn, Smithing. ‡
+      - {tag:disguise-kit}, {tag:jester-outfit} — 8 ⬢, 1 turn, Crafting. ‡
+      - {tag:workshop-equipment} — 26 ⬢, 2 turns, Smithing (Skilled). The one
+        piece of smith's work you can do without a forge, because otherwise
+        nobody could ever make the first one. ‡
+      - {tag:painting} — 4 turns and nothing else, if you have Artist. ‡
 
   caving:
     name: Caving
@@ -385,8 +405,8 @@ documents:
     description: |-
       Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
-      **Fine meals:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
-      **Lavish meals:** cost 3 ⬢ per meal and one hard-to-get exotic ingredient. You can make up to 3 Lavish meals in one Routine Move.
+      **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
+      **{tag:lavish-meal}:** cost 3 ⬢ per meal and one hard-to-get exotic ingredient. You can make up to 3 Lavish meals in one Routine Move.
   alcoholdrugs:
     name: Alcohol & Drugs
     public: true
@@ -418,6 +438,7 @@ documents:
       | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
       | {tag:cat} | 3 | 1 | alcohol |
       | {tag:nightshade} | 3 | 1 | a forest herb |
+      | {tag:moonshine} | 0 | 1 | {tag:godflesh} {info:You must be holding one. It is not used up.} |
 
       **Brewing (Skilled)**
 

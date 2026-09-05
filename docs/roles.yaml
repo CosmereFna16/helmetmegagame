@@ -206,8 +206,6 @@ zones:
               You are your father's son. Are you the exact opposite of him, or his closest ally?
             description:
               - >-
-                You are your father's son. Are you the exact opposite of him, or his closest ally?
-              - >-
                 Life is good as the Heir — but that may change one day. Will you make effort to reveal the gravity of your situation, or will you dawdle your days away?
             difficulty: easy
             multiple: false
@@ -234,9 +232,7 @@ zones:
             gender: WOMAN
             intro: >-
               You are the Baron's daughter. Bring some light to the darkness.
-            description:
-              - >-
-                You are the Baron's daughter. Bring some light to the darkness.
+            description: []
             difficulty: easy
             multiple: false
             starting_resources: 1
@@ -261,7 +257,7 @@ zones:
               You're the Baron's best friend and perhaps the only man he can truly trust. If anyone can be said to shape fate, Hand, it is you.
             description:
               - >-
-                You're the Baron's best friend and perhaps the only man he can truly trust. You are completely loyal to him.
+                You are completely loyal to him.
               - >-
                 The Baron works best when he's informed and has a court that's loyal and organized. You are his spymaster, his executor, his voice. Without you, Ravenheart collapses.
               - >-
@@ -314,7 +310,7 @@ zones:
               You are the Keep's brains, but more importantly, its circulatory system. Feel the weight of the world, Meister, you Atlas!
             description:
               - >-
-                You are the Keep's brains, but more importantly, its circulatory system. Ensure the Town sends its taxes — your main contact there is the Headman — and oversee that no one is taking undue amounts of Resources from the Silo.
+                Ensure the Town sends its taxes — your main contact there is the Headman — and oversee that no one is taking undue amounts of Resources from the Silo.
               - >-
                 Your part in fate is not well-loved nor well-understood, but it is essential. You may not understand yet, Meister, but there are great things at play.
               - >-
@@ -408,7 +404,7 @@ zones:
               Compose ballads, smuggle drugs from the Town, and keep the Baron happy.
             description:
               - >-
-                Compose ballads, smuggle drugs from the Town (and peddle them to the courtiers), keep the Baron happy.
+                Peddle what you smuggle to the courtiers — quietly. ‡
             difficulty: easy
             multiple: true
             weight: 1
@@ -430,7 +426,7 @@ zones:
               Keep the fortress running.
             description:
               - >-
-                Keep the fortress running. Clean, cook, maintain, and serve.
+                Clean, cook, maintain, and serve.
               - >-
                 Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
             difficulty: easy
@@ -484,6 +480,7 @@ zones:
               - Melee (Shield Wall)
               - Ranged (Basic)
               - Disabler
+              - Truncheon
               - Broadsword
               - Shield
               - Radio System (Cerberon)
@@ -561,7 +558,7 @@ zones:
               - Melee (Shield Wall)
               - Disabler
               - Radio Bracelet (Cerberon)
-              - Cudgel
+              - Truncheon
               - Mail Coif
               - Mail Shirt
               - Post-Christian
@@ -576,9 +573,7 @@ zones:
             name: Squire
             intro: >-
               Train. One day, you might become a knight.
-            description:
-              - >-
-                Train. One day, you might become a knight.
+            description: []
             difficulty: easy
             multiple: true
             weight: 2
@@ -777,20 +772,16 @@ zones:
           inquisitor:
             name: Inquisitor
             intro: >-
-              It is your everlasting duty to protect your people by expunging the barony's corruption.
+              It's your everlasting duty to expunge the barony's corruption.
             description:
               - >-
-                Do you know what it means to love God?
+                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
               - >-
-                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen — _seen_ — the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
               - >-
-                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
+                Get the Bishop on your side. Deploy the Preacher wisely to radicalize and convert people to fundamentalism. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
               - >-
-                If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
-              - >-
-                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
-              - >-
-                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
+                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: hard
             multiple: false
             starting_resources: 1
@@ -811,6 +802,7 @@ zones:
               - Post-Christian
               - Inquisitor's Longcoat
               - Fundamentalist
+              - Torturer
             doc_elements:
               - townstarting
               - postchristianity
@@ -818,20 +810,16 @@ zones:
           practicus:
             name: Practicus
             intro: >-
-              Serve the Inquisitor, and work to radicalize the Town, the Church, and possibly even the Court.
+              Serve the Inquisitor. Radicalize the Town, the Church, and possibly even the Court.
             description:
               - >-
-                Do you know what it means to love God?
+                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
               - >-
-                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen — _seen_ — the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
               - >-
-                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. Work to radicalize the Town, the Church, and possibly even the Court.
+                Get the Bishop on your side. Follow the Inquisitor's orders. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
               - >-
-                If you can get the Bishop on your side, it will be a great boon. He is weak! Force him to bend the knee.
-              - >-
-                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
-              - >-
-                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
+                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: easy
             multiple: true
             weight: 2
@@ -844,7 +832,7 @@ zones:
               - Pious
               - Melee (Basic)
               - Mail Shirt
-              - Cudgel
+              - Truncheon
               - Post-Christian
               - Practicii's Robes
               - Gas Mask
@@ -859,19 +847,13 @@ zones:
               You are the Order's face. Speak in the Town Square for all to hear.
             description:
               - >-
-                You are the Order's face. Speak in the Town Square for all to hear.
+                The dark days the scriptures promised are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter. There are things that lurk in the shadows that no man could comprehend.
               - >-
-                Do you know what it means to love God?
+                Rather than being thirsty for power, you are sane, and just doing what is necessary to bring about the goodness of God. To this end, organize your followers and radicalize the Town, the Church, and possibly even the Court. A wary, suspicious, and ready Ravenheart is the only one that can survive.
               - >-
-                Dark days, exactly as preached in the scriptures, are coming to Ravenheart. Look at the people! They frolic, indulging themselves, like sheep before the slaughter! You have seen — _seen_ — the blood, the horror. There are things that lurk in the shadows that no man could comprehend. But you have also seen the goodness of God.
+                Get the Bishop on your side. Crucify heretics to make an example out of them, and employ your torturer's tools to extract confessions.
               - >-
-                You are not thirsty for power. You are just sane. It is your everlasting duty to protect your people by expunging the barony's corruption. To this end, organize your followers and, above all, work to radicalize the Town, the Church, and possibly even the Court.
-              - >-
-                If you can get the Bishop on your side, it will be a great boon.
-              - >-
-                The time for silence has passed. There is no time to waste! Scream, from the top of your lungs, what is coming! Wake them!
-              - >-
-                One other thing: the Incarn holds the Silver Cross, an artifact blessed to defeat evil. Secure it from him.
+                Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: easy
             multiple: true
             weight: 1
@@ -1047,7 +1029,7 @@ zones:
               You live in a shell and sleep with the dogs, but you understand life (or think you do).
             description:
               - >-
-                You live in a shell and sleep with the dogs, but you understand life (or think you do). Beg for food and coin.
+                Beg for food and coin.
             difficulty: easy
             multiple: true
             weight: 4
@@ -1198,7 +1180,7 @@ zones:
               Serve the Merchant and get drunk during the night.
             description:
               - >-
-                Serve the Merchant and get drunk during the night. Maybe he'll let you get a ride on his spaceship if things ever get bad around here.
+                Maybe he'll let you get a ride on his spaceship if things ever get bad around here.
               - >-
                 You are the legs of his business. The Depot is at the bottom of the Caves and his customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe him. That is also you.
               - >-
@@ -1221,9 +1203,7 @@ zones:
             name: Migrant
             intro: >-
               Make it to the fortress.
-            description:
-              - >-
-                Make it to the fortress.
+            description: []
             difficulty: easy
             multiple: true
             weight: unlimited

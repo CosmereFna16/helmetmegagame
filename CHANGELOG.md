@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · Your role's charter opens with its own line now, and the Inquisition gets its tools
+
+✎ Every starting role document now opens on the role's intro sentence, in italics — it used to show only in the creation picker and never again  
+− Nine roles had that sentence copied into the document by hand; those copies are gone  
+✚ Torturer, a 2 pt tag the Inquisitor starts with. Won't sit alongside Charitable, Pacifist, Saint or Eusoch  
+✚ Barbed Net — takes Crafting and Fundamentalist both to make one, so only the Order can  
+✚ The Truncheon, carried by the Censor, the Cerberi and the Practicii. Nobody can make another  
+✚ Tear gas, a mace, a padded cap and a crossbow in the Order Chambers; truncheons in the Armory; pitchforks and a work knife out in the fields  
+✎ The farming bonus moved off the Hatchet onto the Pitchfork, where a farmer would look for it  
+✎ The Dead Simple crafting rung asked for BOTH Crafting and Smithing, not either — so the entry tier was harder to reach than the one above it. It now splits by material: wood and cord take Crafting, metal takes Smithing at a forge  
+✎ The Smithing paper was missing thirteen things you can make, the Preacher's document was silently collapsing into one paragraph, and three meals and a brew were missing from their own papers. All fixed
+
 ## 2026-09-05 · Verify pass: five real holes in the camera, the shout and the die
 
 ✎ A GM's staged "Relocate to" into the Depths rolled no Caving Die at all. The old turn-start sweep used to catch those people; it rolls properly now

@@ -561,6 +561,22 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Ungated on purpose. The brief asked for "Cruel OR Practicus", and the
+  # catalog has no OR gate — requiredTag is a single FK (schema.prisma). So the
+  # conflicts carry the whole weight: anyone may take it, but not alongside a
+  # tag that says they wouldn't.
+  torturer:
+    catalog: all
+    name: Torturer
+    category: general
+    group: general-personality
+    description: "You know the best ways to draw knowledge out of someone with the targeted use of pain and tonics. Your Gambits to extract information are likelier to shake a dark secret loose. ‡"
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+    removable: true
+    conflictsWith: [charitable, pacifist, saint, old-ways-eusoch]
+
   # Lock-free by design (F-18): an Interest, not a Restriction.
   death-wish:
     catalog: all
@@ -4725,6 +4741,35 @@ tags:
       skills: [smithing]
       gambit: false
 
+  # The recipe gate, not the tag gate. requirement.skills is checked as "do you
+  # hold every one of these" (requestActions.js#requireRecipeSkills) and accepts
+  # any tag slug, not just a skill — so naming Fundamentalist here means only a
+  # zealot can MAKE one, while the finished net stays lootable and tradeable
+  # like any other item.
+  barbed-net:
+    catalog: all
+    name: Barbed Net
+    category: items
+    group: items-gear
+    description: "A cruel but effective way to bind someone — it works on an armored target too. ‡"
+    pointCost: 2
+    equippable: true
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    removable: true
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting, fundamentalist]
+      gambit: false
+    sellable: true
+    sellablePrice: 4
+
   skeleton-wedge:
     catalog: all
     name: Skeleton Wedge
@@ -4978,6 +5023,21 @@ tags:
     category: items
     group: items-gear
     description: "Blocks vision, makes people choke."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  tear-gas-grenade:
+    catalog: gm
+    name: Tear Gas Grenade
+    category: items
+    group: items-gear
+    description: "A sealed canister."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -5620,7 +5680,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [smithing, crafting]
+      skills: [smithing]
       gambit: false
     sellable: true
     sellablePrice: 4
@@ -5630,8 +5690,7 @@ tags:
     name: Hatchet
     category: items
     group: items-weapons
-    description: "For cutting wood. Farming produces +1 ⬢ when equipped. ‡"
-    laborBonus: { kind: farming, amount: 1 }
+    description: "For cutting wood. ‡"
     pointCost: 2
     equippable: true
     tradeable: true
@@ -5645,7 +5704,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [smithing, crafting]
+      skills: [smithing]
       gambit: false
     sellable: true
     sellablePrice: 4
@@ -5752,7 +5811,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [crafting, smithing]
+      skills: [crafting]
       gambit: false
     sellable: true
     sellablePrice: 4
@@ -5776,7 +5835,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [crafting, smithing]
+      skills: [crafting]
       gambit: false
     sellable: true
     sellablePrice: 4
@@ -5800,8 +5859,28 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [crafting, smithing]
+      skills: [smithing]
       gambit: false
+    sellable: true
+    sellablePrice: 4
+
+  # No recipe and no `craftable`. The Cerberi and the Order carry these; nobody
+  # in Ravenheart can make another, because nobody knows what they are made of.
+  truncheon:
+    catalog: all
+    name: Truncheon
+    category: items
+    group: items-weapons
+    description: "Made out of an unknown black material. This hurts."
+    pointCost: 2
+    equippable: true
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
     sellable: true
     sellablePrice: 4
 
@@ -5810,7 +5889,8 @@ tags:
     name: Pitchfork
     category: items
     group: items-weapons
-    description: "The traditional instrument of the discontented."
+    description: "The traditional instrument of the discontented. Farming produces +1 ⬢ when equipped. ‡"
+    laborBonus: { kind: farming, amount: 1 }
     pointCost: 2
     equippable: true
     tradeable: true
@@ -5824,7 +5904,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [smithing, crafting]
+      skills: [smithing]
       gambit: false
     sellable: true
     sellablePrice: 4
@@ -5849,7 +5929,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [crafting, smithing]
+      skills: [crafting]
       gambit: false
     sellable: true
     sellablePrice: 4
@@ -9711,7 +9791,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [smithing, crafting]
+      skills: [crafting]
     sellable: true
     sellablePrice: 4
 
@@ -10242,7 +10322,7 @@ tags:
     requirement:
       turnsCost: 0
       resourceCost: 3
-      skills: [crafting, smithing]
+      skills: [smithing]
       gambit: false
     sellable: true
     sellablePrice: 4
