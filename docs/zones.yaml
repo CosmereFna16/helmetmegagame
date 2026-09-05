@@ -800,14 +800,61 @@ zones:
       road:
         name: Road
         description: >-
-          The approach, running from the gatehouse down between the estates. Metalled, drained, and swept — the only stretch of road in the barony that is any of those things. Riding up it is a declaration. Walking up it is a request. ‡
-        rooms: {}
+          Green hills and a long white road, sinuous as a snake: grasshoppers buzz in the daisies. The Gatehouse bristles with Cerberi.
+        rooms:
+          # `road-stretch`, not `road` — the Location above already holds that
+          # id, and zones, locations and rooms share one namespace.
+          road-stretch:
+            name: Road
+            description: >-
+              Just a little ways longer.
+          road-shrine:
+            name: Shrine
+            description: >-
+              A mossy shrine erected to honor a forgotten saint. Its cloaked statue, bolted to a pedestal, is the size of a doll. Its face was marred by vandals.
+          # The same tag that locks the climb down to the Hills in
+          # `connections:` — one skill, one kind of ground.
+          road-ledge:
+            name: Ledge
+            access: [mountaineering]
+            description: >-
+              There's a drop off, stopped by a ledge. The sure-footed and careful can pick their way down and crouch in the shade of a wizened, nigh-horizontal oak tree.
       manors:
         name: Manors
         description: >-
-          The lesser houses, strung along the ridge where the air is better and the smell of the town does not reach. Each has a wall, a gate, and a family that would rather you used them. Between them, orchards nobody picks. ‡
+          Homes surrounded by high stone walls, overgrown with flowers, with a nice gateway and ornate galleries. There's a deconstructed machine gun nest on one of the semicircle balconies, no longer functional.
         yield: { farming: 0.6 }
-        rooms: {}
+        rooms:
+          manors-road:
+            name: Road
+            description: >-
+              Halfway up the hill.
+          # What `manor-key` has been for since it was written. Until now it
+          # opened nothing.
+          manors-manor:
+            name: Manor
+            access: [manor-key]
+            description: >-
+              The landscaping is incomplete, with grasses growing through the stones. However, the interior is well kept, with an old rug, a wine cabinet, and a hearth.
+            stash:
+              items:
+                ravenheart-red: 1
+                instrument: 1
+                sabre: 1
+          manors-cellar:
+            name: Cellar
+            access: [manor-key]
+            description: >-
+              Damp and dark.
+            stash:
+              items:
+                obol: 4
+                cave-fungus: 1
+          manors-garden:
+            name: Garden
+            access: [manor-key]
+            description: >-
+              A walled garden for growing herbs.
 
   forest:
     name: Forest
