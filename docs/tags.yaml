@@ -256,12 +256,14 @@ tags:
     pointCost: 0
     purchasable: false
 
-  # The Judge's seat tag (db/lib/threats.js). Like `demoness` above it is
+  # The Judge's seat tag (db/lib/threats.js). Like `demoness` below it is
   # role-granted, never bought, and carries no group — the point cost is
   # cosmetic. It exists so the threat roster can find who holds the seat
-  # without a column to keep in sync.
+  # without a column to keep in sync. `secret` for the same reason Demoness
+  # is: an antagonist seat has no business showing up in the player's Tag
+  # Catalog.
   judge:
-    catalog: all
+    catalog: secret
     name: Judge
     category: general
     description: "You are the Judge."
@@ -1654,7 +1656,7 @@ tags:
     name: Saint
     category: general
     group: general-beliefs
-    description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once per day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document."
+    description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once per day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document. You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
     pointCost: 14
     visible: true
     # Migrants only: Pale is the Migrant role's starting tag and is
