@@ -306,12 +306,20 @@ point, and a scout reporting back to a hunter is a conversation the game wants.
 Three parts, each dropped when it has nothing to say: what can be worked here,
 what the place *is*, and what the ways out are doing.
 
+Every line reads the same way — **a one-word topic, a colon, and the shortest
+true sentence**. The labor readout was already shaped like that, and the prose
+under it used to be written in three or four different voices, so a player had
+to parse each line before knowing whether it mattered. Now the topic is the
+first thing on the line and the eye can skip what it does not need.
+
 ```
-» *The Depot.*
+» *Customs.*
 **Hunting**: × | **Farming**: × | **Fishing**: ×
-A place you walk into — a cart or a mount waits at the door. ‡
-A shuttle berth, and the only door Ravenheart has to anywhere else. ‡
-The way to Customs stands open. ‡
+**Indoors**: your cart or horse has to stay at the door. ‡
+**Noticeboard**: you can pin paper here. ‡
+**Generator**: 5 days of coal left. ‡
+**Shuttle**: it's here. ‡
+**Narrows**: the way stands open. ‡
 ```
 
 The second part is `db/lib/locationAttributes.js` reading
@@ -320,7 +328,13 @@ walks the modular `LocationLink` rows through `db/lib/locationGraph.js#linksFor`
 rather than trusting the anchor's own buttons, since a GM can flip an edge
 without anyone refreshing a message. Note the gate lines say what is TRUE,
 while the buttons beside them say what a click DOES — one of them would have to
-be wrong if they were worded alike.
+be wrong if they were worded alike. A gate's topic word is the place on the far
+side, which is also how a player reads the button row above it.
+
+Structures print here too, one line each, and their `examine:` string in
+`docs/tags.yaml` is authored as the **fragment after the colon**, ‡-free — the
+topic is the structure's own name, so an `examine:` that named it again would
+say it twice, and the line picks up its mark on the way out.
 
 Words, never numbers. Working out that Bountiful beats Ample is the player's
 job, and the numbers move anyway.

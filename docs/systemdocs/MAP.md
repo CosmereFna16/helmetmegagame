@@ -22,7 +22,7 @@ channel doctor's `character-place` check flags a mismatch (`CHANNELS.md`
 semantics, including the format).
 
 **How a Location is slugged.** A built place takes a bare slug and a bare
-name — `keep`, `factory`, `cathedral`, `depot`. Open country takes its zone as
+name — `keep`, `factory`, `cathedral`, `customs`. Open country takes its zone as
 a prefix — `forest-river`, `hills-ravine`, `marshes-village`,
 `depths-runnel` — because a ravine and a river are things every zone has one
 of, and the slug is also the Discord channel name. The wilderness used to be
@@ -75,8 +75,8 @@ Beyond its name and description, a Location carries a sparse map of
 `attributes:` block in `docs/zones.yaml`:
 
 ```yaml
-depot:
-  name: Depot
+customs:
+  name: Customs
   attributes:
     depot: true
 ```

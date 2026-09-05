@@ -34,6 +34,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { SHUTTLE_LANDED_LINE, SHUTTLE_DEPARTED_LINE } from "@lifeweb/db/lib/depotPass";
+import { refreshLiveRooms } from "@lifeweb/db/lib/syncZones";
 
 // The Merchant's station. Same contract as every other player Request
 // (docs/systemdocs/REQUESTS.md): authenticate, re-validate everything the
@@ -255,6 +256,16 @@ async function depotOrderImpl({ items: rawItems, reason: rawReason }) {
 // The shuttle
 // ─────────────────────────────────────────────────────────────────────────
 
+// The Landing Pad's starter message says whether the shuttle is on it
+// (db/lib/roomLive.js), so every move of that state has to repaint it. Best
+// effort: a Discord hiccup must not fail a shipment that already committed,
+// and the next sync or refresh puts the line right.
+async function refreshShuttleRoom() {
+  await refreshLiveRooms(prisma, "shuttle").catch((err) =>
+    console.error("landing pad refresh failed:", err.message),
+  );
+}
+
 // Calling it down. Everything on the manifest becomes crates on the landing
 // pad; an empty manifest still brings the shuttle, because he also needs it
 // down to load goods going the other way.
@@ -328,6 +339,7 @@ async function depotCallShuttleImpl({ reason: rawReason }) {
   });
 
   await speakAtDepot(SHUTTLE_LANDED_LINE);
+  await refreshShuttleRoom();
   revalidateAll();
   return { shipment, crates: crates.length };
 }
@@ -440,6 +452,7 @@ async function depotSendShuttleImpl({ reason: rawReason }) {
   });
 
   await speakAtDepot(SHUTTLE_DEPARTED_LINE);
+  await refreshShuttleRoom();
   revalidateAll();
   return { payout, sold: soldTags.length };
 }

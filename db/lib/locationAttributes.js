@@ -32,10 +32,10 @@ const REFINERY_ATTRIBUTE = "refinery";
 const ATTRIBUTES = {
   // The Merchant's berth. Marks the one Location the Depot console, the
   // generator, the turret and the shuttle all belong to, so none of them has
-  // to hardcode a slug. The interesting lines about it are derived and
-  // arrive through ctx.depot; this one just names the place.
+  // to hardcode a slug. Exists to be matched on: every line worth printing
+  // about the place is derived and arrives through ctx.depot.
   depot: {
-    describe: () => "A shuttle berth, and the only door Ravenheart has to anywhere else. ‡",
+    describe: () => null,
   },
   // Ground nothing may be built on, for the handful of one-off places the
   // DERIVED rules (indoors, a cave level — db/lib/structures.js#canBuildHere)
@@ -49,21 +49,21 @@ const ATTRIBUTES = {
   // Extract button matches on, so no marsh tile has to be named by slug.
   // See docs/systemdocs/FACTORY.md.
   godflesh: {
-    describe: () => "Something under the water moves when you step, and keeps moving after you stop. ‡",
+    describe: () => "**Godflesh**: you can cut it out of the water here. ‡",
   },
 
   // The Godard Factory floor. Laboring here refines Godflesh into Squeeze
   // instead of paying ⬢, and it is the one place in the game where labor is
   // legal with no LocationYield row at all.
   refinery: {
-    describe: () => "Vats, hooks and a press. Work a day here and whatever you brought comes out in cubes. ‡",
+    describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze. ‡",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
   // this Location's anchor matches on, so no board has to be named by slug.
   // See docs/systemdocs/PAPERWORK.md.
   noticeboard: {
-    describe: () => "A board of weathered planks, thick with old nail holes. People pin things here. ‡",
+    describe: () => "**Noticeboard**: you can pin paper here. ‡",
   },
 };
 
@@ -84,9 +84,13 @@ function authoredLines(location, ctx = {}) {
 // The one fact that is a real column rather than an attribute, because
 // db/lib/indoors.js and db/lib/mounts.js both act on it. It reads as an
 // attribute here even though it is not stored as one.
-function indoorsLine(location) {
-  if (!location?.indoors) return null;
-  return "A place you walk into — a cart or a mount waits at the door. ‡";
+//
+// Both halves print. Silence outdoors would have meant the rule was only ever
+// stated in the place it bites, which is the worst moment to learn it.
+function placementLine(location) {
+  return location?.indoors
+    ? "**Indoors**: your cart or horse has to stay at the door. ‡"
+    : "**Outdoors**: you can use your horse or cart here. ‡";
 }
 
 // The modular gates touching this location. `gates` is [{ farName, isOpen }],
@@ -104,11 +108,11 @@ function gateLines(gates) {
       // A shut structural edge nothing holds is not a closed door — it is a
       // crossing nobody has built, and Examine is where that gets noticed.
       if (gate.unbuilt) {
-        return `Nothing spans the way to ${gate.farName} — it would have to be built. ‡`;
+        return `**${gate.farName}**: nothing spans the way — it would have to be built. ‡`;
       }
       return gate.isOpen
-        ? `The way to ${gate.farName} stands open. ‡`
-        : `The way to ${gate.farName} is closed. ‡`;
+        ? `**${gate.farName}**: the way stands open. ‡`
+        : `**${gate.farName}**: the way is closed. ‡`;
     });
 }
 
@@ -124,21 +128,20 @@ function depotLines(ctx = {}) {
   if (!depot) return [];
 
   const lines = [];
-  lines.push(
-    depot.powered
-      ? `The generator is running${depot.fuelTurnsLeft != null ? `, and sounds like it has about ${depot.fuelTurnsLeft} day${depot.fuelTurnsLeft === 1 ? "" : "s"} of coal in it` : ""}. ‡`
-      : "The generator is dead. Everything in here is dark and nothing works. ‡",
-  );
-  lines.push(
-    depot.shuttleDocked
-      ? "A shuttle sits on the landing pad, hold open. ‡"
-      : "The landing pad is empty. ‡",
-  );
+  if (!depot.powered) {
+    lines.push("**Generator**: it's off, so nothing in here works. ‡");
+  } else if (depot.fuelTurnsLeft == null) {
+    lines.push("**Generator**: it's running. ‡");
+  } else {
+    const days = depot.fuelTurnsLeft;
+    lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left. ‡`);
+  }
+  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here. ‡" : "**Shuttle**: it's not here. ‡");
   // Only worth a line when it is a danger. A disarmed turret is a fixture, and
   // saying so every time would train people to stop reading the line that
   // matters.
   if (depot.turretArmed && depot.powered) {
-    lines.push("Something in the ceiling tracks you across the room. ‡");
+    lines.push("**Turret**: it's armed, and it's watching you. ‡");
   }
   return lines;
 }
@@ -161,22 +164,23 @@ function structureLines(ctx = {}) {
     // The defenseNote (a defensive clause, or the siege licence) prints
     // only while the structure WORKS — COMPLETE or DAMAGED — never off a
     // wreck or a rising site, or a ruined ram would still license a storm.
-    // It is authored as a ‡-free fragment (tagShapes enforces that) because
-    // the GM Move card splices it mid-line; here it stands as its own line
-    // and picks its ‡ up on the way out.
+    // Both the note and the structure's own `examine:` are authored as
+    // ‡-free fragments (tagShapes enforces that): the GM Move card splices
+    // the note mid-line, and Examine puts each one after a **topic** of its
+    // own. They pick the ‡ up on the way out.
     const note = structure.placement?.defenseNote;
-    const noteLines = note ? [`${note} ‡`] : [];
+    const noteLines = note ? [`**Defense**: ${note} ‡`] : [];
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
-        return [`A ${typeName} is going up here (${structure.turnsDone}/${structure.turnsNeeded}). ‡`];
+        return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} days done. ‡`];
       case "COMPLETE":
-        return [structure.placement?.examine ?? `A ${typeName} stands here. ‡`, ...noteLines];
+        return [`**${typeName}**: ${structure.placement?.examine ?? "it stands here."} ‡`, ...noteLines];
       case "DAMAGED":
-        return [`The ${typeName} here is damaged. ‡`, ...noteLines];
+        return [`**${typeName}**: it's damaged. ‡`, ...noteLines];
       case "RUINED":
-        return [`The ruin of a ${typeName} lies here. ‡`];
+        return [`**${typeName}**: a ruin. ‡`];
       case "ABANDONED":
-        return [`The abandoned groundwork of a ${typeName} sits here, gone nowhere. ‡`];
+        return [`**${typeName}**: abandoned groundwork, gone nowhere. ‡`];
       default:
         return [];
     }
@@ -188,7 +192,7 @@ function structureLines(ctx = {}) {
 // (db/lib/laborYield.js#qualityWord), and the caller prints it first.
 function describeLocation(location, ctx = {}) {
   return [
-    indoorsLine(location),
+    placementLine(location),
     ...authoredLines(location, ctx),
     ...depotLines(ctx),
     ...structureLines(ctx),
@@ -230,7 +234,7 @@ module.exports = {
   structureLines,
   ATTRIBUTES,
   authoredLines,
-  indoorsLine,
+  placementLine,
   gateLines,
   describeLocation,
   collectAttributes,

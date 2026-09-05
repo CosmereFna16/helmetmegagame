@@ -4127,7 +4127,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "A wayside shrine stands here. ‡"
+      examine: "it stands at the wayside."
 
   drying-racks:
     catalog: all
@@ -4151,7 +4151,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "Drying racks stand here, lines strung for the catch. ‡"
+      examine: "lines strung for the catch."
       laborBonus: { kind: hunting, amount: 1 }
 
   fish-weir:
@@ -4173,7 +4173,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "A fish weir stands in the water here, its stakes walling the current. ‡"
+      examine: "its stakes wall the current."
       laborBonus: { kind: fishing, amount: 1 }
 
   forge:
@@ -4199,7 +4199,7 @@ tags:
     # it stands, provides: makes every workshop-gated recipe work on site,
     # for everyone, permanently.
     placement:
-      examine: "A forge stands here, anvil set and bellows hung. ‡"
+      examine: "anvil set, bellows hung."
       provides: [workshop-equipment]
 
   palisade:
@@ -4228,7 +4228,7 @@ tags:
     placement:
       fieldwork: true
       link: hold_shut
-      examine: "A palisade of sharpened stakes rings this ground. ‡"
+      examine: "sharpened stakes ring this ground."
       defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
 
   barricade:
@@ -4252,7 +4252,7 @@ tags:
     # unilateral map edit for pocket change. Cover prose only.
     placement:
       fieldwork: true
-      examine: "A barricade of heaped timber and carts crosses this ground. ‡"
+      examine: "heaped timber and carts cross this ground."
       defenseNote: "Heaped cover to fight from; whoever holds it meets a charge on their own terms."
 
   battering-ram:
@@ -4278,8 +4278,8 @@ tags:
     # licence (plan §4f): storming a shut gate is only adjudicable where a
     # ram stands, and this line prints on Examine and the GM Move card.
     placement:
-      examine: "A battering ram stands here under its rough roof. ‡"
-      defenseNote: "A battering ram stands here — a shut gate can be stormed."
+      examine: "it stands under its rough roof."
+      defenseNote: "a shut gate can be stormed."
 
   # --- Milestone D catalog fill: everything below is pure YAML over the
   # A-C mechanisms — no new code. Numbers are design-facing placeholders
@@ -4304,7 +4304,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "A threshing floor of beaten earth lies here. ‡"
+      examine: "beaten earth, swept flat."
       laborBonus: { kind: farming, amount: 1 }
 
   lazarette:
@@ -4331,7 +4331,7 @@ tags:
     # card and Examine while the building stands, which is where the ruling
     # happens. No fieldwork — a real building wants the workshop kit.
     placement:
-      examine: "A lazarette stands here, its windows open and its linens boiled. ‡"
+      examine: "windows open, linens boiled."
       defenseNote: "A treatment that would be a Gambit elsewhere is Routine work under this roof."
 
   trebuchet:
@@ -4354,8 +4354,8 @@ tags:
       skills: [builder-expert]
       gambit: false
     placement:
-      examine: "A trebuchet looms here, counterweight hung and arm cocked. ‡"
-      defenseNote: "A trebuchet stands here — a structure at a neighbouring location can be bombarded."
+      examine: "counterweight hung, arm cocked."
+      defenseNote: "a structure at a neighbouring location can be bombarded."
 
   jailhouse:
     catalog: all
@@ -4378,7 +4378,7 @@ tags:
     # compensation for absence" from defense to imprisonment — holding a
     # bound prisoner credibly no longer ends when the captor logs off.
     placement:
-      examine: "A jailhouse stands here, its one door barred from the outside. ‡"
+      examine: "one door, barred from the outside."
       defenseNote: "A bound prisoner held here stays held, guard awake or not."
 
   library:
@@ -4402,7 +4402,7 @@ tags:
     # literate/gribble.js tie the plan sketches is deliberately FUTURE work
     # ("grows only if documents grow") — nothing mechanical here yet.
     placement:
-      examine: "A small library stands here, shelves stocked and dry. ‡"
+      examine: "shelves stocked and dry."
 
   gallows:
     catalog: all
@@ -4426,7 +4426,7 @@ tags:
     # forge kit for it would be absurd. Reverse at will.
     placement:
       fieldwork: true
-      examine: "A gallows stands here, rope coiled at the post. ‡"
+      examine: "rope coiled at the post."
 
   bridge:
     catalog: all
@@ -4452,7 +4452,7 @@ tags:
     # refuses anywhere else, and the way opens when the work is done.
     placement:
       link: hold_open
-      examine: "A bridge spans the crossing here, planked and railed. ‡"
+      examine: "planked and railed, it spans the crossing."
 
   dog:
     catalog: all
@@ -5168,6 +5168,21 @@ tags:
     category: items
     group: items-keys
     description: "A key to the manor. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  cerberus-key:
+    catalog: gm
+    name: Cerberus Key
+    category: items
+    group: items-keys
+    description: "A key to the defenses."
     pointCost: 0
     tradeable: true
     stackable: true

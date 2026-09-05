@@ -149,6 +149,7 @@ zones:
               - Armory Key
               - Ravenhearter
               - Nobility
+              - Cerberus Key
               - The Baron's Key
               - Elevator Key
               - Baron's Scepter
@@ -285,6 +286,7 @@ zones:
               - Courtier
               - Literate
               - Hand's Pin
+              - Cerberus Key
               - Elevator Key
               - Obol x10
             doc_elements:
@@ -458,6 +460,7 @@ zones:
             starting_tags:
               - Censor's Helmet
               - Armory Key
+              - Cerberus Key
               - Ravenhearter
               - Cerberon
               - Tactician
@@ -500,6 +503,7 @@ zones:
               - Melee (Trained)
               - Ranged (Basic)
               - Cerberon
+              - Cerberus Key
               - Melee (Shield Wall)
               - Pious
               - Incarn's Key
@@ -533,6 +537,7 @@ zones:
               - Cerberus Helmet
               - Ravenhearter
               - Cerberon
+              - Cerberus Key
               - Melee (Basic)
               - Ranged (Basic)
               - Melee (Shield Wall)

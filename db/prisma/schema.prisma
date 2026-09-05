@@ -1226,6 +1226,13 @@ model Room {
   // so a GM can still Undo. See docs/systemdocs/CARRY.md.
   destroysContents Boolean @default(false)
 
+  // A key from the registry in db/lib/roomLive.js, set from `live:` in
+  // docs/zones.yaml. The room's starter message carries one extra line read
+  // off live state, re-rendered whenever that state moves — the Landing Pad
+  // saying whether the shuttle is sitting on it. Null for the ordinary room,
+  // whose starter is written once and never touched again.
+  live String?
+
   // The thread, its starter message (a thread in a text channel has an
   // ordinary first message with its own id — only a forum post's starter
   // shares the thread id) and the body hash last written.

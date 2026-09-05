@@ -109,6 +109,14 @@ threads or messages. Both are gated on a content hash (`Room.postHash`,
 writes for them at all, and a changed body is rewritten in place rather than
 recreated. See `CHANNELS.md` §4.
 
+That hash is also what makes a **live room** cheap. A Room may carry
+`live: <key>` naming a renderer in `db/lib/roomLive.js`; its starter message
+then ends with one line read off live state, and
+`syncZones.js#refreshLiveRooms(prisma, key)` repaints every room on that key
+whenever the state behind it moves — the Landing Pad saying whether the shuttle
+is on it. Because the body is hashed, a refresh over unchanged state writes
+nothing. The Landing Pad is the only one so far; the mechanism is general.
+
 ### The zones.yaml format
 
 ```yaml
@@ -134,6 +142,10 @@ zones:
             name: The Charon
             description: >-
             access: [the-barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
+            live: shuttle              # optional; a key from db/lib/roomLive.js.
+                                       #   Appends one line read off live state to
+                                       #   the starter message, repainted whenever
+                                       #   that state moves. Unknown key ⇒ problem.
     levels:               # groups only; each becomes a standable CAVE_LEVEL zone
       caves:
         locations:

@@ -98,10 +98,16 @@ even if the switch says otherwise.
 
 ## 0d. The shuttle and the landing pad
 
-The landing pad is a **real room** — a PRIVATE thread under the Depot's channel
-gated on `depot-keycard`, authored in `docs/zones.yaml`. Membership is handled
-entirely by `db/lib/roomAccess.js` and reconciled by the channel doctor; the
-feature adds no access code of its own.
+The landing pad is a **real room** — a thread under the Customs channel,
+authored in `docs/zones.yaml`. The lock sits on the Cargo Bay next door rather
+than on the pad, which is only a hole in the roof; where a room IS gated,
+membership is handled entirely by `db/lib/roomAccess.js` and reconciled by the
+channel doctor, and the feature adds no access code of its own.
+
+Its starter message says whether the shuttle is on it — `live: shuttle` in
+`docs/zones.yaml`, rendered by `db/lib/roomLive.js` and repainted by
+`refreshLiveRooms` on every move of the state. That is the general mechanism,
+not a special case: any room may name a live key.
 
 The cycle:
 
@@ -355,7 +361,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | | |
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) |
-| Location | `depot` — its own room in the Caves since the Bascinet 2 map, where it used to be a paragraph inside the Customs description and the gate was the whole Caverns zone. Reading the list works anywhere; trading needs him standing in that one room. |
+| Location | `customs` — the cave mouth. The gate used to be the whole Caverns zone, which meant trading from anywhere underground; then the Depot was split off as a Location of its own, which meant a migrant who cleared customs could not walk to the shop. It is one place again, and `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading the list works anywhere; trading needs him standing there. |
 | Gate | the `merchants-license` tag, **not** the Merchant role |
 | Requests | `DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT` — auto-applied, GM-reviewed, undoable |
 | Constants | `db/lib/depot.js` |

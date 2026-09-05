@@ -73,6 +73,13 @@
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
 #   zones); a typo is a room nobody can enter, reported by the channel doctor.
+# - live (rooms only): a key from the registry in db/lib/roomLive.js. The
+#   room's starter message gets one more line, read off live state and
+#   re-rendered whenever that state moves — the Landing Pad saying whether the
+#   shuttle is sitting on it. A Room's starter is otherwise written once and
+#   never touched, so without this a live fact could only live on Examine, one
+#   channel up from the room it is about. A key the registry does not know is a
+#   sync PROBLEM, the same as an unknown attribute.
 #
 # PROSE STYLE — every prose value in this file is a `>-` folded block
 # scalar, one physical line per paragraph, no hard wrapping, UNLESS it has
@@ -446,6 +453,7 @@ zones:
               items:
                 paper: 8
                 censors-wax-stamp: 1
+                cerberus-key: 3
           barracks:
             name: Barracks
             description: >-
@@ -616,8 +624,12 @@ zones:
         map_node: 5
         description: >-
           The forest creek widens into a river. Planks, docks, and other bits of waterlogged wood mark mark the territory of fishermen.
-        yield: { hunting: 0.7, farming: 0.3 }
+        yield: { hunting: 0.8, farming: 0.3 }
         rooms:
+          large-dock:
+            name: Large Dock
+            description: >-
+              This dock is larger than the others, enough for several people to stand together. There's a bench. It juts out nearly halfway over the river, luring fish.
           riverbank-banks:
             name: River Banks
             description: >-
@@ -997,25 +1009,46 @@ zones:
         description: >-
           Wet, dimly-lit caves. The main paths have been smoothed down by centuries of traffic, but side paths and natural holes descend into darkness.
         locations:
+          # The mouth of the caves: the sentry post and the merchant's berth are
+          # one place. They used to be two Locations with no edge between them,
+          # so a migrant who cleared customs could not then walk to the shop.
           customs:
             name: Customs
-            indoors: true
-            description: >-
-              The sentry beholds migrants and mercenaries as they talk around the fire. Besides the shuttle pad, there is a ledger room and a bunkhouse. The creatures of the caves seem drawn to the light — there is an automated small-caliber mounted on the outside wall to account for that. It's off. ‡
-            rooms: {}
-          depot:
-            name: Depot
             indoors: true
             attributes:
               depot: true
               noticeboard: true
             description: >-
-              The merchant's depot: crates of a foreign design scattered around a decayed metal frame, light flowing forth, powered by their own basic generator. Everything imported into Ravenheart comes through this room, and the ledger that says so is the most valuable object in the caves. ‡
+              Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. Steel grate bridges a cave stream, leading to the merchant's neon-lit, concrete depot. It's all illuminated by a pair of floodlights, connected by a suspended cable.
             rooms:
+              # `customs-yard`, not `customs` — zones, locations and rooms share
+              # one slug namespace and the Location above already holds that one.
+              customs-yard:
+                name: Customs
+                description: >-
+                  Migrants set up tents here, awaiting for someone to create their necessary paperwork.
+                stash: [skinned-cave-rat]
+              storefront:
+                name: Storefront
+                description: >-
+                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
+                stash: [tea, sweets]
               landing-pad:
                 name: Landing Pad
+                live: shuttle
                 description: >-
-                  A scorched circle of plating under a hatch in the rock, wide enough to set a shuttle down on and not one inch wider. Most days it holds nothing but the smell of burnt fuel. On the days it does hold something, the crates are stacked where they fell. ‡
+                  A grated steel bay. The roof automatically opens and closes.
+              watchtower:
+                name: Watchtower
+                access: [cerberus-key]
+                description: >-
+                  Set into the gate. The tower's windows allow peering into the caves, where a floodlight is pointed. Metal grates on the floor allow pouring oil onto any invaders.
+                stash: [shortbow, spear]
+              merchants-office:
+                name: Merchant's Office
+                access: [merchants-license]
+                description: >-
+                  A desk, filing cabinets, and a big red button.
               # The lock moved off the Landing Pad and onto here: the pad is
               # just a hole in the roof, but the goods are worth a door.
               cargo-bay:
@@ -1030,11 +1063,6 @@ zones:
                     cargo-crate: 1
                     paper: 6
                     merchants-wax-stamp: 1
-              merchants-office:
-                name: Merchant's Office
-                access: [merchants-license]
-                description: >-
-                  A desk, filing cabinets, and a big red button. ‡
           caves-narrows:
             name: Narrows
             map_node: 14
@@ -1148,7 +1176,7 @@ connections:
     announce: true_name
     modular:
       roles: [cerberus, censor, baron, hand]
-      tags: [knighted, cerberon]
+      tags: [knighted, cerberon, cerberus-key]
       open: true
 
   # --- Town -------------------------------------------------------------
@@ -1200,13 +1228,21 @@ connections:
   - [marshes/marshes-village, marshes/factory]
 
   # --- Caves ------------------------------------------------------------
-  - [caves/customs, caves/caves-narrows]
+  # The gate in the cave mouth. Nobody stands on it, so it records what a
+  # passer-by would have seen rather than who it was — the watchtower above it
+  # is where somebody would actually be looking.
+  - pair: [caves/customs, caves/caves-narrows]
+    announce: concealed
+    modular:
+      roles: [cerberus, censor, baron, hand]
+      tags: [cerberus-key, cerberon]
+      open: true
   - [caves/caves-narrows, caves/caves-stairhead]
   - [caves/caves-junction, caves/caves-freight-run]
   - [caves/caves-freight-run, caves/caves-stairhead]
-  # The freight run's own door into the depot, which is how the merchant's
-  # crates get in without passing the sentry at Customs.
-  - pair: [caves/depot, caves/caves-freight-run]
+  # The freight run's own door into the cargo bay, which is how the merchant's
+  # crates get in without passing the sentry at the gate.
+  - pair: [caves/customs, caves/caves-freight-run]
     hidden: caving
     on_foot: true
 
@@ -1224,7 +1260,6 @@ connections:
   - [forest/forest-sparse-field, forest/farms]
   - [forest/forest-east-river, forest/farms]
   - [forest/forest-crossroads, caves/customs]
-  - [forest/forest-sparse-field, caves/depot]
   - [forest/forest-culvert, hills/hills-ferry]
   - [caves/caves-stairhead, depths/depths-gallery]
   - [caves/caves-stairhead, depths/depths-braid]
@@ -1358,6 +1393,8 @@ connections:
 #
 # --- Also retired ----------------------------------------------------------
 # Town's Forest location, whose prose became the Forest ZONE's description
-# above, and the Customs description's depot paragraph, which became the
-# Depot's own.
+# above. The Depot spent a while as a Location of its own, split out of the
+# Customs description's depot paragraph; it is back inside Customs, because two
+# places at one cave mouth with no edge between them meant a migrant who
+# cleared customs could not walk to the shop.
 # ===========================================================================

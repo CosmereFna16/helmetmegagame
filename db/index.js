@@ -47,7 +47,7 @@ const { loadForcedName } = require("./lib/presentedIdentity");
 const { postAsCharacter, postMessage, postMessageBatched, attachBreakerStore, patchGuildRole, deleteGuildRole, addMemberRole, getGuildMember, setGuildNickname } = require("./lib/discordRest");
 const { bumpBlood, LIFEWEB_SPUTTER_THRESHOLD } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
-const { syncZonesFromYaml } = require("./lib/syncZones");
+const { syncZonesFromYaml, refreshLiveRooms } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
@@ -888,6 +888,15 @@ async function advanceTurn() {
           ).catch((err) => console.error("Depot ambient line failed:", err));
         }
       }
+    }
+
+    // The Landing Pad's starter message says whether the shuttle is sitting on
+    // it (db/lib/roomLive.js), and the shuttle may have left on its own clock
+    // this turn. Hash-guarded, so a turn that did not move it edits nothing.
+    if (depotLocationId) {
+      await refreshLiveRooms(prisma, "shuttle").catch((err) =>
+        console.error("Landing pad refresh failed:", err.message),
+      );
     }
 
     for (const dm of turretDms) {

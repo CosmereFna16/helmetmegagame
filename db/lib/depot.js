@@ -27,11 +27,11 @@ function isMerchantRole(slug) {
 // the same way the Lifeweb requires the Fortress — you cannot trade with a
 // craft you are not next to.
 //
-// A LOCATION slug from docs/zones.yaml, not a zone one. The Depot used to be
-// a paragraph inside the Customs description and the gate was the whole
-// Caverns zone, which meant trading from anywhere underground. Bascinet 2
-// draws it as its own place, so standing there is now literal.
-const DEPOT_LOCATION_SLUG = "depot";
+// A LOCATION slug from docs/zones.yaml, not a zone one. The gate used to be
+// the whole Caverns zone, which meant trading from anywhere underground.
+// Standing there is now literal — and the place is Customs, since the depot
+// and the sentry post at the cave mouth are one Location again.
+const DEPOT_LOCATION_SLUG = "customs";
 
 // One sanity bound on a single line item, so a fat-fingered quantity cannot
 // file a request for ten thousand vials. Well above any real purchase.

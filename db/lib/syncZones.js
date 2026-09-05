@@ -45,6 +45,7 @@ const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
 const { collectAttributes } = require("./locationAttributes");
 const { roomStarterRow } = require("./roomStarterRow");
+const { collectLive, loadLiveStates, liveLine } = require("./roomLive");
 const { entriesOf } = require("./yamlEntries");
 const { orderEndpoints, linksFor, endpoints, gateOperable } = require("./locationGraph");
 
@@ -514,6 +515,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
         accessTagSlugs: access,
         destroysContents: room.destroys === true,
+        live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,
       });
@@ -578,10 +580,15 @@ function italicParagraphs(text) {
     .join("\n\n");
 }
 
-function buildRoomBody(room) {
+// `liveState` is the loaded state for room.live, or undefined. The live line
+// joins the description's LAST paragraph with a pipe rather than standing on
+// its own — it is a fact about the room, not a second post stapled under it.
+function buildRoomBody(room, liveState) {
   const parts = [`**${room.name}**`];
   const description = italicParagraphs(room.description);
-  if (description) parts.push(description);
+  const live = liveLine(room.live, liveState);
+  if (description) parts.push(live ? `${description} | ${live}` : description);
+  else if (live) parts.push(live);
   // One newline, not two. A blank line between the bolded name and its `-#`
   // subtext reads as two separate posts stapled together; tight, the anchor
   // reads as one card.
@@ -654,10 +661,10 @@ async function writeRoomStarter(threadId, chunks, components) {
 // the room body, reconciled by hash. Never locked (players roleplay inside
 // it); the Dawn wipe clears replies but never the starter. Returns
 // "created" | "updated" | "unchanged" | "skipped".
-async function syncRoomThread(prisma, room, location, snapshot) {
+async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   if (!location?.discordChannelId) return "skipped";
 
-  const body = buildRoomBody(room);
+  const body = buildRoomBody(room, liveState);
   // Hashed with its button row, as the anchor is, so adding a button to the
   // starter re-posts it once and never again.
   const components = [roomStarterRow(room)];
@@ -1055,6 +1062,7 @@ async function syncZonesFromYaml(prisma) {
       kind: entry.kind,
       accessTagSlugs: entry.accessTagSlugs,
       destroysContents: entry.destroysContents,
+      live: entry.live,
       locationId: location.id,
     };
     let room = await prisma.room.findUnique({ where: { slug: entry.slug } });
@@ -1261,8 +1269,15 @@ async function syncZonesFromYaml(prisma) {
     roomsByLocationId.get(room.locationId).push(room);
   }
   const locationById = new Map([...locationsBySlug.values()].map((l) => [l.id, l]));
+  // One load per KIND of live line, not one per room.
+  const liveStates = await loadLiveStates(
+    prisma,
+    [...roomsBySlug.values()].map((room) => room.live).filter(Boolean),
+  );
   for (const room of roomsBySlug.values()) {
-    report.rooms[await syncRoomThread(prisma, room, locationById.get(room.locationId), snapshot)] += 1;
+    report.rooms[
+      await syncRoomThread(prisma, room, locationById.get(room.locationId), snapshot, liveStates.get(room.live))
+    ] += 1;
   }
   for (const location of locationsBySlug.values()) {
     report.anchors[await syncLocationAnchor(prisma, location, roomsByLocationId.get(location.id) ?? [])] += 1;
@@ -1342,8 +1357,42 @@ async function refreshLocationAnchor(prisma, locationId) {
   return syncLocationAnchor(prisma, location, rooms);
 }
 
+// Re-renders every room carrying one live key and edits the starter messages
+// whose body actually moved. Called from wherever the state behind a key
+// changes — the Depot's shuttle buttons, the turn pass, the Dev Panel — the
+// same way refreshLocationAnchor is called after a gate flips.
+//
+// It edits in place rather than going through syncRoomThread: a room whose
+// thread is missing is a job for the sync or the channel doctor, not for a
+// shuttle taking off.
+async function refreshLiveRooms(prisma, key) {
+  const rooms = await prisma.room.findMany({ where: { live: key } });
+  if (!rooms.length) return 0;
+  const states = await loadLiveStates(prisma, [key]);
+  const state = states.get(key);
+
+  let edited = 0;
+  for (const room of rooms) {
+    if (!room.discordThreadId || !room.starterMessageId) continue;
+    const body = buildRoomBody(room, state);
+    const components = [roomStarterRow(room)];
+    const hash = hashBody(body + JSON.stringify(components));
+    if (room.postHash === hash) continue;
+    try {
+      await editMessage(room.discordThreadId, room.starterMessageId, chunkMessage(body)[0], components);
+    } catch (err) {
+      console.error(`live room refresh failed (${room.slug}):`, err.message);
+      continue;
+    }
+    await prisma.room.update({ where: { id: room.id }, data: { postHash: hash } });
+    edited += 1;
+  }
+  return edited;
+}
+
 module.exports = {
   syncZonesFromYaml,
+  refreshLiveRooms,
   parseZonesYaml,
   reconcileChannelOverwrites,
   managedOverwriteIds,
