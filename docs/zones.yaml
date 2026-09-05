@@ -1230,6 +1230,15 @@ zones:
               A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
             access: [strong-swimmer]
             stash: [flooded-crate]
+          village-old-hut:
+            name: Old Hut
+            description: >-
+              A hut elevated over the marsh, half an hour’s walk out of the village proper. The village’s last inhabited building.
+            access: [fishermans-key]
+            stash:
+              items:
+                obol: 2
+                rat: 1
       factory:
         name: Godard Factory
         indoors: true
@@ -1285,6 +1294,7 @@ zones:
                 military-autoinjector: 1
                 paper: 9
                 bannerets-wax-stamp: 1
+                cigarette: 1
       marshes-hardground:
         name: Hardground
         map_node: 31

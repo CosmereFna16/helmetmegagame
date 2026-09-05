@@ -27,17 +27,28 @@ const ROLE_GROUPS = [
   { slug: "outsiders", name: "Outsiders", factionSlugs: ["brigands", "unaffiliated"] },
 ];
 
+// A role that reads as a different social position than the rest of its
+// faction. The Fisherman is on the Factory's books — the Banneret pays him,
+// and that is why he is in `the-factory` — but he is a man alone in the marsh
+// with a rod, not a business, so Business is the wrong shelf to find him on.
+// Bucketing happens at role grain (see groupRoles) precisely so one seat can
+// move without dragging its faction along.
+const ROLE_GROUP_OVERRIDES = { fisherman: "soil" };
+
 // Where a faction nobody has bucketed ends up. It exists so that adding a
 // faction to docs/roles.yaml and forgetting this file makes its roles look
 // untidy rather than making them UNPICKABLE — a silently dropped bucket would
-// be a seat nobody can take, discovered by a player rather than by us.
+// be a seat nobody can take, discovered by a player rather than by us. An
+// override naming a bucket that does not exist lands here for the same reason.
 const OTHER_GROUP = { slug: "other", name: "Elsewhere", factionSlugs: [] };
 
-// Buckets a list of factions, in the order above, dropping any bucket that
-// ends up empty. `factions` is anything carrying a `slug`; each returned group
-// holds the matching ones in the order they were given, so the caller's own
-// sortOrder still decides what comes first inside a bucket.
-function groupFactions(factions) {
+// Buckets every role of every given faction, in ROLE_GROUPS order, dropping
+// any bucket that ends up empty. `factions` is anything carrying a `slug` and
+// a `roles` array; each returned role is the original row plus the `faction`
+// it came from, since the card prints the faction's name and zone. Roles keep
+// the order they were given, so the caller's own sortOrder still decides what
+// comes first inside a bucket.
+function groupRoles(factions) {
   const rows = Array.isArray(factions) ? factions : [];
   const bucketOf = new Map();
   for (const group of ROLE_GROUPS) {
@@ -46,12 +57,16 @@ function groupFactions(factions) {
 
   const held = new Map([...ROLE_GROUPS, OTHER_GROUP].map((g) => [g.slug, []]));
   for (const faction of rows) {
-    held.get(bucketOf.get(faction.slug) ?? OTHER_GROUP.slug).push(faction);
+    const home = bucketOf.get(faction.slug) ?? OTHER_GROUP.slug;
+    for (const role of faction.roles ?? []) {
+      const bucket = ROLE_GROUP_OVERRIDES[role.slug] ?? home;
+      held.get(held.has(bucket) ? bucket : OTHER_GROUP.slug).push({ ...role, faction });
+    }
   }
 
   return [...ROLE_GROUPS, OTHER_GROUP]
-    .map((group) => ({ slug: group.slug, name: group.name, factions: held.get(group.slug) }))
-    .filter((group) => group.factions.length > 0);
+    .map((group) => ({ slug: group.slug, name: group.name, roles: held.get(group.slug) }))
+    .filter((group) => group.roles.length > 0);
 }
 
-module.exports = { ROLE_GROUPS, groupFactions };
+module.exports = { ROLE_GROUPS, ROLE_GROUP_OVERRIDES, groupRoles };

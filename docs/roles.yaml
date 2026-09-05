@@ -1270,6 +1270,8 @@ zones:
                 Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners—after all, you can afford to pay them. Or just don’t pay them and keep them in line.
               - >-
                 Make sure everyone’s wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers—do not eat the Squeeze! You can’t afford to repeat what happened last time…
+              - >-
+                There’s a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
             difficulty: hard
             multiple: false
             starting_resources: 4
@@ -1278,6 +1280,7 @@ zones:
             leader: true
             whitelist: true
             starting_tags:
+              - Ravenhearter
               - Horse
               - Cart
               - Nobility
@@ -1305,14 +1308,18 @@ zones:
                 You’ve survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
               - >-
                 Make sure everyone’s wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers—do not eat the Squeeze! You can’t afford to repeat what happened last time…
+              - >-
+                There’s a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
             difficulty: normal
             multiple: false
             starting_resources: 4
             starting_zone: marshes
             starting_location: factory
             starting_tags:
+              - Ravenhearter
               - Tough
               - Old
+              - Big Appetite
               - Cudgel
               - Padded Armor
               - Melee (Basic)
@@ -1349,6 +1356,26 @@ zones:
               - Cleaning Powder
               - Armored Gloves
               - Factory Key
+            doc_elements:
+              - godardfactory
+          fisherman:
+            name: Fisherman
+            intro: >-
+              Feed the factory and live a quiet life in the marshes.
+            description:
+              - >-
+                Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It’s your job to bring them some food; the Banneret should pay you in obols.
+            difficulty: easy
+            multiple: false
+            starting_resources: 2
+            starting_zone: marshes
+            starting_location: marshes-village
+            starting_tags:
+              - Ravenhearter
+              - Fishing Rod
+              - Fishing Boat
+              - Laboring (Fishing)
+              - Fisherman's Key
             doc_elements:
               - godardfactory
 

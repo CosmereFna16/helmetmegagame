@@ -1218,9 +1218,13 @@ tags:
   # exempting somebody from it — hardcoded by slug in db/lib/hungerPass.js,
   # same as hungerless. Priced at -6, deliberately off the -5/-7 bands
   # (TAGS.md §4a).
+  # keepSlug: renamed from "Fast Metabolism" 2026-09-05, but the slug is
+  # hardcoded in db/lib/constants.js and read by db/lib/hungerPass.js, so it
+  # stays what it is.
   fast-metabolism:
     catalog: all
-    name: Fast Metabolism
+    name: Big Appetite
+    keepSlug: true
     category: general
     group: general-traits
     description: "You consume 2 ⬢ per turn. ‡"
@@ -10474,6 +10478,21 @@ tags:
     category: items
     group: items-keys
     description: "A key to the overseer box."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  fishermans-key:
+    catalog: gm
+    name: Fisherman's Key
+    category: items
+    group: items-keys
+    description: "A key to the old hut out past the village. ‡"
     pointCost: 0
     tradeable: true
     stackable: true

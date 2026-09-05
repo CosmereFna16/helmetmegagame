@@ -32,10 +32,12 @@
 #   all, so it can never drift from its source. Either way the result is
 #   batched automatically if it exceeds Discord's 2000-char limit. The only
 #   generator right now is `generated: roles-intro` (used by the Fates
-#   thread below), which reads docs/roles.yaml and lists every faction's
-#   roles by name + intro text only (no description/tags/threats) — edit
-#   roles.yaml, rerun `npm run db:rebuild-info-channel`, and the thread
-#   updates itself. (The generator key stays `roles-intro` even though the
+#   thread below), which reads docs/roles.yaml and lists every fate by name
+#   + intro text only (no description/tags/threats), grouped into the same
+#   seven social buckets /character's picker uses (db/lib/roleGroups.js).
+#   It names NO ZONE, deliberately — a zone heading told everyone where the
+#   Brigands camp. Edit roles.yaml, rerun `npm run db:sync-info-channel`,
+#   and the thread updates itself. (The generator key stays `roles-intro` even though the
 #   thread is titled "Fates" — the rename is presentation-only, the game
 #   system's own term stays "roles" everywhere else.)
 
@@ -71,7 +73,7 @@ categories:
           - If things naturally progress to where you betray your faction, that’s fine, but come into the game planning to do mostly good.
       - title: Fates
         body: |-
-          Choose a fate at game start, determining your starting tags, faction, and location. Leader roles (★) are reserved for players who can vouch frequent and long-term availability, and some proficiency in roleplay. The Leader Whitelist role can be acquired in <#1540617683442208790>.
+          Choose a fate at game start, determining your starting tags, faction, and location. Whitelisted roles (★) are reserved for players who can vouch frequent and long-term availability and proficiency in roleplay.
 
           Most fates have small limits, but **Bolded** ones have higher caps and are more generalized, allowing for more freedom of play.
         generated: roles-intro
@@ -157,7 +159,7 @@ categories:
 
           Players are responsible for producing, taxing, distributing, and trading Resources.
 
-          Characters automatically consume 1 ⬢ a day — 2 if you have a Fast Metabolism. Come up short and you’ll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6. ‡
+          Characters automatically consume 1 ⬢ a day — 2 if you have a Big Appetite. Come up short and you’ll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6. ‡
 
           **Laboring**
           Labor is its own kind of Move, and it takes a skill — without a Laboring tag you produce nothing at all. Submit no Move and you’ll Labor automatically. ‡

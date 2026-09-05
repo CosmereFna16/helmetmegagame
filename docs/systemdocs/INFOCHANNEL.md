@@ -31,7 +31,7 @@ the directory message grouping its threads' links, while a nameless
 category's thread links are listed with no heading above them.
 
 Editing the file has no effect on Discord until
-`npm run db:rebuild-info-channel` is run by hand — same "never auto-synced"
+`npm run db:sync-info-channel` is run by hand — same "never auto-synced"
 posture as `docs/zones.yaml`, just without the reconcile semantics (see §4).
 
 ## 3. Directory + thread structure
@@ -45,12 +45,22 @@ clickable `#thread-title` link). This listing can only be generated *after*
 the threads exist, since thread IDs are assigned by Discord at creation
 time — it's never hand-authored in the YAML.
 
+The **Fates** thread is the one generated body (`generated: roles-intro`).
+It reads `docs/roles.yaml` and groups every fate into the same seven social
+buckets `/character`'s picker uses — `db/lib/roleGroups.js`, imported rather
+than restated, so the two can never disagree, and a role that overrides its
+faction's bucket (the Fisherman) moves in both places at once. It prints **no
+zone name at all**: it used to head each section with the zone, which told
+every reader where the Brigands camp before the game had started.
+
 Threads themselves are created as standalone public threads directly on the
 channel (Discord's "no starter message" thread type), not threads-off-a-
 message — the thread's `body` text is posted as its own first message right
 after creation, by the same bot that created it.
 
-## 4. Rebuild mechanics
+## 4. Two ways to push it
+
+### 4a. The rebuild
 
 `npm run db:rebuild-info-channel` (`db/scripts/sync/rebuild-info-channel.js`) is
 **always a full destructive wipe + rebuild**, run in this order:
@@ -89,6 +99,59 @@ between runs. Re-running it is always safe and idempotent in effect (same
 end state each time for the same YAML), even though the mechanism itself is
 destructive.
 
+That simplification has one real cost, and it is the reason for §4b: **a
+rebuild notifies everybody.** Deleting and re-creating a thread pings every
+player who was following it, so fixing a typo announces itself to the whole
+guild.
+
+### 4b. The in-place sync — the default
+
+`npm run db:sync-info-channel` (`db/scripts/sync/sync-info-channel.js`) does
+the same job by **editing what is already posted**. Discord sends no
+notification for an edit, so a normal content change is silent.
+
+**The thread title is the match key.** Nothing anywhere persists a Discord
+message or thread id — `#info` has no DB row of any kind (§5) — so the title
+plays the part `slug` plays in every other sync. It is already unique, and it
+is the thing a GM changes deliberately. The script refuses to run at all if
+two threads in the YAML share a title, since matching would then silently
+overwrite one with the other.
+
+Per run:
+
+1. Index every live thread on `#info` — active, archived public, archived
+   private — by lowercased title.
+2. **Matched**: un-archive if needed (you cannot edit inside an archived
+   thread), then reconcile the body. The text is chunked exactly as
+   `postMessageBatched` would have posted it; chunk *i* is edited onto the
+   bot's *i*-th message in the thread, a chunk with no message to land on is
+   posted, and any surplus message past the last chunk is deleted. **Identical
+   content is skipped entirely**, so a no-op run costs nothing and leaves no
+   "(edited)" marks.
+3. **Missing**: created with `startThread` and its body posted, exactly as the
+   rebuild does. This is the one case that notifies, and it should — a new
+   thread is news.
+4. **Orphans**: a live thread the YAML no longer names is reported and left
+   alone. `--prune` deletes it. Nothing links it once the directory is
+   rewritten, so leaving it is safe.
+5. **Banner**: posted only when `#info` holds no attachment at all. An
+   attachment cannot be edited in place, and reposting it is the exact
+   notification this script exists to avoid.
+6. **Directory message**: rebuilt and reconciled onto the bot's own top-level
+   text messages by the same edit/post/delete-surplus pass.
+
+Everything it writes is scoped to messages **the bot itself wrote**
+(`DISCORD_CLIENT_ID`, the same identity `db/lib/channelDoctor.js` uses, with
+`/users/@me` as a fallback). It never edits or deletes anybody else's message.
+
+`--dry-run` prints the whole plan and writes nothing.
+
+**What it cannot do is reorder.** A thread keeps the position Discord gave it,
+so moving an entry up in the YAML changes the directory listing and not the
+sidebar. A renamed title reads as "a new thread, plus an orphan" rather than a
+rename. Both are the trade for a silent run, and both are what §4a is still
+for.
+
 **Message-length batching**: any `body` (or the combined directory message)
 over Discord's 2000-char limit is split into multiple messages posted in
 order, the same batching approach used anywhere a long body has to clear Discord's 2000-char cap — no
@@ -96,9 +159,13 @@ content is truncated.
 
 ## 5. Where the code lives
 
-`db/lib/discordRest.js` (`startThread` and `postAttachment`, alongside the channel/message/thread
-REST helpers `dawnWipe.js` already uses), `db/scripts/sync/rebuild-info-channel.js`
-(the script itself), `docs/systemdocs/infochannel.yaml` (content),
-`npm run db:rebuild-info-channel` (entry point). No `prisma`/DB dependency —
+`db/lib/discordRest.js` (`startThread`, `postAttachment`, `editMessage`,
+`chunkMessage`, alongside the channel/message/thread REST helpers `dawnWipe.js`
+already uses), `db/lib/infoChannel.js` (the shared content half: the YAML load,
+the `generated:` bodies, the directory message, finding the channel — no
+writes), `db/scripts/sync/sync-info-channel.js` (§4b, the default) and
+`db/scripts/sync/rebuild-info-channel.js` (§4a, the destructive one),
+`docs/systemdocs/infochannel.yaml` (content), `npm run db:sync-info-channel` /
+`npm run db:rebuild-info-channel` (entry points). No `prisma`/DB dependency —
 `#info` has no DB-backed state, so this is REST-only, same posture as
 `dawnWipe.js`/`turnAnnouncement.js`.

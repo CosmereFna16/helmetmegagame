@@ -333,7 +333,15 @@ npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
 npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
 npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
                                      #   Run AFTER db:sync-zones.
-npm run db:rebuild-info-channel      # destructive rebuild of #info
+npm run db:sync-info-channel         # #info, edited in place. The default:
+                                     #   an edit notifies nobody, a repost
+                                     #   pings every thread follower.
+                                     #   `-- --dry-run` to preview,
+                                     #   `-- --prune` to delete threads the
+                                     #   YAML no longer names.
+npm run db:rebuild-info-channel      # destructive rebuild of #info. Only when
+                                     #   the ORDER is wrong or the channel is
+                                     #   a mess — it reposts everything.
 
 # Ops. Scripts live in db/scripts/ops/. See SYNC.md §4.
 npm run db:doctor                    # the channel doctor: diffs Discord roles/

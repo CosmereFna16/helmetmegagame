@@ -26,6 +26,7 @@
     "db:sync-desires": "node db/scripts/sync/sync-desires.js",
     "db:sync-documents": "node db/scripts/sync/sync-documents.js",
     "db:sync-narrowcast-channels": "node db/scripts/sync/sync-narrowcast-channels.js",
+    "db:sync-info-channel": "node db/scripts/sync/sync-info-channel.js",
     "db:rebuild-info-channel": "node db/scripts/sync/rebuild-info-channel.js",
     "db:doctor": "node db/scripts/ops/doctor.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",

@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · A fisherman lives out in the marsh village
+
+✚ A new Fisherman fate: one seat, easy, starting alone in the marsh Village with a rod, a boat and the key to his hut  
+✚ The Old Hut, a locked room out past the village with two obols and a pet rat in it  
+✎ The Banneret and the Geschef are both told there is a fisherman up north and obols in the office to pay him with  
+✎ Fast Metabolism is now called Big Appetite, and the Geschef starts with one  
+✎ The Banneret and the Geschef count as Ravenhearters after all  
+✚ A cigarette in the overseer box  
+✎ The Fates thread in #info now groups fates the way the site does, and no longer says which zone anyone starts in  
+✚ A quieter way to push #info: it edits what is already there instead of reposting, so nobody gets pinged for a typo fix
+
 ## 2026-09-05 · Drinking has a ladder, and the tags that say you can't now stop you
 
 ✚ Drinking while Tipsy makes you Wasted; drinking while Wasted puts you Unconscious on the floor  

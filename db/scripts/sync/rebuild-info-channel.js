@@ -3,19 +3,19 @@
 // Never runs automatically (no cron, no per-turn hook) — same explicit-push
 // convention as sync-locations.js.
 //
-// Unlike those two scripts, this is NOT an upsert: #info carries no
-// player-generated content worth preserving, so every run deletes every
-// message and every thread on the channel, then rebuilds it from scratch —
-// one standalone thread per infochannel.yaml entry, plus a directory
-// message (the YAML's main_message, followed by a generated per-category
-// listing of thread-mention links). See docs/systemdocs/INFOCHANNEL.md for
-// the full mechanism writeup.
+// This is the DESTRUCTIVE one, and it is no longer the default: every run
+// deletes every message and every thread on the channel, then rebuilds from
+// scratch, which notifies everyone following a thread. Reach for
+// `npm run db:sync-info-channel` instead, which edits what is already there.
+// This one is for when the channel's ORDER is wrong, or somebody has made a
+// mess of it — those are the two things an in-place edit cannot fix.
+//
+// The content half (YAML, generators, directory message) lives in
+// db/lib/infoChannel.js, shared with that script. See
+// docs/systemdocs/INFOCHANNEL.md for the full mechanism writeup.
 require("dotenv").config();
-const fs = require("node:fs");
 const path = require("node:path");
-const yaml = require("js-yaml");
 const {
-  getGuildChannels,
   fetchAllMessages,
   bulkDeleteMessages,
   listActiveThreadsForChannel,
@@ -26,80 +26,14 @@ const {
   postMessageBatched,
   postAttachment,
 } = require("../../lib/discordRest");
-const { docsPath } = require("../../lib/repoPaths");
-
-// Through docsPath(), not a count of "..": this file moved into
-// db/scripts/sync/ and its hops were never re-counted, so it had been looking
-// in a db/docs/ that does not exist and dying on ENOENT ever since.
-const YAML_PATH = docsPath("systemdocs", "infochannel.yaml");
-const ROLES_YAML_PATH = docsPath("roles.yaml");
-const DOCS_DIR = docsPath();
-
-// Generator for infochannel.yaml's `generated: roles-intro` thread: every
-// faction's roles (name + intro text only — no description/tags/difficulty,
-// and zone-level `threats` are skipped entirely), grouped under a bold
-// faction heading, itself grouped under a Discord "# " (native big-text)
-// zone heading, in docs/roles.yaml's zone -> faction -> role order. A role
-// flagged `leader: true` gets a ★ marker next to its name.
-// Reads roles.yaml fresh every run, so this thread can never drift from it.
-// Higher-cap, more generalized roles get called out in bold in the roles-intro
-// thread (see the "Bolded roles" blurb in infochannel.yaml) instead of the
-// default italics.
-const BOLD_ROLE_NAMES = new Set([
-  "Courtier",
-  "Cerberus",
-  "Commoner",
-  "Follower",
-  "Clansman (Broken Spears Clan)",
-  "Clansman (Windrider Clan)",
-  "Migrant",
-]);
-
-function buildRolesIntroBody() {
-  const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
-
-  // `factions` and `roles` are slug-keyed MAPPINGS in roles.yaml, not lists —
-  // db/lib/syncRoles.js reads them the same way. This walked them as arrays
-  // and threw "object is not iterable" the moment it got far enough to try,
-  // which it never did while the YAML path above was also wrong.
-  const zoneSections = [];
-  for (const zone of rolesDoc.zones ?? []) {
-    const factionSections = [];
-    for (const faction of Object.values(zone.factions ?? {})) {
-      const roleLines = Object.values(faction.roles ?? {}).map((role) => {
-        const leaderMark = role.leader === true ? " (★)" : "";
-        const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
-        return `${marker}${role.name}${marker}${leaderMark} — ${role.intro}`;
-      });
-      if (roleLines.length === 0) continue;
-      factionSections.push(`***${faction.name}***\n${roleLines.join("\n")}`);
-    }
-    if (factionSections.length === 0) continue;
-    zoneSections.push([`# ${zone.name}`, ...factionSections].join("\n\n"));
-  }
-
-  return zoneSections.join("\n\n");
-}
-
-const GENERATORS = { "roles-intro": buildRolesIntroBody };
-
-// A thread's body is its hand-authored `body` (if any), followed by its
-// generator's output (if any) — lets a `generated` thread carry a static
-// intro paragraph (e.g. Roles' "choose a role at game start..." blurb)
-// ahead of the auto-built content.
-function resolveThreadBody(thread) {
-  const parts = [];
-  if (thread.body) parts.push(thread.body);
-  if (thread.generated) parts.push(GENERATORS[thread.generated]());
-  return parts.join("\n\n");
-}
-
-async function findInfoChannel() {
-  const channels = await getGuildChannels();
-  const channel = channels.find((c) => c.type === 0 && c.name?.toLowerCase() === "info");
-  if (!channel) throw new Error('No text channel named "info" found in this guild.');
-  return channel;
-}
+const {
+  DOCS_DIR,
+  loadInfoDoc,
+  resolveThreadBody,
+  findInfoChannel,
+  buildDirectoryMessage,
+  deleteThreadCreatedMessages,
+} = require("../../lib/infoChannel");
 
 async function wipeChannel(channelId) {
   const messages = await fetchAllMessages(channelId);
@@ -139,36 +73,8 @@ async function createThreads(channelId, categories) {
   return linksByCategory;
 }
 
-// Creating a thread with no starter message (as startThread does) makes
-// Discord auto-post a "X started a thread: Y" system message (type 18,
-// THREAD_CREATED) into the parent channel — one per thread, pure clutter
-// around the directory message. Swept up after everything else is posted
-// so only the real content messages (directory + any batched overflow)
-// remain.
-const THREAD_CREATED_MESSAGE_TYPE = 18;
-
-async function deleteThreadCreatedMessages(channelId) {
-  const messages = await fetchAllMessages(channelId);
-  const systemMessages = messages.filter((m) => m.type === THREAD_CREATED_MESSAGE_TYPE);
-  if (systemMessages.length > 0) await bulkDeleteMessages(channelId, systemMessages.map((m) => m.id));
-  console.log(`  cleaned up ${systemMessages.length} "started a thread" system message(s)`);
-}
-
-const LINKS_LINE =
-  "[Website](http://ravenheart.quest/) | [Handbook](http://ravenheart.quest/handbook)";
-
-function buildDirectoryMessage(mainMessage, linksByCategory) {
-  const sections = linksByCategory.map((category) => {
-    const heading = category.name ? `**${category.name}**` : null;
-    const lines = category.threadIds.map((id) => `<#${id}>`);
-    const body = [category.intro, lines.join("\n")].filter(Boolean).join("\n");
-    return [heading, body].filter(Boolean).join("\n");
-  });
-  return [mainMessage, ...sections, LINKS_LINE].join("\n\n");
-}
-
 async function main() {
-  const doc = yaml.load(fs.readFileSync(YAML_PATH, "utf8"));
+  const doc = loadInfoDoc();
 
   const channel = await findInfoChannel();
   console.log(`Found #info (${channel.id})`);

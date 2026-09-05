@@ -46,7 +46,7 @@ import {
   freeZoneMovesReason,
 } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
-import { groupFactions } from "@lifeweb/db/lib/roleGroups";
+import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
@@ -169,9 +169,10 @@ async function loadCreationData(discordUserId) {
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
     // Seven social buckets, not five zones — db/lib/roleGroups.js says which
-    // faction lands where, and the zone a role starts in is printed on its own
-    // card instead of being a heading over it.
-    groups: groupFactions(
+    // faction lands where (and which single role overrides its faction), and
+    // the zone a role starts in is printed on its own card instead of being a
+    // heading over it.
+    groups: groupRoles(
       zones.flatMap((zone) =>
         zone.factions.map((f) => ({ ...f, zoneName: zone.name })),
       ),
@@ -179,52 +180,51 @@ async function loadCreationData(discordUserId) {
       .map((group) => ({
         slug: group.slug,
         name: group.name,
-        roles: group.factions.flatMap((faction) =>
-          faction.roles.map((role) => {
-            const cap = roleCapacity(role, playerCount);
-            // Locked roles stay in the tree; the card greys itself and says why.
-            const playtestLocked =
-              playtestMode &&
-              isPlaytestLocked({ role, zoneName: faction.zoneName });
-            return {
-              id: role.id,
-              name: role.name,
-              intro: role.intro,
-              slug: role.slug,
-              // Null for ordinary seats; set on the four dynasty roles.
-              lockedGender: role.lockedGender,
-              difficulty: role.difficulty,
-              // Printed on the card itself, now that the faction is no longer
-              // a heading over it.
-              factionName: faction.name,
-              startingLocationName: role.startingLocation?.name ?? null,
-              startingZoneName: role.startingLocation?.zone?.name ?? null,
-              startingResources: role.startingResources,
-              extraStartingPoints: role.extraStartingPoints,
-              // Parsed, because the wizard matches these against catalog tag names
-              // and an entry may carry a count ("Obol x5").
-              startingTagNames: startingTagNames(role.startingTagSlugs),
-              grantsLeader: role.grantsLeader,
-              // Drives the "Whitelist only" hover on a greyed card. Separate
-              // from grantsLeader, which now only means faction Leader.
-              requiresWhitelist: role.requiresWhitelist,
-              whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
-              // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
-              cap: cap === Infinity ? null : cap,
-              taken: takenByRole.get(role.id) ?? 0,
-              selectable: isRoleSelectable({
-                role,
-                cursed,
-                leaderWhitelisted,
-                playtestLocked,
-              }),
+        roles: group.roles.map((role) => {
+          const { faction } = role;
+          const cap = roleCapacity(role, playerCount);
+          // Locked roles stay in the tree; the card greys itself and says why.
+          const playtestLocked =
+            playtestMode &&
+            isPlaytestLocked({ role, zoneName: faction.zoneName });
+          return {
+            id: role.id,
+            name: role.name,
+            intro: role.intro,
+            slug: role.slug,
+            // Null for ordinary seats; set on the four dynasty roles.
+            lockedGender: role.lockedGender,
+            difficulty: role.difficulty,
+            // Printed on the card itself, now that the faction is no longer
+            // a heading over it.
+            factionName: faction.name,
+            startingLocationName: role.startingLocation?.name ?? null,
+            startingZoneName: role.startingLocation?.zone?.name ?? null,
+            startingResources: role.startingResources,
+            extraStartingPoints: role.extraStartingPoints,
+            // Parsed, because the wizard matches these against catalog tag names
+            // and an entry may carry a count ("Obol x5").
+            startingTagNames: startingTagNames(role.startingTagSlugs),
+            grantsLeader: role.grantsLeader,
+            // Drives the "Whitelist only" hover on a greyed card. Separate
+            // from grantsLeader, which now only means faction Leader.
+            requiresWhitelist: role.requiresWhitelist,
+            whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
+            // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
+            cap: cap === Infinity ? null : cap,
+            taken: takenByRole.get(role.id) ?? 0,
+            selectable: isRoleSelectable({
+              role,
+              cursed,
+              leaderWhitelisted,
               playtestLocked,
-              // Resolved server-side so a client component never drags
-              // PrismaClient into the browser bundle.
-              lastNameLocked: isDynastyMember(role.slug),
-            };
-          }),
-        ),
+            }),
+            playtestLocked,
+            // Resolved server-side so a client component never drags
+            // PrismaClient into the browser bundle.
+            lastNameLocked: isDynastyMember(role.slug),
+          };
+        }),
       }))
       .filter((g) => g.roles.length > 0),
   };
@@ -783,7 +783,10 @@ export default async function CharacterPage() {
     }));
   // Books in hand, for the Tear Up picker. No excerpt: a book's NAME is its
   // title and already says which one it is, unlike a note's waybill code.
-  const bookOptions = books.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name }));
+  const bookOptions = books.map((ct) => ({
+    tagId: ct.tagId,
+    name: ct.tag.name,
+  }));
   const sealOptions = {
     stamps: seals.map((ct) => ({
       tagId: ct.tagId,

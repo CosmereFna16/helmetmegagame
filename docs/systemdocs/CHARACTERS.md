@@ -341,6 +341,13 @@ with the factions already written.
 vanishing.** A silently dropped bucket would be a seat nobody could take,
 discovered by a player rather than by us.
 
+Bucketing happens at **role** grain, not faction grain, so one seat can sit
+somewhere its faction does not: `ROLE_GROUP_OVERRIDES` in the same file maps a
+role slug straight to a bucket. The Fisherman is the only entry today — he is
+on the Factory's books, but a man alone in the marsh with a rod belongs under
+Soil rather than Business. An override naming a bucket that does not exist
+falls into "Elsewhere" for the same reason an unbucketed faction does.
+
 Nothing about `Faction.zoneId` changed. The faction page still chips its zone,
 `#info` still groups by it, and each role card still names the zone its holder
 starts in — only the picker's headings moved.

@@ -353,7 +353,7 @@ Per character, at the close of every turn:
 | Short of the cost | Goes Hungry, owes **nothing**, streak **+1**. A fast metabolism holding 1 ⬢ keeps it rather than half-eating. |
 | Can cover the cost | Pays it, stays fed, streak drops by **one tick**. |
 
-So **the upkeep always buys a fed turn** — 1 ⬢, or 2 with Fast Metabolism —
+So **the upkeep always buys a fed turn** — 1 ⬢, or 2 with a Big Appetite —
 and `Character.resources` can never go
 negative without a `Math.max` — the clamp is a `resources: { gte: n }` on the
 decrement's own `where`, so the check and the payment are one statement. That
