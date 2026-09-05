@@ -33,7 +33,7 @@ player-facing brief — what the levels are, what to bring, and that the die
 exists. `Role.docElements` grants it to `migrant` and `mercenary`, and it's
 public so anyone else can find it too.
 
-**The Caving *skill* is a different thing entirely.** `caving` (5 points) opens
+**The Caving *skill* is a different thing entirely.** `caving` (3 points) opens
 the four hidden crawls between the caves and the surface (`MAP.md` §2a). It has
 no effect on the Die, and the Die does not care whether you have it — one is a
 key, the other is what the dark does to you regardless.
@@ -157,6 +157,14 @@ is where ultracommon loot dominates — that's where people go to farm
 `{tag:cave-fungus}` — while Nearly Impossible barely exists there (a fixed
 0.05%) and grows to 3% in the Depths; that top tier is meant to come mostly
 from GM-run quests, not the die.
+
+**Quests are hand-placed, and the public document now promises them by that
+name.** Nothing spawns one — there is no schedule, no table, no
+`LocationEvent`, and no GM tool. A Quest exists because a GM put it somewhere
+and told people. The player brief says they "randomly appear in cave
+locations", so if nobody places any, the caves are the die and nothing else.
+This is the deliberate arrangement, not an omission: the top loot tier is meant
+to be authored, not rolled.
 
 The Depths took the **old Aberrant Pits column unchanged**, rather than the
 middle Railroad one, because it is now the only deep place on the map and has

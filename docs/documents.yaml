@@ -372,15 +372,19 @@ documents:
     public: true
     tags: []
     description: |-
-      Ravenheart's caves are the graveyards of ancient civilizations. They're as dangerous as they are rewarding. There are two levels: the Caves, and below them the Depths. Getting from one to the other takes a turn, so plan carefully before committing. Caving rewards preparation, so consider bringing a good weapon, some food, a doctor, and maybe some medicine or alcohol. ‡
+      The caverns around Ravenheart host all sorts of ancient dangers and treasures.
 
-      **Walking is what wakes the dark.** Every time you arrive somewhere underground you roll the Caving Die — a flat 1d6, no modifiers. On a 1, something is wrong down here and a GM will tell you what. On a 6 you find something: loot, tonic ingredients, or information. Going deeper rolls it. Turning back rolls it too. Standing still does nothing at all, and neither does walking back into somewhere you've already been today. It doesn't use up your turn. ‡
+      The two underground regions are the caves and the depths. The caves are familiar to Ravenheart's more intrepid residents, while the depths descend inhospitably deep.
 
-      **Customs is safe.** Nothing stalks a cave mouth with a sentry, a floodlight and a shop in it. It's the one place down there you can stand without rolling — so it's where you camp, and where you come back to. ‡
+      Each movement from a location to another within the caves has a chance to trigger an encounter. These encounters vary significantly; you could find useful tools and valuables, or you could run into grave danger. Hunkering down in a single location reduces your chances of running into an unwanted encounter. Dangerous encounters triggered during a turn are deliberated at the end of the turn. You can still move locations after triggering one, but if you trigger more negative encounters, it will make your chance of survival far lower.
 
-      You can use Moves as normal in the caves. There's a few suggested actions: scavenging for loot, obtaining valuable metals, hunting monsters for their tonic ingredients, and foraging for the useful {tag:cave-fungus}. ‡
+      You can do three things in the caves:
 
-      The caves' truly special rewards are available through events. Check each location regularly. ‡
+      - Roll encounters,
+      - Use Gambits as normal, specifying whether you'd like to hunt a specific beast, scavenge for an item, or search a specific room.
+      - Fulfill Quests, dangerous but rewarding opportunities that randomly appear in cave locations. This is where the true treasure can be found.
+
+      You can also harvest {tag:cave-fungus} in just about every location (by doing a Gambit, or just through the encounter roll). The caves hold many secrets, requiring certain character traits or knowledge to gain access to.
 
   # The Merchant Update filled this in — it was an empty stub for as long as
   # the seat was unfinished. Reached by doc_element from both The Company
