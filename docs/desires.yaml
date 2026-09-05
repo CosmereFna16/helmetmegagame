@@ -1347,6 +1347,16 @@ desires:
       anyRoles: [scholastic]
       combine: or
 
+  # Tier 1 pays 1 point and would normally cool down for 1 turn. Four, because
+  # binding a book is ten sheets and a sitting, not something to do daily.
+  write-a-book:
+    name: Write a book
+    tier: 1
+    families: [esoterica]
+    requires:
+      anyRoles: [scholastic]
+    cooldownTurns: 4
+
   two-turns-in-the-pits:
     name: Stay 2 turns consecutively in the Aberrant Pits
     tier: 5

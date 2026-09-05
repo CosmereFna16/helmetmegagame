@@ -141,7 +141,7 @@ zones:
           the-charon:
             name: The Charon
             description: >-
-            access: [the-barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
+            access: [barons-key]   # non-empty ⇒ PRIVATE; any-of these tags admits
             live: shuttle              # optional; a key from db/lib/roomLive.js.
                                        #   Appends one line read off live state to
                                        #   the starter message, repainted whenever

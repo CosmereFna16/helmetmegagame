@@ -21,7 +21,8 @@ const { sendDm } = require("@lifeweb/db/lib/dm");
 // console button, unchanged since the zone rework and baked into consoles
 // already posted), loc:pick, loc:drag:{locationId}, loc:confirm:{locationId},
 // loc:cancel. The anchor buttons loc:who / loc:secret / loc:converse, and
-// loc:gate:{linkId} for a modular gate, are defined in
+// loc:gate:{linkId} for a modular gate — which rides on the watchtower's
+// starter post rather than an anchor — are defined in
 // db/lib/locationAnchorRow.js, because the sync posts them.
 
 // Discord's hard cap on select-menu options, and on max_values with them.

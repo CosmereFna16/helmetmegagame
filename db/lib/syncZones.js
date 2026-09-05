@@ -44,7 +44,7 @@ const {
 const { syncTurnsChannelAccess } = require("./turnsChannelAccess");
 const { locationAnchorRow, locationGateRow } = require("./locationAnchorRow");
 const { collectAttributes } = require("./locationAttributes");
-const { roomStarterRow } = require("./roomStarterRow");
+const { roomStarterRow, WATCHTOWER_ROOM_SLUGS } = require("./roomStarterRow");
 const { collectLive, loadLiveStates, liveLine } = require("./roomLive");
 const { entriesOf } = require("./yamlEntries");
 const { orderEndpoints, linksFor, endpoints, gateOperable } = require("./locationGraph");
@@ -666,8 +666,10 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
 
   const body = buildRoomBody(room, liveState);
   // Hashed with its button row, as the anchor is, so adding a button to the
-  // starter re-posts it once and never again.
-  const components = [roomStarterRow(room)];
+  // starter re-posts it once and never again — and a gate's open/shut state is
+  // INSIDE that row, which is what makes the button re-render itself after a
+  // flip rather than sit there lying about the gate.
+  const components = await roomComponents(prisma, room, location.id);
   const hash = hashBody(body + JSON.stringify(components));
   const chunks = chunkMessage(body);
   const title = room.name.slice(0, 100);
@@ -749,20 +751,34 @@ async function gatesFor(prisma, locationId) {
     .sort((x, y) => x.farName.localeCompare(y.farName));
 }
 
+// The components a Room's starter post carries: its own button row, plus — for
+// the four watchtowers — one Open/Close button per modular gate touching the
+// Location the room is in. That second row is the ONLY place a gate button
+// renders (db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS).
+//
+// A separate action row rather than more buttons on the first, which keeps
+// Storage/Intercom/Turret/Bell clear of Discord's five-per-row cap.
+async function roomComponents(prisma, room, locationId) {
+  const rows = [roomStarterRow(room)];
+  if (WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
+    rows.push(locationGateRow(await gatesFor(prisma, locationId)));
+  }
+  return rows.filter(Boolean);
+}
+
 // The pinned anchor message in a location's channel. Hash-gated on body +
 // components; a message a GM deleted by hand is reposted.
 //
-// A gate's open/shut state is part of the components, so it is part of the
-// hash: flipping a gate changes the hash, which is what makes the button
-// re-render itself rather than sit there lying about its own state.
+// The gate button used to live here, on BOTH endpoints. It does not any more —
+// it is on the watchtower's starter post instead (roomComponents above), so
+// nobody drops a portcullis from the open road.
 async function syncLocationAnchor(prisma, location, rooms) {
   if (!location.discordChannelId) return "skipped";
 
   const body = buildAnchorBody(location, rooms);
   // The whole row, not just the id: the Noticeboard button is conditional on
   // this location's `attributes` (db/lib/noticeboard.js).
-  const components = [locationAnchorRow(location), await gatesFor(prisma, location.id).then(locationGateRow)]
-    .filter(Boolean);
+  const components = [locationAnchorRow(location)];
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
   if (location.anchorMessageId && location.anchorHash === hash) return "unchanged";
@@ -1375,13 +1391,54 @@ async function refreshLiveRooms(prisma, key) {
   for (const room of rooms) {
     if (!room.discordThreadId || !room.starterMessageId) continue;
     const body = buildRoomBody(room, state);
-    const components = [roomStarterRow(room)];
+    // Through roomComponents, not roomStarterRow alone: no watchtower carries
+    // a `live:` key today, but if one ever did, a hash computed differently
+    // here than in syncRoomThread would repost the starter forever.
+    const components = await roomComponents(prisma, room, room.locationId);
     const hash = hashBody(body + JSON.stringify(components));
     if (room.postHash === hash) continue;
     try {
       await editMessage(room.discordThreadId, room.starterMessageId, chunkMessage(body)[0], components);
     } catch (err) {
       console.error(`live room refresh failed (${room.slug}):`, err.message);
+      continue;
+    }
+    await prisma.room.update({ where: { id: room.id }, data: { postHash: hash } });
+    edited += 1;
+  }
+  return edited;
+}
+
+// Reposts the watchtower starter that carries a location's gate button, the
+// room-thread twin of refreshLocationAnchor. Every caller of that one calls
+// this too: the anchor no longer renders a gate at all, so this is the only
+// repost that shows a flip anywhere.
+//
+// Same posture as refreshLiveRooms — edits in place, hash-gated, and never
+// creates a missing thread. A watchtower whose thread is gone renders the flip
+// nowhere until the sync or the channel doctor puts the thread back, which is
+// the trade for having exactly one place the button lives.
+async function refreshGateRooms(prisma, locationId) {
+  const rooms = await prisma.room.findMany({
+    where: { locationId, slug: { in: [...WATCHTOWER_ROOM_SLUGS] } },
+  });
+  if (!rooms.length) return 0;
+
+  const gateRow = locationGateRow(await gatesFor(prisma, locationId));
+  const liveKeys = [...new Set(rooms.map((r) => r.live).filter(Boolean))];
+  const states = liveKeys.length ? await loadLiveStates(prisma, liveKeys) : new Map();
+
+  let edited = 0;
+  for (const room of rooms) {
+    if (!room.discordThreadId || !room.starterMessageId) continue;
+    const body = buildRoomBody(room, room.live ? states.get(room.live) : null);
+    const components = [roomStarterRow(room), gateRow].filter(Boolean);
+    const hash = hashBody(body + JSON.stringify(components));
+    if (room.postHash === hash) continue;
+    try {
+      await editMessage(room.discordThreadId, room.starterMessageId, chunkMessage(body)[0], components);
+    } catch (err) {
+      console.error(`gate room refresh failed (${room.slug}):`, err.message);
       continue;
     }
     await prisma.room.update({ where: { id: room.id }, data: { postHash: hash } });
@@ -1399,4 +1456,5 @@ module.exports = {
   buildAnchorBody,
   gatesFor,
   refreshLocationAnchor,
+  refreshGateRooms,
 };

@@ -273,7 +273,7 @@ zones:
           # town gates are named "Watchtower" in play all the same.
           north-watchtower:
             name: Watchtower
-            access: [cerberus-key]
+            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
             description: >-
               Looks out onto the river. You can see the Keep up in the mountain. Has a grate you could open and throw stuff down into.
             stash: [shortbow, spear]
@@ -281,7 +281,7 @@ zones:
         name: Cathedral
         indoors: true
         description: >-
-          Stained limestone erected modestly upon a tall wooded hill on the western edge of the town — still within the walls. Hundreds of candles light the ornate interior.
+          Stained limestone erected modestly upon a sedimentary-like stack of ancient buildings. Hundreds of candles light the ornate interior.
         rooms:
           bell-tower:
             name: Bell Tower
@@ -323,7 +323,7 @@ zones:
           scriptorium:
             name: Scriptorium
             description: >-
-              It is a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
+              It's a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
             access: [cathedral-key]
             stash:
               items:
@@ -338,7 +338,7 @@ zones:
           ward:
             name: Ward
             description: >-
-              A long, tiled room, on either side are small bedframes. Potted plants offer the patients a quiet hope.
+              A long, tiled room. There are small bedframes on either side. Potted plants offer the patients a quiet hope.
           esculaps-office:
             name: Esculap's Office
             description: >-
@@ -368,7 +368,7 @@ zones:
           garden:
             name: Garden
             description: >-
-              You can grow herbs here.
+              A nice place to sit and think.
       underquarter:
         name: Underquarter
         description: >-
@@ -416,7 +416,7 @@ zones:
         rooms:
           south-watchtower:
             name: Watchtower
-            access: [cerberus-key]
+            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
             description: >-
               Looks out onto the river. You can see the Keep up in the mountain. Has a grate you could open and throw stuff down into.
             stash: [buckler, broadsword, obol]
@@ -435,7 +435,7 @@ zones:
         attributes:
           noticeboard: true
         description: |-
-          Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis. There is a back gate behind the fortress leading into the forest, but it's equally guarded.
+          Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis.
 
           There is a triple-barreled machinegun in the center of the yard, on a rotor. It seems to be off.
         rooms:
@@ -451,6 +451,19 @@ zones:
             name: Stables
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human.
+          # `fortress-watchtower`, not `watchtower` — Customs holds that slug,
+          # and the two town gates hold the other obvious ones. It is named
+          # "Watchtower" in play like all four.
+          #
+          # The portcullis winch is worked from HERE, not from the Gatehouse
+          # anchor and not from the Road: db/lib/roomStarterRow.js puts the
+          # gate button on this room's starter. Hence the access list, which is
+          # everyone the gate's own opener list names.
+          fortress-watchtower:
+            name: Watchtower
+            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
+            description: >-
+              A pair of thin, menacing watchtowers lined with spikes and draped with the Raven banner.
       # Promoted out of the Gatehouse, where it was a room. On Bascinet's map
       # this is the node drawn as "Gardens". Its prose is unchanged.
       lifeweb:
@@ -459,7 +472,28 @@ zones:
           A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
         attributes:
           noBuild: true
-        rooms: {}
+        rooms:
+          lifeweb-outside:
+            name: Outside
+            description: >-
+              The door to the Lifeweb is in front of you. The grass is especially alive here.
+          inner-lifeweb:
+            name: Inner Lifeweb
+            access: [mortus-key]
+            description: >-
+              Pistons and machinery connect to pumps and tubes, all terminating in the chair in the center of the room. Strap someone in, adjust the ventricles, prepare the injection site, and decide whether to drain them fully or leave them alive. Sealed hatches lead into maintenance tunnels.
+          mortus-shacks:
+            name: Mortus Shacks
+            access: [mortus-key]
+            description: >-
+              Tucked into the wall. The Baron tolerates their presence, as pitiful as they are.
+            stash:
+              items:
+                obol: 1
+                hatchet: 1
+                cudgel: 1
+                mortus-rags: 1
+                mortus-key: 1
       servant-wing:
         name: Servant Wing
         description: >-
@@ -475,6 +509,29 @@ zones:
                 fine-meal: 1
                 paper: 5
                 meisters-wax-stamp: 1
+          servants-quarters:
+            name: Servant's Quarters
+            access: [servant, barons-key, hands-key]
+            description: >-
+              Bunks, a stove and a long table, all of it worn smooth. The one room in the Keep the nobility has no reason to enter. ‡
+          # `fortress-kitchen`, not `kitchen` — the Old Cock Inn holds that slug.
+          fortress-kitchen:
+            name: Kitchen
+            description: >-
+              An industrial operation, with racks of ovens, a heavy granite table, and thick cleavers.
+            stash: [work-knife]
+          fortress-workshop:
+            name: Workshop
+            description: >-
+              A place to sew, do laundry, and build simple things.
+            stash: [workshop-equipment]
+          # The second `destroys` room in the game, after the Factory's
+          # Spillway. See docs/systemdocs/CARRY.md.
+          latrines:
+            name: Latrines
+            description: >-
+              A chute into the darkness. Anything stored here is lost permanently.
+            destroys: true
       keep:
         name: Keep
         indoors: true
@@ -487,20 +544,26 @@ zones:
           throne-room:
             name: Throne Room
             description: |-
-              Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a patch directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
+              Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a trapdoor directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
 
               There's a trapdoor in the center. You can hear something rumbling in the darkness.
           great-hall:
             name: Great Hall
             description: >-
-              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest.
+              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest. There is a huge painting of Baron Casimir the Great.
+          nook:
+            name: Nook
+            access: [behind-the-painting]
+            description: >-
+              An empty room. It has unfinished sketches of a nude man in various poses across the walls.
           council-room:
             name: Council Room
+            access: [barons-key, hands-key, meisters-key, censors-key]
             description: >-
               A wide table. There's a holographic map of Ravenheart and a button for the intercom.
             stash:
               items:
-                paper: 10
+                paper: 4
           swimming-pool:
             name: Swimming Pool
             description: >-
@@ -509,25 +572,93 @@ zones:
             name: Library
             description: >-
               Rows upon rows of bookcases, most of which lie empty. Various offices of members of the court branch off from here.
-          noble-chambers:
-            name: Noble Chambers
+            stash:
+              items:
+                paper: 23
+                the-wise-plague-doctor: 1
+                caspians-diary: 1
+                100-years-of-solitude: 1
+                the-art-of-war: 1
+          # Was one "Noble Chambers". Three rooms now, each with its own key —
+          # and the Baron's opens all three, which is rather the point of being
+          # the Baron.
+          barons-chambers:
+            name: Baron's Chambers
+            access: [barons-key]
             description: >-
-              The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the center. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness. Just adjacent are the Heir and Successors rooms, both significantly smaller, and decorated to their occupants' preferences.
+              The Baron's room opens into a large, ornately decorated bedroom with a stunningly comfortable bed at the center. A wardrobe built into the wall contains all manner of fine attire for both the Baron and Baroness.
+            stash:
+              items:
+                obol: 19
+                paper: 2
+                dagger: 1
+          heirs-chamber:
+            name: Heir's Chamber
+            access: [heirs-key, barons-key]
+            description: >-
+              Small and austere, with a map.
+            stash:
+              items:
+                obol: 2
+                broadsword: 1
+          successors-chamber:
+            name: Successor's Chamber
+            access: [successors-key, barons-key]
+            description: >-
+              A dresser and a mirror to allay her vanity.
+            stash:
+              items:
+                obol: 1
+                tea: 1
+          terrace:
+            name: Terrace
+            description: >-
+              A sprawling terrace with herbs, flowers, and even a mini-hedge maze. The perfect place for a nighttime party.
+          meisters-office:
+            name: Meister's Office
+            access: [meisters-key, barons-key]
+            description: >-
+              A narrow office.
+            stash:
+              items:
+                states-of-matter: 1
+          hands-office:
+            name: Hand's Office
+            access: [hands-key, barons-key]
+            description: >-
+              A narrow office.
+            stash:
+              items:
+                paper: 7
+                cleaning-powder: 1
+                hands-wax-stamp: 1
+          # The far end of the throne room's trapdoor. `in-the-pit` is GM-given
+          # on the way down, which is the only way anybody arrives.
+          graga-pit:
+            name: Graga Pit
+            access: [in-the-pit]
+            description: >-
+              Wet stone, a long way down, and something breathing in the dark that is much larger than you are. ‡
           the-charon:
             name: The Charon
             description: >-
               A sealed gate. The Baron's key opens this.
-            access: [the-barons-key]
+            access: [barons-key]
           reliquary-chapel:
             name: Reliquary Chapel
             description: >-
-              The Silver Cross of Ravenheart is locked away here, accessible by the Incarn's key. Courtiers come here to pray.
+              Courtiers come here to pray. The Silver Cross of Ravenheart is locked away behind the altar, accessible by the Incarn's key. ‡
+          cross-room:
+            name: Cross Room
             access: [incarns-key]
+            description: >-
+              Behind the chapel, the cross itself is stored in an ornate altar.
+            stash: [silver-cross]
           barons-study:
             name: Baron's Study
             description: >-
               Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
-            access: [the-barons-key]
+            access: [barons-key]
             stash:
               items:
                 armory-key: 1
@@ -541,8 +672,15 @@ zones:
         description: >-
           The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
         rooms:
+          # The counter you talk to the garrison across. The only room here
+          # anybody may simply walk into — everything past it is Cerberon.
+          garrison-entrance:
+            name: Entrance
+            description: >-
+              A wolf's head hangs over the counter, which is separated from the room by metal bars. There's a bust of a former baron.
           censors-office:
             name: Censor's Office
+            access: [censors-key, cerberus-key]
             description: >-
               The Censor's office is spacious, with a small portrait of his beloved Baron perched on the wall. A caged window looks out over the training ground below. There is a big red button on the wall.
             stash:
@@ -552,10 +690,12 @@ zones:
                 cerberus-key: 3
           barracks:
             name: Barracks
+            access: [cerberus-key]
             description: >-
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
           mess-hall:
             name: Mess Hall
+            access: [cerberus-key]
             description: >-
               The Cerberon's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
             stash:
@@ -565,7 +705,7 @@ zones:
           armory:
             name: Armory
             description: >-
-              Gargoyles flank a statue of the good Baron Casimir II. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
+              Gargoyles flank a statue of the good Baron Casimir the Great. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
             access: [armory-key]
             stash:
               items:
@@ -588,16 +728,27 @@ zones:
                 padded-cap: 3
           dungeons:
             name: Dungeons
+            access: [censors-key, incarns-key, cerberus-key]
             description: >-
-              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison. Connects to the Undercroft.
+              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison.
+          oubliette:
+            name: Oubliette
+            access: [censors-key, incarns-key, cerberus-key]
+            description: >-
+              If you throw a man in here, they're not getting out.
           training-yard:
             name: Training Yard
+            access: [cerberus-key]
             description: >-
               In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
           kennels:
             name: Kennels
+            access: [cerberus-key]
             description: >-
               Good and mean dogs both, ready to hunt unruly peasants. Their cages are locked and only accessible by members of the garrison.
+            stash:
+              items:
+                hound: 2
       undercroft:
         name: Undercroft
         indoors: true
@@ -624,6 +775,13 @@ zones:
             name: Ancient Shrine
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
+          # The near end of the Baron's lift. The edge itself is
+          # `hidden: elevator-key` in `connections:`; this is the cage.
+          elevator-room:
+            name: Elevator Room
+            access: [elevator-key]
+            description: >-
+              A cage suspended over the darkness. Use the pressure plate to descend.
       road:
         name: Road
         description: >-
@@ -1136,7 +1294,7 @@ zones:
                   A grated steel bay. The roof automatically opens and closes.
               watchtower:
                 name: Watchtower
-                access: [cerberus-key]
+                access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
                 description: >-
                   Set into the gate. The tower's windows allow peering into the caves, where a floodlight is pointed. Metal grates on the floor allow pouring oil onto any invaders.
                 stash: [shortbow, spear]

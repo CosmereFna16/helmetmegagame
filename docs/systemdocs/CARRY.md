@@ -286,8 +286,8 @@ Every Room, public or private, holds unlimited ⬢ (`Room.resources`) and
 unlimited tag stacks (`RoomTag`, one row per tag, `@@unique([roomId, tagId])`).
 A room is where you put what you can't carry.
 
-**One room holds nothing at all.** `Room.destroysContents` — the Godard
-Factory's Spillway, and only that — makes both writers into a room
+**Two rooms hold nothing at all.** `Room.destroysContents` — the Godard
+Factory's Spillway and the Servant Wing's Latrines — makes both writers into a room
 (`giveTagTo`, `moveParty`) no-ops, so what goes in is gone. Undo can still hand
 it back to the sender, because the effect records `destroyed: true` and skips
 the receiving half; without that the ordinary path throws on a stash that never

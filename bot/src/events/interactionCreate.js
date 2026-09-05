@@ -69,7 +69,7 @@ const {
   GATE_PREFIX,
   KEYED_PREFIX,
 } = require("@lifeweb/db/lib/locationAnchorRow");
-const { refreshLocationAnchor } = require("@lifeweb/db/lib/syncZones");
+const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
 const { structuresAt, HOLDS_EDGE } = require("@lifeweb/db/lib/structures");
@@ -797,11 +797,16 @@ async function handleGateToggle(interaction, linkId) {
     },
   });
 
-  // Both sides: the gate has a button on each anchor, and shutting it from
-  // one must not leave the other advertising "Open".
+  // Both sides. The anchor no longer carries the gate at all, but it still
+  // lists the ways out, so it is redrawn; the button itself lives on the
+  // watchtower's starter, which is what refreshGateRooms redraws. A gate with a
+  // tower at only one end has nothing to redraw at the other, and that is fine.
   for (const locationId of [link.aId, link.bId]) {
     await refreshLocationAnchor(prisma, locationId).catch((err) =>
       console.error(`Gate anchor refresh failed for ${locationId}:`, err.message ?? err),
+    );
+    await refreshGateRooms(prisma, locationId).catch((err) =>
+      console.error(`Gate room refresh failed for ${locationId}:`, err.message ?? err),
     );
   }
 

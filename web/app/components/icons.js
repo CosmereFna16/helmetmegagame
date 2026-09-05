@@ -555,6 +555,18 @@ export function SealIcon(props) {
   );
 }
 
+// A bound volume seen from the spine side, open a crack — the Bind a Book
+// action, and the books on the Keep's shelves.
+export function BookIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>
+      <path d="M4 4.5h6.5c1 0 1.5.6 1.5 1.5v13c0-.9-.5-1.5-1.5-1.5H4z" strokeLinejoin="round" />
+      <path d="M20 4.5h-6.5c-1 0-1.5.6-1.5 1.5v13c0-.9.5-1.5 1.5-1.5H20z" strokeLinejoin="round" />
+      <path d="M4 4.5v13M20 4.5v13" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function CrateIcon(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...props}>

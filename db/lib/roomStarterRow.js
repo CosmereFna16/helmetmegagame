@@ -4,7 +4,10 @@
 // (db/lib/intercom.js); Toggle Turret is on exactly one other, the Censor's
 // Office, and works the gun in the fortress yard
 // (db/lib/gatehouseTurret.js); Sound Bell is on the Cathedral's Bell Tower and
-// rings across four zones (db/lib/bell.js). Raw component JSON for the same reason as
+// rings across four zones (db/lib/bell.js). The four watchtowers get a SECOND
+// row on top of this one — the gate button — composed by
+// db/lib/syncZones.js#roomComponents rather than here, because it needs the
+// graph and this file has no prisma. Raw component JSON for the same reason as
 // locationAnchorRow.js — the sync posts it over REST from db/, which has no
 // discord.js, while the bot answers the click.
 //
@@ -28,6 +31,27 @@ const DANGER = 4;
 // rather than imported from gatehouseTurret.js because that module pulls in the
 // whole turret engine, and this file is loaded by the sync to draw a row.
 const CENSOR_OFFICE_ROOM_SLUG = "censors-office";
+
+// The four rooms that work a gate. Every modular edge in docs/zones.yaml has
+// exactly one of these at one of its ends, and the Open/Close button renders
+// on that room's starter post and NOWHERE ELSE — not on either endpoint's
+// Location anchor, which is where it used to live. A portcullis has a winch,
+// and the winch is in the tower; you should not be able to drop one from the
+// open road.
+//
+// Named here rather than flagged in docs/zones.yaml for the same reason the
+// bell and the turret are: it is a short, fixed, designer-curated list, and a
+// Room column plus a migration would be a lot of machinery to store four
+// strings. Add a modular edge and you add its room here.
+//
+// The gates themselves still come from the graph — db/lib/syncZones.js#gatesFor
+// answers which ones touch a location. This set only says who shows them.
+const WATCHTOWER_ROOM_SLUGS = new Set([
+  "fortress-watchtower", // fortress/gatehouse <-> fortress/road
+  "watchtower", //          caves/customs      <-> caves/caves-narrows
+  "north-watchtower", //    town/north-gate    <-> forest/forest-north-road
+  "south-watchtower", //    town/south-gate    <-> forest/forest-crossroads
+]);
 
 const ROOM_STORAGE_PREFIX = "room:storage:";
 const ROOM_INTERCOM_PREFIX = "room:intercom:";
@@ -74,6 +98,7 @@ function roomStarterRow(room) {
 }
 
 module.exports = {
+  WATCHTOWER_ROOM_SLUGS,
   ROOM_STORAGE_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,

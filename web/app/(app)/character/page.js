@@ -34,6 +34,8 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { canRead } from "@lifeweb/db/lib/reading";
 import {
   PAPER_SLUG,
+  BOOK_SHEETS,
+  isBook,
   isPaper,
   isSeal,
   sealLabel,
@@ -730,6 +732,15 @@ export default async function CharacterPage() {
   );
   const canSeal = hasSeal && sealables.length > 0;
 
+  // Binding and tearing up (docs/systemdocs/PAPERWORK.md). Both are facts about
+  // your own sheet — a stack of ten, or a book in your hands — so both may grey
+  // or hide their button. Binding needs letters as well, because you write the
+  // whole thing in one pass; tearing one up needs none at all.
+  const blankStock = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
+  const canBindBook = canReadNow && (blankStock?.quantity ?? 0) >= BOOK_SHEETS;
+  const books = character.tags.filter((ct) => isBook(ct.tag));
+  const hasBook = books.length > 0;
+
   // What the two dialogs list. The TEXT is deliberately not sent — the dialog
   // asks for it on demand (paperActions.js#readMyPaper) so an unreadable sheet
   // never has its contents sitting in a client payload waiting to be read out
@@ -761,6 +772,9 @@ export default async function CharacterPage() {
           ? (ct.tag.paperText ?? "").trim().slice(0, 60)
           : null,
     }));
+  // Books in hand, for the Tear Up picker. No excerpt: a book's NAME is its
+  // title and already says which one it is, unlike a note's waybill code.
+  const bookOptions = books.map((ct) => ({ tagId: ct.tagId, name: ct.tag.name }));
   const sealOptions = {
     stamps: seals.map((ct) => ({
       tagId: ct.tagId,
@@ -1190,6 +1204,9 @@ export default async function CharacterPage() {
       paperOptions={paperOptions}
       letterOptions={letterOptions}
       sealOptions={sealOptions}
+      canBindBook={canBindBook}
+      hasBook={hasBook}
+      bookOptions={bookOptions}
       birdSentToday={birdSentToday}
       birdTargets={birdTargets}
       birdZones={birdZoneOptions}

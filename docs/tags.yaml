@@ -322,6 +322,37 @@ tags:
     purchasable: false
     visible: false
 
+  servant:
+    catalog: gm
+    name: Servant
+    category: general
+    description: "You work the Keep's back stairs. The Servant's Quarters are yours. ‡"
+    pointCost: 0
+    purchasable: false
+    visible: false
+
+  # Two markers a GM hands out rather than anything anybody buys: one for
+  # knowing where a door is, one for being on the wrong side of one.
+  behind-the-painting:
+    catalog: gm
+    name: Behind the Painting
+    category: general
+    description: "You know what the Great Hall's painting is hiding. ‡"
+    pointCost: 0
+    purchasable: false
+    visible: false
+    removable: true
+
+  in-the-pit:
+    catalog: gm
+    name: In the Pit
+    category: general
+    description: "Oh no…"
+    pointCost: 0
+    purchasable: false
+    visible: false
+    removable: true
+
   courtier:
     catalog: gm
     name: Courtier
@@ -5171,12 +5202,12 @@ tags:
     weight: 0
     purchasable: false
 
-  the-barons-key:
+  barons-key:
     catalog: gm
-    name: "The Baron's Key"
+    name: "Baron's Key"
     category: items
     group: items-keys
-    description: "Opens the Charon."
+    description: "The ring the Baron carries. It opens the Charon, his study and chambers, every office off the Library, and the Servant's Quarters. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -5373,6 +5404,96 @@ tags:
     category: items
     group: items-keys
     description: "A key to Room C."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  mortus-key:
+    catalog: gm
+    name: "Mortus Key"
+    category: items
+    group: items-keys
+    description: "A key to the Lifeweb's door and the shacks beside it. Every Mortus carries one. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  hands-key:
+    catalog: gm
+    name: "Hand's Key"
+    category: items
+    group: items-keys
+    description: "A key to the Hand's office and the Servant's Quarters. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  meisters-key:
+    catalog: gm
+    name: "Meister's Key"
+    category: items
+    group: items-keys
+    description: "A key to the Meister's office and the Council Room. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  censors-key:
+    catalog: gm
+    name: "Censor's Key"
+    category: items
+    group: items-keys
+    description: "A key to the Council Room, the dungeons and the oubliette. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  heirs-key:
+    catalog: gm
+    name: "Heir's Key"
+    category: items
+    group: items-keys
+    description: "A key to the Heir's room. ‡"
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    removable: true
+
+  successors-key:
+    catalog: gm
+    name: "Successor's Key"
+    category: items
+    group: items-keys
+    description: "A key to the Successor's room. ‡"
     pointCost: 0
     tradeable: true
     stackable: true
@@ -7028,6 +7149,88 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # The Keep's shelves. A book is declared BY its text: `bookText` goes on
+  # Tag.paperText with paperKind BOOK, never on `description`, because the
+  # description column is broadcast to every signed-in browser and these are
+  # meant to be found rather than read off the catalog. See PAPERWORK.md.
+  #
+  # Bascinet's words, all five of them, so none carries a mark.
+  the-wise-plague-doctor:
+    catalog: gm
+    name: The Wise Plague Doctor
+    category: items
+    group: items-paper
+    bookText: >-
+      Once there was a Plague Doctor whose story became legend that no man now lives to tell. Here I have written it down for any that may yet find this book in my dying hour. The Plague Doctor was a lord of the Sanctuary, so powerful and so wise he could use his skills to create life... He had such a knowledge of his art that he could even keep the hopelessly ill he cared about from dying. The skills taught in the Sanctuary and the machines found there are a pathway to many operations some might consider to be unnatural. He became so powerful... the only thing he was afraid of was losing his power, which eventually, of course, he did. Unfortunately, he taught his apprentice everything he knew, then his apprentice killed him in his sleep. Now he has come for all that know his story, even for me. It is ironic - the Plague Doctor could save others from death, but not himself.
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  caspians-diary:
+    catalog: gm
+    name: Caspian's Diary
+    category: items
+    group: items-paper
+    bookText: >-
+      Dear Diary, It's been 4 days in these caves...at least I think it has. Time seems to have lost all meaning, and I'm unsure whether I've been walking this through this current passage for hours or days. I can't help but feel a blooming hope that I will find the exit soon, for I encountered something today that I've not seen since I entered this place: a hole. Tomorrow I jump to my destiny, and discover what is at the bottom of the hole. With luck, it will be my salvation. Caspian
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  100-years-of-solitude:
+    catalog: gm
+    name: 100 Years of Solitude
+    category: items
+    group: items-paper
+    bookText: |-
+      by Gabriel Garcia Marquez
+
+      "Wherever they might be they always remember that the past was a lie, that memory has no return, that every spring gone by could never be recovered, and that the wildest and most tenacious love was an ephemeral truth in the end."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  the-art-of-war:
+    catalog: gm
+    name: The Art of War
+    category: items
+    group: items-paper
+    bookText: |-
+      by Sun Tzu
+
+      "If your enemy is secure at all points, be prepared for him. If he is in superior strength, evade him. If your opponent is temperamental, seek to irritate him. Pretend to be weak, that he may grow arrogant. If he is taking his ease, give him no rest. If his forces are united, separate them. If sovereign and subject are in accord, put division between them. Attack him where he is unprepared, appear where you are not expected."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  states-of-matter:
+    catalog: gm
+    name: States of Matter
+    category: items
+    group: items-paper
+    bookText: |-
+      by David L. Goodstein
+
+      "Ludwig Boltzmann, who spent much of his life studying statistical mechanics, died in 1906 by his own hand. Paul Ehrenfest, carrying on the work, died similarly in 1933. Now it is our turn to study statistical mechanics."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   wax-seal-three-cups:
     catalog: all
     name: Wax Seal (Three Cups)
@@ -7193,6 +7396,20 @@ tags:
     group: items-paper
     sealOffice: Censor
     sealMark: "A shield with a sword."
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  hands-wax-stamp:
+    catalog: gm
+    name: Hand's Wax Stamp
+    category: items
+    group: items-paper
+    sealOffice: Hand
+    sealMark: "An open palm."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -9353,13 +9570,15 @@ tags:
     name: Silver Cross
     category: items
     group: items-special
-    description: "Holding it, you feel chastised."
+    description: "As simple as it is, it is beautiful."
     pointCost: 0
     visible: true
     tradeable: true
     weight: 0
     purchasable: false
     purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 300
 
   #-------------Demoness---------------
 

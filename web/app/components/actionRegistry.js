@@ -43,6 +43,7 @@ import {
   CrateIcon,
   QuillIcon,
   SealIcon,
+  BookIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -94,6 +95,10 @@ export const ACTION_HELP = {
   write:
     "Put words on a sheet of paper. You can always write more on a paper you're holding; you can never take anything back off it. ‡",
   seal: "Close a letter with wax so nobody can read it without breaking the seal — and so everyone can see whose wax it was. The stamp is not used up. ‡",
+  bindbook:
+    "Bind ten blank sheets into a book and write it in one pass. What goes in is what it says — a bound book can never be added to. ‡",
+  tearbook:
+    "Pull a book apart for its paper. You get ten blank sheets back and the words are gone. ‡",
 };
 
 export const ACTION_SECTIONS = [
@@ -223,6 +228,22 @@ export const ACTION_SECTIONS = [
         label: "Seal Letter ‡",
         show: "hasSeal",
         gate: "canSeal",
+      },
+      // Binding hides on literacy like Write, for the same reason. Tearing one
+      // up does not: it needs no letters, and the button only appears at all
+      // once you are holding a book.
+      {
+        mode: "bindbook",
+        icon: BookIcon,
+        label: "Bind a Book ‡",
+        show: "canRead",
+        gate: "canBindBook",
+      },
+      {
+        mode: "tearbook",
+        icon: TrashIcon,
+        label: "Tear Up a Book ‡",
+        show: "hasBook",
       },
       {
         mode: "bird",

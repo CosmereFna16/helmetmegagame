@@ -106,7 +106,7 @@ export async function getVisibleTags() {
 
   return tags
     .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
-    .map(composePaper(viewer));
+    .map(composePaper(viewer, held));
 }
 
 // A paper's text NEVER travels in `description` — that column goes to every
@@ -128,14 +128,18 @@ async function openTurnPhase() {
 
 // Replace `description` with what THIS reader is allowed to see, then strip the
 // raw text off the row so it cannot reach the browser by any other path.
-function composePaper(viewer) {
+// An authored book is a CATALOG row, not an ephemeral one, so unlike a letter
+// it is not withheld by the `held` filter above — every browser gets it. Its
+// text is therefore composed only for a reader actually holding it; everyone
+// else is told there is a book and left to go and find it.
+function composePaper(viewer, held) {
   return (tag) => {
     if (!isPaper(tag)) {
       const { paperKind, paperText, sealMark, ...rest } = tag;
       return { ...rest, sealMark };
     }
     const { paperText, ...rest } = tag;
-    return { ...rest, description: paperDescription(tag, viewer) };
+    return { ...rest, description: paperDescription(tag, { ...viewer, holdsIt: held.has(tag.id) }) };
   };
 }
 

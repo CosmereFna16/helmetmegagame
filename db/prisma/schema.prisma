@@ -1760,6 +1760,7 @@ enum PaperKind {
   PAPER
   SEALED
   BROKEN_SEAL
+  BOOK
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,

@@ -6,6 +6,20 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-05 · The Fortress is a real place, and books exist
+
+✚ The Lifeweb is somewhere you can walk into: an outside, the chair room behind the Mortii's key, and their shacks against the wall  
+✚ The Servant Wing has quarters, a kitchen, a workshop and latrines — anything dropped down the latrines is gone for good, like the Spillway  
+✚ The Keep's Noble Chambers are three rooms now, one each for the Baron, the Heir and the Successor, and the Baron's key opens all three  
+✚ A Meister's office, a Hand's office with a wax stamp of his own, a terrace, a nook behind the Great Hall's painting, and the pit under the throne room  
+✚ The Garrison has a front counter anyone can walk up to, and everything past it needs a Cerberus key; an oubliette, and two hounds in the kennels  
+✚ Books: bind ten sheets of paper into one and write it in a single pass, or tear one up to get the paper back. Five are on the shelves already  
+✚ A Desire for a Scholastic to write one  
+✎ The winch for every gate in the game is in its watchtower now, not out on the road — and the fortress gate finally has a watchtower  
+✎ The Baron's Key is just the Baron's Key, and there are keys now for the Hand, the Meister, the Censor, the Heir, the Successor and the Mortii  
+✎ The Hand no longer carries a Cerberus key  
+✎ The Reliquary Chapel is open to anyone; the Silver Cross is behind its own door off it, and the Merchant would pay 300 obols for it
+
 ## 2026-09-05 · Saints are pacifists, and the Judge is off the tag catalog
 
 − Saint now says outright that you cannot fight, not even in self-defense  

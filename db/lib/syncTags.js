@@ -9,6 +9,7 @@ const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath, repoPath } = require("./repoPaths");
 const { CORPSE_GROUP_SLUG } = require("./constants");
+const { PAPER_GROUP_SLUG } = require("./paper");
 const {
   normalizeRequirementItems,
   validateRequirementItems,
@@ -439,6 +440,26 @@ async function syncTagsFromYaml(prisma) {
         );
       }
     }
+    // A book is declared BY its text: `bookText` is what is written inside it,
+    // and the sync files it on Tag.paperText with paperKind BOOK, exactly where
+    // a written sheet keeps its own words. That is the whole point — the text
+    // never touches `description`, which every signed-in browser receives.
+    // Authoring a description beside one is an error for the same reason it is
+    // on a stamp: the file would claim something the game never says.
+    if (t.bookText !== undefined) {
+      if (typeof t.bookText !== "string" || !t.bookText.trim()) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets bookText but it is empty — give the book something to say`);
+      }
+      if (t.description != null) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets both bookText and description — a book's description is composed per reader from its text`,
+        );
+      }
+      if (t.group !== PAPER_GROUP_SLUG) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets bookText but is not in group ${PAPER_GROUP_SLUG}`);
+      }
+    }
+
     // `sealOffice` names the seat a stamp belongs to, and only changes the
     // sentence the mark is set into. The Merchant's is the one stamp with an
     // office and no mark: his bears his own initials, written at character
@@ -570,6 +591,11 @@ async function syncTagsFromYaml(prisma) {
       ...(gameWrittenSeal(entry)
         ? {}
         : { description: sealDescription(entry) ?? entry.description ?? null, sealMark: entry.sealMark?.trim() ?? null }),
+      // An authored book. `description` above is already null for one (the
+      // validation refuses both), and paperDescription composes what a given
+      // reader sees out of these two columns instead.
+      paperKind: entry.bookText?.trim() ? "BOOK" : null,
+      paperText: entry.bookText?.trim() ?? null,
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
       inspectVisibility: VISIBILITY_BY_YAML.get(entry.visible ?? false),

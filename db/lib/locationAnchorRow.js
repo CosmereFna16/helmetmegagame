@@ -1,7 +1,9 @@
 // The Location components both faces share, as raw component JSON: the
 // buttons on every Location channel's pinned anchor (Who's here?, Secret
-// rooms?, Examine, Converse), one Open/Close button per modular gate touching the
-// location, and the Yes/No pair on the DM a keyed crossing sends.
+// rooms?, Examine, Converse), one Open/Close button per modular gate — which
+// renders on the WATCHTOWER at that gate rather than on either anchor
+// (db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS) — and the Yes/No pair on
+// the DM a keyed crossing sends.
 //
 // Plain JSON rather than discord.js builders for the same reason as
 // db/lib/turnsConsoleRow.js: the sync posts these over REST from db/, which
@@ -83,6 +85,10 @@ function locationAnchorRow(location) {
 
 // One button per modular gate on this location, or null when it has none —
 // an action row with no components is rejected by Discord.
+//
+// This row goes on the watchtower Room's starter post, not on a Location
+// anchor. A portcullis has a winch and the winch is in the tower; being able
+// to drop one from the open road was the thing that moved it.
 //
 // The label names the far side, because a location can hold two gates and
 // "Close" alone would be a coin flip. The verb is what the click DOES, not

@@ -6,7 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
-import { refreshLocationAnchor } from "@lifeweb/db/lib/syncZones";
+import { refreshLocationAnchor, refreshGateRooms } from "@lifeweb/db/lib/syncZones";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
   HOLDS_EDGE,
@@ -73,6 +73,11 @@ function repostAnchors(locationIds) {
     for (const locationId of locationIds) {
       await refreshLocationAnchor(prisma, locationId).catch((err) =>
         console.error(`Structure anchor refresh failed for ${locationId}:`, err?.message ?? err),
+      );
+      // A structural gate's mechanism EXISTS only while something built holds
+      // it, so destroying one takes the watchtower's button away with it.
+      await refreshGateRooms(prisma, locationId).catch((err) =>
+        console.error(`Structure gate room refresh failed for ${locationId}:`, err?.message ?? err),
       );
     }
   });

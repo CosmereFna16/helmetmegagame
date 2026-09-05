@@ -74,6 +74,8 @@ import {
 import {
   writePaper,
   sealLetter,
+  bindABook,
+  tearUpABook,
   readMyPaper,
 } from "../(app)/character/paperActions";
 // Safe from a client component: db/lib/constants.js is a leaf of bare strings
@@ -321,12 +323,17 @@ const NO_REQUEST_MODES = new Set(["examine"]);
 
 // Nothing to adjudicate, so nothing to justify. The letter itself is the
 // record a GM reads (docs/systemdocs/PAPERWORK.md).
-const NO_REASON_MODES = new Set(["bird", "write", "seal"]);
+const NO_REASON_MODES = new Set(["bird", "write", "seal", "bindbook", "tearbook"]);
 
 // Mirrors WRITE_MAX in web/app/(app)/character/paperActions.js, which is the
 // real gate — this only stops the counter and the box promising more than the
 // server will take.
 const WRITE_MAX = 2000;
+
+// Both mirror paperActions.js the same way WRITE_MAX does — the counter under
+// the box has to agree with the cap the server actually applies.
+const BOOK_MAX = 12000;
+const TITLE_MAX = 60;
 
 // Why a person is lootable: living cases come from INCAPACITATING_SLUGS
 // (db/lib/incapacitation.js); a corpse says so plainly.
@@ -415,6 +422,11 @@ export default function RequestActionsProvider({
   // is not gated on literacy — only the excerpts inside it are.
   letterOptions = [],
   sealOptions = { stamps: [], letters: [] },
+  // Books (docs/systemdocs/PAPERWORK.md). No excerpts here — a book's name IS
+  // its title, unlike a note's deliberately anonymous waybill code.
+  canBindBook = false,
+  hasBook = false,
+  bookOptions = [],
   // The Godard Factory (docs/systemdocs/FACTORY.md). All three are facts about
   // where this character is standing and what is in their hands, resolved
   // server-side in character/page.js — the actions re-check every one.
@@ -470,6 +482,10 @@ export default function RequestActionsProvider({
   const [paperExisting, setPaperExisting] = useState(null);
   // Seal: which stamp, which letter.
   const [stampId, setStampId] = useState("");
+  // Bind a Book: the title on the spine and everything inside it, written in
+  // one pass because a bound book can never be added to.
+  const [bookTitle, setBookTitle] = useState("");
+  const [bookBody, setBookBody] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const confirm = useConfirm();
@@ -673,6 +689,8 @@ export default function RequestActionsProvider({
       setBirdTagId("");
       setPaperId("");
       setPaperBody("");
+      setBookTitle("");
+      setBookBody("");
       setPaperExisting(null);
       setStampId("");
       setError(null);
@@ -892,6 +910,10 @@ export default function RequestActionsProvider({
         return writePaper({ tagId: paperId, text: paperBody });
       case "seal":
         return sealLetter({ tagId: tagId, stampTagId: stampId });
+      case "bindbook":
+        return bindABook({ title: bookTitle, text: bookBody });
+      case "tearbook":
+        return tearUpABook({ tagId });
       case "bird":
         // No reason: the letter is the record. See RequestDialog.js.
         return birdMessageRequest({
@@ -913,6 +935,10 @@ export default function RequestActionsProvider({
         return Boolean(paperId && paperBody.trim().length > 0);
       case "seal":
         return Boolean(tagId && stampId);
+      case "bindbook":
+        return Boolean(bookTitle.trim() && bookBody.trim());
+      case "tearbook":
+        return Boolean(tagId);
       case "bird":
         return Boolean(targetId && zoneId && birdTagId);
       case "transfer":
@@ -1001,6 +1027,8 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
+      canBindBook,
+      hasBook,
       canSendBirdToday: !birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1024,6 +1052,8 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
+      canBindBook,
+      hasBook,
       birdSentToday,
       canButcher,
       canSeeExtract,
@@ -1920,6 +1950,71 @@ export default function RequestActionsProvider({
                       </p>
                     </label>
                   </>
+                )}
+              </>
+            )}
+
+            {mode === "bindbook" && (
+              <>
+                <label className="field">
+                  <span className="field-label">What is it called? ‡</span>
+                  <input
+                    type="text"
+                    maxLength={TITLE_MAX}
+                    value={bookTitle}
+                    onChange={(e) => setBookTitle(e.target.value)}
+                    placeholder="On the Draining of Blood ‡"
+                  />
+                </label>
+
+                <label className="field">
+                  <span className="field-label">What does it say? ‡</span>
+                  <textarea
+                    rows={12}
+                    maxLength={BOOK_MAX}
+                    value={bookBody}
+                    onChange={(e) => setBookBody(e.target.value)}
+                    placeholder="Write the whole thing here. ‡"
+                  />
+                  <span className="text-xs text-muted mono">
+                    {bookBody.length} / {BOOK_MAX}
+                  </span>
+                </label>
+
+                <p className="text-xs text-muted">
+                  Ten blank sheets go into it, and it is finished the moment you
+                  bind it — a bound book can never be written in again. Tear it
+                  up and you get the ten sheets back. ‡
+                </p>
+              </>
+            )}
+
+            {mode === "tearbook" && (
+              <>
+                {bookOptions.length === 0 ? (
+                  <NobodyHere>You aren&apos;t carrying a book. ‡</NobodyHere>
+                ) : (
+                  <label className="field">
+                    <span className="field-label">Which one? ‡</span>
+                    <Select
+                      value={tagId ?? ""}
+                      onChange={(e) => setTagId(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>
+                        Pick a book
+                      </option>
+                      {bookOptions.map((o) => (
+                        <option key={o.tagId} value={o.tagId}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </Select>
+                    <p className="text-xs text-muted">
+                      You get ten blank sheets back. What was written in it is
+                      gone. ‡
+                    </p>
+                  </label>
                 )}
               </>
             )}

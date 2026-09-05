@@ -35,7 +35,7 @@ Without it the catalog payload would grow with every paper ever written — a
 problem crates already had, with no consequences until paper made the set
 unbounded.
 
-## 2. The four states
+## 2. The five states
 
 | `Tag.paperKind` | What it is |
 |---|---|
@@ -43,6 +43,7 @@ unbounded.
 | `PAPER` | **A written sheet.** Carries `paperText`. |
 | `SEALED` | **A closed letter.** Same row, renamed in place. Carries `sealMark`. |
 | `BROKEN_SEAL` | **A spent envelope.** Evidence somebody opened it, and whose wax it was. |
+| `BOOK` | **A bound book.** Carries `paperText` like a sheet, and is the one kind that can never be added to. §4a. |
 
 Blank paper is deliberately *not* a runtime row. You hold "Paper ×15" as one
 `CharacterTag`; a sheet only becomes its own `Tag` when somebody writes on it,
@@ -86,6 +87,43 @@ call `equipActions.js` makes: writing costs nothing, spends no Move, is the
 most frequent thing a scribe does, and there is nothing for a GM to
 adjudicate. What a GM needs is to *read* the letters, and they can — the text
 is on the tag, and every GM surface that renders a tag renders it.
+
+### 4a. Books
+
+A book is ten sheets bound together and written in one pass, and then it is
+finished — **Write refuses a `BOOK`**. That single rule is the whole difference
+between a book and a sheet, and it is what makes a book worth stealing rather
+than editing.
+
+- **Bind a Book** and **Tear Up a Book** on the Actions grid, both in
+  `paperActions.js` beside Write and both filing no `Request`, for the same
+  reasons Write files none. `db/lib/paperMint.js#bindBook` spends
+  `BOOK_SHEETS` (10) off the blank stack and mints the row;
+  `#tearUpBook` takes the book and hands the ten sheets back.
+- Binding needs letters, because you write the whole thing at once. **Tearing
+  one up needs none** — an illiterate thief pulping the Library is a thing the
+  game should let happen.
+- Deliberately **not** a Craft/Destroy recipe. A recipe's `items:` are *held,
+  not consumed*, and `removesInto` is a bare slug list with no quantities, so
+  neither direction can express "ten sheets".
+- **A book wears its title**, unlike a note's anonymous waybill code
+  (below). A title is what the binder chose to advertise, and a shelf of books
+  all called `A Note (TG-4596)` would be useless. The contents still sit
+  behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
+  where a note's is `HIDDEN`: carrying a book is visible, reading it is not.
+- **Authored books** — the Keep's Library, the Meister's Office — are declared
+  in `docs/tags.yaml` with `bookText:`, the same shape `sealMark:` has:
+  `db/lib/syncTags.js` files it on `paperKind: BOOK` + `paperText`, and
+  authoring a `description:` beside one is an error rather than an override.
+  They must sit in `items-paper`.
+- Those are **catalog** rows, not `ephemeral` ones, so unlike a letter they are
+  not withheld by `getVisibleTags`'s held-only filter — every browser gets the
+  row. So `paperDescription` composes a book's text only for a reader actually
+  **holding** it (`viewer.holdsIt`, passed by `web/lib/referenceData.js`);
+  everyone else reads `CLOSED_BOOK_LINE` and has to go and find it. Without
+  that, one literate character would publish the whole Library.
+- Tearing up an **authored** book deletes no catalog row — it only leaves your
+  hands. `tearUpBook` deletes the `Tag` only when it is `custom`.
 
 **A note's name is deliberately anonymous** — `A Note (TG-4596)`, a meaningless
 waybill in the Depot's own house style. `Tag.name` travels everywhere a tag

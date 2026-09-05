@@ -142,7 +142,7 @@ import {
   announceEdgeState,
   stakeholderCharacterIds,
 } from "@lifeweb/db/lib/structures";
-import { refreshLocationAnchor } from "@lifeweb/db/lib/syncZones";
+import { refreshLocationAnchor, refreshGateRooms } from "@lifeweb/db/lib/syncZones";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
@@ -969,6 +969,13 @@ function refreshFlippedAnchors(linkFlip) {
       await refreshLocationAnchor(prisma, locationId).catch((err) =>
         console.error(
           `Build anchor refresh failed for ${locationId}:`,
+          err?.message ?? err,
+        ),
+      );
+      // The gate's own button lives on the watchtower, not the anchor.
+      await refreshGateRooms(prisma, locationId).catch((err) =>
+        console.error(
+          `Build gate room refresh failed for ${locationId}:`,
           err?.message ?? err,
         ),
       );

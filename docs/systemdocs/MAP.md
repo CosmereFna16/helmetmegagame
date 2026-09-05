@@ -143,9 +143,22 @@ is why `LocationLink` carries fields rather than one enum.
 | Unmanned gate | `announce: CONCEALED` | posts only what a passer-by would have seen — "An old woman has entered the Gate" |
 | Locked | `requiredTagSlug` | crossing needs the tag, and the way is **listed**, so a player sees the door and learns what opens it |
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
-| Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on **both** endpoints' anchors; impassable while shut |
+| Modular | `modular`, `isOpen`, `openerRoleSlugs`, `openerTagSlugs` | an Open/Close button on the **watchtower** at the gate; impassable while shut |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is refused at the threshold |
+
+**The winch is in the tower.** A modular gate's Open/Close button renders on
+one Room's starter post — the watchtower at that gate — and on neither
+endpoint's Location anchor, which is where it used to live. The four rooms are
+named in `db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS`; the row is composed
+by `syncZones.js#roomComponents` and redrawn after a flip by
+`#refreshGateRooms`, which every caller of `refreshLocationAnchor` also calls.
+Two things follow. The tower's `access:` list has to admit everyone the gate's
+`modular:` block authorises, or somebody may work a gate they cannot reach —
+`canToggleGate` accepts an opener **Role**, but room membership is computed
+from held **tags** only. And a tower whose thread is missing renders a flip
+nowhere at all, since there is no longer an anchor copy to fall back on; the
+sync and the channel doctor are the repair.
 
 Two things about the gating that are easy to get wrong:
 

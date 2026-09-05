@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { readBlock } from "@lifeweb/db/lib/reading";
-import { PAPER_SLUG, isPaper, isSeal, paperDescription } from "@lifeweb/db/lib/paper";
-import { writeNewPaper, appendToPaper, sealPaper } from "@lifeweb/db/lib/paperMint";
+import { PAPER_SLUG, BOOK_SHEETS, isBook, isPaper, isSeal, paperDescription } from "@lifeweb/db/lib/paper";
+import { writeNewPaper, appendToPaper, sealPaper, bindBook, tearUpBook } from "@lifeweb/db/lib/paperMint";
 import {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -33,6 +33,14 @@ import { auth } from "@/lib/auth";
 // a column every browser then loads. A sheet can be written on again, so this
 // is a per-pass cap, not a lifetime one.
 const WRITE_MAX = 2000;
+
+// A book holds more than a letter does — that is most of why anyone would bind
+// one — but it is still one column every reader of that book then loads.
+const BOOK_MAX = 12000;
+
+// Long enough for a real title, short enough to read off a shelf. Tag.name has
+// the suffix bookName adds on top of this.
+const TITLE_MAX = 60;
 
 // The same shape readBlock and paperDescription both want, resolved once.
 async function requireWriter() {
@@ -138,12 +146,77 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
     if (held.tag.paperKind === "SEALED") {
       throw new UserError("It's sealed. Break the seal first. ‡");
     }
+    // The one rule a book has that a sheet does not. What is bound in is what
+    // it says; there is no page left to add.
+    if (isBook(held.tag)) {
+      throw new UserError("It's bound. You'd have to tear it up and start again. ‡");
+    }
     throw new UserError("You can't write on that. ‡");
   });
 
   await afterInventoryChange([character.id]);
   revalidateAll();
   return { name: result.name, tagId: result.id };
+}
+
+// Binding. Ten blank sheets go in, one book comes out, and the text is fixed
+// at that moment — see bindBook in db/lib/paperMint.js for why.
+//
+// Files no Request, for the same reason writing files none: it costs no Move
+// and there is nothing to adjudicate. It DOES need literacy, unlike sealing —
+// you are writing the whole thing in one pass.
+async function bindBookImpl({ title: rawTitle, text: rawText }) {
+  const { character, where } = await requireWriter();
+
+  if (readBlock(character.tags, where)) {
+    throw new UserError("You can't read this. ‡");
+  }
+
+  const title = String(rawTitle ?? "").trim().slice(0, TITLE_MAX);
+  if (!title) throw new UserError("Give it a title first. ‡");
+
+  const text = String(rawText ?? "").trim().slice(0, BOOK_MAX);
+  if (!text) throw new UserError("Write something first. ‡");
+
+  const blank = character.tags.find((ct) => ct.tag.slug === PAPER_SLUG);
+  if (!blank || (blank.quantity ?? 0) < BOOK_SHEETS) {
+    throw new UserError(`You need ${BOOK_SHEETS} sheets of blank paper to bind a book. ‡`);
+  }
+
+  const hand = writerName(character);
+
+  let book;
+  await prisma.$transaction(async (tx) => {
+    book = await bindBook(tx, { id: character.id, name: hand }, blank.tagId, title, text);
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { name: book.name, tagId: book.id };
+}
+
+// The other direction. Needs no literacy at all — tearing a book apart is not
+// reading it, and an illiterate thief pulping the Library is a thing the game
+// should let happen.
+async function tearUpBookImpl({ tagId: rawTagId }) {
+  const { character } = await requireWriter();
+
+  const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
+  if (!held) throw new UserError("You aren't holding that. ‡");
+  if (!isBook(held.tag)) throw new UserError("That isn't a book. ‡");
+
+  // Looked up rather than read off the character: somebody tearing up their
+  // only book may well be holding no blank paper at all.
+  const blank = await prisma.tag.findUnique({ where: { slug: PAPER_SLUG }, select: { id: true } });
+  if (!blank) throw new UserError("There's no paper in the catalog to tear it into. ‡");
+
+  await prisma.$transaction(async (tx) => {
+    await tearUpBook(tx, character.id, held.tag, blank.id);
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { name: held.tag.name, sheets: BOOK_SHEETS };
 }
 
 async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
@@ -181,6 +254,14 @@ export async function writePaper(input) {
 
 export async function sealLetter(input) {
   return guarded(() => sealLetterImpl(input));
+}
+
+export async function bindABook(input) {
+  return guarded(() => bindBookImpl(input));
+}
+
+export async function tearUpABook(input) {
+  return guarded(() => tearUpBookImpl(input));
 }
 
 // What the Write dialog needs that the sheet does not already hold: the text

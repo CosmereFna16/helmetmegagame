@@ -32,7 +32,19 @@ const PAPER_SLUG = "paper";
 // match on, rather than any catalog flag.
 const PAPER_GROUP_SLUG = "items-paper";
 
+// How many blank sheets go into a book, and come back out of one. One number,
+// both directions, so binding and tearing up can never disagree.
+const BOOK_SHEETS = 10;
+
 const BLANK_LINE = "*Blank paper.* ‡";
+const BLANK_BOOK_LINE = "*A bound book with nothing written in it.* ‡";
+
+// What a book says when you are not holding it. Every other catalog tag's
+// description is the same sentence for everybody, but a book's is its whole
+// contents — and the catalog goes to every signed-in browser, so composing the
+// text for anyone who has not picked the book up would publish the Library to
+// the whole game. Reaching the shelf is meant to be the cost.
+const CLOSED_BOOK_LINE = "A bound book. You would have to pick it up to read it. ‡";
 const SEALED_LINE = "Opening it permanently breaks the seal. This one bears a seal:";
 const BROKEN_LINE = "An envelope with a broken seal. The wax looks like:";
 
@@ -42,6 +54,12 @@ const UNMARKED_SEAL = "an unreadable smudge";
 // Is this row a document rather than an ordinary tag?
 function isPaper(tag) {
   return Boolean(tag?.paperKind);
+}
+
+// A bound book. Written once, at binding, and never appended to again — that
+// single rule is the whole difference between a book and a sheet.
+function isBook(tag) {
+  return tag?.paperKind === "BOOK";
 }
 
 // Is this row a wax stamp? Carrying a mark is what makes one — there is no
@@ -81,7 +99,15 @@ function paperDescription(tag, viewer = null) {
   }
 
   const text = (tag.paperText ?? "").trim();
-  if (!text) return BLANK_LINE;
+  if (isBook(tag)) {
+    // `held` is passed only by callers that ship the whole catalog at once
+    // (web/lib/referenceData.js). Everywhere else the row IS the thing in the
+    // reader's hands, so an absent flag means "yes".
+    if (viewer && viewer.holdsIt === false) return CLOSED_BOOK_LINE;
+    if (!text) return BLANK_BOOK_LINE;
+  } else if (!text) {
+    return BLANK_LINE;
+  }
 
   const blocked = readBlock(viewer?.tags ?? [], {
     phase: viewer?.phase ?? null,
@@ -137,6 +163,15 @@ function sealLabel(stampTag) {
   return name.trim() || "an unknown seal";
 }
 
+// A book wears its title, unlike a note, which is deliberately anonymous. The
+// contents are still gated — paperDescription decides who may read them — but
+// what is written on the spine is what the binder chose to advertise, and a
+// shelf of books called "A Note (TG-4596)" would be useless to everybody.
+function bookName(title) {
+  const clean = (title ?? "").trim();
+  return clean ? `${clean} (a book)` : "An Untitled Book";
+}
+
 function sealedName(label) {
   return `Sealed Letter (${label})`;
 }
@@ -160,11 +195,16 @@ module.exports = {
   PAPER_SLUG,
   PAPER_GROUP_SLUG,
   BLANK_LINE,
+  BLANK_BOOK_LINE,
+  CLOSED_BOOK_LINE,
   UNMARKED_SEAL,
   isPaper,
+  isBook,
   isSeal,
   markOf,
   sealLabel,
+  bookName,
+  BOOK_SHEETS,
   paperDescription,
   paperName,
   noteCode,

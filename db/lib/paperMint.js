@@ -18,6 +18,8 @@ const {
   brokenSealName,
   appendText,
   sealLabel,
+  bookName,
+  BOOK_SHEETS,
 } = require("./paper");
 const { addToStack, dropCharacterTag } = require("./tagWrites");
 
@@ -29,6 +31,12 @@ function paperSlug(characterId, attempt = 0) {
   const stamp = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 7);
   return `custom-paper-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
+}
+
+function bookSlug(characterId, attempt = 0) {
+  const stamp = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 7);
+  return `custom-book-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
 }
 
 function sealSlug(characterId, attempt = 0) {
@@ -136,6 +144,64 @@ async function mintPaperRow(tx, ownerId, authorName, text) {
   return tag;
 }
 
+// Binding ten sheets into a book: the stack pays, one row comes back, and the
+// text is fixed there and then. That last part is the only rule a book has
+// that a sheet does not — appendToPaper refuses a BOOK, so what is bound in is
+// what it says forever. See docs/systemdocs/PAPERWORK.md.
+//
+// Unlike a note, a book's NAME is its title and is meant to be read off the
+// shelf. That is not the leak a note's title would be: a title is what the
+// writer chose to advertise, and the contents still sit behind the literacy
+// gate in paperDescription.
+//
+// `character` needs { id, name } — the PRESENTED name, same as writeNewPaper.
+async function bindBook(tx, character, blankTagId, title, text) {
+  await dropCharacterTag(tx, character.id, blankTagId, BOOK_SHEETS);
+  const groupId = await paperGroupId(tx);
+
+  const tag = await createWithRetry(tx, (attempt) => ({
+    ...PAPER_SHAPE,
+    groupId,
+    slug: bookSlug(character.id, attempt),
+    name: attempt ? `${bookName(title)} (${attempt + 1})` : bookName(title),
+    // A book has real heft, unlike a sheet — ten of them bound between boards
+    // is the first thing in the paper group a carry cap should notice.
+    weightLbs: 1,
+    // And unlike a note, a book is something anyone can see you carrying, the
+    // title included. What it SAYS is still paperDescription's question.
+    inspectVisibility: "ALWAYS",
+    description: null,
+    paperKind: "BOOK",
+    paperText: (text ?? "").trim(),
+    paperAuthor: character.name,
+  }));
+  if (!tag) throw new Error("Could not name the book.");
+
+  await addToStack(tx, character.id, tag.id, 1, {});
+  return tag;
+}
+
+// Tearing one up, in either direction: a bound book becomes ten blank sheets
+// again. The row goes rather than being renamed, because unlike a broken seal
+// there is nothing left worth keeping — the words are the thing, and tearing
+// them up is the point.
+//
+// An AUTHORED book (docs/tags.yaml, not `custom`) is left in the catalog and
+// only taken out of the character's hands. Deleting it would take a Library
+// book out of the game for good on one player's whim, and the next
+// db:sync-tags would put it straight back.
+async function tearUpBook(tx, characterId, bookTag, blankTagId) {
+  await dropCharacterTag(tx, characterId, bookTag.id, 1);
+  if (bookTag.custom) {
+    await tx.tag.deleteMany({ where: { id: bookTag.id, custom: true } });
+  }
+  // `stackable: true` is load-bearing: without it addToStack caps the add at
+  // one and refuses to increment a stack that already exists, so tearing up a
+  // book would return a single sheet — or none at all if you were already
+  // holding paper.
+  await addToStack(tx, characterId, blankTagId, BOOK_SHEETS, { stackable: true });
+}
+
 // Writing more on a sheet that already has words on it. Append-only, always —
 // there is no path anywhere in the game that shortens paperText.
 async function appendToPaper(tx, tagId, existingText, addition) {
@@ -230,6 +296,8 @@ async function breakSeal(tx, characterId, sealedTag) {
 module.exports = {
   PAPER_SHAPE,
   writeNewPaper,
+  bindBook,
+  tearUpBook,
   mintLetterFor,
   sealWithMark,
   appendToPaper,

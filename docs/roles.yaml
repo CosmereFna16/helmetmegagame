@@ -151,7 +151,7 @@ zones:
               - Ravenhearter
               - Nobility
               - Cerberus Key
-              - The Baron's Key
+              - Baron's Key
               - Elevator Key
               - Baron's Scepter
               - Brigandine
@@ -190,6 +190,7 @@ zones:
               - Nobility
               - Jewelry
               - Literate
+              - Baron's Key
               - Obol x5
               - Post-Christian
             doc_elements:
@@ -219,6 +220,7 @@ zones:
               - Courtier
               - Nobility
               - Literate
+              - Heir's Key
               - Obol x5
               - Post-Christian
             doc_elements:
@@ -246,6 +248,7 @@ zones:
               - Nobility
               - Jewelry
               - Literate
+              - Successor's Key
               - Post-Christian
             doc_elements:
               - godking
@@ -291,7 +294,7 @@ zones:
               - Courtier
               - Literate
               - Hand's Pin
-              - Cerberus Key
+              - Hand's Key
               - Elevator Key
               - Obol x10
             doc_elements:
@@ -335,6 +338,7 @@ zones:
               - Frail
               - Medical (Basic)
               - Literate
+              - Meister's Key
               - Bird
               - Obol x5
             doc_elements:
@@ -437,6 +441,7 @@ zones:
             starting_location: servant-wing
             starting_tags:
               - Ravenhearter
+              - Servant
               - Cooking (Basic)
             doc_elements:
               - godking
@@ -471,6 +476,7 @@ zones:
               - Censor's Helmet
               - Armory Key
               - Cerberus Key
+              - Censor's Key
               - Ravenhearter
               - Cerberon
               - Tactician
@@ -1025,6 +1031,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Mortus
+              - Mortus Key
               - Mortus Rags
               - Melee (Basic)
               - Cudgel
