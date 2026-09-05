@@ -1625,8 +1625,8 @@ set wearable?", which is the only form that lets a batch stage "unequip A,
 equip B" without rejecting B for a conflict with an A that is already gone.
 
 **Bound blocks equipping in both directions**, along with Craft and Destroy
-(`INCAPACITATING_SLUGS`, `db/lib/incapacitation.js`). A hostage who could take
-the sack off their own head would not be much of a hostage.
+(the ACT capability, `db/lib/incapacitation.js` — see §5f). A hostage who could
+take the sack off their own head would not be much of a hostage.
 
 `equippable` **does** interact with `visible`, through its third state. A tag
 authored `visible: worn` is shown to a bystander's 🔍 only while
@@ -1832,3 +1832,69 @@ was a permanent orphan sitting in the catalog across every game. `ephemeral` is
 the fix; see §5e.
 
 See `docs/systemdocs/DEPOT.md` §0e.
+
+## 5f. What a status tag takes away
+
+`db/lib/incapacitation.js` used to be a single flat Set, and that set was the
+only answer the game had to "can this character do this?". It covered the
+physical half and had nothing to say about the other one, so a Paralyzed
+character could shout across a Location and a Mute one could talk all day —
+`mute` cost −7 points and appeared in no line of code anywhere.
+
+It is now a table. Each slug names the capabilities it removes:
+
+| Tag | ACT | SPEAK | |
+|---|---|---|---|
+| `unconscious` | ✗ | ✗ | the top of the drinking ladder (`BREWING.md` §5a) |
+| `paralyzed` | ✗ | ✗ | its description has promised this since the day it was written |
+| `seizure` | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
+| `bound` | ✗ | **✓** | **a hostage can yell for help** |
+| `dying` | ✗ | ✓ | last words are the tradition |
+| `catatonic-afk` | ✗ | ✓ | see the trap below |
+| `mute` | ✓ | ✗ | a mute smith is still a smith |
+
+**ACT** is the physical half — equip, craft, destroy, labor, butcher, package,
+transfer, extract, travel, teach, confess, the Depot, writing on paper.
+**SPEAK** is the voice — the proxy (ordinary chat, whispers, the Speak modal),
+`/shout`, and the Council Room intercom.
+
+`INCAPACITATING_SLUGS` still exists and still means what it always did —
+"helpless, therefore lootable, draggable and bindable" — but it is now
+**derived from the ACT column** rather than written out a second time. `mute`
+is the proof that is the right derivation: it is the one entry that keeps its
+hands, and it correctly does not appear in the set. Two hand-maintained lists
+would have disagreed the first time somebody added a tag to one of them.
+
+**The catatonic trap.** `db/lib/catatonicPass.js` DMs the player *"it lifts the
+moment you act or speak in character again"* and clears the tag off their
+activity clock. Gate catatonic speech and the tag becomes self-sealing: the
+player can never do the one thing that lifts it, and
+`db/lib/catatonicDeathPass.js` then kills them for it. **Catatonic must never
+block SPEAK.** For the same reason, a refused message still writes the
+speaker's activity (`bot/src/lib/proxy.js`) — being Mute must not march
+somebody toward an auto-kill for trying to talk.
+
+**Deaf, honestly.** `deaf` takes away neither capability. A shout and the
+intercom are both posted into shared Discord channels, and there is no way to
+hide a channel message from one member of it — so a deaf character will read
+every broadcast whatever we do. What is enforced is the sending half: they
+cannot work the intercom, because a handset you cannot hear is no use. Not
+hearing stays roleplay, exactly as it always has. This is a limit of the
+medium, not an omission.
+
+**Composing with Stupid.** `stupid` is not in the table — it garbles speech
+(`db/lib/babble.js`) rather than removing it. The gate runs first: a Stupid
+Mute is silent, not babbling.
+
+**The seam.** `blockerFor(characterTags, capability)` returns the offending
+`{ slug, name }` rather than a boolean, so every refusal can name the tag —
+"you're Bound" beats "you can't do that", and a player refused without a reason
+files a GM ticket about it. On the web, `requireCharacter({ needs: ACT })` in
+`web/app/(app)/character/requestActions.js` carries it for nearly every
+request in one place, because that function already loads every held tag.
+
+**What is deliberately not gated:** faction bureaucracy, claiming a Desire,
+reading, examining, the point-buy store, and consuming. Faction paperwork has
+no in-world moment — a bound player unable to accept a membership application
+filed three days ago is a paperwork outage, not a hostage situation. And
+somebody can always pour a drink into you.

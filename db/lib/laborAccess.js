@@ -15,6 +15,7 @@
 // context the caller already has in hand rather than each one costing its own
 // round trip.
 const { computeRate, SPECIALISATION_KINDS } = require("./production");
+const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { isRefinery, refineryInput, REFINERY_YIELD } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
@@ -184,6 +185,17 @@ function structureTools(structures) {
 function computeLaborAccess(ctx) {
   if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
     return { ok: false, reason: "You're still **Exhausted** from your last labor." };
+  }
+  // Tied up, bleeding out, on the floor or out cold. This is the seam the
+  // manual Labor declaration and the Factory's production tiers share, so one
+  // check here covers both — the auto-labor pass has its own, because it
+  // never asks this function anything.
+  //
+  // Only LABOR. A Routine or a Gambit written as "I lie here and work at the
+  // ropes" is a legitimate move for a bound character and a GM's to judge.
+  const blocked = [...ctx.tagSlugs].find((slug) => INCAPACITATING_SLUGS.has(slug));
+  if (blocked) {
+    return { ok: false, reason: "You're in no state to be working. ‡" };
   }
   return { ok: true };
 }

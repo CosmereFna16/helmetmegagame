@@ -178,6 +178,21 @@
 #                     Distinct from consumesInto above: that one is chosen by
 #                     the player, this one happens on the clock whether they
 #                     wanted it or not.
+#   escalatesInto   - the rung ABOVE this one on a ladder. Consuming something
+#                     that grants a tag you already hold clears the one you
+#                     hold and gives you this instead, walking up as far as
+#                     the chain goes:
+#                         tipsy:  escalatesInto: wasted
+#                         wasted: escalatesInto: unconscious
+#                     Without it a second drink does nothing at all, because a
+#                     non-stackable tag you already hold is left alone.
+#                     One bare slug, not a list and not a { oneOf } — a ladder
+#                     has exactly one next rung, and a random one would make
+#                     "one more drink" impossible to plan around. The slug must
+#                     exist in this file and the chain may not loop, both
+#                     enforced by db/lib/syncTags.js.
+#                     Only the CONSUME path walks it. A GM granting the same
+#                     tag twice from the Dev Panel is not pouring a drink.
 #
 # THE CURE LADDER. Every tag in the `health` category is priced off one of
 # eight rungs, and nothing in that category should invent its own numbers —
@@ -2520,6 +2535,17 @@ tags:
     purchasableAfterStart: false
     removable: true
 
+  # --- The drinking ladder (docs/systemdocs/BREWING.md) --------------------
+  #
+  # Three rungs, and every drink in the catalog still consumes into the first
+  # one. `escalatesInto` is what makes the second drink matter: consuming
+  # something that grants a rung you already hold clears that rung and gives
+  # you the one above instead. So tipsy -> wasted -> unconscious, and the only
+  # way down is to stop.
+  #
+  # None of the Fighting penalties below is enforced in code — no line in the
+  # repo reads `tipsy`. They are numbers a GM weighs while adjudicating a
+  # fight, which is how the original Tipsy has always worked.
   tipsy:
     catalog: gm
     name: Tipsy
@@ -2529,6 +2555,52 @@ tags:
     pointCost: 0
     visible: true
     purchasable: false
+    durationTurns: 1
+    escalatesInto: wasted
+
+  wasted:
+    catalog: gm
+    name: Wasted
+    category: status
+    group: status-debuffs
+    description: "You're going to regret this... Your Fighting skill counts as 2 tiers lower. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    escalatesInto: unconscious
+    expiresInto: [hangover]
+
+  # In INCAPACITATING_SLUGS (db/lib/incapacitation.js): out cold is out cold,
+  # so you can be looted, dragged and tied up where you fell. Deliberately NOT
+  # in FINISHABLE_SLUGS — passing out in a tavern should not be a
+  # no-confirmation death sentence, the same call already made for Seizure. ‡
+  unconscious:
+    catalog: gm
+    name: Unconscious
+    category: status
+    group: status-debuffs
+    description: "You drank yourself into unconsciousness. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    expiresInto: [hangover]
+
+  # The bottom of the ladder rather than a rung on it: no escalatesInto, so
+  # drinking through a hangover starts you over at Tipsy. ‡
+  hangover:
+    catalog: gm
+    name: Hangover
+    category: status
+    group: status-debuffs
+    description: "Ugh... Your Fighting skill counts as 1 tier lower. ‡"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
     durationTurns: 1
 
   # Recreational intoxication, and deliberately a Status tag with NO

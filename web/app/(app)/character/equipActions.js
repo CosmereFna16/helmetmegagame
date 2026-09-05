@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { STOWABLE_SLUGS, WATER_TRAVEL_SLUGS, BOAT_CONFLICT_SLUGS } from "@lifeweb/db/lib/mounts";
 import { describeSlotClash, findSlotClash } from "@lifeweb/db/lib/equipSlots";
-import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
 
@@ -36,8 +36,9 @@ export async function toggleEquip(characterTagId) {
   // Bound, Dying, Paralyzed, Catatonic, mid-Seizure — no hands to do this
   // with. Both directions, which is the point: a hostage who could take the
   // sack off their own head would not be much of a hostage.
-  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
-    return { error: "You can't work your hands right now. ‡" };
+  const blocker = blockerFor(character.tags, ACT);
+  if (blocker) {
+    return { error: `You can't work your hands right now — you're ${blocker.name}. ‡` };
   }
 
   const held = await prisma.characterTag.findFirst({

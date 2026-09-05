@@ -279,7 +279,15 @@ export const REQUEST_EFFECTS = {
   CONSUME_TAG: {
     editableFields: [],
     async undo(tx, request) {
-      const { restore, tagName, granted = [], resourcesGranted, cleared, photoTagId } = request.effect;
+      const {
+        restore,
+        tagName,
+        granted = [],
+        resourcesGranted,
+        cleared,
+        climbed = [],
+        photoTagId,
+      } = request.effect;
       for (const g of granted) {
         // added: 0 means the character already held the tag and this
         // request left it alone — nothing to take back.
@@ -293,6 +301,13 @@ export const REQUEST_EFFECTS = {
       if (photoTagId) await tx.tag.delete({ where: { id: photoTagId } }).catch(() => {});
       if (restore?.tagId) await restoreCharacterTag(tx, request.characterId, restore);
       if (cleared?.tagId) await restoreCharacterTag(tx, request.characterId, cleared);
+      // The drinking ladder (docs/systemdocs/BREWING.md): the loop above took
+      // the Wasted back off, and this puts the Tipsy it replaced back on with
+      // its original clock. Without it, undoing the second drink would leave
+      // somebody stone cold sober.
+      for (const rung of climbed) {
+        if (rung?.tagId) await restoreCharacterTag(tx, request.characterId, rung);
+      }
       if (resourcesGranted) {
         await debitResources(tx, { kind: "character", id: request.characterId }, resourcesGranted, {
           note: `Undo of consume request ${request.id}`,
@@ -302,6 +317,9 @@ export const REQUEST_EFFECTS = {
       const notes = [];
       if (took.length) notes.push(`took back ${took.join(", ")}`);
       if (cleared?.tagId) notes.push(`re-applied ${cleared.tagName ?? "Disappointed"}`);
+      for (const rung of climbed) {
+        if (rung?.tagId) notes.push(`put ${rung.tagName ?? "the tag"} back`);
+      }
       if (resourcesGranted) notes.push(`took back ${resourcesGranted} ⬢`);
       return notes.length
         ? `Restored ${tagName ?? "the tag"} and ${notes.join(", ")}.`

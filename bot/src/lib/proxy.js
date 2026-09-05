@@ -4,7 +4,8 @@ const { presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
-const { babble, speaksBabble, STUPID_SLUG } = require("@lifeweb/db/lib/babble");
+const { babble, STUPID_SLUG } = require("@lifeweb/db/lib/babble");
+const { blockerFor, slugsBlocking, SPEAK } = require("@lifeweb/db/lib/incapacitation");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 
@@ -94,6 +95,35 @@ function attachmentPlaceholders(message) {
   );
 }
 
+// Everything about a character's voice, read off the sheet in one query.
+//
+// This reads the DATABASE rather than trusting `character.tags`, and that is
+// deliberate: every caller reaches this file through a different include.
+// bot/src/events/messageCreate.js loads a FILTERED tag list for identity
+// (forcedName and equipped concealers only, and it does not even select
+// `slug`), and the Speak modal's findAliveCharacter loads no tags at all.
+//
+// That mismatch was a live bug, not a hypothetical: speaksBabble() reads
+// `ct.tag.slug`, so against messageCreate's include it read undefined and
+// returned false every time. {tag:stupid} has therefore never garbled
+// ordinary channel chat — only the Speak modal, which took the old fallback
+// query. Reading the sheet here fixes that and powers the speech gate with
+// the same round trip.
+const VOICE_SLUGS = [...slugsBlocking(SPEAK), STUPID_SLUG];
+
+async function loadVoiceState(characterId) {
+  if (!characterId) return { block: null, babbling: false };
+  const rows = await prisma.characterTag.findMany({
+    where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: VOICE_SLUGS } } },
+    select: { tag: { select: { slug: true, name: true } } },
+  });
+  return {
+    // Blocked beats garbled: a Stupid Mute is silent, not babbling.
+    block: blockerFor(rows, SPEAK),
+    babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
+  };
+}
+
 // The core send: post `content` (and any files) into `channel` as
 // `character`, track it, and write the transcript row. Takes no Message —
 // the Speak modal has no source message, only an interaction.
@@ -102,26 +132,21 @@ function attachmentPlaceholders(message) {
 // trackProxy is mandatory: every reaction handler is gated on recentProxies.
 // A caller that passes no identity gets the plain one — never a crash on the
 // hottest path in the bot.
-async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, identity = presentedIdentity(character) }) {
+async function postAsCharacterTo(channel, character, { content, files = [], discordUserId, identity = presentedIdentity(character), voice = null }) {
   const threadId = channel.isThread() ? channel.id : undefined;
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
 
-  // Stupid (docs/systemdocs/FACTORY.md) is the one thing that reads off the
-  // SPEAKER rather than off GameConfig, and it wins over the autocorrect below
-  // — there is nothing left to capitalise. Most callers already have the tags
-  // loaded; the findFirst is the fallback, and it only fires for a caller that
-  // doesn't, on a path that is already making one query.
-  const babbling = Array.isArray(character?.tags)
-    ? speaksBabble(character.tags)
-    : Boolean(
-        character?.id &&
-          (await prisma.characterTag.findFirst({
-            where: { characterId: character.id, quantity: { gt: 0 }, tag: { slug: STUPID_SLUG } },
-            select: { id: true },
-          })),
-      );
+  // The speech gate, and the last one standing: this is the only funnel a
+  // character's words can reach a channel through, so anything that slips
+  // past a caller's own check still stops here. `voice` lets a caller that
+  // already loaded the state hand it over rather than pay for it twice.
+  const { block, babbling } = voice ?? (await loadVoiceState(character?.id));
+  if (block) return { webhookMessage: null, content: null, blocked: block };
 
+  // Stupid (docs/systemdocs/FACTORY.md) reads off the SPEAKER rather than off
+  // GameConfig, and it wins over the autocorrect below — there is nothing left
+  // to capitalise.
   const text = babbling
     ? babble(content ?? "")
     : config?.tupperAutocorrectEnabled
@@ -223,6 +248,13 @@ function proxyRefusal(message, content) {
   return null;
 }
 
+// What a silenced character is told. One sentence, naming the state, because
+// a player refused without a reason files a GM ticket about it. The tag's own
+// name does the work, so a new gagging tag needs no new copy here.
+function speechRefusal(block) {
+  return `You can't get the words out — you're ${block.name}. Here it is back: ‡`;
+}
+
 // Deleting the original keeps a player's real account off the screen.
 async function deleteOriginal(message) {
   try {
@@ -254,6 +286,22 @@ async function handBack(message, reason, text) {
 async function sendAsCharacter(channel, character, message, { identity = presentedIdentity(character), content: override = null } = {}) {
   const text = override ?? message.content;
 
+  // The voice check comes first, and its activity write is the reason. A
+  // player whose words were refused was still HERE, so their catatonic clock
+  // has to move even though nothing reached the channel — otherwise being
+  // Mute or Paralyzed would quietly march them toward the auto-kill in
+  // db/lib/catatonicDeathPass.js for the crime of trying to talk.
+  //
+  // Loaded once and handed to postAsCharacterTo below, rather than paid for
+  // twice on the hottest path in the bot.
+  const voice = await loadVoiceState(character?.id);
+  if (voice.block) {
+    await touchCharacterActivity(prisma, character.id);
+    await deleteOriginal(message);
+    await handBack(message, speechRefusal(voice.block), text);
+    return null;
+  }
+
   const refusal = proxyRefusal(message, text);
   if (refusal) {
     await deleteOriginal(message);
@@ -269,6 +317,7 @@ async function sendAsCharacter(channel, character, message, { identity = present
       files: [...message.attachments.values()].map((a) => a.url),
       discordUserId: message.author.id,
       identity,
+      voice,
     }));
   } catch (err) {
     console.error("Failed to proxy message, returning it to its author:", err);
@@ -296,6 +345,7 @@ async function sendAsCharacter(channel, character, message, { identity = present
 
 module.exports = {
   recentProxies,
+  loadVoiceState,
   sendAsCharacter,
   postAsCharacterTo,
   fetchOrCreateWebhook,

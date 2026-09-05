@@ -25,6 +25,7 @@ import {
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { guarded, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
+import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 
 // Writing and sealing. See docs/systemdocs/PAPERWORK.md.
 //
@@ -40,7 +41,11 @@ import { auth } from "@/lib/auth";
 // with the rest of Consume.
 
 // The same shape readBlock and paperDescription both want, resolved once.
-async function requireWriter() {
+// `needs` is a capability from db/lib/incapacitation.js. The four writing
+// actions pass ACT — a pen needs a hand. readMyPaper deliberately does not:
+// reading is not acting, and whether the eyes work is db/lib/reading.js's
+// question, not this one.
+async function requireWriter({ needs = null } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
@@ -78,6 +83,11 @@ async function requireWriter() {
   });
   if (!character) redirect("/character");
 
+  if (needs) {
+    const blocker = blockerFor(character.tags, needs);
+    if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
+  }
+
   const turn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
     orderBy: { number: "desc" },
@@ -110,7 +120,7 @@ function writerName(character) {
 }
 
 async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
-  const { character, where } = await requireWriter();
+  const { character, where } = await requireWriter({ needs: ACT });
 
   if (readBlock(character.tags, where)) {
     // The same sentence a paper shows a reader who can't read it. Saying
@@ -163,7 +173,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText }) {
 // and there is nothing to adjudicate. It DOES need literacy, unlike sealing —
 // you are writing the whole thing in one pass.
 async function bindBookImpl({ title: rawTitle, text: rawText }) {
-  const { character, where } = await requireWriter();
+  const { character, where } = await requireWriter({ needs: ACT });
 
   if (readBlock(character.tags, where)) {
     throw new UserError("You can't read this. ‡");
@@ -211,7 +221,7 @@ async function bindBookImpl({ title: rawTitle, text: rawText }) {
 // reading it, and an illiterate thief pulping the Library is a thing the game
 // should let happen.
 async function tearUpBookImpl({ tagId: rawTagId }) {
-  const { character } = await requireWriter();
+  const { character } = await requireWriter({ needs: ACT });
 
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
   if (!held) throw new UserError("You aren't holding that. ‡");
@@ -232,7 +242,7 @@ async function tearUpBookImpl({ tagId: rawTagId }) {
 }
 
 async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
-  const { character } = await requireWriter();
+  const { character } = await requireWriter({ needs: ACT });
 
   const paperRow = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
   const stampRow = character.tags.find((ct) => ct.tagId === String(rawStampId ?? ""));

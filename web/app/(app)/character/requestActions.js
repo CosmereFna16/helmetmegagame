@@ -155,6 +155,9 @@ import {
 import {
   INCAPACITATING_SLUGS,
   FINISHABLE_SLUGS,
+  blockerFor,
+  ACT,
+  SPEAK,
 } from "@lifeweb/db/lib/incapacitation";
 import { ATE_MEAL_SLUG, DISAPPOINTED_SLUG } from "@lifeweb/db/lib/constants";
 import {
@@ -174,7 +177,16 @@ import { propagateDynastyLastName } from "@/lib/dynasty";
 // one both answer with, so the wording itself can't be an oracle (DESIRES §5).
 const DESIRE_NOT_AVAILABLE = "That Desire isn't available to you.";
 
-async function requireCharacter() {
+// `needs` is a capability from db/lib/incapacitation.js — pass ACT and the
+// action refuses for anyone Bound, Dying, Paralyzed, Catatonic, mid-Seizure
+// or out cold, naming the tag that stopped them. Hung here rather than
+// re-written at each call site because this function already loads every held
+// tag with its catalog row, so the gate costs no extra query, and because the
+// inline copies it replaces had drifted: some actions checked, most didn't.
+//
+// Omit it for the handful that shouldn't care. Reading your own sheet is not
+// an act, and neither is paperwork.
+async function requireCharacter({ needs = null } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
@@ -190,6 +202,16 @@ async function requireCharacter() {
     },
   });
   if (!character) redirect("/character");
+  if (needs) {
+    const blocker = blockerFor(character.tags, needs);
+    if (blocker) {
+      throw new UserError(
+        needs === SPEAK
+          ? `You can't speak right now — you're ${blocker.name}. ‡`
+          : `You can't do that right now — you're ${blocker.name}. ‡`,
+      );
+    }
+  }
   return { session, character };
 }
 
@@ -591,14 +613,8 @@ async function craftRequestImpl({
   payerKey,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
-
-  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
-  // get to keep working; the same reasoning as the Extract gate below.
-  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
-    throw new UserError("You're in no state to be working. ‡");
-  }
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
@@ -806,7 +822,7 @@ async function loadOwnProject(character, projectId) {
 // Another turn on a project. The recipe's gates are re-run: a skill lost
 // since the start stops the work where it stands.
 async function continueCraftImpl({ projectId, reason: rawReason }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
   const project = await loadOwnProject(character, projectId);
   const tag = project.tag;
@@ -1533,12 +1549,12 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId, reason }) {
 }
 
 async function learnRequestImpl({ teacherId, tagId, reason }) {
-  const { character } = await requireCharacter();
+  const { character } = await requireCharacter({ needs: ACT });
   return lessonOfferImpl({ teacherId, learnerId: character.id, tagId, reason });
 }
 
 async function teachRequestImpl({ learnerId, tagId, reason }) {
-  const { character } = await requireCharacter();
+  const { character } = await requireCharacter({ needs: ACT });
   return lessonOfferImpl({ teacherId: character.id, learnerId, tagId, reason });
 }
 
@@ -1550,7 +1566,7 @@ async function teachRequestImpl({ learnerId, tagId, reason }) {
 // half of this to write. `chaplainId` and `tagId` are re-validated inside
 // createConfessionOffer against the penitent's own row.
 async function confessRequestImpl({ chaplainId, tagId, reason }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const offer = await createConfessionOffer(prisma, {
     penitentId: character.id,
     chaplainId,
@@ -1595,14 +1611,8 @@ async function destroyTagRequestImpl({
   quantity: rawQuantity,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
-
-  // Bound, Dying, Paralyzed, Catatonic, mid-Seizure. Somebody tied up does not
-  // get to keep working; the same reasoning as the Extract gate below.
-  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
-    throw new UserError("You're in no state to be working. ‡");
-  }
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
@@ -1807,11 +1817,38 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
     quantity: 1,
   };
 
+  // The drinking ladder (docs/systemdocs/BREWING.md). Only status tags carry
+  // an `escalatesInto`, so this is a handful of rows however big the catalog
+  // gets — and it has to come from the CATALOG rather than from the tags this
+  // character holds, because the walk needs the rungs ABOVE the one they are
+  // standing on, which by definition they do not have yet.
+  const ladderRows = await prisma.tag.findMany({
+    where: { escalatesInto: { not: null } },
+    select: { slug: true, escalatesInto: true },
+  });
+  const ladder = new Map(ladderRows.map((t) => [t.slug, t.escalatesInto]));
+
   const {
     slugs: grantSlugs,
+    removes: climbedFrom,
     durations: grantDurations,
     resources: resourcesGranted,
-  } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags));
+  } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags), ladder);
+
+  // The rungs the climb clears — Tipsy coming off as Wasted goes on.
+  // Snapshotted the same way `cleared` below is, so an Undo puts the drinker
+  // back exactly where they were rather than leaving them Wasted with no
+  // Tipsy underneath.
+  const climbed = climbedFrom
+    .map((slug) => character.tags.find((ct) => ct.tag.slug === slug))
+    .filter(Boolean)
+    .map((ct) => ({
+      tagId: ct.tagId,
+      tagName: ct.tag.name,
+      source: ct.source,
+      expiresTurn: ct.expiresTurn,
+      quantity: 1,
+    }));
 
   // A proper meal lifts Disappointment on the spot, keyed off the ate-meal
   // grant rather than the item eaten. Snapshotted so Undo can restore it.
@@ -1831,6 +1868,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
     if (cleared) await dropCharacterTag(tx, character.id, cleared.tagId, 1);
+    for (const rung of climbed) await dropCharacterTag(tx, character.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
       tx,
       character.id,
@@ -1860,6 +1898,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         granted,
         resourcesGranted,
         cleared,
+        climbed,
       },
     });
     await logRequest(tx, {
@@ -1873,6 +1912,7 @@ async function consumeTagRequestImpl({ tagId, reason: rawReason }) {
         granted: granted.map((g) => g.tagName),
         resourcesGranted,
         cleared: cleared?.tagName,
+        climbed: climbed.map((c) => c.tagName),
       },
     });
   });
@@ -1900,7 +1940,7 @@ async function transferRequestImpl({
   amount: rawAmount,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   const amount =
@@ -2205,7 +2245,7 @@ async function healCharacterRequestImpl({
   payerKey,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   if (!character.locationId) {
@@ -2460,7 +2500,7 @@ async function lootCharacterRequestImpl({
   amount: rawAmount,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   if (!character.locationId)
@@ -2606,7 +2646,7 @@ async function moveCharacterRequestImpl({
   targetLocationId,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   if (!character.locationId) {
@@ -2732,7 +2772,7 @@ async function bindCharacterRequestImpl({
   targetCharacterId,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   if (!character.locationId)
@@ -2799,7 +2839,7 @@ async function freeCharacterRequestImpl({
   targetCharacterId,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   if (!character.locationId)
@@ -2866,7 +2906,7 @@ async function harmCharacterRequestImpl({
   lethal: rawLethal,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   if (!character.locationId)
@@ -3315,7 +3355,7 @@ async function butcherCorpseRequestImpl({
   sourceKey,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   // The gate, re-checked here because a disabled button is a hint, not a lock.
@@ -3495,7 +3535,7 @@ async function engraveHeadstoneRequestImpl({
   firstName: rawFirstName,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   const typed =
@@ -3625,8 +3665,9 @@ async function extractGodfleshRequestImpl({ reason: rawReason }) {
   // the one this exists for. requireFreeMove below only checks the turn and
   // the one-Action rule, so nothing else would stop a man on the floor wading
   // into the marsh with an axe.
-  if (character.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))) {
-    throw new UserError("You're in no state to be swinging anything. ‡");
+  const floored = blockerFor(character.tags, ACT);
+  if (floored) {
+    throw new UserError(`You're in no state to be swinging anything — you're ${floored.name}. ‡`);
   }
 
   const openTurn = await getOpenTurn();
@@ -3726,7 +3767,7 @@ async function packageItemsRequestImpl({
   label: rawLabel,
   reason: rawReason,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
   const reason = requireReason(rawReason);
 
   const label = String(rawLabel ?? "")
@@ -3982,7 +4023,7 @@ async function birdMessageRequestImpl({
   guessedZoneId,
   tagId: rawTagId,
 }) {
-  const { session, character } = await requireCharacter();
+  const { session, character } = await requireCharacter({ needs: ACT });
 
   if (!holdsBirdAndLetters(character.tags)) {
     throw new UserError("You need a bird, and you need to be able to write. ‡");

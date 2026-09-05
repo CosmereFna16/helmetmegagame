@@ -52,7 +52,7 @@ const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal, buildSpeakPicker } = require("../lib/speakModal");
 const { listSpeakTargets, canSpeakInTarget, canSpeakInChannel, isNavValue } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
-const { postAsCharacterTo } = require("../lib/proxy");
+const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
 const { recordArchiveMessage } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
@@ -593,6 +593,25 @@ async function handleIntercomSubmit(interaction, roomId) {
   const body = interaction.fields.getTextInputValue("intercom:body").trim();
   if (!body) {
     await respond(interaction, "» *Say something first.* ‡");
+    return;
+  }
+
+  const voice = await loadVoiceState(character.id);
+  if (voice.block) {
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    return;
+  }
+  // Deaf is the one impairment enforced on the SENDING side only. A shout and
+  // a PA both land in shared Discord channels, and there is no way to hide a
+  // channel message from one member of it — so a deaf character will read
+  // every broadcast whatever we do, and not hearing stays roleplay. What we
+  // can honestly say is that they don't work a handset they can't hear.
+  const deaf = await prisma.characterTag.findFirst({
+    where: { characterId: character.id, quantity: { gt: 0 }, tag: { slug: "deaf" } },
+    select: { id: true },
+  });
+  if (deaf) {
+    await respond(interaction, "» *You can't hear a thing coming back down the line.* ‡");
     return;
   }
 
@@ -1664,12 +1683,23 @@ async function handleSpeakSubmit(interaction, channelId) {
   const concealment = await loadConcealment(prisma, character.id);
   const identity = presentedIdentity(character, { forcedName, concealment });
 
+  // Refused here as well as inside postAsCharacterTo. The funnel is the
+  // backstop; this is the courtesy, so a silenced player is told before the
+  // bot goes and builds a webhook for a message it will not send.
+  const voice = await loadVoiceState(character.id);
+  if (voice.block) {
+    await touchCharacterActivity(prisma, character.id);
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
+    return;
+  }
+
   let posted;
   try {
     posted = await postAsCharacterTo(channel, character, {
       content: body,
       discordUserId: interaction.user.id,
       identity,
+      voice,
     });
   } catch (err) {
     console.error("Failed to post a Speak message:", err);
@@ -1945,6 +1975,17 @@ async function handleShoutCommand(interaction) {
   }
   if (!character.locationId) {
     await respond(interaction, "» *You're nowhere.* ‡");
+    return;
+  }
+
+  // SPEAK, not ACT — and that distinction is the whole point of this gate.
+  // {tag:bound} blocks acting but never speech, so a hostage can still yell
+  // for help, which is the one thing being tied up ought to leave you.
+  // Checked BEFORE the cooldown is claimed below: a refused shout must not
+  // burn the throat timer.
+  const voice = await loadVoiceState(character.id);
+  if (voice.block) {
+    await respond(interaction, `» *You can't get the words out — you're ${voice.block.name}.* ‡`);
     return;
   }
 

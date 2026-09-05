@@ -2228,6 +2228,20 @@ model Tag {
   // left alone, matching the expiry pass.
   removesInto Json?
 
+  // The drinking ladder (docs/systemdocs/BREWING.md). A STATUS tag names the
+  // rung above it, so consuming something that grants a rung you already hold
+  // moves you up instead of doing nothing: tipsy -> wasted -> unconscious.
+  //
+  // Deliberately a single slug and not the Json { oneOf } shape expiresInto
+  // and removesInto use — a ladder has one next rung, and letting it branch
+  // randomly would make "one more drink" unpredictable in a way no player
+  // could plan around.
+  //
+  // Only the CONSUME path walks it (web/lib/consumeGrants.js). A GM handing
+  // somebody Tipsy twice from the Dev Panel is not pouring them a drink, and
+  // db/lib/tagWrites.js#grantTagSlugs stays deliberately ignorant of this.
+  escalatesInto String?
+
   // The four capability flags. Each one fills exactly one player menu and is
   // re-checked server-side by the matching request; none is derived from the
   // category (docs/systemdocs/TAGS.md §5). All four are explicit in

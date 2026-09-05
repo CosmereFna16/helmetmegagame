@@ -30,6 +30,7 @@ import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { TURNS_PATH } from "@/lib/routes";
 import { createRequest, logRequest, requireReason } from "@/lib/requests";
 import { addToStack, dropCharacterTag, addToRoomStack, dropRoomTag, moveResources } from "@/lib/requestEffects";
+import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
@@ -100,6 +101,11 @@ async function requireCharacter() {
     include: { tags: { include: { tag: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
+  // Every consumer of this guard is an ACT — ordering, cracking a crate,
+  // working the ATM, refuelling the generator. None of it is paperwork you do
+  // from a chair, so the gate sits here rather than on ten call sites.
+  const blocker = blockerFor(character.tags, ACT);
+  if (blocker) throw new UserError(`You can't do that right now — you're ${blocker.name}. ‡`);
   return { session, character };
 }
 

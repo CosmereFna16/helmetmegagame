@@ -19,6 +19,8 @@ const {
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
+  validateEscalatesInto,
+  validateEscalationChains,
   normalizePlacement,
   validatePlacement,
 } = require("./tagShapes");
@@ -220,6 +222,11 @@ async function syncTagsFromYaml(prisma) {
     }
   }
   const allTagSlugs = new Set(tagEntries.map((t) => t.slug));
+  // The escalation ladder is checked across the whole document, not per tag:
+  // the per-tag rule below catches a tag pointing at itself, but only this
+  // can catch tipsy -> wasted -> tipsy, and the consume resolver walks the
+  // chain in a loop.
+  validateEscalationChains(new Map(tagEntries.map((t) => [t.slug, t.escalatesInto ?? null])));
   // For requirement.items: the display labels are denormalized into the stored
   // Json (see db/lib/tagShapes.js), so both maps are needed at write time as
   // well as at validation time. Built from the YAML, not the DB — every slug a
@@ -496,6 +503,7 @@ async function syncTagsFromYaml(prisma) {
       knownSlugs: allTagSlugs,
       durationTurns: t.durationTurns,
     });
+    validateEscalatesInto(t.escalatesInto, { selfSlug: t.slug, knownSlugs: allTagSlugs });
     validateRemovesInto(normalizeRemovesInto(t.removesInto), {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
@@ -655,6 +663,7 @@ async function syncTagsFromYaml(prisma) {
       consumable: entry.consumable ?? false,
       consumesIntoResources: entry.consumesIntoResources ?? null,
       expiresInto: normalizeExpiresInto(entry.expiresInto),
+      escalatesInto: entry.escalatesInto ?? null,
       removesInto: normalizeRemovesInto(entry.removesInto),
       requirementTurns: entry.requirement?.turnsCost ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,

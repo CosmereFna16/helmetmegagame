@@ -38,8 +38,8 @@ the drinker's eyes, a notch at a time (`FACTORY.md` §8).
 |---|---|---|---|---|
 | `bliss` | 0 | 0 | cave fungus | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 | feces | — |
-| `alcohol` | 2 | 1 | — | `tipsy` |
-| `moonshine` | **0** | 1 | **Godflesh** (enforced, kept) | `tipsy`, `blind-drunk` (2t), `damaged-vision` |
+| `alcohol` | 2 | 1 | — | `tipsy` (and up the ladder — §5a) |
+| `moonshine` | **0** | 1 | **Godflesh** (enforced, kept) | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
 | `miasma` | 2 | 1 | **a corpse** (enforced, kept) | — |
 | `poppy` | 2 | 1 | — | `opium-high` |
 | `molotov-cocktail` | 2 | 0 | alcohol | — |
@@ -60,7 +60,7 @@ the drinker's eyes, a notch at a time (`FACTORY.md` §8).
 | `invisibility-potion` | 2 | 1 | a graga sac | `invisible` |
 | `succubus-draught` | 2 | 1 | a willing lover's blood | `mindreading` |
 | `raven-draught` | 2 | 1 | a raven's eye | — |
-| `ravenheart-red` | 4 | 1 | — | `tipsy` |
+| `ravenheart-red` | 4 | 1 | — | `tipsy` (and up the ladder — §5a) |
 | `distilled-coca` | 4 | 1 | coca leaves | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | poppy | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | — | — |
@@ -125,6 +125,48 @@ column instead, phrased the same way every time — "yields up to N per turn":
 **The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
 6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip
 saying so, since the table itself has no room to.
+
+## 5a. The drinking ladder
+
+Every drink still consumes into `tipsy` and none of them names anything else.
+The escalation lives on the status tags themselves, as `Tag.escalatesInto`
+(`docs/tags.yaml`, `db/prisma/schema.prisma`), so a new brew gets the ladder
+for free by consuming into `tipsy` like the rest.
+
+| You are | You drink | You become |
+|---|---|---|
+| sober | anything alcoholic | **Tipsy** (1t) |
+| **Tipsy** | again | **Wasted** — the Tipsy comes off |
+| **Wasted** | again | **Unconscious** |
+| **Unconscious** | — | nothing; you cannot act |
+| **Hangover** | again | **Tipsy**, and round it goes |
+
+**Wasted** and **Unconscious** both expire into **Hangover** (1t) through the
+ordinary `expiresInto` machinery — the same road `seizure` takes to `stupid`,
+with no new turn pass.
+
+**Unconscious is in `INCAPACITATING_SLUGS`** (`db/lib/incapacitation.js`): out
+cold is out cold, so you can be looted, dragged and tied up where you fell. It
+is deliberately **not** in `FINISHABLE_SLUGS` — passing out in a tavern is not
+a death sentence anyone can carry out without a GM.
+
+Three things that are easy to get wrong:
+
+- **Only the consume path climbs.** `db/lib/tagWrites.js#grantTagSlugs` is
+  shared with `removesInto`, Undo and every GM grant, and it stays deliberately
+  ignorant of the ladder. A GM handing somebody Tipsy twice from the Dev Panel
+  does nothing the second time, which is correct — that is not a drink.
+- **The walk starts from the rung you occupy, not the one being granted.**
+  Somebody already Wasted does not hold Tipsy, so a naive "do they hold what
+  I'm granting?" test would pour them a fresh Tipsy instead of putting them on
+  the floor. `web/lib/consumeGrants.js#climbLadder` owns this.
+- **The top rung is a no-op, not a fall.** Drinking while Unconscious clears
+  nothing and grants nothing. Clearing a rung without granting its successor
+  would make one more drink *sober you up*.
+
+The Fighting penalties on all three tags are **prose, not code** — nothing in
+the repo reads `tipsy`. They are numbers a GM weighs while adjudicating, which
+is how Tipsy has always worked.
 
 Brewing files its Routine through the Craft button, same as any other
 craftable tag — `phrygian-tears` and `dreamers-draught` no longer carry

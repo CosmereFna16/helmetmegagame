@@ -169,6 +169,12 @@ sound does not care, because none of those are about sound. A portcullis you
 cannot open is still a portcullis you can yell through. It is deliberately the
 one traversal in the game that never calls `crossingCheck`.
 
+**Who may shout.** The SPEAK capability (`TAGS.md` §5f) — so Mute, Paralyzed,
+Unconscious and mid-Seizure refuse, and **Bound deliberately does not**. Being
+tied up takes your hands, not your voice, and a hostage nobody can hear is a
+hostage nobody can rescue. The check runs *before* the cooldown is claimed, so
+a refused shout does not burn the throat timer.
+
 **What they hear**, from `db/lib/shout.js`:
 
 | Distance | The line |
@@ -469,6 +475,14 @@ The button lives on the Council Room's starter post, and standing in that room
 is the whole gate — there is no tag any more (`CHANNELS.md` §7a). Like Speak,
 the gate is re-checked on **submit**, because an ephemeral modal outlives its
 player walking out of the Keep.
+
+Two tag checks ride along on submit, and never on open (`showModal` *is* the
+acknowledgement, so that handler cannot `ack` first). SPEAK, as everywhere
+else — and **Deaf**, which is the one place in the game that tag does
+anything. A radio is two-way, and a handset you cannot hear is no use to you.
+That is the honest limit of it: a shout and a PA both land in shared Discord
+channels, so a deaf character still reads every broadcast on their screen and
+nothing can change that. See `TAGS.md` §5f.
 
 1200 characters is not arbitrary. The composed line has to fit one Discord
 message per zone: the broadcast pings `@here`, and a chunked message would ping

@@ -11,7 +11,7 @@ const { recordArchiveEvent } = require("./archive");
 const { isUnaffiliated } = require("./factionConstants");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival } = require("./cavingPass");
-const { INCAPACITATING_SLUGS } = require("./incapacitation");
+const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted, isBoated, boatCrossing, equippedSlugs } = require("./mounts");
 const { linkBetween, crossingCheck } = require("./locationGraph");
@@ -144,6 +144,18 @@ class MoveRefused extends Error {
 // ids, re-authorized here — a picker is a hint, not a lock.
 async function performLocationMove(prisma, character, targetLocation, { dragged = [] } = {}) {
   if (!targetLocation?.zone) throw new Error("performLocationMove needs targetLocation.zone");
+
+  // The MOVER's own state, which nothing checked before this: canDrag and
+  // dragReason below both ask whether the TARGET is helpless, and the answer
+  // to "can this character walk at all" was simply never asked. A bound,
+  // paralyzed or unconscious character could stroll out of the room they were
+  // being held in.
+  //
+  // Every crossing in the game funnels through here (db/lib/locationGraph.js),
+  // so this one gate covers the bot's picker, the /location command and the
+  // staged push alike.
+  const stuck = blockerFor(character.tags, ACT);
+  if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
 
   let currentLocation = null;
   if (character.locationId) {

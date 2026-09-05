@@ -563,11 +563,21 @@ not zone-grain (`db/lib/presence.js` / `web/lib/peopleHere.js`): the target
 has to be standing in the same Location and not concealed. The reason field
 and the GM's review are the anti-abuse mechanism, exactly as everywhere else.
 
-**Binding someone also costs them their day's labor.** All four
-`INCAPACITATING_SLUGS` are read on the *afflicted* character's own side too:
-`db/lib/autoLaborPass.js#runAutoLaborPass` silently skips filing a Labor for
-anyone holding one, so a bound target loses their next turn, not just their
-ability to defend themselves (TURN-ENGINE.md §6).
+**Binding someone also costs them their day's labor.** Every
+`INCAPACITATING_SLUGS` slug is read on the *afflicted* character's own side
+too: `db/lib/autoLaborPass.js#runAutoLaborPass` silently skips filing a Labor
+for anyone holding one, so a bound target loses their next turn, not just
+their ability to defend themselves (TURN-ENGINE.md §6).
+
+**And it now costs them nearly everything else.** The actor's own side used to
+be checked by four requests and forgotten by the rest, so a bound character
+could hand over their purse, butcher a corpse, buy from the Depot, write a
+letter or simply walk out of the room they were being held in. Every request
+in this file that is a physical act now goes through
+`requireCharacter({ needs: ACT })`, and travel is gated at
+`db/lib/locationTravel.js#performLocationMove` — the one crossing every path
+in the game funnels through. What ACT covers, what it does not, and why Bound
+still lets you shout, is `TAGS.md` §5f.
 
 **Harm is Wound and Finish in one request**, because they are one act: you
 stand over someone who can't stop you and decide how far to take it. Either
